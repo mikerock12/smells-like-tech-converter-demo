@@ -1,0 +1,9 @@
+{
+  "release": "android-nativos-3",
+  "commit": "compilado por android/nativos/compilar.sh no GitHub Actions (run 36759840986)",
+  "sha256": {
+    "arm64-v8a": "55e4fbd607a7a1f66e4455c81b541e5fb1e3690a2a84f252b23d1d83f417d029",
+    "armeabi-v7a": "136fc64a2e264be91143610ead2ba8489c180b89cb624431f5d0be18b25239aa",
+    "x86_64": "86bbfddf9633ba32467abe25677465d747df9097ac924d9f271a6b00f123f062"
+  }
+}

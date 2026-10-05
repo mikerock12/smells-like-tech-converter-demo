@@ -1,0 +1,116 @@
+<Window
+    x:Class="SmellsLikeTech.Converter.Desktop.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:muxc="using:Microsoft.UI.Xaml.Controls"
+    Title="Smells Like Tech Converter">
+
+    <Grid x:Name="RootGrid" Background="{StaticResource BrandBackgroundBrush}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="52" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- Barra de título própria, no estilo da referência -->
+        <Grid x:Name="AppTitleBar" Grid.Row="0" Background="#08080C">
+            <Border VerticalAlignment="Bottom" Height="1" Background="{StaticResource BrandStrokeGlowBrush}" />
+            <StackPanel
+                Orientation="Horizontal"
+                Spacing="12"
+                Margin="16,0,0,0"
+                VerticalAlignment="Center">
+                <Image x:Name="TitleIcon" Width="30" Height="30" />
+                <Image x:Name="TitleWordmark" Height="26" Stretch="Uniform" />
+                <Border
+                    Background="#1A1A22"
+                    BorderBrush="{StaticResource BrandStrokeGlowBrush}"
+                    BorderThickness="1"
+                    CornerRadius="4"
+                    Padding="8,2"
+                    VerticalAlignment="Center">
+                    <TextBlock
+                        Text="DESKTOP"
+                        FontSize="10"
+                        CharacterSpacing="120"
+                        Foreground="{StaticResource BrandAmberBrush}" />
+                </Border>
+            </StackPanel>
+        </Grid>
+
+        <muxc:NavigationView
+            x:Name="Navigation"
+            Grid.Row="1"
+            IsBackButtonVisible="Collapsed"
+            IsSettingsVisible="False"
+            IsPaneToggleButtonVisible="False"
+            PaneDisplayMode="Left"
+            OpenPaneLength="230"
+            Background="{StaticResource BrandBackgroundBrush}"
+            SelectionChanged="OnNavigationSelectionChanged">
+
+            <muxc:NavigationView.MenuItems>
+                <muxc:NavigationViewItem Content="Converter" Tag="home" IsSelected="True">
+                    <muxc:NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE8AB;" />
+                    </muxc:NavigationViewItem.Icon>
+                </muxc:NavigationViewItem>
+                <muxc:NavigationViewItem Content="Vários arquivos" Tag="batch">
+                    <muxc:NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE8B7;" />
+                    </muxc:NavigationViewItem.Icon>
+                </muxc:NavigationViewItem>
+                <muxc:NavigationViewItem Content="Fila" Tag="queue">
+                    <muxc:NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE8FD;" />
+                    </muxc:NavigationViewItem.Icon>
+                </muxc:NavigationViewItem>
+                <muxc:NavigationViewItem Content="Texto para voz" Tag="speech">
+                    <muxc:NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE720;" />
+                    </muxc:NavigationViewItem.Icon>
+                </muxc:NavigationViewItem>
+                <muxc:NavigationViewItem Content="Histórico" Tag="history">
+                    <muxc:NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE81C;" />
+                    </muxc:NavigationViewItem.Icon>
+                </muxc:NavigationViewItem>
+                <muxc:NavigationViewItem Content="Configurações" Tag="settings">
+                    <muxc:NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE713;" />
+                    </muxc:NavigationViewItem.Icon>
+                </muxc:NavigationViewItem>
+            </muxc:NavigationView.MenuItems>
+
+            <muxc:NavigationView.PaneFooter>
+                <StackPanel Padding="14,10" Spacing="6">
+                    <Border
+                        Background="#12121A"
+                        BorderBrush="{StaticResource BrandStrokeBrush}"
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        Padding="10,8">
+                        <StackPanel Spacing="3">
+                            <TextBlock
+                                x:Name="QueueSummaryText"
+                                FontSize="12"
+                                Foreground="{StaticResource BrandAmberBrush}"
+                                Text="Nada na fila" />
+                            <TextBlock
+                                x:Name="DiskSummaryText"
+                                FontSize="11"
+                                Foreground="{StaticResource BrandTextMutedBrush}"
+                                TextWrapping="Wrap"
+                                Text="" />
+                        </StackPanel>
+                    </Border>
+                    <TextBlock
+                        FontSize="10"
+                        Foreground="{StaticResource BrandTextMutedBrush}"
+                        Text="Smells Like Tech Informática" />
+                </StackPanel>
+            </muxc:NavigationView.PaneFooter>
+
+            <Frame x:Name="ContentFrame" />
+        </muxc:NavigationView>
+    </Grid>
+</Window>

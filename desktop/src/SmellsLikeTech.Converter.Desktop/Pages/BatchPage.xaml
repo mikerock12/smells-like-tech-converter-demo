@@ -1,0 +1,136 @@
+<Page
+    x:Class="SmellsLikeTech.Converter.Desktop.Pages.BatchPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Background="{StaticResource BrandBackgroundBrush}">
+
+    <!-- A página inteira aceita arquivos: soltar fora do quadro pontilhado
+         não pode dar a impressão de que nada aconteceu. -->
+    <Grid
+        x:Name="PageRoot"
+        Padding="18,14,18,18"
+        Background="Transparent"
+        AllowDrop="True"
+        DragOver="OnDragOver"
+        DragLeave="OnDragLeave"
+        Drop="OnDrop">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- ==================== Entrada ==================== -->
+        <Border
+            x:Name="DropZone"
+            Grid.Row="0"
+            AllowDrop="True"
+            DragOver="OnDragOver"
+            DragLeave="OnDragLeave"
+            Drop="OnDrop"
+            Margin="{StaticResource SectionMargin}"
+            Padding="18,14"
+            Background="#0B0B10"
+            BorderBrush="{StaticResource BrandStrokeGlowBrush}"
+            BorderThickness="2"
+            CornerRadius="{StaticResource CardCornerRadius}">
+            <Grid ColumnSpacing="16">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <FontIcon
+                    Grid.Column="0"
+                    Glyph="&#xE8E5;"
+                    FontSize="24"
+                    VerticalAlignment="Center"
+                    Foreground="{StaticResource BrandOrangeBrush}" />
+
+                <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                    <TextBlock Text="Vários arquivos de uma vez" FontSize="16" FontWeight="SemiBold" />
+                    <TextBlock
+                        x:Name="SummaryText"
+                        Text="Arraste os arquivos aqui. Eles são agrupados por tipo, e cada grupo escolhe o que fazer."
+                        FontSize="12"
+                        TextWrapping="Wrap"
+                        Foreground="{StaticResource BrandTextMutedBrush}" />
+                </StackPanel>
+
+                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                    <Button Content="Adicionar arquivos" Click="OnPickFiles" />
+                    <Button x:Name="ClearButton" Content="Limpar" Click="OnClear" IsEnabled="False" />
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- ==================== Grupos ==================== -->
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="0,0,6,0">
+            <StackPanel>
+                <InfoBar
+                    x:Name="RejectedBar"
+                    IsOpen="False"
+                    IsClosable="True"
+                    Severity="Warning"
+                    Margin="{StaticResource SectionMargin}" />
+
+                <Border x:Name="EmptyCard" Style="{StaticResource CardBorderStyle}">
+                    <StackPanel Spacing="10">
+                        <TextBlock Text="COMO FUNCIONA" Style="{StaticResource SectionTitleStyle}" />
+                        <TextBlock
+                            Text="Solte quantos arquivos quiser. O programa separa por tipo e pergunta uma vez para cada grupo: todas as músicas para o mesmo formato, com o volume normalizado; todos os PDFs para DOCX; e assim por diante."
+                            FontSize="13"
+                            TextWrapping="Wrap"
+                            Foreground="{StaticResource BrandTextMutedBrush}" />
+                        <TextBlock
+                            Text="Se um arquivo do grupo precisar de algo diferente, escolha “Configurar um por um” naquele grupo — o resto continua junto."
+                            FontSize="13"
+                            TextWrapping="Wrap"
+                            Foreground="{StaticResource BrandTextMutedBrush}" />
+                    </StackPanel>
+                </Border>
+
+                <StackPanel x:Name="GroupsPanel" />
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- ==================== Saída e ação ==================== -->
+        <Border Grid.Row="2" Style="{StaticResource GlowCardBorderStyle}" Margin="0,14,0,0">
+            <Grid ColumnSpacing="18">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="300" />
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" Spacing="8">
+                    <TextBlock Text="SAÍDA" Style="{StaticResource SectionTitleStyle}" />
+                    <StackPanel Orientation="Horizontal" Spacing="12">
+                        <Button Content="Escolher pasta de saída" Click="OnPickOutputFolder" />
+                        <TextBlock
+                            x:Name="OutputFolderText"
+                            FontSize="11"
+                            VerticalAlignment="Center"
+                            TextTrimming="CharacterEllipsis"
+                            Foreground="{StaticResource BrandTextMutedBrush}" />
+                    </StackPanel>
+                    <InfoBar x:Name="StatusBar" IsOpen="False" IsClosable="True" Severity="Informational" />
+                </StackPanel>
+
+                <Button
+                    x:Name="ConvertButton"
+                    Grid.Column="1"
+                    VerticalAlignment="Bottom"
+                    Style="{StaticResource BrandActionButtonStyle}"
+                    Click="OnConvertAll"
+                    AutomationProperties.Name="Converter todos os arquivos do lote"
+                    IsEnabled="False">
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                        <TextBlock x:Name="ConvertButtonText" Text="CONVERTER TUDO" FontWeight="Bold" CharacterSpacing="100" />
+                        <FontIcon Glyph="&#xE72A;" FontSize="15" />
+                    </StackPanel>
+                </Button>
+            </Grid>
+        </Border>
+    </Grid>
+</Page>

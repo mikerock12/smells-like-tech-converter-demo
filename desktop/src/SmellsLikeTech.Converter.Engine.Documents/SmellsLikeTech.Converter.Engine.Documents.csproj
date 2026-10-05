@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <!-- Versao do SDK do Windows necessaria para o motor de OCR do proprio sistema. -->
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <SupportedOSPlatformVersion>10.0.19041.0</SupportedOSPlatformVersion>
+    <RootNamespace>SmellsLikeTech.Converter.Engine.Documents</RootNamespace>
+    <Description>PDF, OCR e documentos.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Leitura de PDF em .NET puro, sem depender de ferramenta externa instalada. -->
+    <PackageReference Include="PdfPig" Version="0.1.11" />
+    <!-- Escrita de DOCX. -->
+    <PackageReference Include="DocumentFormat.OpenXml" Version="3.3.0" />
+    <!-- Rasterizacao de paginas (PDFium) para OCR de PDF escaneado e para PDF em imagens. -->
+    <PackageReference Include="PDFtoImage" Version="5.1.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="SmellsLikeTech.Converter.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\SmellsLikeTech.Converter.Core\SmellsLikeTech.Converter.Core.csproj" />
+    <ProjectReference Include="..\SmellsLikeTech.Converter.Infrastructure\SmellsLikeTech.Converter.Infrastructure.csproj" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,292 @@
+<Page
+    x:Class="SmellsLikeTech.Converter.Desktop.Pages.HomePage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:vm="using:SmellsLikeTech.Converter.Desktop.ViewModels"
+    xmlns:controls="using:SmellsLikeTech.Converter.Desktop.Controls"
+    Background="{StaticResource BrandBackgroundBrush}">
+
+    <!-- A página inteira aceita arquivos arrastados, não só a área pontilhada:
+         soltar um pouco fora dela não pode dar a impressão de que nada funciona. -->
+    <Grid
+        x:Name="PageRoot"
+        Padding="18,14,18,18"
+        Background="Transparent"
+        AllowDrop="True"
+        DragOver="OnDragOver"
+        DragLeave="OnDragLeave"
+        Drop="OnDrop">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="286" />
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="360" />
+        </Grid.ColumnDefinitions>
+
+        <!-- ==================== COLUNA 1: marca ==================== -->
+        <Border Grid.Column="0" Style="{StaticResource GlowCardBorderStyle}" Padding="0" Margin="0,0,14,0">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <Grid Grid.Row="0">
+                    <Image x:Name="MascotImage" Stretch="UniformToFill" VerticalAlignment="Top" />
+                    <Border VerticalAlignment="Bottom" Height="120">
+                        <Border.Background>
+                            <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                <GradientStop Color="#000A0A0E" Offset="0" />
+                                <GradientStop Color="#FF0A0A0E" Offset="1" />
+                            </LinearGradientBrush>
+                        </Border.Background>
+                    </Border>
+                </Grid>
+
+                <StackPanel Grid.Row="1" Padding="16,0,16,16" Spacing="10">
+                    <TextBlock
+                        Text="Bem-vindo ao"
+                        FontSize="13"
+                        Foreground="{StaticResource BrandTextMutedBrush}" />
+                    <TextBlock
+                        Text="Smells Like Tech Converter"
+                        FontSize="17"
+                        FontWeight="SemiBold"
+                        TextWrapping="Wrap"
+                        Foreground="{StaticResource BrandAmberBrush}" />
+                    <TextBlock
+                        Text="Converta arquivos com velocidade, qualidade e tecnologia."
+                        FontSize="12"
+                        TextWrapping="Wrap"
+                        Foreground="{StaticResource BrandTextMutedBrush}" />
+
+                    <StackPanel Spacing="7" Margin="0,6,0,0">
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <FontIcon Glyph="&#xE945;" FontSize="14" Foreground="{StaticResource BrandOrangeBrush}" />
+                            <TextBlock Text="RÁPIDO" FontSize="12" CharacterSpacing="80" />
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <FontIcon Glyph="&#xE72E;" FontSize="14" Foreground="{StaticResource BrandOrangeBrush}" />
+                            <TextBlock Text="SEGURO" FontSize="12" CharacterSpacing="80" />
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <FontIcon Glyph="&#xE930;" FontSize="14" Foreground="{StaticResource BrandOrangeBrush}" />
+                            <TextBlock Text="CONFIÁVEL" FontSize="12" CharacterSpacing="80" />
+                        </StackPanel>
+                    </StackPanel>
+
+                    <Border Height="1" Background="{StaticResource BrandStrokeBrush}" Margin="0,4,0,0" />
+                    <TextBlock
+                        x:Name="EngineStatusText"
+                        FontSize="11"
+                        TextWrapping="Wrap"
+                        Foreground="{StaticResource BrandTextMutedBrush}" />
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- ==================== COLUNA 2: entrada e opções ==================== -->
+        <Grid Grid.Column="1" Margin="0,0,14,0">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+
+            <Border
+                x:Name="DropZone"
+                Grid.Row="0"
+                AllowDrop="True"
+                DragOver="OnDragOver"
+                DragLeave="OnDragLeave"
+                Drop="OnDrop"
+                Height="150"
+                Margin="{StaticResource SectionMargin}"
+                Background="#0B0B10"
+                BorderBrush="{StaticResource BrandStrokeGlowBrush}"
+                BorderThickness="2"
+                CornerRadius="{StaticResource CardCornerRadius}">
+                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="8">
+                    <FontIcon Glyph="&#xE8E5;" FontSize="26" Foreground="{StaticResource BrandOrangeBrush}" />
+                    <TextBlock
+                        Text="Arraste um ou vários arquivos aqui"
+                        FontSize="16"
+                        FontWeight="SemiBold"
+                        HorizontalAlignment="Center" />
+                    <TextBlock
+                        Text="Imagem · Vídeo · Áudio · PDF · Texto — vários de uma vez abrem a tela de lote"
+                        FontSize="11"
+                        Foreground="{StaticResource BrandTextMutedBrush}"
+                        HorizontalAlignment="Center" />
+                    <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,4,0,0" HorizontalAlignment="Center">
+                        <Button Content="Selecionar arquivo" Click="OnPickFile" />
+                        <Button Content="Selecionar vários" Click="OnPickManyFiles" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="0,0,6,0">
+                <StackPanel>
+                    <!-- Arquivo detectado -->
+                    <Border x:Name="FileCard" Style="{StaticResource CardBorderStyle}" Visibility="Collapsed">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Border
+                                Grid.Column="0"
+                                Width="46"
+                                Height="46"
+                                CornerRadius="8"
+                                Background="#1A1A22"
+                                Margin="0,0,14,0"
+                                VerticalAlignment="Top">
+                                <FontIcon x:Name="FileKindIcon" Glyph="&#xE8A5;" FontSize="20" Foreground="{StaticResource BrandOrangeBrush}" />
+                            </Border>
+                            <StackPanel Grid.Column="1" Spacing="4">
+                                <TextBlock x:Name="FileNameText" FontSize="15" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                                <TextBlock
+                                    x:Name="FileMetaText"
+                                    FontSize="12"
+                                    TextWrapping="Wrap"
+                                    Foreground="{StaticResource BrandTextMutedBrush}" />
+                                <TextBlock
+                                    x:Name="FileStreamsText"
+                                    FontSize="11"
+                                    TextWrapping="Wrap"
+                                    Foreground="{StaticResource BrandTextMutedBrush}" />
+                                <InfoBar
+                                    x:Name="FileWarningBar"
+                                    IsOpen="False"
+                                    IsClosable="False"
+                                    Severity="Warning"
+                                    Margin="0,6,0,0" />
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <!-- Opções: os campos vêm do mesmo controle usado na tela de lote. -->
+                    <Border x:Name="OptionsCard" Style="{StaticResource CardBorderStyle}" Visibility="Collapsed">
+                        <StackPanel Spacing="14">
+                            <TextBlock Text="OPÇÕES" Style="{StaticResource SectionTitleStyle}" />
+                            <controls:ConversionOptionsView x:Name="OptionsView" />
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
+
+        <!-- ==================== COLUNA 3: operações e ação ==================== -->
+        <Grid Grid.Column="2">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto" Padding="0,0,6,0">
+                <StackPanel>
+                    <Border Style="{StaticResource CardBorderStyle}">
+                        <StackPanel>
+                            <TextBlock Text="O QUE FAZER" Style="{StaticResource SectionTitleStyle}" />
+                            <TextBlock
+                                x:Name="OperationHintText"
+                                Text="Solte um arquivo para ver as conversões compatíveis."
+                                FontSize="12"
+                                TextWrapping="Wrap"
+                                Foreground="{StaticResource BrandTextMutedBrush}" />
+                            <ListView
+                                x:Name="OperationList"
+                                SelectionMode="Single"
+                                SelectionChanged="OnOperationChanged"
+                                Margin="0,8,0,0">
+                                <ListView.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:OperationItemViewModel">
+                                        <!-- Sem isto o leitor de tela anuncia o nome da classe. -->
+                                        <Grid Padding="2,8" Opacity="{x:Bind ContentOpacity}"
+                                              AutomationProperties.Name="{x:Bind Title}">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <FontIcon
+                                                Grid.Column="0"
+                                                Glyph="{x:Bind Glyph}"
+                                                FontSize="17"
+                                                Margin="0,0,12,0"
+                                                Foreground="{StaticResource BrandOrangeBrush}" />
+                                            <StackPanel Grid.Column="1">
+                                                <TextBlock Text="{x:Bind Title}" FontSize="14" FontWeight="SemiBold" />
+                                                <TextBlock
+                                                    Text="{x:Bind Description}"
+                                                    FontSize="11"
+                                                    TextWrapping="Wrap"
+                                                    Foreground="{StaticResource BrandTextMutedBrush}" />
+                                            </StackPanel>
+                                            <Border
+                                                Grid.Column="2"
+                                                Visibility="{x:Bind HasBadge}"
+                                                Background="#221A0A"
+                                                BorderBrush="{StaticResource BrandStrokeGlowBrush}"
+                                                BorderThickness="1"
+                                                CornerRadius="4"
+                                                Padding="6,2"
+                                                VerticalAlignment="Center">
+                                                <TextBlock Text="{x:Bind BadgeText}" FontSize="10" Foreground="{StaticResource BrandAmberBrush}" />
+                                            </Border>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ListView.ItemTemplate>
+                            </ListView>
+                        </StackPanel>
+                    </Border>
+
+                    <Border x:Name="PresetCard" Style="{StaticResource CardBorderStyle}" Visibility="Collapsed">
+                        <StackPanel>
+                            <TextBlock Text="PRESETS" Style="{StaticResource SectionTitleStyle}" />
+                            <ListView x:Name="PresetList" SelectionMode="Single" SelectionChanged="OnPresetChanged">
+                                <ListView.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:PresetItemViewModel">
+                                        <StackPanel Padding="2,6" AutomationProperties.Name="{x:Bind Name}">
+                                            <TextBlock Text="{x:Bind Name}" FontSize="13" FontWeight="SemiBold" />
+                                            <TextBlock
+                                                Text="{x:Bind Description}"
+                                                FontSize="11"
+                                                Foreground="{StaticResource BrandTextMutedBrush}" />
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ListView.ItemTemplate>
+                            </ListView>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+
+            <Border Grid.Row="1" Style="{StaticResource GlowCardBorderStyle}" Margin="0,14,0,0">
+                <StackPanel Spacing="10">
+                    <TextBlock Text="SAÍDA" Style="{StaticResource SectionTitleStyle}" />
+                    <TextBlock
+                        x:Name="OutputFolderText"
+                        FontSize="11"
+                        TextWrapping="Wrap"
+                        TextTrimming="CharacterEllipsis"
+                        Foreground="{StaticResource BrandTextMutedBrush}" />
+                    <Button Content="Escolher pasta de saída" Click="OnPickOutputFolder" HorizontalAlignment="Stretch" />
+
+                    <InfoBar x:Name="StatusBar" IsOpen="False" IsClosable="True" Severity="Informational" />
+
+                    <Button
+                        x:Name="ConvertButton"
+                        Style="{StaticResource BrandActionButtonStyle}"
+                        Click="OnConvert"
+                        AutomationProperties.Name="Iniciar conversão"
+                        IsEnabled="False">
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <TextBlock Text="CONVERTER" FontWeight="Bold" CharacterSpacing="100" />
+                            <FontIcon Glyph="&#xE72A;" FontSize="15" />
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+            </Border>
+        </Grid>
+    </Grid>
+</Page>

@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <!-- Versao do SDK do Windows exigida pelo motor de OCR do sistema. -->
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <SupportedOSPlatformVersion>10.0.19041.0</SupportedOSPlatformVersion>
+    <RootNamespace>SmellsLikeTech.Converter.Tests</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.5" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Necessario para construir um HttpContext de mentira e testar a porta de entrada
+         do plugin sem subir servidor nenhum. -->
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\SmellsLikeTech.Converter.Bridge\SmellsLikeTech.Converter.Bridge.csproj" />
+    <ProjectReference Include="..\..\src\SmellsLikeTech.Converter.Core\SmellsLikeTech.Converter.Core.csproj" />
+    <ProjectReference Include="..\..\src\SmellsLikeTech.Converter.Infrastructure\SmellsLikeTech.Converter.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\SmellsLikeTech.Converter.Engine.FFmpeg\SmellsLikeTech.Converter.Engine.FFmpeg.csproj" />
+    <ProjectReference Include="..\..\src\SmellsLikeTech.Converter.Engine.Image\SmellsLikeTech.Converter.Engine.Image.csproj" />
+    <ProjectReference Include="..\..\src\SmellsLikeTech.Converter.Engine.Speech\SmellsLikeTech.Converter.Engine.Speech.csproj" />
+    <ProjectReference Include="..\..\src\SmellsLikeTech.Converter.Engine.Documents\SmellsLikeTech.Converter.Engine.Documents.csproj" />
+  </ItemGroup>
+</Project>

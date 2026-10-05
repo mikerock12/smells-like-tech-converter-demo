@@ -1,0 +1,43 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <TargetPlatformMinVersion>10.0.19041.0</TargetPlatformMinVersion>
+    <RootNamespace>SmellsLikeTech.Converter.Desktop</RootNamespace>
+    <AssemblyName>SmellsLikeTechConverter</AssemblyName>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\icon.ico</ApplicationIcon>
+
+    <UseWinUI>true</UseWinUI>
+    <!-- .exe classico: sem MSIX e sem exigir o runtime do Windows App SDK instalado. -->
+    <WindowsPackageType>None</WindowsPackageType>
+    <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
+    <SelfContained>true</SelfContained>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <!-- Necessário mesmo sem MSIX: é o que leva o XAML compilado (.xbf) e o índice
+         de recursos (.pri) para a saída do publish. Sem isso o app publicado nem abre. -->
+    <EnableMsixTooling>true</EnableMsixTooling>
+    <PublishSingleFile>false</PublishSingleFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Ícone, marca e vinheta de abertura, copiados ao lado do executável. -->
+    <Content Include="Assets\**\*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.8.*" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\SmellsLikeTech.Converter.Composition\SmellsLikeTech.Converter.Composition.csproj" />
+    <ProjectReference Include="..\SmellsLikeTech.Converter.Core\SmellsLikeTech.Converter.Core.csproj" />
+    <ProjectReference Include="..\SmellsLikeTech.Converter.Infrastructure\SmellsLikeTech.Converter.Infrastructure.csproj" />
+    <ProjectReference Include="..\SmellsLikeTech.Converter.Engine.FFmpeg\SmellsLikeTech.Converter.Engine.FFmpeg.csproj" />
+    <ProjectReference Include="..\SmellsLikeTech.Converter.Engine.Image\SmellsLikeTech.Converter.Engine.Image.csproj" />
+    <ProjectReference Include="..\SmellsLikeTech.Converter.Engine.Speech\SmellsLikeTech.Converter.Engine.Speech.csproj" />
+    <ProjectReference Include="..\SmellsLikeTech.Converter.Engine.Documents\SmellsLikeTech.Converter.Engine.Documents.csproj" />
+  </ItemGroup>
+</Project>

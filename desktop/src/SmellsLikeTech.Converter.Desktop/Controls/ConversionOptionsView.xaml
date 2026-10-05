@@ -1,0 +1,323 @@
+<UserControl
+    x:Class="SmellsLikeTech.Converter.Desktop.Controls.ConversionOptionsView"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- Os campos de todas as conversões moram aqui, e só um conjunto fica visível por vez.
+         A tela de um arquivo e a tela de lote usam este mesmo controle: duas cópias destes
+         campos ficariam diferentes na primeira correção feita em apenas uma delas. -->
+    <StackPanel Spacing="14">
+        <StackPanel>
+            <TextBlock Text="Formato de saída" Style="{StaticResource FieldLabelStyle}" />
+            <ComboBox x:Name="FormatCombo" HorizontalAlignment="Stretch" SelectionChanged="OnFormatChanged" />
+        </StackPanel>
+
+        <!-- Vídeo -->
+        <StackPanel x:Name="VideoPanel" Spacing="12" Visibility="Collapsed">
+            <Border Height="1" Background="{StaticResource BrandStrokeBrush}" />
+            <Grid ColumnSpacing="12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0">
+                    <TextBlock Text="Resolução" Style="{StaticResource FieldLabelStyle}" />
+                    <ComboBox x:Name="ResolutionCombo" HorizontalAlignment="Stretch" SelectionChanged="OnResolutionChanged" />
+                </StackPanel>
+                <StackPanel Grid.Column="1">
+                    <TextBlock Text="Codec" Style="{StaticResource FieldLabelStyle}" />
+                    <ComboBox x:Name="CodecCombo" HorizontalAlignment="Stretch" />
+                </StackPanel>
+            </Grid>
+
+            <Grid x:Name="CustomSizePanel" ColumnSpacing="12" Visibility="Collapsed">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0">
+                    <TextBlock Text="Largura" Style="{StaticResource FieldLabelStyle}" />
+                    <NumberBox x:Name="CustomWidthBox" Value="1080" Minimum="16" Maximum="7680" SpinButtonPlacementMode="Compact" />
+                </StackPanel>
+                <StackPanel Grid.Column="1">
+                    <TextBlock Text="Altura" Style="{StaticResource FieldLabelStyle}" />
+                    <NumberBox x:Name="CustomHeightBox" Value="1920" Minimum="16" Maximum="7680" SpinButtonPlacementMode="Compact" />
+                </StackPanel>
+            </Grid>
+
+            <Grid ColumnSpacing="12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0">
+                    <TextBlock Text="Proporção" Style="{StaticResource FieldLabelStyle}" />
+                    <ComboBox x:Name="AspectCombo" HorizontalAlignment="Stretch" />
+                </StackPanel>
+                <StackPanel Grid.Column="1">
+                    <TextBlock Text="Ajuste" Style="{StaticResource FieldLabelStyle}" />
+                    <ComboBox x:Name="FitCombo" HorizontalAlignment="Stretch" />
+                </StackPanel>
+                <StackPanel Grid.Column="2">
+                    <TextBlock Text="FPS" Style="{StaticResource FieldLabelStyle}" />
+                    <ComboBox x:Name="FpsCombo" HorizontalAlignment="Stretch" />
+                </StackPanel>
+            </Grid>
+
+            <StackPanel>
+                <Grid>
+                    <TextBlock Text="Qualidade" Style="{StaticResource FieldLabelStyle}" />
+                    <TextBlock x:Name="QualityValueText" Text="65" FontSize="12" HorizontalAlignment="Right"
+                               Foreground="{StaticResource BrandAmberBrush}" />
+                </Grid>
+                <Slider x:Name="QualitySlider" Minimum="0" Maximum="100" Value="65" StepFrequency="1"
+                        ValueChanged="OnQualityChanged" />
+            </StackPanel>
+
+            <Grid ColumnSpacing="12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0">
+                    <TextBlock Text="Velocidade" Style="{StaticResource FieldLabelStyle}" />
+                    <ComboBox x:Name="SpeedCombo" HorizontalAlignment="Stretch" />
+                </StackPanel>
+                <StackPanel Grid.Column="1">
+                    <TextBlock Text="Rotação" Style="{StaticResource FieldLabelStyle}" />
+                    <ComboBox x:Name="RotationCombo" HorizontalAlignment="Stretch" />
+                </StackPanel>
+                <StackPanel Grid.Column="2">
+                    <TextBlock Text="Áudio" Style="{StaticResource FieldLabelStyle}" />
+                    <ComboBox x:Name="AudioActionCombo" HorizontalAlignment="Stretch" />
+                </StackPanel>
+            </Grid>
+
+            <StackPanel Orientation="Horizontal" Spacing="18">
+                <CheckBox x:Name="FlipHorizontalCheck" Content="Espelhar na horizontal" />
+                <CheckBox x:Name="FlipVerticalCheck" Content="Espelhar na vertical" />
+            </StackPanel>
+        </StackPanel>
+
+        <!-- Áudio -->
+        <StackPanel x:Name="AudioPanel" Spacing="12" Visibility="Collapsed">
+            <Border Height="1" Background="{StaticResource BrandStrokeBrush}" />
+            <StackPanel x:Name="AudioTrackPanel" Visibility="Collapsed">
+                <TextBlock Text="Faixa de áudio" Style="{StaticResource FieldLabelStyle}" />
+                <ComboBox x:Name="AudioTrackCombo" HorizontalAlignment="Stretch" />
+            </StackPanel>
+            <Grid ColumnSpacing="12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0">
+                    <TextBlock Text="Bitrate" Style="{StaticResource FieldLabelStyle}" />
+                    <ComboBox x:Name="AudioBitrateCombo" HorizontalAlignment="Stretch" />
+                </StackPanel>
+                <StackPanel Grid.Column="1">
+                    <TextBlock Text="Sample rate" Style="{StaticResource FieldLabelStyle}" />
+                    <ComboBox x:Name="SampleRateCombo" HorizontalAlignment="Stretch" />
+                </StackPanel>
+                <StackPanel Grid.Column="2">
+                    <TextBlock Text="Canais" Style="{StaticResource FieldLabelStyle}" />
+                    <ComboBox x:Name="ChannelsCombo" HorizontalAlignment="Stretch" />
+                </StackPanel>
+            </Grid>
+            <CheckBox x:Name="NormalizeCheck" Content="Normalizar volume (loudnorm)" />
+        </StackPanel>
+
+        <!-- Imagem -->
+        <StackPanel x:Name="ImagePanel" Spacing="12" Visibility="Collapsed">
+            <Border Height="1" Background="{StaticResource BrandStrokeBrush}" />
+            <Grid ColumnSpacing="12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0">
+                    <TextBlock Text="Redimensionar" Style="{StaticResource FieldLabelStyle}" />
+                    <ComboBox x:Name="ResizeModeCombo" HorizontalAlignment="Stretch" SelectionChanged="OnResizeModeChanged" />
+                </StackPanel>
+                <StackPanel Grid.Column="1">
+                    <TextBlock Text="Proporção" Style="{StaticResource FieldLabelStyle}" />
+                    <ComboBox x:Name="ImageAspectCombo" HorizontalAlignment="Stretch" />
+                </StackPanel>
+            </Grid>
+
+            <Grid x:Name="ImageSizePanel" ColumnSpacing="12" Visibility="Collapsed">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0" x:Name="ImageWidthPanel">
+                    <TextBlock Text="Largura (px)" Style="{StaticResource FieldLabelStyle}" />
+                    <NumberBox x:Name="ImageWidthBox" Value="1920" Minimum="1" Maximum="20000" SpinButtonPlacementMode="Compact" />
+                </StackPanel>
+                <StackPanel Grid.Column="1" x:Name="ImageHeightPanel">
+                    <TextBlock Text="Altura (px)" Style="{StaticResource FieldLabelStyle}" />
+                    <NumberBox x:Name="ImageHeightBox" Value="1080" Minimum="1" Maximum="20000" SpinButtonPlacementMode="Compact" />
+                </StackPanel>
+                <StackPanel Grid.Column="2" x:Name="ImagePercentPanel">
+                    <TextBlock Text="Porcentagem" Style="{StaticResource FieldLabelStyle}" />
+                    <NumberBox x:Name="ImagePercentBox" Value="50" Minimum="1" Maximum="1000" SpinButtonPlacementMode="Compact" />
+                </StackPanel>
+            </Grid>
+
+            <Grid ColumnSpacing="12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0">
+                    <TextBlock Text="Ajuste" Style="{StaticResource FieldLabelStyle}" />
+                    <ComboBox x:Name="ImageFitCombo" HorizontalAlignment="Stretch" />
+                </StackPanel>
+                <StackPanel Grid.Column="1">
+                    <TextBlock Text="Rotação" Style="{StaticResource FieldLabelStyle}" />
+                    <ComboBox x:Name="ImageRotationCombo" HorizontalAlignment="Stretch" />
+                </StackPanel>
+            </Grid>
+
+            <StackPanel>
+                <Grid>
+                    <TextBlock Text="Qualidade" Style="{StaticResource FieldLabelStyle}" />
+                    <TextBlock x:Name="ImageQualityValueText" Text="80" FontSize="12" HorizontalAlignment="Right"
+                               Foreground="{StaticResource BrandAmberBrush}" />
+                </Grid>
+                <Slider x:Name="ImageQualitySlider" Minimum="1" Maximum="100" Value="80" StepFrequency="1"
+                        ValueChanged="OnImageQualityChanged" />
+            </StackPanel>
+
+            <StackPanel Orientation="Horizontal" Spacing="18">
+                <CheckBox x:Name="ImageFlipHorizontalCheck" Content="Espelhar" />
+                <CheckBox x:Name="KeepTransparencyCheck" Content="Manter transparência" IsChecked="True" />
+                <CheckBox x:Name="StripMetadataCheck" Content="Remover metadados" IsChecked="True" />
+            </StackPanel>
+        </StackPanel>
+
+        <!-- GIF -->
+        <StackPanel x:Name="GifPanel" Spacing="12" Visibility="Collapsed">
+            <Border Height="1" Background="{StaticResource BrandStrokeBrush}" />
+            <Grid ColumnSpacing="12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0">
+                    <TextBlock Text="Quadros por segundo" Style="{StaticResource FieldLabelStyle}" />
+                    <ComboBox x:Name="GifFpsCombo" HorizontalAlignment="Stretch" />
+                </StackPanel>
+                <StackPanel Grid.Column="1">
+                    <TextBlock Text="Largura" Style="{StaticResource FieldLabelStyle}" />
+                    <ComboBox x:Name="GifWidthCombo" HorizontalAlignment="Stretch" />
+                </StackPanel>
+            </Grid>
+        </StackPanel>
+
+        <!-- Frames -->
+        <StackPanel x:Name="FramesPanel" Spacing="12" Visibility="Collapsed">
+            <Border Height="1" Background="{StaticResource BrandStrokeBrush}" />
+            <Grid ColumnSpacing="12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0">
+                    <TextBlock Text="Quadros por segundo" Style="{StaticResource FieldLabelStyle}" />
+                    <ComboBox x:Name="FramesRateCombo" HorizontalAlignment="Stretch" />
+                </StackPanel>
+                <StackPanel Grid.Column="1">
+                    <TextBlock Text="Máximo de quadros" Style="{StaticResource FieldLabelStyle}" />
+                    <NumberBox x:Name="MaxFramesBox" Value="300" Minimum="1" Maximum="5000" SpinButtonPlacementMode="Compact" />
+                </StackPanel>
+            </Grid>
+        </StackPanel>
+
+        <!-- Transcrição -->
+        <StackPanel x:Name="TranscribePanel" Spacing="12" Visibility="Collapsed">
+            <Border Height="1" Background="{StaticResource BrandStrokeBrush}" />
+            <Grid ColumnSpacing="12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0">
+                    <TextBlock Text="Idioma" Style="{StaticResource FieldLabelStyle}" />
+                    <ComboBox x:Name="LanguageCombo" HorizontalAlignment="Stretch" />
+                </StackPanel>
+                <StackPanel Grid.Column="1">
+                    <TextBlock Text="Modelo Whisper" Style="{StaticResource FieldLabelStyle}" />
+                    <ComboBox x:Name="ModelCombo" HorizontalAlignment="Stretch" />
+                </StackPanel>
+            </Grid>
+            <CheckBox x:Name="UseGpuCheck" Content="Tentar usar GPU (quando o motor suportar)" />
+        </StackPanel>
+
+        <!-- PDF -->
+        <StackPanel x:Name="PdfPanel" Spacing="12" Visibility="Collapsed">
+            <Border Height="1" Background="{StaticResource BrandStrokeBrush}" />
+            <CheckBox
+                x:Name="PdfOcrCheck"
+                Content="Reconhecer por imagem quando a página não tiver texto (PDF escaneado)"
+                IsChecked="True" />
+            <CheckBox x:Name="PdfPageMarksCheck" Content="Marcar o início de cada página" IsChecked="True" />
+            <StackPanel>
+                <TextBlock Text="Idioma do reconhecimento" Style="{StaticResource FieldLabelStyle}" />
+                <ComboBox x:Name="PdfOcrLanguageCombo" HorizontalAlignment="Stretch" />
+            </StackPanel>
+        </StackPanel>
+
+        <!-- OCR -->
+        <StackPanel x:Name="OcrPanel" Spacing="12" Visibility="Collapsed">
+            <Border Height="1" Background="{StaticResource BrandStrokeBrush}" />
+            <StackPanel>
+                <TextBlock Text="Idioma do reconhecimento" Style="{StaticResource FieldLabelStyle}" />
+                <ComboBox x:Name="OcrLanguageCombo" HorizontalAlignment="Stretch" />
+            </StackPanel>
+            <CheckBox x:Name="OcrLineBreaksCheck" Content="Manter as quebras de linha da imagem" IsChecked="True" />
+            <TextBlock
+                x:Name="OcrStatusText"
+                FontSize="11"
+                TextWrapping="Wrap"
+                Foreground="{StaticResource BrandTextMutedBrush}" />
+        </StackPanel>
+
+        <!-- Páginas do PDF em imagens -->
+        <StackPanel x:Name="PdfImagePanel" Spacing="12" Visibility="Collapsed">
+            <Border Height="1" Background="{StaticResource BrandStrokeBrush}" />
+            <Grid ColumnSpacing="12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0">
+                    <TextBlock Text="Resolução (DPI)" Style="{StaticResource FieldLabelStyle}" />
+                    <ComboBox x:Name="PdfDpiCombo" HorizontalAlignment="Stretch" />
+                </StackPanel>
+                <StackPanel Grid.Column="1">
+                    <TextBlock Text="Máximo de páginas" Style="{StaticResource FieldLabelStyle}" />
+                    <NumberBox x:Name="PdfMaxPagesBox" Value="200" Minimum="1" Maximum="2000" SpinButtonPlacementMode="Compact" />
+                </StackPanel>
+            </Grid>
+        </StackPanel>
+
+        <!-- Corte -->
+        <StackPanel x:Name="TrimPanel" Spacing="8" Visibility="Collapsed">
+            <Border Height="1" Background="{StaticResource BrandStrokeBrush}" />
+            <TextBlock Text="Cortar trecho (opcional)" Style="{StaticResource FieldLabelStyle}" />
+            <Grid ColumnSpacing="12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <TextBox x:Name="TrimStartBox" Grid.Column="0" PlaceholderText="Início — 00:00" />
+                <TextBox x:Name="TrimDurationBox" Grid.Column="1" PlaceholderText="Duração — 00:30" />
+            </Grid>
+        </StackPanel>
+    </StackPanel>
+</UserControl>

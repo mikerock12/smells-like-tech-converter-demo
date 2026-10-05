@@ -1,0 +1,7 @@
+# Arquivos oficiais de terceiros vão byte a byte: sem conversão de fim de linha.
+public/marca/mercado-pago-branco.svg -text
+# O ZIP/manifesto Kokoro deve ter o mesmo hash em builds Windows e Linux.
+LICENSE text eol=lf
+LICENSING.md text eol=lf
+packages/kokoro/NOTICE.txt text eol=lf
+docs/kokoro-fontes.md text eol=lf

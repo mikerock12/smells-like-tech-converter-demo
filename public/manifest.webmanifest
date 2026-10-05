@@ -1,0 +1,67 @@
+{
+  "id": "/converter",
+  "name": "Smells Like Tech Converter",
+  "short_name": "Converter",
+  "description": "Converta imagem, áudio, vídeo e PDF no próprio aparelho, sem enviar arquivo para ninguém. Funciona sem internet.",
+  "lang": "pt-BR",
+  "dir": "ltr",
+  "start_url": "/converter?origem=app",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0e0e12",
+  "theme_color": "#0e0e12",
+  "categories": ["utilities", "productivity", "photo"],
+  "icons": [
+    { "src": "/marca/icone-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/marca/icone-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/marca/icone-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    {
+      "name": "Foto do iPhone (HEIC) para JPG",
+      "short_name": "HEIC para JPG",
+      "url": "/converter/heic-para-jpg?origem=app",
+      "icons": [{ "src": "/marca/icone-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "Comprimir imagem",
+      "url": "/converter/comprimir-imagem?origem=app",
+      "icons": [{ "src": "/marca/icone-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "Comprimir PDF",
+      "url": "/converter/comprimir-pdf?origem=app",
+      "icons": [{ "src": "/marca/icone-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "Vídeo para MP3",
+      "url": "/converter/mp4-para-mp3?origem=app",
+      "icons": [{ "src": "/marca/icone-192.png", "sizes": "192x192", "type": "image/png" }]
+    }
+  ],
+  "share_target": {
+    "action": "/compartilhar",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "files": [
+        {
+          "name": "arquivos",
+          "accept": [
+            "image/*",
+            "audio/*",
+            "video/*",
+            "application/pdf",
+            "text/plain",
+            "text/vtt",
+            "application/x-subrip",
+            ".heic",
+            ".heif",
+            ".srt",
+            ".vtt"
+          ]
+        }
+      ]
+    }
+  }
+}

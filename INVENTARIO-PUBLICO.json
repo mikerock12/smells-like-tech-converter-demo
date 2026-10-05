@@ -1,0 +1,2071 @@
+{
+  "commit": "309f95141e5f372a06aab76d626f99ac5912fa1b",
+  "repository": "https://github.com/mikerock12/smells-like-tech-converter-demo",
+  "originals": [
+    {
+      "path": ".gitattributes",
+      "sha256": "9ff9af7105216c7c89180249ea73d9107470fbd3701798a303b46346b8e54735",
+      "bytes": 318
+    },
+    {
+      "path": ".gitignore",
+      "sha256": "8557ba851f64a64d3cdcc5c32a4006b37230e734cfc87862b67a89fb0a1819d0",
+      "bytes": 1463
+    },
+    {
+      "path": "LICENSE",
+      "sha256": "8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903",
+      "bytes": 35147
+    },
+    {
+      "path": "LICENSING.md",
+      "sha256": "582bf5c5fd33c1c9f7774c3e83c6c45eacbc6b62f0d1146d0893b32342606f8a",
+      "bytes": 1736
+    },
+    {
+      "path": "android/.gitattributes",
+      "sha256": "a31fbb0992d4f5644113b1e3657ecbd91e1bea43bbd57785ac63f576f1396e95",
+      "bytes": 154
+    },
+    {
+      "path": "android/.gitignore",
+      "sha256": "8a476df7485dcf8193cbc4286f4e5a4d1c342b764db58cd50a56a3f9b9418a81",
+      "bytes": 370
+    },
+    {
+      "path": "android/app/build.gradle.kts",
+      "sha256": "9360785b46a0844d2385fb7267776850f2f4aa35fdb4da0b2324ebdfdd82a37a",
+      "bytes": 7006
+    },
+    {
+      "path": "android/app/proguard-rules.pro",
+      "sha256": "f447224bb6839849f193db9ec965a4ad88c20d78f8b9c81b510469f62bea1812",
+      "bytes": 1140
+    },
+    {
+      "path": "android/app/proguard-test.pro",
+      "sha256": "d9eddc19be3a136c780ab0a026b4f9dbe7cf91712fccead82df5b8033e9c22a9",
+      "bytes": 229
+    },
+    {
+      "path": "android/app/src/androidTest/assets/README.md",
+      "sha256": "b55dc70fe7712bfa8b03e96c7910044c10146564f7a769bc2e68e1d4101950b5",
+      "bytes": 497
+    },
+    {
+      "path": "android/app/src/androidTest/assets/video-com-audio.mp4",
+      "sha256": "9db72f8e85f91fca2f25513bb44595d438aa7e3ba099fa7244ccd40c5bb18db1",
+      "bytes": 55282
+    },
+    {
+      "path": "android/app/src/androidTest/java/br/com/smellsliketech/converter/conversao/OfflineTest.kt",
+      "sha256": "9a093bfde11a1d21518ec652b2e3b548bc433fcbe6ee6420d13731596194f60a",
+      "bytes": 13890
+    },
+    {
+      "path": "android/app/src/androidTest/java/br/com/smellsliketech/converter/conversao/PreparacaoTest.kt",
+      "sha256": "61548de6af6a3a39a4ed37dc6e48d8041db20919024b931a3ea531d6210c6a21",
+      "bytes": 1346
+    },
+    {
+      "path": "android/app/src/main/AndroidManifest.xml",
+      "sha256": "813f7772b123b940eeda400893af5a202d20e88b4ba393f288e329215dd28a15",
+      "bytes": 3715
+    },
+    {
+      "path": "android/app/src/main/assets/licencas-nativas.txt",
+      "sha256": "8bb8096320dbd61d430ce516b313c30b8479832d6885528934819fdc07cdfe9f",
+      "bytes": 81096
+    },
+    {
+      "path": "android/app/src/main/assets/licencas.txt",
+      "sha256": "5ff4ea2a5ab6edcd305a8f9aac30ea1e7506035f730adab232957db642dc7dd4",
+      "bytes": 1691
+    },
+    {
+      "path": "android/app/src/main/java/br/com/smellsliketech/converter/MainActivity.kt",
+      "sha256": "4c7a635b560d17d65dccef1f0f790f96a1b6d1b8a868036ca65f5f9578c0e86d",
+      "bytes": 2801
+    },
+    {
+      "path": "android/app/src/main/java/br/com/smellsliketech/converter/conversao/Andamento.kt",
+      "sha256": "7f115627430c018de24e37d0e6e807e3abd8383e2d05eb71771cd967569dc2ec",
+      "bytes": 5542
+    },
+    {
+      "path": "android/app/src/main/java/br/com/smellsliketech/converter/conversao/Ico.kt",
+      "sha256": "3f5a397222a044ede62c707580db444353d52e0d90e4f325f25a9c00f232c3ac",
+      "bytes": 1294
+    },
+    {
+      "path": "android/app/src/main/java/br/com/smellsliketech/converter/conversao/Imagem.kt",
+      "sha256": "cbad0d46bba348a115f5f0d81880be56c687604b16081ae2047e0e435bd57cc3",
+      "bytes": 12254
+    },
+    {
+      "path": "android/app/src/main/java/br/com/smellsliketech/converter/conversao/Intervalos.kt",
+      "sha256": "97cb5331c39a065c0bb1b6f84e1329d1316d8e4674ddb894339b195120cda2f3",
+      "bytes": 1271
+    },
+    {
+      "path": "android/app/src/main/java/br/com/smellsliketech/converter/conversao/Kokoro.kt",
+      "sha256": "18627ee8bf5c3f4da7072c3579ce8bbe7a06f462762d297f17b5174b053ed9a4",
+      "bytes": 5157
+    },
+    {
+      "path": "android/app/src/main/java/br/com/smellsliketech/converter/conversao/Legenda.kt",
+      "sha256": "e270b3fbd54bb466f0b53d3445054162edd86241ae1551d7ce64ba1e23a2d1c8",
+      "bytes": 4710
+    },
+    {
+      "path": "android/app/src/main/java/br/com/smellsliketech/converter/conversao/Midia.kt",
+      "sha256": "47dd3de970607edb1ad48e5b77d64412c497877c9a34ef755a0ec1c1a52355eb",
+      "bytes": 12751
+    },
+    {
+      "path": "android/app/src/main/java/br/com/smellsliketech/converter/conversao/Modelo.kt",
+      "sha256": "82e23f82cfd2fe407c6925757eed1012663976548a9cf27004d5a334c285058a",
+      "bytes": 12651
+    },
+    {
+      "path": "android/app/src/main/java/br/com/smellsliketech/converter/conversao/ModelosWhisper.kt",
+      "sha256": "a06d2ef5d6a38b5a40c02eb1d63277e77b5c0b522aa8c783b20ca9fe09be8e27",
+      "bytes": 8805
+    },
+    {
+      "path": "android/app/src/main/java/br/com/smellsliketech/converter/conversao/Motor.kt",
+      "sha256": "49ef676238d5579bc185c8ce8117edcdd7357f79e214768c394b6de67a9dce44",
+      "bytes": 11633
+    },
+    {
+      "path": "android/app/src/main/java/br/com/smellsliketech/converter/conversao/Narracao.kt",
+      "sha256": "2dd93b7b25f59e4c08283674d2871aec177b5b563dd6c1bdf97169674dfcbe08",
+      "bytes": 1729
+    },
+    {
+      "path": "android/app/src/main/java/br/com/smellsliketech/converter/conversao/Ocr.kt",
+      "sha256": "d7ddeecc6e867e5d6137c4e67b9c63ea36860fc6f9c5c8b8942cea61026adb59",
+      "bytes": 1449
+    },
+    {
+      "path": "android/app/src/main/java/br/com/smellsliketech/converter/conversao/PcmWav.kt",
+      "sha256": "132caf46e90dc9ceeba36b972c3374063f3c1af3a5c649dd63e34c541585a4ea",
+      "bytes": 1402
+    },
+    {
+      "path": "android/app/src/main/java/br/com/smellsliketech/converter/conversao/Pdf.kt",
+      "sha256": "40fab0a2abded78fd43898cc380b9a8703a6c0961bad5b5b7b8c962e65c4aec1",
+      "bytes": 13262
+    },
+    {
+      "path": "android/app/src/main/java/br/com/smellsliketech/converter/conversao/Saida.kt",
+      "sha256": "a85824b6c04d3c9356d10cf38fa22b8e05a2a3bd9064a582b4b87b20a3704b0b",
+      "bytes": 2408
+    },
+    {
+      "path": "android/app/src/main/java/br/com/smellsliketech/converter/conversao/Transcricao.kt",
+      "sha256": "9efa9d7f89ac573986d544a6263b0431bb48a97d95e54b87dc15506fd2de8fdb",
+      "bytes": 1726
+    },
+    {
+      "path": "android/app/src/main/java/br/com/smellsliketech/converter/conversao/VozesLocais.kt",
+      "sha256": "cc0eb646be42f9de6ee1b90326f9510aed49964b161b834da75966e3b06dc6b9",
+      "bytes": 626
+    },
+    {
+      "path": "android/app/src/main/java/br/com/smellsliketech/converter/conversao/Wav.kt",
+      "sha256": "9c5f40a5ebea612ea05defdcf2e262c3f1cd05f6752ef155aca3f4236339ba93",
+      "bytes": 3093
+    },
+    {
+      "path": "android/app/src/main/java/br/com/smellsliketech/converter/conversao/documentos/Cfb.kt",
+      "sha256": "0adae9bfacac7c1422d17e083ca79f15decbca384c80e103ccf7d3b777df531b",
+      "bytes": 6056
+    },
+    {
+      "path": "android/app/src/main/java/br/com/smellsliketech/converter/conversao/documentos/Documento.kt",
+      "sha256": "aada8886901a12a823e2fd8ebe5801d9e91e1550381fc0f98439c8d1128a2091",
+      "bytes": 15789
+    },
+    {
+      "path": "android/app/src/main/java/br/com/smellsliketech/converter/conversao/documentos/EscritorDePdf.kt",
+      "sha256": "6505cb0bf00cc29c0883ced5f4dbdd266acebd0741622be6bd2ffc14b2dafb9d",
+      "bytes": 6624
+    },
+    {
+      "path": "android/app/src/main/java/br/com/smellsliketech/converter/conversao/documentos/Leitores.kt",
+      "sha256": "220c54ede4fc960e66cd658dac3c50fa02ff3f11bc14a3b4bdd365fc487fb700",
+      "bytes": 2489
+    },
+    {
+      "path": "android/app/src/main/java/br/com/smellsliketech/converter/conversao/documentos/Office97.kt",
+      "sha256": "6d9a5aa9e516f097230be8aa33e451b90a7456007073b3a95e3c5b608fb0e177",
+      "bytes": 20805
+    },
+    {
+      "path": "android/app/src/main/java/br/com/smellsliketech/converter/conversao/documentos/Ooxml.kt",
+      "sha256": "d668b27608269ca2fa78c6fd00b818bfc51fbc1e2bd002dc35d96e00262e4e9f",
+      "bytes": 12753
+    },
+    {
+      "path": "android/app/src/main/java/br/com/smellsliketech/converter/conversao/documentos/OpenDocument.kt",
+      "sha256": "3da27e1dba97a80a31452721ede0c82eba03ad8b2b1477eb20415b3a61fc35e3",
+      "bytes": 7330
+    },
+    {
+      "path": "android/app/src/main/java/br/com/smellsliketech/converter/conversao/documentos/Pacote.kt",
+      "sha256": "edaa86280239861af300189b3dfa3859d17c10b30da394c0f39ace3c9a00a384",
+      "bytes": 7018
+    },
+    {
+      "path": "android/app/src/main/java/br/com/smellsliketech/converter/conversao/documentos/Rtf.kt",
+      "sha256": "60e6fceee0b98b0d2ded3405e26a4339dfad64fce635cff1db1d7775cd026098",
+      "bytes": 6963
+    },
+    {
+      "path": "android/app/src/main/java/br/com/smellsliketech/converter/conversao/documentos/Web.kt",
+      "sha256": "6814303e4d1ab69d813a0370cedd654f2f23d698c02b1a17c3548eded3f1077a",
+      "bytes": 10935
+    },
+    {
+      "path": "android/app/src/main/java/br/com/smellsliketech/converter/conversao/ffmpeg/CodificadorDoCelular.kt",
+      "sha256": "54e7955f349dd2e98f96dc94b5999b9d1ddb243c7c2962865fc79b0419962841",
+      "bytes": 8593
+    },
+    {
+      "path": "android/app/src/main/java/br/com/smellsliketech/converter/conversao/ffmpeg/Comandos.kt",
+      "sha256": "2f233b052dc485b6332525781f771af73e752f2a0e42180eec5abf6ff9107852",
+      "bytes": 25123
+    },
+    {
+      "path": "android/app/src/main/java/br/com/smellsliketech/converter/conversao/ffmpeg/Ffmpeg.kt",
+      "sha256": "5792104ac7d203e95c17d4f34b2eb4de0198d298a3cf86e74b5027e27a0ea7e0",
+      "bytes": 7998
+    },
+    {
+      "path": "android/app/src/main/java/br/com/smellsliketech/converter/licenca/Acesso.kt",
+      "sha256": "3a8aba4d4f40dc62b81b4c6819214b239a4254c04ceb808416e57157c71774b5",
+      "bytes": 4650
+    },
+    {
+      "path": "android/app/src/main/java/br/com/smellsliketech/converter/licenca/Licenca.kt",
+      "sha256": "3b5d8b3c7a8d90ecdece95c147226973d3928b83e69e29a118211a347da655f1",
+      "bytes": 7838
+    },
+    {
+      "path": "android/app/src/main/java/br/com/smellsliketech/converter/licenca/ReciboDaPlay.kt",
+      "sha256": "f8383e7e7e90ccfb03cdd640342e1ed73054bbbbddd4cafa786f0a8fd0ffa2f0",
+      "bytes": 2701
+    },
+    {
+      "path": "android/app/src/main/java/br/com/smellsliketech/converter/loja/Loja.kt",
+      "sha256": "31788639169109ff4cb7dde89d5dff70db31abde04b1fd2b37cf7b24c3509f2e",
+      "bytes": 1156
+    },
+    {
+      "path": "android/app/src/main/java/br/com/smellsliketech/converter/ui/OficinaViewModel.kt",
+      "sha256": "87d76dab14923b87f58bd877228230a41836755b458a3595d4dce6ac173b4761",
+      "bytes": 14914
+    },
+    {
+      "path": "android/app/src/main/java/br/com/smellsliketech/converter/ui/Telas.kt",
+      "sha256": "56e46c46b3f043086901801c942ec8d3c996a2059fe8bcf9c8651f3b17816a92",
+      "bytes": 44791
+    },
+    {
+      "path": "android/app/src/main/java/br/com/smellsliketech/converter/ui/Tema.kt",
+      "sha256": "f8b67ed0966982f54719b424978a36d7b666891ca2214c3f71db2c7431fc1b47",
+      "bytes": 1223
+    },
+    {
+      "path": "android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml",
+      "sha256": "5eecb17e8bb84080edc539feb1a8593c75e634a61de812b8014ff27289dc40e8",
+      "bytes": 364
+    },
+    {
+      "path": "android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_frente.png",
+      "sha256": "8fa099f3dce37670fc65715e19d2688aff7f59bf316139157c3fd5fbc1e63171",
+      "bytes": 182633
+    },
+    {
+      "path": "android/app/src/main/res/values/cores.xml",
+      "sha256": "68a084a8662e3fa0d5bff18e6e5b3e54885bb9ce66ecd49823f158f330ca3dce",
+      "bytes": 115
+    },
+    {
+      "path": "android/app/src/main/res/values/strings.xml",
+      "sha256": "2ed027ef0749099eeb082cced0ed39df78bb4298568dc9546c6e1511b16a932b",
+      "bytes": 114
+    },
+    {
+      "path": "android/app/src/main/res/values/themes.xml",
+      "sha256": "8c2f9c5537bc83c48e2b1d83e87d15acb8ee740fed66f14e48d312566750e6c7",
+      "bytes": 488
+    },
+    {
+      "path": "android/app/src/play/java/br/com/smellsliketech/converter/loja/LojaDaPlay.kt",
+      "sha256": "0b08da4b8ab52873ab2d7f8af1903b4eab6102a0433c1b3e6ad61ee7cd407eac",
+      "bytes": 6468
+    },
+    {
+      "path": "android/app/src/site/java/br/com/smellsliketech/converter/loja/LojaDoSite.kt",
+      "sha256": "9a7b47ab6791a94ddeadbee2c69aab3f87315d4c24e4c418f5f0780cacff541b",
+      "bytes": 788
+    },
+    {
+      "path": "android/app/src/test/java/br/com/smellsliketech/converter/conversao/AndamentoTest.kt",
+      "sha256": "a36cd7ecfefe20c94f3889b8bd078fffbe10a4ab62ed0f5da942dd41736bd91d",
+      "bytes": 3721
+    },
+    {
+      "path": "android/app/src/test/java/br/com/smellsliketech/converter/conversao/ComandosTest.kt",
+      "sha256": "cea584ad7e9e6ee413cd4fe087dca4f2cb74bbc9c63375811c9efc0c0782a21d",
+      "bytes": 12487
+    },
+    {
+      "path": "android/app/src/test/java/br/com/smellsliketech/converter/conversao/LegendaTest.kt",
+      "sha256": "bc96c56471f3d414349206c66348a692810139cf9b3bdba6785b2a0dd4115996",
+      "bytes": 3268
+    },
+    {
+      "path": "android/app/src/test/java/br/com/smellsliketech/converter/conversao/ParidadeTest.kt",
+      "sha256": "d07482a5cab37e68805f37fdb122af9c0bb3ea48cbcac780dc50d168b73ee6c4",
+      "bytes": 3887
+    },
+    {
+      "path": "android/app/src/test/java/br/com/smellsliketech/converter/conversao/PcmWavTest.kt",
+      "sha256": "3ecef2698e259b6f6c34f7a26f0d2982a66cfc8c4a9e14e8a60d7527c969c4e6",
+      "bytes": 1231
+    },
+    {
+      "path": "android/app/src/test/java/br/com/smellsliketech/converter/conversao/WavTest.kt",
+      "sha256": "b66cb7927749c5f83cd69b5b9e8a2915d1ea64cd63461fc506bc5601030cb897",
+      "bytes": 2162
+    },
+    {
+      "path": "android/app/src/test/java/br/com/smellsliketech/converter/conversao/documentos/DocumentosTest.kt",
+      "sha256": "5b6aa873b03ae0c6c1bb0a2dd32a0f4c6fb2462764f39823366c6c5ced2e9dd0",
+      "bytes": 16874
+    },
+    {
+      "path": "android/app/src/test/java/br/com/smellsliketech/converter/licenca/LicencaTest.kt",
+      "sha256": "43a19ddcd4931c2108566d2559f2da26854a9eeed7aa772d4cac52872619ff4c",
+      "bytes": 3329
+    },
+    {
+      "path": "android/app/src/test/java/br/com/smellsliketech/converter/licenca/ReciboDaPlayTest.kt",
+      "sha256": "a96633428db6d97387b21ed223f6aa6deda7b86165a59773bee0c237cd964961",
+      "bytes": 3237
+    },
+    {
+      "path": "android/app/src/test/resources/office97/LEIA-ME.md",
+      "sha256": "0f2f1a188b39f2803511ad9094718b1861c6f6b8eed00d17f7e2d3ad1821fb2c",
+      "bytes": 398
+    },
+    {
+      "path": "android/app/src/test/resources/office97/SampleDoc.doc",
+      "sha256": "717585c0a88f20862c86220163dd03da87cd743970354c6b29add32725f2e833",
+      "bytes": 27136
+    },
+    {
+      "path": "android/app/src/test/resources/office97/SampleSS.xls",
+      "sha256": "53c9bd7337aa79fedf29cef8d81ec47fff39f80e25da9d74bc354cfdf1c43b73",
+      "bytes": 17408
+    },
+    {
+      "path": "android/app/src/test/resources/office97/SampleShow.ppt",
+      "sha256": "64275a6685b8f267827178037dcc59de927475e56385725916f4c6039c7ce7f6",
+      "bytes": 125440
+    },
+    {
+      "path": "android/build.gradle.kts",
+      "sha256": "2f9c77fb850ad9c41c602c647f8ae66813e0e7785439814ac557677ae2528625",
+      "bytes": 476
+    },
+    {
+      "path": "android/gradle.properties",
+      "sha256": "227fddd08c706f2fbd8ec825a1b4febe10f786c322fad27fefe115cb098b51e0",
+      "bytes": 133
+    },
+    {
+      "path": "android/gradle/wrapper/gradle-wrapper.jar",
+      "sha256": "2db75c40782f5e8ba1fc278a5574bab070adccb2d21ca5a6e5ed840888448046",
+      "bytes": 43583
+    },
+    {
+      "path": "android/gradle/wrapper/gradle-wrapper.properties",
+      "sha256": "cc9996e1b641176fded450c88cecacbb1c06bb7c4e111d2f11f0164af143cfbe",
+      "bytes": 253
+    },
+    {
+      "path": "android/gradlew",
+      "sha256": "a3648413b47ef77af21d5ebc36c687c7d103aaef3e17f33de7d4f080a6f300a3",
+      "bytes": 8762
+    },
+    {
+      "path": "android/gradlew.bat",
+      "sha256": "2209f919a22528af59a2af2ad97e8d056cca18e39f7d87aa3fd549a73b180150",
+      "bytes": 2872
+    },
+    {
+      "path": "android/nativos/compilar.sh",
+      "sha256": "c7694a4c66305c832a04953136e97e93c4753a2f9f36b58ad9fda4cc107e20ee",
+      "bytes": 9489
+    },
+    {
+      "path": "android/nativos/licencas.sh",
+      "sha256": "330e4abd9a12eb4f6c9aabb7d22b7b42d3ac94583b097135dccc906f85d3a38c",
+      "bytes": 3177
+    },
+    {
+      "path": "android/nativos/versao.json",
+      "sha256": "4310057356bdcbd9363f62eb3f0dd162467f653fd5dad03889209fa08b26b466",
+      "bytes": 402
+    },
+    {
+      "path": "android/play/capturas/brutas/1.png",
+      "sha256": "4bb82c0b732e796a1e57178ee2d546690d13c385b014dab4b52402955db61949",
+      "bytes": 180740
+    },
+    {
+      "path": "android/play/capturas/brutas/2.png",
+      "sha256": "07f5d1b680e9cf75c6d58bbae4c5ce7b3b68173fc8d836501a30b94cd204370d",
+      "bytes": 180180
+    },
+    {
+      "path": "android/play/capturas/brutas/3.png",
+      "sha256": "eb016e6f4bf554515c74b9d413a3fd0bfc6e38834dbb31ae2fcb14877f0ff077",
+      "bytes": 131959
+    },
+    {
+      "path": "android/play/capturas/brutas/4.png",
+      "sha256": "279459a48ca4439a2ffef85fbaadafaaa26d07f2861a2b31a08380530c302091",
+      "bytes": 121139
+    },
+    {
+      "path": "android/play/capturas/captura-1.png",
+      "sha256": "354b526c2a3372e785dd85b9721dcf4389fcc086a8f8be0734c48d2f24ed9171",
+      "bytes": 224339
+    },
+    {
+      "path": "android/play/capturas/captura-2.png",
+      "sha256": "640286696b0ca95ba5e078c29aefc5f19d634e8d637c9e0aded02f7939c2ab4f",
+      "bytes": 238114
+    },
+    {
+      "path": "android/play/capturas/captura-3.png",
+      "sha256": "38eafcabbd107c87677a7d01b1e683a277baa3650b30b1cb58afb584ba872ad8",
+      "bytes": 169615
+    },
+    {
+      "path": "android/play/capturas/captura-4.png",
+      "sha256": "63da038c278fd6b57ce6e434ce96edcf9feb42ef7569972d1d0a2369fc270387",
+      "bytes": 170604
+    },
+    {
+      "path": "android/play/destaque-1024x500.png",
+      "sha256": "da130b0d071e050edcfe4487a4b5a15eae0f9e0b2ed1ec19809999e8e077a7ed",
+      "bytes": 504765
+    },
+    {
+      "path": "android/play/icone-512.png",
+      "sha256": "42961ab1b7f0758c313d7e064d98bb1f716d70ac721362905058677b216edf9f",
+      "bytes": 345096
+    },
+    {
+      "path": "android/settings.gradle.kts",
+      "sha256": "e04b0385c8f47ffabd04382907135db4b31b500cd2fd4b319f391db2a8a19a2a",
+      "bytes": 343
+    },
+    {
+      "path": "app/Artigo.tsx",
+      "sha256": "696436f36cc21e1acf6b48fdec189fbffa0b21630fb5653351f194a2fec2528c",
+      "bytes": 6164
+    },
+    {
+      "path": "app/ConferenciaDoInstalador.tsx",
+      "sha256": "9280cb88471405491266b4af3b57a6e4a0f918b26f6a6df8caa0b5db0db4eac2",
+      "bytes": 1423
+    },
+    {
+      "path": "app/CopiarTexto.tsx",
+      "sha256": "ecbcc45c83b68319e3c841f91433677e0d1ae572040cb002da9d797ef8634128",
+      "bytes": 738
+    },
+    {
+      "path": "app/LiveProof.tsx",
+      "sha256": "93447a8b8bbfd4318b6a672e80b7b2e2fa9860453fd7d4b007f17b6332b3ee5c",
+      "bytes": 4139
+    },
+    {
+      "path": "app/PluginBadge.tsx",
+      "sha256": "9511eba156810af8b207792f58f01128373ffb1cceb9af5652b38fa89f23e431",
+      "bytes": 2772
+    },
+    {
+      "path": "app/RegistroDoApp.tsx",
+      "sha256": "058235b646629fa7b9c04003b32f2c15290868d1219ca136a097af863fed377a",
+      "bytes": 291
+    },
+    {
+      "path": "app/SiteChrome.tsx",
+      "sha256": "0b96f76df449fbdd5bf0cc718199b95e365e1cc15544e3d82bdc427583e168a6",
+      "bytes": 5677
+    },
+    {
+      "path": "app/StatusOffline.tsx",
+      "sha256": "57fd97636be699ca31074e411765223b698dede52c4e27fb8d77832786c05065",
+      "bytes": 2457
+    },
+    {
+      "path": "app/android/page.tsx",
+      "sha256": "76fa1b4e6cf0cc8b9e060f4cb42e1261d573982ca03561f6890871c622f77e10",
+      "bytes": 6694
+    },
+    {
+      "path": "app/aplicativo/page.tsx",
+      "sha256": "785c1b199e0737ad6d51e89f14d5ddc165dbd921270298e1c046c912a41a102d",
+      "bytes": 8181
+    },
+    {
+      "path": "app/chatgpt-auth.ts",
+      "sha256": "4265a2e7c2dcb3a6f4b7026f762bf5b6e4caec76cc13c0a45987ee9a9f2e42cc",
+      "bytes": 2550
+    },
+    {
+      "path": "app/chave/AtivarChave.tsx",
+      "sha256": "508e25465e9399d535cc3fc4d1431d7a94d1b4603f31ec6342f499bebb7db684",
+      "bytes": 5565
+    },
+    {
+      "path": "app/chave/page.tsx",
+      "sha256": "1fafad8a73ab7a75396611ecc75ff5bd1e42138d548629474a7428cba87f412d",
+      "bytes": 1235
+    },
+    {
+      "path": "app/codigo-aberto/page.tsx",
+      "sha256": "0094f3e187deefc29b636d70a234e5d5a4497b2ff8ff2fe66dbf92f2d2102688",
+      "bytes": 7792
+    },
+    {
+      "path": "app/como-funciona/page.tsx",
+      "sha256": "223eaa97aca1c8989f8946c598e819cddad7f7f45d1ce761d18d02935c354046",
+      "bytes": 5469
+    },
+    {
+      "path": "app/comprimir-video-whatsapp/page.tsx",
+      "sha256": "29db132f7fb0c18513c49b9f229c6a0a0e676f23db21931a31433ebb4f27aa73",
+      "bytes": 3748
+    },
+    {
+      "path": "app/conta/MinhaConta.tsx",
+      "sha256": "1dedbc3c8d6cfcd2e4d12ab34f0792b2ae72871f4e93327ef5d4c055f3887724",
+      "bytes": 19750
+    },
+    {
+      "path": "app/conta/page.tsx",
+      "sha256": "d577b7832c0b6603c5a4e61095e1be86f137ccdaf49f8d88a22519f9ce59da38",
+      "bytes": 1111
+    },
+    {
+      "path": "app/converter/CamposDeOpcoes.tsx",
+      "sha256": "d3e34e45d228bd1e429c001d8f6a73b6d14b47502e3fc3f911bc6982baa0fa1c",
+      "bytes": 4455
+    },
+    {
+      "path": "app/converter/ConviteDoApp.tsx",
+      "sha256": "213c9cf99644c25fe4c00eb280dff59fd8b3915042cf689c9b4d949b6de46005",
+      "bytes": 1122
+    },
+    {
+      "path": "app/converter/Fila.tsx",
+      "sha256": "2f73ccaf680553c45b2cdee18793b8262ff11bb25e8a86deb9b3c2f9521a20de",
+      "bytes": 9565
+    },
+    {
+      "path": "app/converter/GrupoDeArquivos.tsx",
+      "sha256": "306dd9ea994498e42abee1c0c98ed6a605564331b4aaebd999ec7f14cf4b823d",
+      "bytes": 7472
+    },
+    {
+      "path": "app/converter/KokoroPanel.tsx",
+      "sha256": "627faa4f286a87633aa737069efcb8d4f98b1c89af25502a1c5e04f2701c4480",
+      "bytes": 1815
+    },
+    {
+      "path": "app/converter/Oficina.tsx",
+      "sha256": "4e1b79a3b541aa17b1edb433117b8c3e8a0c60fb7af769052219804ee26e89e2",
+      "bytes": 21446
+    },
+    {
+      "path": "app/converter/Paywall.tsx",
+      "sha256": "5056cd652d419ec5d42de7ffeed5367afe9962231d7cbbf6a8908085c61ea408",
+      "bytes": 2328
+    },
+    {
+      "path": "app/converter/PluginPanel.tsx",
+      "sha256": "78267f1364cdd42fd201a19911ceb767063328ab93f31153c67e5aae7ee4d49a",
+      "bytes": 4346
+    },
+    {
+      "path": "app/converter/[slug]/page.tsx",
+      "sha256": "ab1cfc838648ba6e59d4f213f47e0a2abd81b9e081cbf2aee7ed836193036e71",
+      "bytes": 8160
+    },
+    {
+      "path": "app/converter/page.tsx",
+      "sha256": "824968d743f57c0f557aed566e06c012e50b30a807c045d51eb7f9ea4d9ea673",
+      "bytes": 588
+    },
+    {
+      "path": "app/ferramentas/BuscaDeFerramentas.tsx",
+      "sha256": "cc560d700eadc387de1ae843c3e6a05353ada197f134c902ed6530c098f6285e",
+      "bytes": 1591
+    },
+    {
+      "path": "app/ferramentas/page.tsx",
+      "sha256": "839bd1fc3a7468ccd2cfda78335b1d1ef0f8bd4d53649c6ec227cd3529b8b9f1",
+      "bytes": 3971
+    },
+    {
+      "path": "app/globals.css",
+      "sha256": "978613bf9de97765ca9de6cf86d3e33a6e6bf50f0de808d55669d44dc709d4e4",
+      "bytes": 64434
+    },
+    {
+      "path": "app/heic-iphone/page.tsx",
+      "sha256": "129003ca90b4947b781f71af1178df6f281247b6ca6da66f5d7b623fd9f0261a",
+      "bytes": 4222
+    },
+    {
+      "path": "app/indicar/page.tsx",
+      "sha256": "08f9d5953c139bbe86c7790b9d7967b7ebe968783013ff248cf5b47913525a66",
+      "bytes": 2798
+    },
+    {
+      "path": "app/instalar/InstalarApp.tsx",
+      "sha256": "adc691a4984264acf5fc5ffef42b77e8c5054ec49980d2ec9cca8e61c737ed80",
+      "bytes": 5143
+    },
+    {
+      "path": "app/instalar/page.tsx",
+      "sha256": "592facd7190954dc783b1081e4b7513fcf4b144c9183b06f9a3301d95cfa0ac0",
+      "bytes": 3235
+    },
+    {
+      "path": "app/layout.tsx",
+      "sha256": "b59b94005972d4e2a1d1ac7d88d26e6fc265fdfe9a3637896b5935aff763e9cd",
+      "bytes": 3425
+    },
+    {
+      "path": "app/lgpd-conversor/page.tsx",
+      "sha256": "420bd13536c792c153aa2f0f2d6227289003a1716dfbb97473fb4bd2cb4f0f6e",
+      "bytes": 5276
+    },
+    {
+      "path": "app/obrigado/ChaveDoPedido.tsx",
+      "sha256": "76467f049fdffc0c65f8547556effbb948c957474985f18940319ec76943f95d",
+      "bytes": 6626
+    },
+    {
+      "path": "app/obrigado/page.tsx",
+      "sha256": "9300297cf3f40911bb1f2567f76dabb99754950e321c5a9228fd49eb1d64430f",
+      "bytes": 1279
+    },
+    {
+      "path": "app/page.tsx",
+      "sha256": "049457dc29cad5eeadf943d556ce8dea41f6f181335ed9cbf821f0b14fab073c",
+      "bytes": 14025
+    },
+    {
+      "path": "app/pdf-cliente/page.tsx",
+      "sha256": "29ea1ad129cdd47799582e4ef7a9f51f463323c18fecb69154720780f7cd7753",
+      "bytes": 4539
+    },
+    {
+      "path": "app/plugin/EstadoDaInstalacao.tsx",
+      "sha256": "ca2083d0fc6babcd40e1040f173c08dbf00273347e24a057e004a57ee1c2773c",
+      "bytes": 3858
+    },
+    {
+      "path": "app/plugin/page.tsx",
+      "sha256": "cbf555c142ad18748e6b1a1367bb58b8e6625f44f3fd50f8c2c44908b52d0fba",
+      "bytes": 6958
+    },
+    {
+      "path": "app/precos/BotaoDeCompra.tsx",
+      "sha256": "70b0f547f98015febc3d97b1a3bd9bc067bb0c2ee251e200035fde39a16072b6",
+      "bytes": 4083
+    },
+    {
+      "path": "app/precos/page.tsx",
+      "sha256": "d2a3237b780f2bb1756f48cf1824ecb84803caab239bcd3eeddff491d65b6356",
+      "bytes": 11760
+    },
+    {
+      "path": "app/privacidade/page.tsx",
+      "sha256": "160c508c9f59dcd56677e66bbff6347408aafe97c9ce514a7e9fa779ebb6fd0c",
+      "bytes": 9807
+    },
+    {
+      "path": "app/robots.ts",
+      "sha256": "37191aabea17814d60fdcee9c040d7d20f6694a7b4247b130a2ab4573f827c8b",
+      "bytes": 362
+    },
+    {
+      "path": "app/sem-upload/page.tsx",
+      "sha256": "c41c2d22fbbc880a3e41d6939661cf60fb8e50cee3247f914733d9e0db66004c",
+      "bytes": 5023
+    },
+    {
+      "path": "app/sitemap.ts",
+      "sha256": "7161d7e29b28c8a03c12315f8ba91c06bdafa72baad9e39f41762a82417790c1",
+      "bytes": 1582
+    },
+    {
+      "path": "app/termos/page.tsx",
+      "sha256": "5941d74a61e9a068f045c4d3d085dfe2e9c1d5bd2a62214ce70357ab3de5ed43",
+      "bytes": 4434
+    },
+    {
+      "path": "app/transcrever-sem-nuvem/page.tsx",
+      "sha256": "d285f992eb072816cf55e0914b3a29f5a43ddf7a48c62a1346ff71d5199407b7",
+      "bytes": 3884
+    },
+    {
+      "path": "app/vs-cloudconvert/page.tsx",
+      "sha256": "bc4fabd7f2287a67b2e67d28413525cc65f3982e0af1f298435921d8ba5d834f",
+      "bytes": 5369
+    },
+    {
+      "path": "app/vs-convertio/page.tsx",
+      "sha256": "c48d78c482a38451e4e41af88abfc548188ffc56eb7edd408958cd8567b21460",
+      "bytes": 5787
+    },
+    {
+      "path": "app/vs-pdf24/page.tsx",
+      "sha256": "382031c5a40c5407548e869d47ec1e63112129398b00ee2aa89b9179ff21a740",
+      "bytes": 5270
+    },
+    {
+      "path": "desktop/Directory.Build.props",
+      "sha256": "639fef33b09ea4d03c095e66033559e78ab72637567b56e7ac46845e69255781",
+      "bytes": 472
+    },
+    {
+      "path": "desktop/NuGet.Config",
+      "sha256": "f545a7e2ea14ac53cdfb91217cae67b8ff14275313f6298f9a3331d205b6c948",
+      "bytes": 217
+    },
+    {
+      "path": "desktop/README.md",
+      "sha256": "f4d27b1e497238031092e6de7b52e1a7f8ad0772938dadb1604c293a8aaf9576",
+      "bytes": 14080
+    },
+    {
+      "path": "desktop/SmellsLikeTechConverter.slnx",
+      "sha256": "107426e4754b3984ad5fea0c0833685a79d2fd1cd37db000b271c28c5714aae8",
+      "bytes": 1161
+    },
+    {
+      "path": "desktop/global.json",
+      "sha256": "72650fad41b3a6d9c0f051110132e3b1d17ca9c2b5895e51a5b001a11929cf0e",
+      "bytes": 81
+    },
+    {
+      "path": "desktop/installer/Licenses/AVISOS-DE-TERCEIROS.txt",
+      "sha256": "356d97ba621a0727319d7b9a2c8c21624e90674ca082d7908b699fa1b78fc153",
+      "bytes": 4977
+    },
+    {
+      "path": "desktop/installer/SmellsLikeTechConverter.iss",
+      "sha256": "34a7a4375fd3db5cb2d1a4b994878ab381b46700838a7a3f6911e8eaa82daef9",
+      "bytes": 3992
+    },
+    {
+      "path": "desktop/installer/SmellsLikeTechPlugin.iss",
+      "sha256": "4acf27953314308b51f79f3f009c7ec62368ac32ebc8ae701898072b5ac64308",
+      "bytes": 4364
+    },
+    {
+      "path": "desktop/installer/build-installer.ps1",
+      "sha256": "695121e5429eae47aa61fc571cd034b2ce44ca2d5d2c10858149334210255362",
+      "bytes": 6124
+    },
+    {
+      "path": "desktop/installer/build-plugin-installer.ps1",
+      "sha256": "c27c74fc6172a4d848e7251deddbae53db9eeba03abec782fda66c1b5f6c83a9",
+      "bytes": 6594
+    },
+    {
+      "path": "desktop/installer/wizard-large.bmp",
+      "sha256": "3537b3e7dc68ebfc318c831c738ffa805b82876bc34a008ed2c3dff80d6db29d",
+      "bytes": 154542
+    },
+    {
+      "path": "desktop/installer/wizard-small.bmp",
+      "sha256": "ee7b1b5cd4894a0e93b936fcba6fc6920be6cb219496c739998a66a3efc12351",
+      "bytes": 9798
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Bridge/BridgeOptions.cs",
+      "sha256": "d503f24ec2748ba23cc253ba856b63c1d2cfa606928256fbe724b615d793f1fa",
+      "bytes": 3475
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Bridge/Contracts/BridgeContracts.cs",
+      "sha256": "bcdd5b4d42e0a125dfb710126f0dfff5efb204ab97419f8793585684d7c7f216",
+      "bytes": 5411
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Bridge/Hosting/BridgeServer.cs",
+      "sha256": "00fb164de14f5f375567208a1e846abb73b6c045e3053af0fa632f22c3d792e0",
+      "bytes": 24081
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Bridge/Hosting/JobRegistry.cs",
+      "sha256": "d81fb92ab681b44ec3747e23d135fc84987bc4c402864cb246d11aa649d118bd",
+      "bytes": 2954
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Bridge/Hosting/LocalGuard.cs",
+      "sha256": "d8ee2ba75d643e6640f33e791105e2e6e60ecf080aee767fb170179fd3eee1be",
+      "bytes": 5440
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Bridge/Hosting/NativeWindows.cs",
+      "sha256": "73eb95a2790b44e6343a98b6ce03ecb0053aabb25c223bb1e5da29861f10353b",
+      "bytes": 6380
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Bridge/Hosting/UploadReader.cs",
+      "sha256": "2e99ac864d09543e39cf8866952a617fbabcc33d38b8e9f546f35fc66f6a4b21",
+      "bytes": 6633
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Bridge/Program.cs",
+      "sha256": "8020c8a99be0fe53a478ed6a5984462be477cbba9da0c803d29e2fd3c6f12dd9",
+      "bytes": 5635
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Bridge/README.md",
+      "sha256": "976d8b999e1ceb988c947c391f9e8cfa93d7129fc18f94ac7ec755debde3bbd1",
+      "bytes": 5601
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Bridge/SmellsLikeTech.Converter.Bridge.csproj",
+      "sha256": "c15f86f4c7b6dbc2ce14b30affc2916c6a4417cde2217be301da4238a8ddf75f",
+      "bytes": 1558
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Bridge/Tray/TrayPresence.cs",
+      "sha256": "0b3157bda671893a85a757c77810e5baf46bd9f0948fe8141949efbda9324fd5",
+      "bytes": 3075
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Bridge/Tray/UiThread.cs",
+      "sha256": "e59fa698da8a179b6648d706fa4763556cfec3683672177b42f388271047e64d",
+      "bytes": 2512
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Composition/AppServices.cs",
+      "sha256": "e9c4b9a774346af357b92267a1043426f4c77ac5ffe87955c96a411464bff0f7",
+      "bytes": 9826
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Composition/NativeFileDialog.cs",
+      "sha256": "bbda7dda9d48052320c2a3c2dadbcd029e5edb40dde2252b79818dbc0a1d8bcc",
+      "bytes": 9019
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Composition/SmellsLikeTech.Converter.Composition.csproj",
+      "sha256": "e404982acd313645560764229d265dc6faba25f994033e939109636f1092b90e",
+      "bytes": 1417
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Core/Abstractions/IConversionEngine.cs",
+      "sha256": "a339db468d833b12b41cb0f0193273bd898dd933d79045a453cf49ba19d12782",
+      "bytes": 2437
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Core/Abstractions/IDocumentTextReader.cs",
+      "sha256": "b46f9997563b0350167bfdaeddd9cd4f104b0523df8ee6a3e1a523ad575ed92e",
+      "bytes": 638
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Core/Abstractions/IJobHistoryStore.cs",
+      "sha256": "773cdc66ad76a1edeaa73ce0117f869e3b23b5978143e3a404b201c1704c36c9",
+      "bytes": 1429
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Core/Abstractions/ISpeechEngines.cs",
+      "sha256": "4589fee2ab81f63cc4a57d0f772ec9299bfe4f7c0e3fc640795d31d39d93ad86",
+      "bytes": 1608
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Core/Batch/BatchPlanner.cs",
+      "sha256": "3542d1a9b387171ee997eac2cfbfec5edf7960817c6e750167cbba9af6ae4f85",
+      "bytes": 4957
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Core/ConversionException.cs",
+      "sha256": "1056fe4b4205d4c9d39b5d5ff2c03486324c5015c186c28aef5d24dbcc04c310",
+      "bytes": 498
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Core/Jobs/ConversionJob.cs",
+      "sha256": "435715372af9c7d2a25390ac81b46f7d54ab7850b86111f72add40470f5e5c29",
+      "bytes": 5198
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Core/Jobs/JobStatus.cs",
+      "sha256": "ca7999063144759600510f51b0607a53d2cf1849a2b13aa55bb762a343cfa00e",
+      "bytes": 1855
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Core/Jobs/SafeFileName.cs",
+      "sha256": "257143d1878acaf2aa07ae4aa0fe663cfbdbd36f3b321c42532f9c9f3ba56f28",
+      "bytes": 2416
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Core/Licensing/LicenseVerifier.cs",
+      "sha256": "33d59d3883505b6538c36b164ed125f90ca5c58046bf2858eaedc126c0184f1c",
+      "bytes": 7045
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Core/Licensing/TrialPolicy.cs",
+      "sha256": "76b1546bfe5b78886fbc31a5f0d74bd71837d3078ad1f8130f04aa46f453ed9e",
+      "bytes": 1630
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Core/Media/FormatCatalog.cs",
+      "sha256": "75999795b44e73405b2f9072b5d25246988127ddb5fd61b96f6efdeeb8308b77",
+      "bytes": 3679
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Core/Media/MediaInfo.cs",
+      "sha256": "c6d2016917bb5144c107b29d6415c4d0a618e53997c7adcd591dcd93159c74b1",
+      "bytes": 2360
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Core/Media/MediaKind.cs",
+      "sha256": "5940e80e30bcdd7533a53264d4286b2f655c7dfa64140d39c63ae8f96bd55bf7",
+      "bytes": 551
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Core/Operations/OperationCatalog.cs",
+      "sha256": "a22de7d7ea15fd3d6741b726726116910a3bb54863ae3c404a2fcf40e6577f15",
+      "bytes": 9659
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Core/Operations/OperationIds.cs",
+      "sha256": "d84d089dbb779ecbb91b6adeb926a3ffc0ac1f3381f8cadad6051c9e8f7976cb",
+      "bytes": 1424
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Core/Options/AudioAllowlist.cs",
+      "sha256": "881aa6f1718683d44170f8aeb1b7639b1ac9d0e06a7a138ee042580a508ac9d3",
+      "bytes": 2372
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Core/Options/DocumentOptions.cs",
+      "sha256": "23986d8f011790bd458e60c29b3223409994efeec2a9697dbef94e064a55bdb9",
+      "bytes": 9645
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Core/Options/ImageOptions.cs",
+      "sha256": "0546e36667014fdbacb0a17010070d4d6b2674b3dc0ae97328077bf445a2f4b5",
+      "bytes": 3850
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Core/Options/JobOptions.cs",
+      "sha256": "0436185f815a22ac9c99e08936cbeea02cb865ac55410494dabf48d591aef736",
+      "bytes": 2627
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Core/Options/OptionEnums.cs",
+      "sha256": "d24588d01e0072a54b2ffbb2a9fc2c73d04cc5cadbbc528d4918b8250f45a7cb",
+      "bytes": 2313
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Core/Options/SpeechOptions.cs",
+      "sha256": "c3e80e3b84d07fe276a93330c3471161f0fd927ba8c3e463e63a7a7bffae3d7e",
+      "bytes": 4447
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Core/Options/VideoOptions.cs",
+      "sha256": "f9717a47cb1360688bf862832611336c5e5545aa0bc9b69c09095547d3f601e0",
+      "bytes": 11472
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Core/Presets/PresetCatalog.cs",
+      "sha256": "fd0b7c3b1e4c698bd9e2138b8615c75fe1c89f135be6b6d0868002da701c477e",
+      "bytes": 4574
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Core/Queue/ConversionQueue.cs",
+      "sha256": "e557c974f24b83b96a0962c1e66c707a3b2df8d85ce550d5072b3dbe9b419804",
+      "bytes": 18134
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Core/Queue/QueueSettings.cs",
+      "sha256": "bc37f2f2a5ce266c46c87574bb616928024a09f691167606cbd48490bfdf31e9",
+      "bytes": 1762
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Core/SmellsLikeTech.Converter.Core.csproj",
+      "sha256": "e0cbafe74ec5f8fd08a36cfd0a8ad188df68dd6c3ba0b2786363965e517d8ccd",
+      "bytes": 289
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Desktop/App.xaml",
+      "sha256": "72b9c78ee4f93c717d51c8abad4236173c4d217f5b332f88ea92d82ff4a22392",
+      "bytes": 5854
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Desktop/App.xaml.cs",
+      "sha256": "063f3549850ffd06bc9f68753a50c16e2ce5618ed3b15f7f4e32684c4745eef0",
+      "bytes": 2402
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Desktop/Assets/abertura-poster.jpg",
+      "sha256": "7a73f14c58f0fbf9f9cd82ac015de2bf48d0db4b0d69be38dbfe7c4e5f4e786f",
+      "bytes": 169921
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Desktop/Assets/abertura.mp4",
+      "sha256": "af5566c224632873312343cf199ed94edca91f61778eb0f64c750f3068714484",
+      "bytes": 3453243
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Desktop/Assets/icon-128.png",
+      "sha256": "29a62172751f40d3e727506022d857f0aee798f584de14466792f2e796ceb46b",
+      "bytes": 36818
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Desktop/Assets/icon-256.png",
+      "sha256": "762322a0fea7bc91ab37e24479694ae520af81da92a3cd06e549a4ae6ad7e0ff",
+      "bytes": 127842
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Desktop/Assets/icon-64.png",
+      "sha256": "f84b3d9f01caf13d55f952b892cbc9b5fb69766d4d7ebc1fa2813e70674a6cf7",
+      "bytes": 10741
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Desktop/Assets/icon.ico",
+      "sha256": "5d0abe06f9a44ea311b7a612c66e08a9de4bdefdd63d8f966946b087d5dc528e",
+      "bytes": 372526
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Desktop/Assets/mascot.png",
+      "sha256": "b9edb386b095234c1563cf26a75e721168e0827675c6464e8947c3c3661bf7bd",
+      "bytes": 538446
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Desktop/Assets/title.png",
+      "sha256": "db0fd6ee412223c38717288397eadf970f601172cb0e24fb5619d1d17d183c3a",
+      "bytes": 130892
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Desktop/Controls/BatchGroupCard.xaml",
+      "sha256": "227d0faf9c4316de397ac77c871b3927f47c3fa82af344fe154a3647a7223231",
+      "bytes": 7190
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Desktop/Controls/BatchGroupCard.xaml.cs",
+      "sha256": "bd6e12836dbc006585952cc16fd7306e889084f6b0b60e2f6234eb79e97a3ec3",
+      "bytes": 13061
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Desktop/Controls/ConversionOptionsView.xaml",
+      "sha256": "6a4a77200d5cf70f4d206d9fa2d376af0172154487a0484f8784a2f81496e301",
+      "bytes": 17557
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Desktop/Controls/ConversionOptionsView.xaml.cs",
+      "sha256": "fd4f84b2594f4f32ca8da1a94eb34a981bee33489dc450e4d8232e44a146eb3b",
+      "bytes": 27681
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Desktop/MainWindow.xaml",
+      "sha256": "ace507650d8e5689f7176088a32470b40f1b27fc0d5eff523018b62bbee2b686",
+      "bytes": 5317
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Desktop/MainWindow.xaml.cs",
+      "sha256": "14bc2254f4582ac166c9c64be032e63b23e9a95a9ea3a98358fc0e5d445f1984",
+      "bytes": 5350
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Desktop/Pages/BatchPage.xaml",
+      "sha256": "32e94cb164a9e8a006e48ec7523260afa22ee374a98cbe8ca958ef7af047b81d",
+      "bytes": 6412
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Desktop/Pages/BatchPage.xaml.cs",
+      "sha256": "0ad235c7c79c2109c81de48cc5f355ef1dde9a3f6ec4c29349b36c8fd37040fe",
+      "bytes": 10991
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Desktop/Pages/HistoryPage.xaml",
+      "sha256": "468254d5587c14809321cd9b5340fe886957fcaada217a4fc3fcd0542542f15c",
+      "bytes": 4409
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Desktop/Pages/HistoryPage.xaml.cs",
+      "sha256": "5841ac381702a1752a71341e1496d67458873aa0ce8bcfd552cea5c84a798249",
+      "bytes": 1958
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Desktop/Pages/HomePage.xaml",
+      "sha256": "8bd68cad6034c74dcc2d6f30420dfb99063e91c556577eafae7dae86b528f3ea",
+      "bytes": 16237
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Desktop/Pages/HomePage.xaml.cs",
+      "sha256": "43e169ae4bb78f61fb94b31081b29fa2f08a983772bd4ce28a882ea55b20bd2d",
+      "bytes": 13854
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Desktop/Pages/QueuePage.xaml",
+      "sha256": "4e93e253f17e6130bcb13cd2bc0e892dbe8b2e3d933624f1294efb4150cdf238",
+      "bytes": 7533
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Desktop/Pages/QueuePage.xaml.cs",
+      "sha256": "66198123fb205ef02938bad9df7a8b52ec6e8e00b8aa8e260a594e50750e7b69",
+      "bytes": 2435
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Desktop/Pages/SettingsPage.xaml",
+      "sha256": "5367223d7ad87d79efdcc875df925d985640e69494ff9463ee79d5b319e5c9c8",
+      "bytes": 16042
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Desktop/Pages/SettingsPage.xaml.cs",
+      "sha256": "b1e6e38cb652579b45ce07385fde9065831abc64e66b6e896a35efbf28026558",
+      "bytes": 13111
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Desktop/Pages/SpeechPage.xaml",
+      "sha256": "2a9311d03ecf5460a97ab0114da0825b556163775567c940142d567f03da43a6",
+      "bytes": 7117
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Desktop/Pages/SpeechPage.xaml.cs",
+      "sha256": "cfb02e53c214d17ae0e7a6da2b5e8c447016277f334692965f252ac69de5a0bc",
+      "bytes": 9300
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Desktop/Services/BrandInfo.cs",
+      "sha256": "7fa95367d92ca1d7254e2fea65c672386de61f7c2bea652c0a0e991ab0daa577",
+      "bytes": 1084
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Desktop/Services/FileDialogs.cs",
+      "sha256": "24090d27a2b819bcc062a5857b3db7a01af1911b189bd98c7e9332d6d89854ac",
+      "bytes": 2083
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Desktop/Services/LicenseGate.cs",
+      "sha256": "98a5131227fea70fedaee60774f6fb4559bfd227a243a9fec55ef790d6c7b359",
+      "bytes": 1930
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Desktop/Services/ShellHelper.cs",
+      "sha256": "4aaff76c54d04798a0029c87e0bfc9fb439c2883eb62124b4089191a2862fa2d",
+      "bytes": 3458
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Desktop/Services/WindowPlacement.cs",
+      "sha256": "3fab37efea2dab60ef693bf8549ffc21436b67b47ed4ddb2dcb5bcdaa62aaa7b",
+      "bytes": 1800
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Desktop/SmellsLikeTech.Converter.Desktop.csproj",
+      "sha256": "7430b3138204356b82dec8b5169263a0e1abb3131c94472ed31dba32fea35644",
+      "bytes": 2312
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Desktop/SplashWindow.xaml",
+      "sha256": "69814fc2a7d661e97f72200ef2460bc316608a44b41ef91a095904afee27772e",
+      "bytes": 3540
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Desktop/SplashWindow.xaml.cs",
+      "sha256": "c23ce08580659fa12b9d2489423e92c054674cd61a01506c799b156c1bd51b97",
+      "bytes": 7483
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Desktop/ViewModels/BatchViewModels.cs",
+      "sha256": "e9a94ce3f4f8f89d6122053f1ba5650a3da6e00a5306963f293293522f7a0834",
+      "bytes": 4124
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Desktop/ViewModels/ListItems.cs",
+      "sha256": "1dae90a0ceea577de360266fcec094d2760048cf102f0b9ccc975e835673b2dc",
+      "bytes": 3413
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Desktop/ViewModels/ObservableObject.cs",
+      "sha256": "4fc7545a18f0e60d85a57aef77fb83d124f42db71d2c7d476579f3dc3515332b",
+      "bytes": 801
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Desktop/ViewModels/QueueViewModel.cs",
+      "sha256": "f784e89726916320e11aa7893deb5b1f47a67d1fcbcce14220891224bd22b540",
+      "bytes": 7025
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Desktop/app.manifest",
+      "sha256": "2e18ed83f32de114b6e82d8db613c6cb644f7b749dd9d60babeced7f92330cc1",
+      "bytes": 1138
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Engine.Documents/DocumentTextReader.cs",
+      "sha256": "2c0d6a25b6ce62eaa4b275ad540d0bbcc50280aa2d49da6b331e07aeb7d18b18",
+      "bytes": 6796
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Engine.Documents/DocumentToolset.cs",
+      "sha256": "81d04ea822048ab0ac24cb0e54713168fd46a8dd132614b09c7729cf58b770c0",
+      "bytes": 2120
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Engine.Documents/DocumentWriter.cs",
+      "sha256": "5f634b884301f920b87de10805248843290c6dd0b9e5a522c0fffa9323315f8a",
+      "bytes": 6435
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Engine.Documents/PdfAssemblyEngine.cs",
+      "sha256": "df8682c6dfecac0c6a659cc149cc4d7ae1a4579aad3be04afe32fe5797b8af37",
+      "bytes": 11047
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Engine.Documents/PdfDocumentEngine.cs",
+      "sha256": "2db615e831b139aa5857f3d9fa93af20153be04b922a1c2b813df2df3b278e3d",
+      "bytes": 9934
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Engine.Documents/PdfRasterizer.cs",
+      "sha256": "9ec43671c6d8b857ad9cd05d38ec05636666e342b54ba1afd9cfa3a46574c758",
+      "bytes": 1407
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Engine.Documents/PdfReader.cs",
+      "sha256": "b0a3e7c0ce4264aff6c3f11b979c3c4135697e3a0729c99fa620c4a0e4c34359",
+      "bytes": 4006
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Engine.Documents/SmellsLikeTech.Converter.Engine.Documents.csproj",
+      "sha256": "ebbb13fa4513a34c8baaaf933117203ba8b9093dc2c0481485113a141199f1db",
+      "bytes": 1239
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Engine.Documents/WindowsTextRecognizer.cs",
+      "sha256": "6a96b9193a0e06b9597998a75e16bfe1c54ab5b6e787b2a2772e05209f6d380c",
+      "bytes": 4573
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Engine.FFmpeg/FfmpegCommandPlanner.cs",
+      "sha256": "d3ee98bc8a58588d7d30f8e032836a155e6bca88279bc99719a3b5d84eedc291",
+      "bytes": 20912
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Engine.FFmpeg/FfmpegEngine.cs",
+      "sha256": "5ed68979594053df4367ea1da6cf333643238164e4d4247ff5a44704f6cd55e4",
+      "bytes": 10159
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Engine.FFmpeg/FfmpegFilterEscaping.cs",
+      "sha256": "1c74a28107208a3828e912d9e01fff69a12dc10d0519e79528bd55bb27c3050b",
+      "bytes": 744
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Engine.FFmpeg/FfmpegOptions.cs",
+      "sha256": "168375de8c17173a6663105654326b63591e9cf48c8a38576234d18f5314d841",
+      "bytes": 1210
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Engine.FFmpeg/FfmpegProgressReader.cs",
+      "sha256": "e7b4d9fbd8030ba353b62b92dd98cfcd59868e45e2ddc0f246c99c94515e9b31",
+      "bytes": 1729
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Engine.FFmpeg/FfprobeInspector.cs",
+      "sha256": "d14354ea07d948917947409214535c5f2d28b50e59aac160b5cc6d36b4ead1a2",
+      "bytes": 8074
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Engine.FFmpeg/SmellsLikeTech.Converter.Engine.FFmpeg.csproj",
+      "sha256": "f2aaf763dc1b1a77a3e36db0769208dbdcdff8da9aa5c3d141206f5637b0fd73",
+      "bytes": 742
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Engine.Image/MagickImageEngine.cs",
+      "sha256": "89ac4c5167e3e462a87ae604c81c261ae1c947922a9c2570039fa3ea614a868b",
+      "bytes": 10119
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Engine.Image/MagickImageInspector.cs",
+      "sha256": "5fdff57bac53397390a6a291bd4f96d67b26c2a54940427f34f5491c5979f59d",
+      "bytes": 1893
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Engine.Image/SmellsLikeTech.Converter.Engine.Image.csproj",
+      "sha256": "56bba52723809e9e60cc625bdf89288bae21d6729c4adea80df20d87532a0230",
+      "bytes": 665
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Engine.Speech/KokoroTtsEngine.cs",
+      "sha256": "f3f833af14c85c2ba44d1dc0e5cc02e3cc471924ab483fa9cf67c06d6776dc9c",
+      "bytes": 6233
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Engine.Speech/SmellsLikeTech.Converter.Engine.Speech.csproj",
+      "sha256": "1a372b0ca274a873ee073c9680d561ae4a3a1910a09474203241693f3253c11a",
+      "bytes": 1182
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Engine.Speech/SpeechSynthesisEngine.cs",
+      "sha256": "ccd964958c9460e2905feda85f4e762b722bf963fc55a8032bd161219631fd5f",
+      "bytes": 8297
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Engine.Speech/SubtitleConverter.cs",
+      "sha256": "a341383a8fc83ed6aa13c5ea56691f7c1e0c64266c4273a427a2b0a70886b4b9",
+      "bytes": 8070
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Engine.Speech/TextChunker.cs",
+      "sha256": "81cf6993399695568b4de129fd61a824f7d14f40091140155d227033f4057da9",
+      "bytes": 3947
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Engine.Speech/WhisperModelCatalog.cs",
+      "sha256": "b9f087e92a6402e281663c5985756f74cee1e7cdeed85ff06722ca578cb78a15",
+      "bytes": 4127
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Engine.Speech/WhisperModelInstaller.cs",
+      "sha256": "afe4a41b1a1c0b5938775ca125c3a8030ac667093e38684f00831fcf65bd2281",
+      "bytes": 3117
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Engine.Speech/WhisperTranscriptionEngine.cs",
+      "sha256": "e50df6083a73c7c2b57df7905c93f2ea4165acfda7d4ea1036a3bb9f3c14d258",
+      "bytes": 7809
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Engine.Speech/WindowsTtsEngine.cs",
+      "sha256": "2d6e85540d59e2aa09073a2dcec618dbe2aefc9f08a62294ef0c160795c8b37c",
+      "bytes": 6037
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Infrastructure/Configuration/AppSettings.cs",
+      "sha256": "46f1d34175fc2d9a4cc975ef1305befaef28c7f296843992772b942fa12c7763",
+      "bytes": 3543
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Infrastructure/Configuration/WindowLayout.cs",
+      "sha256": "25688bf86ebda4b991fb0b26f3c928708ee9c5e418de5651d0d4bc26b800f2e3",
+      "bytes": 3642
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Infrastructure/Database/ConverterDatabase.cs",
+      "sha256": "6883da6fa123f8ddad3b218292aa169f7507a4bcbbaefc1b370af94de0b1ead6",
+      "bytes": 4050
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Infrastructure/Database/SettingsStore.cs",
+      "sha256": "667695d93be0ba7e79ab197615bb895fa50180ffa2366d99486c65040f1c6442",
+      "bytes": 6404
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Infrastructure/Database/SqliteJobHistoryStore.cs",
+      "sha256": "bf57cf9d05f61fa7981bb1353140f3581eb1e349e31a1551f344a8b0de02ae7c",
+      "bytes": 6149
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Infrastructure/Execution/CommandSpec.cs",
+      "sha256": "9b7d1d3743249c1ec7af9151329e46887651fc1ba90396beca3a4d4ac071d42b",
+      "bytes": 3691
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Infrastructure/Execution/ProcessRunner.cs",
+      "sha256": "e6fadf05b172c300707eafffa7e611ab3e7648d07c8e9d604a4427d6a3106899",
+      "bytes": 3941
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Infrastructure/Hardware/GpuInventory.cs",
+      "sha256": "e5fed76a3a6ef935e2cc045814458b658d0f01a0aaf3f050c395152ada07e6d0",
+      "bytes": 5705
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Infrastructure/Hardware/HardwareProbe.cs",
+      "sha256": "f324fe38abc11289a3e9086b0c11ca44844e01845e52a0f2e1b74a4de192b022",
+      "bytes": 6342
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Infrastructure/Logging/FileLog.cs",
+      "sha256": "05f8f72dab8c9aad12f0e7571e027950b6b059cc0ef14a7c963c70630bc65819",
+      "bytes": 3403
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Infrastructure/Media/CompositeMediaInspector.cs",
+      "sha256": "934b0edc658033bf84c8c71f170454c17eab23173019d92af372e3681a3d3698",
+      "bytes": 2015
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Infrastructure/SmellsLikeTech.Converter.Infrastructure.csproj",
+      "sha256": "59e0593b8d97490c7e0383f1771bb8ce7229cff66a0824155be94f66af5ca312",
+      "bytes": 708
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Infrastructure/Storage/ConverterPaths.cs",
+      "sha256": "b95ea7c6bb413b122b26816295530596a8072873fa801d88d66ee462eae96fd1",
+      "bytes": 2676
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Infrastructure/Storage/FileAccessGuard.cs",
+      "sha256": "b725afa54c41f0689ee8bee082cef15bfb1a8cf96b2601ba324a87f02d62a456",
+      "bytes": 1499
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Infrastructure/Storage/JobWorkspace.cs",
+      "sha256": "66f708fbf251e4a774855c096264b8807c4f53301fbfc750d406ef84fdd03c5c",
+      "bytes": 5208
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Infrastructure/Storage/RetentionService.cs",
+      "sha256": "18e1e54c4c39f481d999136c2678a89309ba86e23a637f96a2be16459a23761a",
+      "bytes": 2684
+    },
+    {
+      "path": "desktop/tests/SmellsLikeTech.Converter.Tests/BatchTests.cs",
+      "sha256": "45e616181ff0d01d1c1a785cba3f416da05d5c989a4b326d88a0305370f88c50",
+      "bytes": 6280
+    },
+    {
+      "path": "desktop/tests/SmellsLikeTech.Converter.Tests/CatalogTests.cs",
+      "sha256": "61878186955974c1c2ff87f3edd86b6c71b7b5215836520707feb509c46d335c",
+      "bytes": 4383
+    },
+    {
+      "path": "desktop/tests/SmellsLikeTech.Converter.Tests/DocumentTests.cs",
+      "sha256": "50054a5b0ead710d074b1c17a3311890fdfef088f47cc86d20465d27a961787c",
+      "bytes": 16185
+    },
+    {
+      "path": "desktop/tests/SmellsLikeTech.Converter.Tests/EndToEndTests.cs",
+      "sha256": "4890f4c33566bcc7fe37461c2fc1da17ade9426be1a3e759833a351e84b48303",
+      "bytes": 23098
+    },
+    {
+      "path": "desktop/tests/SmellsLikeTech.Converter.Tests/FfmpegIntegrationTests.cs",
+      "sha256": "5c8563f0dbaf54e312af22365f2befa9116aaffde3781ed357e09260090e2ccc",
+      "bytes": 9719
+    },
+    {
+      "path": "desktop/tests/SmellsLikeTech.Converter.Tests/FfmpegPlannerTests.cs",
+      "sha256": "6be750e1cf248ab28bae5e0940ebc0d9cb4dcb5cb1ef262b92055c671f967572",
+      "bytes": 9695
+    },
+    {
+      "path": "desktop/tests/SmellsLikeTech.Converter.Tests/HardwareTests.cs",
+      "sha256": "f4f41c421119883a84736f8949b6343c8762b25934a3fe47e0e8f78bf799625b",
+      "bytes": 2965
+    },
+    {
+      "path": "desktop/tests/SmellsLikeTech.Converter.Tests/KokoroTests.cs",
+      "sha256": "c5efdf101f45682ea7a118fa6e7acad521c2f32e0dbd7436d1405b784653a236",
+      "bytes": 2501
+    },
+    {
+      "path": "desktop/tests/SmellsLikeTech.Converter.Tests/LicenseTests.cs",
+      "sha256": "d303dafdeb148825d8a67274d1f473af41fcd0bdb9bfa3348af584eca10c50f0",
+      "bytes": 5503
+    },
+    {
+      "path": "desktop/tests/SmellsLikeTech.Converter.Tests/OptionsValidationTests.cs",
+      "sha256": "e5447abf2bb478eb86ff581374f8cf6d776cc331de43a04864f4553a073af1b5",
+      "bytes": 5357
+    },
+    {
+      "path": "desktop/tests/SmellsLikeTech.Converter.Tests/PluginGuardTests.cs",
+      "sha256": "ca1e948f52275e968209a864c416dff935b9f3a83a26032bf0cf0501f620d74f",
+      "bytes": 10906
+    },
+    {
+      "path": "desktop/tests/SmellsLikeTech.Converter.Tests/QueueTests.cs",
+      "sha256": "b8b02e1a4c6832b17ef6e441eada9516e08b393f9bf1d2b78a467406bec41869",
+      "bytes": 9107
+    },
+    {
+      "path": "desktop/tests/SmellsLikeTech.Converter.Tests/SmellsLikeTech.Converter.Tests.csproj",
+      "sha256": "82f6778dc7a83b8072b3cdc7c7b9f21b541845301eb2ea7aefe655cf3e6e3874",
+      "bytes": 1825
+    },
+    {
+      "path": "desktop/tests/SmellsLikeTech.Converter.Tests/SpeechTests.cs",
+      "sha256": "c7766a80df459bd5a25780505ea17f5ac546e88a09ac62ea04ad4957b3b5579a",
+      "bytes": 10199
+    },
+    {
+      "path": "desktop/tests/SmellsLikeTech.Converter.Tests/TestConfiguration.cs",
+      "sha256": "3e43461ffea122143e2d183685aa026707281100d1c52a53d5842e65de078c62",
+      "bytes": 439
+    },
+    {
+      "path": "desktop/tests/SmellsLikeTech.Converter.Tests/WindowLayoutTests.cs",
+      "sha256": "0efcd0dd9ce97e3560383f73ea0ffdd7cca9481e20081ba59b725251b50c9d93",
+      "bytes": 5315
+    },
+    {
+      "path": "desktop/tests/SmellsLikeTech.Converter.Tests/WorkspaceTests.cs",
+      "sha256": "0efbe516ac1484acde854065a95997e3b803ce705ce03aa380809164a53e07a3",
+      "bytes": 8029
+    },
+    {
+      "path": "docs/android.md",
+      "sha256": "084a4f94d92d0c5d2257e269d9fdb54ed2dbe34a9d195710fe66ebea4c0536e3",
+      "bytes": 14097
+    },
+    {
+      "path": "docs/kokoro-fontes.md",
+      "sha256": "c6d9e20e5dc3164fe3fdf2b4f17021f620ba46a60e410aca1db73469979001bd",
+      "bytes": 2234
+    },
+    {
+      "path": "docs/kokoro.md",
+      "sha256": "d70978edab20ec33ac44d8835d9f22cd23b1b03a0b1cbd94296b13dc8cdbc19d",
+      "bytes": 4603
+    },
+    {
+      "path": "eslint.config.mjs",
+      "sha256": "4192a485bd310668da28ac934ed3e19dca50209506eccc973efcde05ce2dd85d",
+      "bytes": 1762
+    },
+    {
+      "path": "lib/baixar.ts",
+      "sha256": "0a39bd12a396181102d9aec7ef27b19e478df62fc273c93d96156edd183cddbb",
+      "bytes": 2577
+    },
+    {
+      "path": "lib/converter/ferramentas.ts",
+      "sha256": "0a0b98d7b35d7e543536f04498114ca95e84dfa65005c73c4e78968e592a9db1",
+      "bytes": 18989
+    },
+    {
+      "path": "lib/converter/limites.ts",
+      "sha256": "bf45a3aa7d962ddb5b2a01cccbf03e62b44dc26395399ba0ca964f6901238073",
+      "bytes": 6124
+    },
+    {
+      "path": "lib/converter/motores/audio-codificar.ts",
+      "sha256": "6370f58ba55131c945b2accc0c7db1fb81c56a3580b5979f9995a2b3f25a30c5",
+      "bytes": 3762
+    },
+    {
+      "path": "lib/converter/motores/bmp-ico.ts",
+      "sha256": "49c086e140863285e9c8bf5d309a1bc04ed7470f9a9a1e25b52ec7b4075f0747",
+      "bytes": 2848
+    },
+    {
+      "path": "lib/converter/motores/heic.ts",
+      "sha256": "ca502e32837cd3fe751c4ada6a4d61aa0c182e9970c0f20b17ea2a182cf765bd",
+      "bytes": 2691
+    },
+    {
+      "path": "lib/converter/motores/imagem.ts",
+      "sha256": "8e7aaaea68c7bebf3b78f6ca36d55f096b5003cd6e967294dc57e88d3b857f1d",
+      "bytes": 12613
+    },
+    {
+      "path": "lib/converter/motores/legenda.ts",
+      "sha256": "7027c24c872859519e0fbd20881221cb4624032ed5a30e31012735ad9b2bf224",
+      "bytes": 1247
+    },
+    {
+      "path": "lib/converter/motores/pdf.ts",
+      "sha256": "c550bfe696c12f4e59cd0b2fb0328aade0c7ca758f8bd9fda5a9896e1e00a7bb",
+      "bytes": 12682
+    },
+    {
+      "path": "lib/converter/motores/tiff.ts",
+      "sha256": "cdbfaf55a92b231d1b2cd4656de34a3b96db604337b0526a0826b869604e8fd0",
+      "bytes": 1972
+    },
+    {
+      "path": "lib/converter/motores/video.ts",
+      "sha256": "32f202c021c27b5b6631a45397f285606f6a85309af4aba8df1331d0a299c429",
+      "bytes": 22991
+    },
+    {
+      "path": "lib/converter/motores/zip.ts",
+      "sha256": "9cee91f936314bb628bbf0434d64bbeb47c983cd7a282ec5247510bc6a943bec",
+      "bytes": 1012
+    },
+    {
+      "path": "lib/converter/pagina/audio.ts",
+      "sha256": "35a4cebb74fb763ca523a6cc9b1822b3d5154802c63f085565b57ff36ca80c65",
+      "bytes": 7131
+    },
+    {
+      "path": "lib/converter/pagina/kokoro.ts",
+      "sha256": "af045fec92c68bc057a472ae90bb9ce6891f11441eb981d8910117ee480711ee",
+      "bytes": 4725
+    },
+    {
+      "path": "lib/converter/pagina/narracao.ts",
+      "sha256": "91b1e84caf75262cf2b87ecc060ac03cc9fcc780da8e368ce10259a5ef370ad2",
+      "bytes": 8250
+    },
+    {
+      "path": "lib/converter/pagina/ocr.ts",
+      "sha256": "7fb40c7c28575e6785a20e8bd779f2d11efb7011ce5200d4906cbe947700069c",
+      "bytes": 3013
+    },
+    {
+      "path": "lib/converter/pagina/pdfjs.ts",
+      "sha256": "a6eb7182bcf4f7475cf0472cab76105189382a9d66d39551bc239d946098f18c",
+      "bytes": 7851
+    },
+    {
+      "path": "lib/converter/protocol.ts",
+      "sha256": "8aa47794bf79b4e1884f58da8b11e0f8a2179bc06ee3f07ba63b2c6fec837fa5",
+      "bytes": 2812
+    },
+    {
+      "path": "lib/converter/queue.ts",
+      "sha256": "ea3a24d5e79c627cc98d484e383f2a74f0bde0a41a50b776262c342d5bad8946",
+      "bytes": 16014
+    },
+    {
+      "path": "lib/plano/chave.ts",
+      "sha256": "0743049fe61289cbe4d721ecf772780216269498e833058719ca616b40cc1488",
+      "bytes": 2386
+    },
+    {
+      "path": "lib/plano/contadores.ts",
+      "sha256": "dd2b812110fa25fa0f293d65e59999853777c5dedd920df3d0f307e7f0fd3348",
+      "bytes": 1900
+    },
+    {
+      "path": "lib/plano/usePlano.ts",
+      "sha256": "6f6d2f83a4ad3d608613039ca7ddd9b515409d1ea2e505a3adcf7f45973f63d8",
+      "bytes": 1776
+    },
+    {
+      "path": "lib/plugin/cliente.ts",
+      "sha256": "69190e315a0664756e673d7a33876058b5b97cbedae962b65c85a42cb4e56589",
+      "bytes": 6004
+    },
+    {
+      "path": "lib/plugin/protocolo.ts",
+      "sha256": "dc8c66cacf143a25f9899eb99d4c966c7ca8732bbfdab349729ee708f910db51",
+      "bytes": 4959
+    },
+    {
+      "path": "lib/plugin/trabalhos.ts",
+      "sha256": "0f606b1c79bb0256c6c2a77163285987f5f8fe8fa94a264cd45cc063b91fb586",
+      "bytes": 5827
+    },
+    {
+      "path": "lib/plugin/usePlugin.ts",
+      "sha256": "5e1499b191bded71599fddf6711945a4344b375ad7d5f162d19b77b4b499edd6",
+      "bytes": 1713
+    },
+    {
+      "path": "lib/pwa/app.ts",
+      "sha256": "2090d44fec6f225a9cce2c06c6f8737f7aec5766e0c1327e990f67953df5de52",
+      "bytes": 6235
+    },
+    {
+      "path": "lib/pwa/compartilhados.ts",
+      "sha256": "1f4350de7af3b13d2ece590e0a0b5e8c0bc2556f5b81d7cc03690335be496617",
+      "bytes": 1510
+    },
+    {
+      "path": "lib/social.ts",
+      "sha256": "556cf8507cc539d44517df39b405ee18743096ac470010986cb5d8734229a8ac",
+      "bytes": 531
+    },
+    {
+      "path": "next-env.d.ts",
+      "sha256": "a291a6b60536fec0a3b9d4ffd6d51179b463e9bc20281d7499d756813b4c07d5",
+      "bytes": 189
+    },
+    {
+      "path": "package-lock.json",
+      "sha256": "5cca8cb1b4c0bfbced118360fdfceb168865852799b81718da14684d944dec33",
+      "bytes": 380545
+    },
+    {
+      "path": "package.json",
+      "sha256": "add73b1802582e44ab77615e95e4c0e9a0fb9584f138b61afd194bda877a5e48",
+      "bytes": 3622
+    },
+    {
+      "path": "packages/admin/index.d.mts",
+      "sha256": "3ad387fdd8363c3979a34122b71f94012795b1f888eabdc0e64af910bea08a42",
+      "bytes": 1689
+    },
+    {
+      "path": "packages/admin/index.mjs",
+      "sha256": "32e3504f3574b75645acade58c69b5dc94352c35a7ed139cb174d4e0b96e45d2",
+      "bytes": 7347
+    },
+    {
+      "path": "packages/conta/index.d.mts",
+      "sha256": "ebd9ee9c7b51bff3960d4c2d9088636bf584441e6a743a8f9747472003275e6d",
+      "bytes": 2972
+    },
+    {
+      "path": "packages/conta/index.mjs",
+      "sha256": "3b0362dba80d74072143dc12b3dafdea7a8680769d639880aed3017252159c82",
+      "bytes": 11276
+    },
+    {
+      "path": "packages/conteudo/artigos.d.mts",
+      "sha256": "e4435d8595b2e4a69ec59f7f65016fc5deed49f186dd105920eb2977d058d1f9",
+      "bytes": 539
+    },
+    {
+      "path": "packages/conteudo/artigos.mjs",
+      "sha256": "ed10fc57fbb6cfb1a7b92bd181de89d6e72989e06e5791586459c1da6b17074b",
+      "bytes": 4969
+    },
+    {
+      "path": "packages/conteudo/depoimentos.d.mts",
+      "sha256": "0cedfe0187d443c98bf1b07ddba23b046b62cd2036d143ce583220aea5d28601",
+      "bytes": 323
+    },
+    {
+      "path": "packages/conteudo/depoimentos.mjs",
+      "sha256": "d3934fe9d9eb25874f22554467789c0c8ba460e39f7176f2bf3f4db9c2b17881",
+      "bytes": 824
+    },
+    {
+      "path": "packages/conteudo/divulgacao.d.mts",
+      "sha256": "4685a0b2a1b40797af1ead5b22bd583263a9c40ab310723e797f242d1ed1a7eb",
+      "bytes": 151
+    },
+    {
+      "path": "packages/conteudo/divulgacao.mjs",
+      "sha256": "affd54f27f0123c61b34bc9cd1db134ef6442f3ac1bca6734f7c0f26523ec608",
+      "bytes": 1250
+    },
+    {
+      "path": "packages/contracts/index.d.ts",
+      "sha256": "0dbd87a2a54cc78c696b4e045c6ef7a7ee2c5dba38b65dd22e1c05c30886d343",
+      "bytes": 5538
+    },
+    {
+      "path": "packages/contracts/index.mjs",
+      "sha256": "1811adb948a7cd50cc8bf95066243876a5063a47e9d08ebbb5f0853291599f4d",
+      "bytes": 11621
+    },
+    {
+      "path": "packages/converter-core/android.d.mts",
+      "sha256": "57a694c86026015cf660ee2f798af69924b65b045d1583dc1115f20ac26c96a0",
+      "bytes": 145
+    },
+    {
+      "path": "packages/converter-core/android.mjs",
+      "sha256": "0c25e39c9fcd2f0e0bc3a065b4d31bc2c233054d8d902d455d24da47304deab5",
+      "bytes": 759
+    },
+    {
+      "path": "packages/converter-core/catalogo.d.mts",
+      "sha256": "810ef9ef1fd809fd92e296aa62b4a6efb3803d528a3accdfcbdfe44260a26d6d",
+      "bytes": 3230
+    },
+    {
+      "path": "packages/converter-core/catalogo.mjs",
+      "sha256": "ab9623bd5b3e98d809108fac2c15a57f6aa249f812e19a546c4c07993bd7f220",
+      "bytes": 24469
+    },
+    {
+      "path": "packages/converter-core/gif.d.mts",
+      "sha256": "89793d81afe9135ccc630750e247482bd39b98149110f3d1306bd187e5c9bcb9",
+      "bytes": 1013
+    },
+    {
+      "path": "packages/converter-core/gif.mjs",
+      "sha256": "f138026a810a09a7ebfae2dd763047438f0f12d19a47035d4625029af53d811f",
+      "bytes": 10224
+    },
+    {
+      "path": "packages/converter-core/index.d.mts",
+      "sha256": "8cafe54041ded6f6746666ff3436e47afa38ad394fcaadd7704330eb4901a013",
+      "bytes": 4314
+    },
+    {
+      "path": "packages/converter-core/index.mjs",
+      "sha256": "9f8047f32b175cd9fdf32eb3631e6263b0f94e1f9789b0480153da7ca6f2fa4c",
+      "bytes": 25361
+    },
+    {
+      "path": "packages/converter-core/legendas.d.mts",
+      "sha256": "07b331f2124d91c911c89aa422f7180b50335bd38e133f750a2a795f26947edc",
+      "bytes": 815
+    },
+    {
+      "path": "packages/converter-core/legendas.mjs",
+      "sha256": "8b11e50897d4ec09b0a21c6ecd834db69d2dd37af036aab3c0e0893ecfacc486",
+      "bytes": 4030
+    },
+    {
+      "path": "packages/converter-core/paginas.d.mts",
+      "sha256": "8e18459950ee621f7f6f9950224374b1bd829b56bca78df36ca13179475a0690",
+      "bytes": 1365
+    },
+    {
+      "path": "packages/converter-core/paginas.mjs",
+      "sha256": "f45af787d5b9226afc3e86a8a23ac3e63723cb0563cd7be2efbc1ab2781bf817",
+      "bytes": 14465
+    },
+    {
+      "path": "packages/converter-core/pdf-compactar.d.mts",
+      "sha256": "48ee264860eb976720c8e76975ca0fd4c4761a726f2d1997d73d44d93184f644",
+      "bytes": 1404
+    },
+    {
+      "path": "packages/converter-core/pdf-compactar.mjs",
+      "sha256": "659da6895f6ba620a8224140f67e983aa72d464ca660c2bdd78ec502ef41f05f",
+      "bytes": 14133
+    },
+    {
+      "path": "packages/converter-core/precos.d.mts",
+      "sha256": "7a31751bd1121af92b8d289cdd31ca90a00e6177a181d685dbb2847c5dcdfe34",
+      "bytes": 2204
+    },
+    {
+      "path": "packages/converter-core/precos.mjs",
+      "sha256": "453e6d6910cd4063d9808b7c6fd26a8be89bbdd44584f21925e6cee2cd445fc2",
+      "bytes": 9177
+    },
+    {
+      "path": "packages/funil/index.d.mts",
+      "sha256": "793cd1846a7f8ae308e3bdd284a0b1ab05b3993917dd995cc89ef8794389c62b",
+      "bytes": 595
+    },
+    {
+      "path": "packages/funil/index.mjs",
+      "sha256": "25aa9b4b46a42705d970b737f27609e72a4964997cd8ba11431e5d5d73391b99",
+      "bytes": 4451
+    },
+    {
+      "path": "packages/kokoro/NOTICE.txt",
+      "sha256": "8208242e3518b856704a699afd41e0c3bf83a56401283fef70769838fb779f98",
+      "bytes": 2088
+    },
+    {
+      "path": "packages/kokoro/config.mjs",
+      "sha256": "febf008e708df14910f60961b3af41c389ec30160216a2f953e36b207d393160",
+      "bytes": 1490
+    },
+    {
+      "path": "packages/kokoro/runner.js",
+      "sha256": "13462eb7990cd9262560057a1fdb7fde2526ac041e3e6a063054a9a1885ba954",
+      "bytes": 2264
+    },
+    {
+      "path": "packages/licenca/chave-publica.d.mts",
+      "sha256": "d16e5335696a27a9d029165faf45a7a6866cf52a8faf4a50798bc8d01ae1c7c7",
+      "bytes": 57
+    },
+    {
+      "path": "packages/licenca/chave-publica.mjs",
+      "sha256": "f1271a625c6f1582fbc84cc023a97694b72e23585d621ab8facd7f4bc153c15a",
+      "bytes": 802
+    },
+    {
+      "path": "packages/licenca/index.d.mts",
+      "sha256": "6b830509a1e25ba6c3ddc8a3169ea70b13f4ee0a8279d3332de33d1d78e5a0e1",
+      "bytes": 1482
+    },
+    {
+      "path": "packages/licenca/index.mjs",
+      "sha256": "d5ea48fc03e6b8c23b19643c2ea93009ce3b03a56663b49ecb7cd17becd7fa8b",
+      "bytes": 5845
+    },
+    {
+      "path": "packages/loja/index.d.mts",
+      "sha256": "319a29dde2bfb9b6838c5eb81179b201612012556d1236f07279d91e02a99425",
+      "bytes": 1884
+    },
+    {
+      "path": "packages/loja/index.mjs",
+      "sha256": "ae0be37c92516fad430016bea0a16a5ff508f4f275d76bf41d601b56b2b67a60",
+      "bytes": 9068
+    },
+    {
+      "path": "packages/pwa/sw.js",
+      "sha256": "f4135044337bca0e128603e9cfbf6d5163fc205aae0800a6cf0da4245eb45eca",
+      "bytes": 13342
+    },
+    {
+      "path": "postcss.config.mjs",
+      "sha256": "dfac7ac2d86d326a0e5adb024e7943c181393ed17a5fcb8f0315b24c7da6ddde",
+      "bytes": 94
+    },
+    {
+      "path": "public/.assetsignore",
+      "sha256": "0afcdff4dcbf4ff58106db21c2f4a94a14ba4a94a167d3efe0863d900a0a8483",
+      "bytes": 578
+    },
+    {
+      "path": "public/_headers",
+      "sha256": "3ed7537c57130fcea9fd7fb862a238fca19206d30c586d418d8b6749c35f76ee",
+      "bytes": 1155
+    },
+    {
+      "path": "public/baixar/app.json",
+      "sha256": "b55c5c2adcef5d92e41adb275d6e5ab7150a1fe369742b400783785795e8f594",
+      "bytes": 209
+    },
+    {
+      "path": "public/baixar/plugin.json",
+      "sha256": "a8783d1316898e881c58fe01a339dea86bd436338f2a8c44d832192c25c98272",
+      "bytes": 206
+    },
+    {
+      "path": "public/codigo-aberto/licencas-android.txt",
+      "sha256": "8bb8096320dbd61d430ce516b313c30b8479832d6885528934819fdc07cdfe9f",
+      "bytes": 81096
+    },
+    {
+      "path": "public/favicon.svg",
+      "sha256": "60d31678a7bc14cff7192245388b11d1a26abe0391dcbb4d27d145c39626e7b0",
+      "bytes": 315
+    },
+    {
+      "path": "public/file.svg",
+      "sha256": "1e0ae4d1a1ddfa36752988647b731e4abf150c414d069ec83c96fb0aaeff0307",
+      "bytes": 392
+    },
+    {
+      "path": "public/globe.svg",
+      "sha256": "d051a8c47936990a9085693d307bb7cea1bc1b6d7ed956bcbaacf674f4ec96b9",
+      "bytes": 1036
+    },
+    {
+      "path": "public/manifest.webmanifest",
+      "sha256": "c92bff4cc0aab370b6a02bea0e5fd00378f08116ec3f90d99442f99386b9c800",
+      "bytes": 2139
+    },
+    {
+      "path": "public/marca/icone-192.png",
+      "sha256": "b9e5c596a385032c87b2380a9bf19fb2669f9c5a29f2819b296fd50c9bbbfced",
+      "bytes": 76943
+    },
+    {
+      "path": "public/marca/icone-256.png",
+      "sha256": "762322a0fea7bc91ab37e24479694ae520af81da92a3cd06e549a4ae6ad7e0ff",
+      "bytes": 127842
+    },
+    {
+      "path": "public/marca/icone-256.webp",
+      "sha256": "94ce1487eacf50f22b47fe976490abf383ebb7c42e1b4922c8681624f26dbd5e",
+      "bytes": 23752
+    },
+    {
+      "path": "public/marca/icone-512.png",
+      "sha256": "d0752a8fe4430752bd02426dbcacc1741f114d137ee48d5f7de6da4a9c837565",
+      "bytes": 461551
+    },
+    {
+      "path": "public/marca/icone-apple-180.png",
+      "sha256": "faaeaa97aff45a749eeffa8093be9a92c961ff41def78b46a3376275d6edb9cf",
+      "bytes": 67901
+    },
+    {
+      "path": "public/marca/icone-maskable-512.png",
+      "sha256": "42961ab1b7f0758c313d7e064d98bb1f716d70ac721362905058677b216edf9f",
+      "bytes": 345096
+    },
+    {
+      "path": "public/marca/icone.ico",
+      "sha256": "5d0abe06f9a44ea311b7a612c66e08a9de4bdefdd63d8f966946b087d5dc528e",
+      "bytes": 372526
+    },
+    {
+      "path": "public/marca/mascote.webp",
+      "sha256": "01a789379fd0ca74bfd486554c39c37babd9d2dbccf65933c6a2627a2e96e3e3",
+      "bytes": 118364
+    },
+    {
+      "path": "public/marca/mercado-pago-branco.svg",
+      "sha256": "5e7dc22254d2c4331328d3c4d17a37195ce53cc9fa11091ebb0592b57005d69d",
+      "bytes": 10116
+    },
+    {
+      "path": "public/marca/qr-converter.svg",
+      "sha256": "116ad2b510346cb4b4081e94fde9f5d1a78375f040fc492a651f801186bc1245",
+      "bytes": 1962
+    },
+    {
+      "path": "public/marca/titulo.webp",
+      "sha256": "d399fd89a8da906a81736b2a29ba0e86db03c3f8dfe2c17ba28cd9ff27a9f06e",
+      "bytes": 27944
+    },
+    {
+      "path": "public/og.png",
+      "sha256": "6bbb164ebdc05ba718b006c10f78fb457118fda872126383278bd84a50db5e2e",
+      "bytes": 1020062
+    },
+    {
+      "path": "public/window.svg",
+      "sha256": "decf1cf7bb22b5c99c4857cfcd5718ce5465c4454166317589c83fc73df74b66",
+      "bytes": 386
+    },
+    {
+      "path": "scripts/android.mjs",
+      "sha256": "17c2feb1c18ff78f76007a4a396a767000fbb9167c1d1710678f9362d26e7fbb",
+      "bytes": 12682
+    },
+    {
+      "path": "scripts/copiar-motores.mjs",
+      "sha256": "b29ba0f2702dea165f32bc3671543d3a7ce68bc0375f21068c683e309d9442b1",
+      "bytes": 1865
+    },
+    {
+      "path": "scripts/kokoro.py",
+      "sha256": "2687cc202ffd383df28c53fa6f7604b38b31662dfb721b7aaa2d4ffe6e534b58",
+      "bytes": 10024
+    },
+    {
+      "path": "scripts/pwa.mjs",
+      "sha256": "b3f52759ef6603c1b1aa6d616fb3967f6b6b45b8968e021f6eb9543ce1f357c4",
+      "bytes": 2364
+    },
+    {
+      "path": "scripts/testar-kokoro.mjs",
+      "sha256": "6bafa85a8707efb82966e4c924e59e7563dcb05feed8868bb74b0b6e77447948",
+      "bytes": 9143
+    },
+    {
+      "path": "scripts/testar-offline.mjs",
+      "sha256": "1ff97cc7a94f512313dbdd442a5d74687d672c168f99e4cf1a2a9144c4e2592f",
+      "bytes": 12389
+    },
+    {
+      "path": "tests/kokoro.test.mjs",
+      "sha256": "e324a219600f147fc4dfcdfbbb20e470866f13125f0ac9ed5d1ad4e37abb1c9c",
+      "bytes": 2252
+    },
+    {
+      "path": "tsconfig.json",
+      "sha256": "34a350f487b3d4f097e9d5a85206bc30d70347262a8446a3e999817e0be0e8da",
+      "bytes": 615
+    },
+    {
+      "path": "app/api/motores/kokoro/route.ts",
+      "sha256": "230f8b329ad9d2f14b1347707dda1ff9e71afc0541dca22f4b6111b739c6a063",
+      "bytes": 647
+    }
+  ]
+}

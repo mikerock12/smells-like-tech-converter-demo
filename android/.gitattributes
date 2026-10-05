@@ -1,0 +1,5 @@
+# O gradlew roda em shell: com CRLF ele quebra no Linux (CI). O .bat é do Windows.
+gradlew text eol=lf
+*.bat text eol=crlf
+*.jar binary
+*.sh text eol=lf

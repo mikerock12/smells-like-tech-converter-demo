@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <RootNamespace>SmellsLikeTech.Converter.Engine.Image</RootNamespace>
+    <Description>Conversao e edicao de imagens via ImageMagick (Magick.NET).</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Magick.NET-Q8-AnyCPU" Version="14.16.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\SmellsLikeTech.Converter.Core\SmellsLikeTech.Converter.Core.csproj" />
+    <ProjectReference Include="..\SmellsLikeTech.Converter.Infrastructure\SmellsLikeTech.Converter.Infrastructure.csproj" />
+  </ItemGroup>
+</Project>

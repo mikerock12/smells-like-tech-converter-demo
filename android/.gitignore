@@ -1,0 +1,17 @@
+.gradle/
+.kotlin/
+build/
+local.properties
+*.iml
+.idea/
+captures/
+.externalNativeBuild/
+.cxx/
+# A chave que assina o APK nunca entra no repositório (fica criptografada no Drive).
+*.jks
+*.keystore
+assinatura.properties
+# O FFmpeg compilado (android/nativos) e a obra dele: vêm da release, conferidos pelo SHA-256.
+nativos/.trabalho/
+nativos/saida/
+app/src/main/jniLibs/

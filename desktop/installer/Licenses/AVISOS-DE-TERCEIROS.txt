@@ -1,0 +1,101 @@
+SMELLS LIKE TECH CONVERTER DESKTOP
+Avisos e atribuições de terceiros
+
+Smells Like Tech Informática — CNPJ 30.054.253/0001-09
+https://www.smellsliketech.com.br
+
+Este produto usa os componentes abaixo. Cada um mantém a própria licença,
+que prevalece sobre este resumo. Antes de qualquer distribuição comercial,
+revise a licença da build efetivamente entregue.
+
+--------------------------------------------------------------------------
+FFmpeg / FFprobe
+--------------------------------------------------------------------------
+Usados como processos externos para vídeo, áudio, GIF, extração de quadros
+e transcrição. NÃO são redistribuídos dentro deste instalador: o aplicativo
+usa a instalação de FFmpeg presente no computador.
+
+A licença varia conforme a build: LGPL-2.1+ ou GPL-2.0+/GPL-3.0+ quando
+compilada com componentes GPL (por exemplo libx264, libx265). Codecs podem
+envolver patentes conforme o país de uso.
+https://ffmpeg.org/legal.html
+
+--------------------------------------------------------------------------
+whisper.cpp e modelos Whisper
+--------------------------------------------------------------------------
+A transcrição usa o whisper.cpp embutido na build do FFmpeg (filtro
+"whisper"). Os modelos GGML são baixados sob demanda pelo próprio usuário,
+a partir do repositório oficial, e ficam em Models\Whisper. Não são
+redistribuídos por este instalador.
+
+whisper.cpp: licença MIT — https://github.com/ggml-org/whisper.cpp
+Modelos Whisper (OpenAI): licença MIT — https://github.com/openai/whisper
+
+--------------------------------------------------------------------------
+ImageMagick / Magick.NET
+--------------------------------------------------------------------------
+Motor de imagens, redistribuído com o aplicativo.
+ImageMagick License (compatível com Apache-2.0)
+https://imagemagick.org/script/license.php
+https://github.com/dlemstra/Magick.NET
+
+--------------------------------------------------------------------------
+Windows App SDK / WinUI 3
+--------------------------------------------------------------------------
+Interface gráfica, redistribuída com o aplicativo em modo self-contained.
+Microsoft Software License Terms / MIT conforme o componente.
+https://github.com/microsoft/WindowsAppSDK
+
+--------------------------------------------------------------------------
+.NET Runtime
+--------------------------------------------------------------------------
+Runtime redistribuído com o aplicativo. Licença MIT.
+https://github.com/dotnet/runtime
+
+--------------------------------------------------------------------------
+SQLite / Microsoft.Data.Sqlite / SQLitePCLRaw
+--------------------------------------------------------------------------
+Banco local de histórico, presets e configurações.
+SQLite: domínio público — https://www.sqlite.org/copyright.html
+Microsoft.Data.Sqlite: licença MIT
+SQLitePCLRaw: licença Apache-2.0
+
+--------------------------------------------------------------------------
+System.Speech / SAPI e vozes do Windows
+--------------------------------------------------------------------------
+A síntese de voz usa o motor e as vozes já instalados no Windows. Nenhuma
+voz é redistribuída por este instalador. As vozes podem ter termos próprios
+de uso; confirme a permissão de uso comercial antes de distribuir áudios
+gerados a partir delas.
+
+--------------------------------------------------------------------------
+PdfPig
+--------------------------------------------------------------------------
+Leitura de PDF (texto e páginas), redistribuído com o aplicativo.
+Licença Apache-2.0 — https://github.com/UglyToad/PdfPig
+
+--------------------------------------------------------------------------
+PDFtoImage e PDFium
+--------------------------------------------------------------------------
+PDF para imagem, redistribuídos com o aplicativo.
+PDFtoImage: licença MIT — https://github.com/sungaila/PDFtoImage
+PDFium: licença BSD-3-Clause — https://pdfium.googlesource.com/pdfium
+
+--------------------------------------------------------------------------
+Open XML SDK (DocumentFormat.OpenXml)
+--------------------------------------------------------------------------
+Leitura e gravação de documentos do Word, redistribuído com o aplicativo.
+Licença MIT — https://github.com/dotnet/Open-XML-SDK
+
+--------------------------------------------------------------------------
+Inno Setup
+--------------------------------------------------------------------------
+Usado apenas para gerar este instalador.
+https://jrsoftware.org/isinfo.php
+
+--------------------------------------------------------------------------
+Componentes previstos para os próximos marcos
+--------------------------------------------------------------------------
+LibreOffice (MPL-2.0), Pandoc (GPL-2.0+), Tesseract (Apache-2.0) e
+Ghostscript (AGPL/comercial) ainda NÃO acompanham o produto. Quando forem
+integrados, suas licenças deverão ser revisadas e adicionadas aqui.

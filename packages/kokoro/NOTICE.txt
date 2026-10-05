@@ -1,0 +1,34 @@
+Kokoro-82M v1.0 / int8 nos apps, fp32 no navegador / Sherpa-ONNX 1.13.8 / idioma pt
+Integração Smells Like Tech Converter, 04/10/2026.
+
+Modelo: Copyright hexgrad e colaboradores. Apache-2.0; texto completo em ../LICENSE.
+https://huggingface.co/hexgrad/Kokoro-82M
+Pesos ONNX oficiais: https://github.com/k2-fsa/sherpa-onnx/releases/tag/tts-models
+
+Sherpa-ONNX: Copyright k2-fsa e colaboradores. Apache-2.0.
+Código-fonte, scripts de compilação e dependências fixadas:
+https://github.com/k2-fsa/sherpa-onnx/tree/v1.13.8
+https://github.com/k2-fsa/sherpa-onnx/archive/refs/tags/v1.13.8.zip
+ONNX Runtime: Copyright Microsoft Corporation. MIT.
+https://github.com/microsoft/onnxruntime
+
+eSpeak-NG: Copyright Jonathan Duddington, Reece H. Dunn e colaboradores.
+GPLv3 ou posterior. Texto completo em GPL-3.0.txt. Sem garantia.
+Fonemizador embutido no runtime Sherpa-ONNX, não um serviço de rede.
+Fork e código-fonte correspondente fixados pelo build oficial Sherpa:
+https://github.com/csukuangfj/espeak-ng/tree/ed530aa113046142eb5115cf2fc9157854d0ffe1
+https://github.com/csukuangfj/espeak-ng/archive/ed530aa113046142eb5115cf2fc9157854d0ffe1.zip
+Receita: cmake/espeak-ng-for-piper.cmake no código-fonte Sherpa-ONNX 1.13.8.
+São preservados os direitos de obter, modificar e redistribuir esse componente sob GPLv3.
+
+O JS upstream foi alterado apenas para desativar o preload do pacote de 380 MB.
+O runner carrega os pesos fp32 verificados em FS e configura explicitamente lang=pt.
+Receita reproduzível, hashes e código da integração: scripts/kokoro.py e packages/kokoro/.
+https://github.com/mikerock12/smells-like-tech-converter-demo
+
+Integração própria dos clientes: Copyright (C) 2026 Smells Like Tech Informática.
+GNU GPLv3 ou posterior, autorizada pelo responsável em 04/10/2026.
+Sem garantia. Texto completo em GPL-3.0.txt; alcance em LICENSING.md no repositório.
+Os fontes correspondentes e as receitas acompanham cada release distribuída.
+https://github.com/mikerock12/smells-like-tech-converter-demo/releases
+Os componentes de terceiros mantêm suas licenças originais.

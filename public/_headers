@@ -1,0 +1,30 @@
+# Isolamento de origem cruzada para todo o site.
+#
+# Os motores de conversão rodam em Web Workers e usam WASM com threads, o que exige
+# a página isolada. E não basta a página: o próprio script do worker e os arquivos
+# .wasm precisam chegar com a mesma política, senão o navegador recusa carregá-los
+# (ERR_BLOCKED_BY_RESPONSE).
+#
+# Cada cabeçalho aparece numa regra só. Duas regras que casam o mesmo caminho e
+# repetem o cabeçalho produzem "require-corp, require-corp", que o navegador não
+# reconhece — e aí ele bloqueia justamente o worker que a regra queria liberar.
+/*
+  Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Embedder-Policy: require-corp
+  Cross-Origin-Resource-Policy: same-origin
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+
+/_next/static/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/motores/*
+  Cache-Control: public, max-age=604800
+
+# O service worker precisa ser conferido a cada visita: é ele que decide quando o app
+# troca de versão. O manifesto muda pouco.
+/sw.js
+  Cache-Control: no-cache
+
+/manifest.webmanifest
+  Cache-Control: public, max-age=3600

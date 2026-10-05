@@ -1,0 +1,12 @@
+# O que casar aqui não sobe como asset estático no `wrangler deploy`.
+#
+# O Vite copia este arquivo para dist/client, e o wrangler o lê de lá. Os assets de um
+# Worker param em 25 MiB cada, e um só arquivo acima disso derruba o deploy inteiro.
+#
+# Instaladores do Windows: dezenas de MB. Eles moram no bucket R2 e o Worker os entrega
+# em /baixar/<arquivo>.exe (worker/instaladores.ts). Um .exe esquecido em public/ fica
+# de fora aqui em vez de quebrar a publicação.
+*.exe
+
+# O app para Android (dezenas de MB) segue o mesmo caminho: R2, em /baixar/<arquivo>.apk.
+*.apk

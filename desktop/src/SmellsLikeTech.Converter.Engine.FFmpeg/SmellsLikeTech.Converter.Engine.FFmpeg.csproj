@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <RootNamespace>SmellsLikeTech.Converter.Engine.FFmpeg</RootNamespace>
+    <Description>Video, audio, video para audio, GIF e frames via FFmpeg.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- O planejador de comandos é testado diretamente, sem executar o FFmpeg. -->
+    <InternalsVisibleTo Include="SmellsLikeTech.Converter.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\SmellsLikeTech.Converter.Core\SmellsLikeTech.Converter.Core.csproj" />
+    <ProjectReference Include="..\SmellsLikeTech.Converter.Infrastructure\SmellsLikeTech.Converter.Infrastructure.csproj" />
+  </ItemGroup>
+</Project>

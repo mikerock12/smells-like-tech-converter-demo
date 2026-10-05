@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>SmellsLikeTech.Converter.Core</RootNamespace>
+    <Description>Nucleo de conversao reutilizavel entre desktop, worker e nuvem.</Description>
+  </PropertyGroup>
+</Project>

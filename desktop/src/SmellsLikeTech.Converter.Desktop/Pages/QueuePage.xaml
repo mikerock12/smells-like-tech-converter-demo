@@ -1,0 +1,140 @@
+<Page
+    x:Class="SmellsLikeTech.Converter.Desktop.Pages.QueuePage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:vm="using:SmellsLikeTech.Converter.Desktop.ViewModels"
+    Background="{StaticResource BrandBackgroundBrush}">
+
+    <Grid Padding="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <Border Grid.Row="0" Style="{StaticResource GlowCardBorderStyle}">
+            <Grid>
+                <StackPanel Spacing="2">
+                    <TextBlock Text="CONVERSÕES" Style="{StaticResource SectionTitleStyle}" Margin="0" />
+                    <TextBlock
+                        x:Name="SummaryText"
+                        FontSize="13"
+                        Foreground="{StaticResource BrandTextMutedBrush}"
+                        Text="Nada na fila" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right" VerticalAlignment="Center">
+                    <Button x:Name="PauseButton" Click="OnTogglePause" Content="Pausar fila" />
+                    <Button Click="OnClearFinished" Content="Limpar encerrados" />
+                    <Button Click="OnOpenOutputFolder" Content="Abrir pasta de saída" />
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <ListView
+            x:Name="JobList"
+            Grid.Row="1"
+            SelectionMode="None"
+            ItemsSource="{x:Bind Queue.Jobs, Mode=OneWay}">
+            <ListView.ItemContainerStyle>
+                <Style TargetType="ListViewItem">
+                    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                    <Setter Property="Padding" Value="0,4" />
+                </Style>
+            </ListView.ItemContainerStyle>
+            <ListView.ItemTemplate>
+                <DataTemplate x:DataType="vm:JobItemViewModel">
+                    <Border
+                        Background="{StaticResource BrandPanelBrush}"
+                        BorderBrush="{StaticResource BrandStrokeBrush}"
+                        BorderThickness="1"
+                        CornerRadius="10"
+                        Padding="14"
+                        AutomationProperties.Name="{x:Bind DisplayName, Mode=OneWay}">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+
+                            <FontIcon
+                                Grid.Column="0"
+                                Glyph="{x:Bind StatusGlyph, Mode=OneWay}"
+                                FontSize="18"
+                                Margin="0,0,14,0"
+                                VerticalAlignment="Top"
+                                Foreground="{StaticResource BrandOrangeBrush}" />
+
+                            <StackPanel Grid.Column="1" Spacing="5">
+                                <TextBlock
+                                    Text="{x:Bind DisplayName, Mode=OneWay}"
+                                    FontSize="14"
+                                    FontWeight="SemiBold"
+                                    TextTrimming="CharacterEllipsis" />
+                                <TextBlock
+                                    Text="{x:Bind StatusText, Mode=OneWay}"
+                                    FontSize="12"
+                                    TextWrapping="Wrap"
+                                    Foreground="{StaticResource BrandTextMutedBrush}" />
+                                <ProgressBar
+                                    Value="{x:Bind ProgressValue, Mode=OneWay}"
+                                    IsIndeterminate="{x:Bind IsIndeterminate, Mode=OneWay}"
+                                    Visibility="{x:Bind IsRunning, Mode=OneWay}"
+                                    Height="5"
+                                    CornerRadius="3"
+                                    Minimum="0"
+                                    Maximum="100"
+                                    Background="#1C1C22"
+                                    Foreground="{StaticResource BrandActionBrush}" />
+                                <TextBlock
+                                    Text="{x:Bind DetailText, Mode=OneWay}"
+                                    FontSize="11"
+                                    Foreground="{StaticResource BrandAmberBrush}" />
+                            </StackPanel>
+
+                            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Top">
+                                <!-- Botões só de ícone precisam de nome acessível: é o que
+                                     o leitor de tela anuncia e o que a automação encontra. -->
+                                <Button
+                                    Tag="{x:Bind Id}"
+                                    Click="OnMoveUp"
+                                    Visibility="{x:Bind IsPending, Mode=OneWay}"
+                                    AutomationProperties.Name="Subir na fila"
+                                    ToolTipService.ToolTip="Subir na fila"
+                                    Padding="8,6">
+                                    <FontIcon Glyph="&#xE74A;" FontSize="12" />
+                                </Button>
+                                <Button
+                                    Tag="{x:Bind Id}"
+                                    Click="OnMoveDown"
+                                    Visibility="{x:Bind IsPending, Mode=OneWay}"
+                                    AutomationProperties.Name="Descer na fila"
+                                    ToolTipService.ToolTip="Descer na fila"
+                                    Padding="8,6">
+                                    <FontIcon Glyph="&#xE74B;" FontSize="12" />
+                                </Button>
+                                <Button
+                                    Tag="{x:Bind Id}"
+                                    Click="OnOpenResult"
+                                    Visibility="{x:Bind HasOutput, Mode=OneWay}"
+                                    AutomationProperties.Name="Abrir pasta do resultado"
+                                    ToolTipService.ToolTip="Abrir pasta do resultado"
+                                    Padding="8,6">
+                                    <FontIcon Glyph="&#xE838;" FontSize="12" />
+                                </Button>
+                                <Button
+                                    Tag="{x:Bind Id}"
+                                    Click="OnCancelJob"
+                                    Visibility="{x:Bind CanCancel, Mode=OneWay}"
+                                    AutomationProperties.Name="Cancelar conversão"
+                                    ToolTipService.ToolTip="Cancelar"
+                                    Padding="8,6">
+                                    <FontIcon Glyph="&#xE711;" FontSize="12" />
+                                </Button>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+                </DataTemplate>
+            </ListView.ItemTemplate>
+        </ListView>
+    </Grid>
+</Page>

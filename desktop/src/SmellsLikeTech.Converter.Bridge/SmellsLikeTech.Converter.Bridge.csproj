@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <!-- WinExe, e nao Exe: e isso que impede a janela preta de console de aparecer.
+         O plugin vive na bandeja do sistema, nao numa janela. -->
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <TargetPlatformMinVersion>10.0.19041.0</TargetPlatformMinVersion>
+    <RootNamespace>SmellsLikeTech.Converter.Bridge</RootNamespace>
+    <AssemblyName>SmellsLikeTechPlugin</AssemblyName>
+    <ApplicationIcon>..\SmellsLikeTech.Converter.Desktop\Assets\icon.ico</ApplicationIcon>
+
+    <!-- Somente para o icone da bandeja e o menu de contexto. -->
+    <UseWindowsForms>true</UseWindowsForms>
+
+    <SelfContained>true</SelfContained>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <PublishSingleFile>false</PublishSingleFile>
+    <InvariantGlobalization>false</InvariantGlobalization>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- O icone e o mesmo do aplicativo: para quem usa, e o mesmo produto. -->
+    <Content Include="..\SmellsLikeTech.Converter.Desktop\Assets\icon.ico" Link="Assets\icon.ico">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Um unico projeto: a composicao ja traz FFmpeg, Magick, Whisper, SAPI, PDF e OCR. -->
+    <ProjectReference Include="..\SmellsLikeTech.Converter.Composition\SmellsLikeTech.Converter.Composition.csproj" />
+  </ItemGroup>
+</Project>

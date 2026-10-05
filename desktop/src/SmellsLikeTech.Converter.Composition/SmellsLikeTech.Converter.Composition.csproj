@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <TargetPlatformMinVersion>10.0.19041.0</TargetPlatformMinVersion>
+    <RootNamespace>SmellsLikeTech.Converter.Composition</RootNamespace>
+  </PropertyGroup>
+
+  <!--
+    Onde os motores sao ligados uns aos outros.
+
+    Ficava dentro do projeto WinUI, o que obrigava qualquer outro executavel a
+    reimplementar a mesma montagem. Agora e um projeto proprio: o aplicativo e o
+    plugin partem exatamente dos mesmos motores, com a mesma deteccao de hardware
+    e a mesma fila. Nada aqui pode depender de interface grafica.
+  -->
+  <ItemGroup>
+    <ProjectReference Include="..\SmellsLikeTech.Converter.Core\SmellsLikeTech.Converter.Core.csproj" />
+    <ProjectReference Include="..\SmellsLikeTech.Converter.Infrastructure\SmellsLikeTech.Converter.Infrastructure.csproj" />
+    <ProjectReference Include="..\SmellsLikeTech.Converter.Engine.FFmpeg\SmellsLikeTech.Converter.Engine.FFmpeg.csproj" />
+    <ProjectReference Include="..\SmellsLikeTech.Converter.Engine.Image\SmellsLikeTech.Converter.Engine.Image.csproj" />
+    <ProjectReference Include="..\SmellsLikeTech.Converter.Engine.Speech\SmellsLikeTech.Converter.Engine.Speech.csproj" />
+    <ProjectReference Include="..\SmellsLikeTech.Converter.Engine.Documents\SmellsLikeTech.Converter.Engine.Documents.csproj" />
+  </ItemGroup>
+</Project>

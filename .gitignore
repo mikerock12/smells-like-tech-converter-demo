@@ -1,0 +1,78 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/.vinext/
+/out/
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# env files (can opt-in for committing if needed)
+.env*
+# O exemplo é documentação: entra no repositório.
+!.env.example
+
+# vercel
+.vercel
+
+/dist/
+/.wrangler/
+
+# Instaladores para download. São 64 MB por versão: o repositório carregaria todas
+# elas para sempre. Eles moram no R2 (npm run instaladores:publicar); os .json em
+# public/baixar são versionados. Um .exe antigo esquecido aqui não vai para o git nem
+# para o deploy (public/.assetsignore).
+/public/baixar/*.exe
+/public/baixar/*.apk
+/outputs/
+/work/
+
+# local media processing
+/worker-windows/models/
+/worker-windows/.temp/
+/worker-windows/**/bin/
+/worker-windows/**/obj/
+*.ggml
+*.bin.sha256
+
+# .NET (desktop e worker)
+**/bin/
+**/obj/
+*.user
+*.suo
+.vs/
+
+# saidas de build do desktop: publish (~250 MB) e instalador (~73 MB)
+/desktop/artifacts/
+/.dev.vars
+/public/motores/
+
+# Vídeos gerados pelos scripts de marketing: saem de novo com `node .../gerar.mjs`.
+/marketing/**/saida/
+/android/artifacts/
+/packages/kokoro/model/
+/packages/kokoro/model-web/
+/android/app/src/main/assets/kokoro/
+/android/app/libs/*.aar
+/desktop/tests/**/TestResults/

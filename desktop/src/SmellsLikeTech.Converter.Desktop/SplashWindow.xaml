@@ -1,0 +1,93 @@
+<Window
+    x:Class="SmellsLikeTech.Converter.Desktop.SplashWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:muxc="using:Microsoft.UI.Xaml.Controls"
+    Title="Smells Like Tech Converter">
+
+    <Grid x:Name="RootGrid" Opacity="0" Background="#050507">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- Abertura -->
+        <Grid Grid.Row="0" Background="#000000">
+            <Image
+                x:Name="PosterImage"
+                Stretch="Uniform"
+                Visibility="Collapsed" />
+            <muxc:MediaPlayerElement
+                x:Name="OpeningVideo"
+                Stretch="Uniform"
+                AreTransportControlsEnabled="False" />
+            <!-- Vinheta inferior para o vídeo se fundir com o rodapé -->
+            <Border VerticalAlignment="Bottom" Height="60">
+                <Border.Background>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                        <GradientStop Color="#00050507" Offset="0" />
+                        <GradientStop Color="#FF050507" Offset="1" />
+                    </LinearGradientBrush>
+                </Border.Background>
+            </Border>
+        </Grid>
+
+        <!-- Carregamento real + créditos -->
+        <Grid Grid.Row="1" Background="#050507" Padding="26,4,26,20">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <Grid Grid.Row="0" Margin="0,0,0,8">
+                <TextBlock
+                    x:Name="StageText"
+                    Text="Iniciando…"
+                    FontSize="13"
+                    Foreground="#F3F3F5"
+                    HorizontalAlignment="Left" />
+                <TextBlock
+                    x:Name="PercentText"
+                    Text="0%"
+                    FontSize="13"
+                    FontWeight="SemiBold"
+                    Foreground="#FFC107"
+                    HorizontalAlignment="Right" />
+            </Grid>
+
+            <muxc:ProgressBar
+                x:Name="StartupProgress"
+                Grid.Row="1"
+                Height="6"
+                CornerRadius="3"
+                Minimum="0"
+                Maximum="100"
+                Value="0"
+                Background="#1C1C22"
+                Foreground="{StaticResource BrandActionBrush}" />
+
+            <StackPanel Grid.Row="2" Margin="0,16,0,0" Spacing="2">
+                <TextBlock
+                    Text="Criado por Maicon Nunes"
+                    FontSize="13"
+                    FontWeight="SemiBold"
+                    Foreground="#F3F3F5" />
+                <TextBlock
+                    Text="Smells Like Tech Informática"
+                    FontSize="12"
+                    Foreground="#FFA23A" />
+                <TextBlock
+                    Text="CNPJ 30.054.253/0001-09"
+                    FontSize="11"
+                    Foreground="#A6A6B0" />
+                <HyperlinkButton
+                    NavigateUri="https://www.smellsliketech.com.br"
+                    Content="www.smellsliketech.com.br"
+                    Padding="0,4,0,0"
+                    FontSize="12"
+                    Foreground="#FFC107" />
+            </StackPanel>
+        </Grid>
+    </Grid>
+</Window>
