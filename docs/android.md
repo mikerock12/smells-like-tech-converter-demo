@@ -186,6 +186,46 @@ A cópia está em `chave-android-smells-like-tech-converter-2026-09-30.tar.asc`,
 chaves das licenças, e o LEIA-ME da pasta explica como restaurar. A cópia foi decifrada e
 conferida byte a byte com a original no dia em que foi feita.
 
+## Conversões longas e segundo plano (0.4.2)
+
+A fila é do serviço `ServicoDeConversao`, não do ViewModel. Uma ação do usuário
+inicia um foreground service com notificação de progresso/cancelamento antes de
+ler os arquivos. `PARTIAL_WAKE_LOCK` mantém a CPU durante o trabalho, sem manter
+a tela ligada, e é liberado ao terminar, cancelar, falhar ou encerrar o serviço.
+Trocar de app, apagar/bloquear a tela e recriar/fechar a Activity não cancelam a
+fila. Os grants de leitura `content://` são repassados ao serviço, inclusive para
+arquivos recebidos por Compartilhar. A fila executa um motor por vez para não
+duplicar RAM/CPU do Kokoro; os demais trabalhos mostram “Na fila…”.
+
+Android 15+: `mediaProcessing` para narração/mídia; `dataSync` para processamento
+local de documentos e para compatibilidade em Android 10–14. Não usamos
+`mediaPlayback` (não há reprodução), `shortService`, exclusão de otimização de
+bateria nem serviço iniciado no boot. Declare os dois tipos na seção **Conteúdo
+do app → Serviços em primeiro plano** do Play Console, com demonstração da
+conversão iniciada pelo usuário e da notificação com cancelamento.
+
+“Sempre” não pode incluir parada forçada, desligamento, morte do processo por
+falta de memória ou restrições do fabricante. Android 15+ limita cada tipo de
+FGS a seis horas em segundo plano, com regras de renovação ao abrir o app.
+`onTimeout` cancela a fila com erro explícito e encerra o serviço imediatamente;
+não reporta sucesso/100%. Após morte do processo, a conversão deve ser reiniciada
+pelo usuário; os arquivos já salvos continuam em Downloads/SmellsLikeTech.
+
+A estimativa da narração mede caracteres sintetizados e uma janela dos últimos
+oito trechos. Só aparece após três trechos e pelo menos cinco segundos de síntese.
+Leitura/OCR, preparação/carga do modelo e codificação/salvamento têm etapas
+separadas, sem reutilizar a estimativa da voz. A porcentagem é trabalho concluído,
+não uma animação por relógio; a tela identifica o trecho atual. Mudanças reais de
+desempenho/temperatura ainda podem alterar a estimativa.
+
+Teste local: `SegundoPlanoTest`, PDF sintético de 12 páginas → MP3, Activity
+recriada/fechada, outro aplicativo, tela apagada, resultado e limpeza da notificação;
+teste adicional de cancelamento da fila. Os testes de tempo usam relógio simulado.
+
+Referências: [tipos de serviço](https://developer.android.com/develop/background-work/services/fgs/service-types),
+[limites](https://developer.android.com/develop/background-work/services/fgs/timeout),
+[wake locks](https://developer.android.com/develop/background-work/background-tasks/awake/wakelock).
+
 ## Publicar uma versão
 
 1. Suba `versionCode` e `versionName` em `android/app/build.gradle.kts`.

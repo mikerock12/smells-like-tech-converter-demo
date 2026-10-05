@@ -9,6 +9,11 @@
       "backend" de envio sai do manifesto, e os eventos dele são descartados no aparelho.
     -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROCESSING" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" tools:node="remove" />
 
     <!-- Android 11+: permite encontrar motores de voz locais instalados no aparelho. -->
@@ -25,6 +30,10 @@
         android:label="@string/nome_do_app"
         android:supportsRtl="true"
         android:theme="@style/Tema.Abertura">
+
+        <service android:name=".conversao.ServicoDeConversao"
+            android:exported="false" android:stopWithTask="false"
+            android:foregroundServiceType="dataSync|mediaProcessing" />
 
         <service
             android:name="com.google.android.datatransport.runtime.backends.TransportBackendDiscovery"

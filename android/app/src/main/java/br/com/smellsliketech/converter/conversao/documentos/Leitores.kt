@@ -31,7 +31,7 @@ object Leitores {
 
     /** O Word salva "doc" que é RTF ou HTML; o Excel abre "xls" que é HTML ou CSV. O conteúdo decide. */
     private fun extensaoReal(extensao: String, bytes: ByteArray): String {
-        val inicio = String(bytes, 0, minOf(bytes.size, 512), Charsets.ISO_8859_1).trimStart('﻿', 'ï', '»', '¿', ' ', '\r', '\n', '\t')
+        val inicio = String(bytes, 0, minOf(bytes.size, 512), Charsets.ISO_8859_1).trimStart('\uFEFF', 'ï', '»', '¿', ' ', '\r', '\n', '\t')
         val zip = bytes.size >= 4 && bytes[0] == 'P'.code.toByte() && bytes[1] == 'K'.code.toByte()
         return when {
             inicio.startsWith("{\\rtf") -> "rtf"

@@ -407,7 +407,7 @@ fun paraRelogio(segundos: Double): String = "%d:%02d".format(Locale.ROOT, (segun
 private const val RESULTADOS_NA_TELA = 12
 
 @Composable
-private fun CartaoDoTrabalho(trabalho: Trabalho, cancelar: () -> Unit, salvar: (Transcricao, String) -> Unit) {
+private fun CartaoDoTrabalho(trabalho: br.com.smellsliketech.converter.conversao.Trabalho, cancelar: () -> Unit, salvar: (Transcricao, String) -> Unit) {
     val contexto = LocalContext.current
     Painel {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -419,6 +419,7 @@ private fun CartaoDoTrabalho(trabalho: Trabalho, cancelar: () -> Unit, salvar: (
             if (trabalho.progresso <= 0) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
             else LinearProgressIndicator(progress = { trabalho.progresso / 100f }, modifier = Modifier.fillMaxWidth())
             Text(textoDoAndamento(trabalho.progresso, trabalho.restante), fontSize = 13.sp, fontWeight = FontWeight.Medium)
+            Text(trabalho.etapa, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         trabalho.erro?.let { Aviso(it) }
         trabalho.transcricoes.forEach { transcricao ->

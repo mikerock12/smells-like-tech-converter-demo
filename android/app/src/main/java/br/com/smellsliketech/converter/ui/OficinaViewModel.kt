@@ -12,10 +12,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import br.com.smellsliketech.converter.conversao.Andamento
+import br.com.smellsliketech.converter.conversao.FilaDeConversoes
+import br.com.smellsliketech.converter.conversao.Trabalho
 import br.com.smellsliketech.converter.conversao.Entrada
 import br.com.smellsliketech.converter.conversao.Midia
-import br.com.smellsliketech.converter.conversao.ErroDeConversao
 import br.com.smellsliketech.converter.conversao.Ferramenta
 import br.com.smellsliketech.converter.conversao.ModeloWhisper
 import br.com.smellsliketech.converter.conversao.ModelosWhisper
@@ -28,32 +28,16 @@ import br.com.smellsliketech.converter.conversao.Transcricao
 import br.com.smellsliketech.converter.licenca.Acesso
 import br.com.smellsliketech.converter.loja.Loja
 import br.com.smellsliketech.converter.loja.novaLoja
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.text.Normalizer
 import java.util.UUID
 
-/** Uma conversão em andamento ou terminada. */
-class Trabalho(val id: String, val titulo: String, val arquivos: List<String>) {
-    var progresso by mutableStateOf(0)
-    /** Segundos que faltam; null enquanto não dá para estimar. */
-    var restante by mutableStateOf<Int?>(null)
-    internal val andamento = Andamento()
-    var resultados by mutableStateOf<List<Resultado>>(emptyList())
-    /** O texto de cada arquivo transcrito, para ler, copiar e salvar no formato escolhido. */
-    var transcricoes by mutableStateOf<List<Transcricao>>(emptyList())
-    var salvando by mutableStateOf(false)
-    var erro by mutableStateOf<String?>(null)
-    var terminado by mutableStateOf(false)
-    internal var tarefa: Job? = null
-}
-
 class OficinaViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) {
     private val contexto get() = getApplication<Application>()
     private val acesso = Acesso(aplicacao)
+    private val fila = FilaDeConversoes.obter(aplicacao)
 
     var situacao by mutableStateOf(acesso.situacao())
         private set
@@ -118,7 +102,7 @@ class OficinaViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) {
         loja.encerrar()
     }
     val entradas = mutableStateListOf<Entrada>()
-    val trabalhos = mutableStateListOf<Trabalho>()
+    val trabalhos = fila.trabalhos
     val ferramentaDoTipo = mutableStateMapOf<Tipo, Ferramenta>()
     val opcoesDaFerramenta = mutableStateMapOf<Ferramenta, Opcoes>()
     var aviso by mutableStateOf<String?>(null)
@@ -217,7 +201,7 @@ class OficinaViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) {
     }
 
     fun cancelar(trabalho: Trabalho) {
-        trabalho.tarefa?.cancel()
+        fila.cancelar(trabalho)
     }
 
     /** Converte todos os arquivos de um tipo com a ferramenta escolhida para ele. */
@@ -237,32 +221,28 @@ class OficinaViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) {
             return
         }
         val trabalho = Trabalho(UUID.randomUUID().toString(), ferramenta.titulo, grupo.map { it.nome })
-        trabalhos.add(0, trabalho)
         entradas.removeAll(grupo)
         if (ferramenta.transcreve) {
-            executar(trabalho) {
+            fila.enfileirar(trabalho, uris = grupo.map { it.uri }) {
                 trabalho.transcricoes = Motor.transcrever(
                     contexto, grupo, opcoes,
                     aoAvancar = { parcial -> avancar(trabalho, parcial, estimar = grupo.size > 1) },
-                    aoEstimar = { restante -> viewModelScope.launch(Dispatchers.Main) { if (restante != null) trabalho.restante = restante } },
+                    aoEstimar = { restante -> fila.estimar(trabalho, restante, "Transcrevendo…") },
                 )
                 emptyList()
             }
             return
         }
-        executar(trabalho) {
-            Motor.executar(contexto, ferramenta, grupo, opcoes) { parcial -> avancar(trabalho, parcial) }
+        fila.enfileirar(trabalho, midia = ferramenta.narra || tipo in setOf(Tipo.AUDIO, Tipo.VIDEO, Tipo.IMAGEM), uris = grupo.map { it.uri }) {
+            Motor.executar(contexto, ferramenta, grupo, opcoes,
+                aoEstimarNarracao = { restante, etapa -> fila.estimar(trabalho, restante, etapa) },
+            ) { parcial -> avancar(trabalho, parcial, estimar = !ferramenta.narra) }
         }
     }
 
     /** A porcentagem e, a partir dela, o tempo que falta (quem sabe estimar melhor manda em aoEstimar). */
     private fun avancar(trabalho: Trabalho, parcial: Int, estimar: Boolean = true) {
-        viewModelScope.launch(Dispatchers.Main) {
-            val porcentagem = parcial.coerceIn(0, 100)
-            if (porcentagem < trabalho.progresso) return@launch
-            trabalho.progresso = porcentagem
-            if (estimar) trabalho.andamento.registrar(porcentagem)?.let { trabalho.restante = it }
-        }
+        fila.avancar(trabalho, parcial, estimar)
     }
 
     /** Salva uma transcrição no formato escolhido; o arquivo aparece na lista do trabalho. */
@@ -277,29 +257,6 @@ class OficinaViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) {
                 aviso = erro.message ?: "Não deu para salvar a transcrição."
             } finally {
                 trabalho.salvando = false
-            }
-        }
-    }
-
-    private fun executar(trabalho: Trabalho, fazer: suspend () -> List<Resultado>) {
-        trabalho.tarefa = viewModelScope.launch {
-            try {
-                trabalho.resultados = fazer()
-            } catch (erro: CancellationException) {
-                trabalho.erro = "Cancelada."
-            } catch (erro: ErroDeConversao) {
-                trabalho.erro = erro.message
-            } catch (erro: SecurityException) {
-                trabalho.erro = "O Android não deu acesso ao arquivo. Compartilhe de novo, ou escolha-o em Escolher arquivos."
-            } catch (erro: OutOfMemoryError) {
-                trabalho.erro = "O arquivo é grande demais para a memória deste celular."
-            } catch (erro: Exception) {
-                trabalho.erro = erro.message ?: "A conversão falhou."
-            } finally {
-                trabalho.progresso = 100
-                trabalho.restante = null
-                trabalho.terminado = true
-                trabalho.tarefa = null
             }
         }
     }
@@ -322,10 +279,12 @@ class OficinaViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) {
             return
         }
         val trabalho = Trabalho(UUID.randomUUID().toString(), "Narração", listOf(texto.take(60) + if (texto.length > 60) "…" else ""))
-        trabalhos.add(0, trabalho)
-        executar(trabalho) {
+        val opcoes = opcoesDaNarracao
+        fila.enfileirar(trabalho) {
             listOf(
-                Narracao.narrar(contexto, texto, nomeDaNarracao(texto), opcoesDaNarracao) { parcial -> avancar(trabalho, parcial) },
+                Narracao.narrar(contexto, texto, nomeDaNarracao(texto), opcoes,
+                    aoEstimar = { restante, etapa -> fila.estimar(trabalho, restante, etapa) },
+                ) { parcial -> avancar(trabalho, parcial, estimar = false) },
             )
         }
     }

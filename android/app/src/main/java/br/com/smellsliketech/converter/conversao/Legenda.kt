@@ -17,7 +17,7 @@ object Legenda {
 
     fun ler(texto: String): List<Trecho> {
         val trechos = mutableListOf<Trecho>()
-        val linhas = texto.replace("﻿", "").replace("\r\n", "\n").replace('\r', '\n').lines()
+        val linhas = texto.replace("\uFEFF", "").replace("\r\n", "\n").replace('\r', '\n').lines()
         var indice = 0
         while (indice < linhas.size) {
             val seta = SETA.find(linhas[indice])

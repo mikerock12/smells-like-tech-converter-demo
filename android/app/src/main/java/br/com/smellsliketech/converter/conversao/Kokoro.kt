@@ -6,6 +6,10 @@ import com.k2fsa.sherpa.onnx.OfflineTtsConfig
 import com.k2fsa.sherpa.onnx.OfflineTtsKokoroModelConfig
 import com.k2fsa.sherpa.onnx.OfflineTtsModelConfig
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.isActive
@@ -62,11 +66,14 @@ object Kokoro {
         return destino
     }
 
-    suspend fun gravar(context: Context, texto: String, opcoes: Opcoes, wav: File, progresso: (Int) -> Unit) = fila.withLock {
+    suspend fun gravar(context: Context, texto: String, opcoes: Opcoes, wav: File,
+        aoEstimar: (Int?, String) -> Unit = { _, _ -> }, progresso: (Int) -> Unit) = fila.withLock {
         val sid = locutor(opcoes.vozDaNarracao)
         require(opcoes.velocidadeDaFala.isFinite()) { "Velocidade de fala inválida." }
+        aoEstimar(null, "Preparando o modelo de voz…")
         val pasta = withContext(Dispatchers.IO) { preparar(context) }
         progresso(10)
+        aoEstimar(null, "Carregando o modelo de voz…")
         withContext(Dispatchers.Default) {
             val trabalho = currentCoroutineContext()
             trabalho.ensureActive()
@@ -95,10 +102,28 @@ object Kokoro {
                     val normalizado = TextoDaNarracao.normalizar(texto)
                     if (normalizado.isBlank()) throw ErroDeConversao("Não há texto legível para narrar.")
                     val partes = Wav.dividirTexto(normalizado, 200)
-                    partes.forEachIndexed { indice, parte ->
-                        trabalho.ensureActive()
-                        for (samples in gerar(parte, 0)) destino.adicionar(samples)
-                        progresso(10 + (indice + 1) * 75 / partes.size)
+                    val andamento = ProgressoDaNarracao(partes.map { it.length }) { android.os.SystemClock.elapsedRealtime() }
+                    coroutineScope {
+                        fun informar() {
+                            val estado = synchronized(andamento) { andamento.restante() to andamento.etapa }
+                            aoEstimar(estado.first, estado.second)
+                        }
+                        informar()
+                        val relogio = launch(Dispatchers.Default) {
+                            while (isActive) { delay(1_000); informar() }
+                        }
+                        try {
+                            for (parte in partes) {
+                                trabalho.ensureActive()
+                                for (samples in gerar(parte, 0)) destino.adicionar(samples)
+                                val porcentagem = synchronized(andamento) {
+                                    andamento.concluirTrecho()
+                                    andamento.porcentagem
+                                }
+                                progresso(porcentagem)
+                                informar()
+                            }
+                        } finally { relogio.cancelAndJoin() }
                     }
 
                 }

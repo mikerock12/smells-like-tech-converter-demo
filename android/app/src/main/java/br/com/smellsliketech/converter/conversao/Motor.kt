@@ -22,11 +22,18 @@ object Motor {
         ferramenta: Ferramenta,
         entradas: List<Entrada>,
         opcoes: Opcoes,
+        aoEstimarNarracao: (Int?, String) -> Unit = { _, _ -> },
         aoAvancar: (Int) -> Unit,
     ): List<Resultado> = withContext(Dispatchers.Default) {
+        var indiceDaEntrada = 0
+        val estimarVoz: (Int?, String) -> Unit = { restante, etapa ->
+            aoEstimarNarracao(restante, if (entradas.size == 1) etapa
+                else "Arquivo ${indiceDaEntrada + 1}/${entradas.size} · $etapa")
+        }
         /** Um arquivo por vez, com o progresso de cada um somado no total. */
         suspend fun porArquivo(fazer: suspend (Entrada, (Int) -> Unit) -> List<Resultado>): List<Resultado> =
             entradas.flatMapIndexed { indice, entrada ->
+                indiceDaEntrada = indice
                 fazer(entrada) { parcial -> aoAvancar((indice * 100 + parcial.coerceIn(0, 100)) / entradas.size) }
                     .also { aoAvancar(((indice + 1) * 100) / entradas.size) }
             }
@@ -100,21 +107,22 @@ object Motor {
             }
 
             Ferramenta.TEXTO_NARRAR -> umPorArquivo { entrada, progresso ->
-                Narracao.narrar(context, textoDe(context, entrada), entrada.nome, opcoes, progresso)
+                Narracao.narrar(context, textoDe(context, entrada), entrada.nome, opcoes, estimarVoz, progresso)
             }
             // Ler em voz alta: o texto sai do arquivo (com OCR quando é foto ou PDF escaneado),
             // depois a voz do celular narra. A leitura ocupa os primeiros 30% da barra.
             Ferramenta.PDF_NARRAR, Ferramenta.DOCUMENTO_NARRAR, Ferramenta.IMAGEM_NARRAR -> umPorArquivo { entrada, progresso ->
+                estimarVoz(null, "Lendo texto/OCR…")
                 val texto = when (ferramenta) {
                     Ferramenta.PDF_NARRAR -> Escritores.texto(Pdf.paraDocumento(context, entrada) { progresso(it * 30 / 100) })
                     Ferramenta.IMAGEM_NARRAR -> Ocr.textoDaImagem(context, entrada).also { progresso(30) }
                     else -> Escritores.texto(Leitores.ler(entrada.extensao.ifBlank { "txt" }, ler(context, entrada))).also { progresso(30) }
                 }.replace('\t', ' ').trim()
                 if (texto.isBlank()) throw ErroDeConversao("Não há texto para ler em ${entrada.nome}.")
-                Narracao.narrar(context, texto, entrada.nome, opcoes) { parcial -> progresso(30 + parcial * 70 / 100) }
+                Narracao.narrar(context, texto, entrada.nome, opcoes, estimarVoz) { parcial -> progresso(30 + parcial * 70 / 100) }
             }
             Ferramenta.LEGENDA_NARRAR -> umPorArquivo { entrada, progresso ->
-                Narracao.narrar(context, Legenda.falaCorrida(textoDe(context, entrada)), entrada.nome, opcoes, progresso)
+                Narracao.narrar(context, Legenda.falaCorrida(textoDe(context, entrada)), entrada.nome, opcoes, estimarVoz, progresso)
             }
         }
     }
@@ -161,7 +169,7 @@ object Motor {
                     "md" -> saida.write(Escritores.markdown(documento).toByteArray(Charsets.UTF_8))
                     "html" -> saida.write(Escritores.html(documento, titulo).toByteArray(Charsets.UTF_8))
                     // Com BOM: o Excel só reconhece acentos em CSV UTF-8 assim.
-                    "csv" -> saida.write(("﻿" + Escritores.csv(documento)).toByteArray(Charsets.UTF_8))
+                    "csv" -> saida.write(("\uFEFF" + Escritores.csv(documento)).toByteArray(Charsets.UTF_8))
                     else -> throw ErroDeConversao("Formato de documento não suportado: $formato.")
                 }
             }
