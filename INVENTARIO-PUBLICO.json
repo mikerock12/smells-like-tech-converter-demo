@@ -1,5 +1,5 @@
 {
-  "commit": "309f95141e5f372a06aab76d626f99ac5912fa1b",
+  "commit": "0c255fd2e19041452af85a81f1d41f51d3888821",
   "repository": "https://github.com/mikerock12/smells-like-tech-converter-demo",
   "originals": [
     {
@@ -2059,8 +2059,33 @@
     },
     {
       "path": "tsconfig.json",
-      "sha256": "34a350f487b3d4f097e9d5a85206bc30d70347262a8446a3e999817e0be0e8da",
-      "bytes": 615
+      "sha256": "2713ce108832c9ea1f3c19acdb0bb3e7612cd414e7d137fd1478febc5b6795f0",
+      "bytes": 637
+    },
+    {
+      "path": "types/decodificadores.d.ts",
+      "sha256": "17ea5c1cbd0b37982be0ad61dfe417fa7f297d1e38f2455436cbfc8d619cc56e",
+      "bytes": 792
+    },
+    {
+      "path": "types/gifenc.d.ts",
+      "sha256": "b80333ffcd5a5e110f89de06486658db7f159ce3ee94ecfb839716f0d669268c",
+      "bytes": 921
+    },
+    {
+      "path": "types/vite-assets.d.ts",
+      "sha256": "dcd9b8cdafd5ab090122f57ee292d26850c53b062102bac9d505fa6e0d9163c2",
+      "bytes": 226
+    },
+    {
+      "path": "types/vite-worker.d.ts",
+      "sha256": "76de09c6e96af879df393e1b15503596d96929e12f8006d49817c01f938a7209",
+      "bytes": 498
+    },
+    {
+      "path": "workers/media.worker.ts",
+      "sha256": "c7afe7547abd345e2bced9a4ee61e7d5dd2ead673995de169a09b8fe366ceea5",
+      "bytes": 4334
     },
     {
       "path": "app/api/motores/kokoro/route.ts",
