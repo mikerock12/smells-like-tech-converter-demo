@@ -8,7 +8,7 @@
     <Product>Smells Like Tech Converter</Product>
     <Company>Smells Like Tech</Company>
     <Authors>Smells Like Tech</Authors>
-    <Version>0.4.0</Version>
+    <Version>0.4.1</Version>
     <NeutralLanguage>pt-BR</NeutralLanguage>
   </PropertyGroup>
 </Project>

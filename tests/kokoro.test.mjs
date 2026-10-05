@@ -1,7 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { VOZES, dividirTexto, locutor, velocidade } from "../packages/kokoro/config.mjs";
+import { VOZES, dividirTexto, locutor, velocidade, normalizarTexto } from "../packages/kokoro/config.mjs";
+import vm from "node:vm";
 import { ferramenta, ferramentasPara } from "../packages/converter-core/catalogo.mjs";
 
 test("as três vozes pt-BR correspondem aos locutores oficiais", () => {
@@ -32,5 +33,38 @@ test("download é GET constante de pesos públicos, não aceita arquivos", () =>
   assert.match(rota, /export async function GET/); assert.doesNotMatch(rota, /POST|formData|request\.body/);
   assert.match(rota, /smells-like-tech-converter-demo\/releases\/download/);
   const runner = readFileSync(new URL("../packages/kokoro/runner.js", import.meta.url), "utf8");
-  assert.match(runner, /lang: 'pt'/); assert.doesNotMatch(runner, /https?:/);
+  assert.match(runner, /lang: 'pt-br'/); assert.doesNotMatch(runner, /https?:/);
+});
+
+test("todos os motores configuram o dialeto brasileiro e os apps não usam int8", () => {
+  const android = readFileSync(new URL("../android/app/src/main/java/br/com/smellsliketech/converter/conversao/Kokoro.kt", import.meta.url), "utf8");
+  const windows = readFileSync(new URL("../desktop/src/SmellsLikeTech.Converter.Engine.Speech/KokoroTtsEngine.cs", import.meta.url), "utf8");
+  assert.match(android, /lang = "pt-br"/);
+  assert.match(windows, /Kokoro.Lang = "pt-br"/);
+  for (const motor of [android, windows]) { assert.match(motor, /model\.onnx/); assert.doesNotMatch(motor, /model\.int8\.onnx/); }
+});
+test("OCR remove só linhas sem conteúdo pronunciável e preserva data, fim e NFC", () => {
+  assert.equal(normalizarTexto("  ATENC\u0327A\u0303O\n)\nDIA\t02/10\n1\nNÃO TERÃO AULA.\n!!!"), "ATENÇÃO\nDIA 02/10\n1\nNÃO TERÃO AULA.");
+  assert.equal(normalizarTexto(")...\n!"), "");
+});
+test("worker repete NaN/silêncio em blocos menores sem descartar nenhum trecho", async () => {
+  const code = readFileSync(new URL("../packages/kokoro/runner.js", import.meta.url), "utf8");
+  const calls = []; const replies = [];
+  const context = vm.createContext({ Float32Array, self: { postMessage: msg => replies.push(msg) }, importScripts() {} });
+  vm.runInContext(code, context);
+  context.fake = { generate: ({ text }) => {
+    calls.push(text); return { sampleRate: 24000, samples: new Float32Array(text.length > 40 ? [NaN, 0] : [.25, -.25]) };
+  } };
+  vm.runInContext("engine = fake", context);
+  const texto = "Primeira parte do aviso em português. Segunda parte termina aqui.";
+  await context.self.onmessage({ data: { type: "generate", text: texto, sid: 42, speed: 1 } });
+  assert.equal(replies[0].type, "audio");
+  assert.ok(calls.length >= 3);
+  assert.equal(calls.filter(t => t.length <= 40).join(" ").replace(/\s+/gu, ""), texto.replace(/\s+/gu, ""));
+  assert.ok([...new Float32Array(replies[0].samples)].every(Number.isFinite));
+  context.fake = { generate: () => ({ sampleRate: 24000, samples: new Float32Array([0, 0]) }) };
+  vm.runInContext("engine = fake", context); replies.length = 0;
+  await context.self.onmessage({ data: { type: "generate", text: texto, sid: 42, speed: 1 } });
+  assert.equal(replies[0].type, "error");
+  assert.match(replies[0].message, /mesmo após dividi-lo/);
 });

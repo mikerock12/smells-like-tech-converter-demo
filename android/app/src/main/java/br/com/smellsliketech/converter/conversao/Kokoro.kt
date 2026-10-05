@@ -31,7 +31,7 @@ object Kokoro {
     }
 
     private fun preparar(context: Context): File {
-        val destino = File(context.filesDir, "kokoro-82m-v1-int8")
+        val destino = File(context.filesDir, "kokoro-82m-v1-fp32-ptbr")
         val pronto = File(destino, ".pronto-1")
         if (!pronto.exists()) {
             fun copiar(origem: String, saida: File) {
@@ -45,7 +45,7 @@ object Kokoro {
             }
             copiar("kokoro", destino)
             val hashes = mapOf(
-                "model.int8.onnx" to "4b86207ef680e394d8343bee22dfc4c512e5c707c6d9578e3f35ab09bffd6b36",
+                "model.onnx" to "b40f62b166ac8164b0627ef48a0b358eda0985e272fb03ef5252e7206305da11",
                 "voices.bin" to "1c5a5b983d3d50d8586d437a51f3faa2da7919ce76a013c081e65671a3447c29",
             )
             hashes.forEach { (nome, esperado) ->
@@ -56,9 +56,9 @@ object Kokoro {
                 }
                 check(digest.digest().joinToString("") { "%02x".format(it) } == esperado) { "Pacote Kokoro danificado. Reinstale o app." }
             }
-            pronto.writeText("Kokoro-82M v1 int8; lang=pt; Sherpa 1.13.8")
+            pronto.writeText("Kokoro-82M v1 fp32; lang=pt-br; Sherpa 1.13.8")
         }
-        check(File(destino, "model.int8.onnx").length() == 114203756L && File(destino, "voices.bin").length() == 28200960L)
+        check(File(destino, "model.onnx").length() == 325560556L && File(destino, "voices.bin").length() == 28200960L)
         return destino
     }
 
@@ -72,28 +72,35 @@ object Kokoro {
             trabalho.ensureActive()
             val tts = OfflineTts(config = OfflineTtsConfig(model = OfflineTtsModelConfig(
                 kokoro = OfflineTtsKokoroModelConfig(
-                    model = File(pasta, "model.int8.onnx").absolutePath,
+                    model = File(pasta, "model.onnx").absolutePath,
                     voices = File(pasta, "voices.bin").absolutePath,
                     tokens = File(pasta, "tokens.txt").absolutePath,
                     dataDir = File(pasta, "espeak-ng-data").absolutePath,
-                    lang = "pt",
+                    lang = "pt-br",
                 ), numThreads = 2, provider = "cpu",
             ), maxNumSentences = 1))
             try {
                 PcmWav(wav, 24000).use { destino ->
-                    val partes = Wav.dividirTexto(texto, 200)
-                    partes.forEachIndexed { indice, parte ->
+                    fun gerar(parte: String, tentativa: Int): List<FloatArray> {
                         trabalho.ensureActive()
                         val audio = tts.generateWithCallback(parte, sid,
                             opcoes.velocidadeDaFala.coerceIn(0.5f, 2f), KokoroCallback(trabalho))
                         trabalho.ensureActive()
-                        check(audio.sampleRate == 24000 && audio.samples.isNotEmpty()) { "Kokoro não gerou áudio válido." }
-                        check(audio.samples.all { it.isFinite() } && audio.samples.any { kotlin.math.abs(it) > 0.00001f }) {
-                            "Kokoro produziu áudio inválido ou silencioso. Tente novamente."
-                        }
-                        destino.adicionar(audio.samples)
+                        if (audio.sampleRate == 24000 && TextoDaNarracao.amostrasValidas(audio.samples))
+                            return listOf(audio.samples)
+                        val menores = if (tentativa < 3) TextoDaNarracao.partir(parte) else emptyList()
+                        if (menores.isEmpty()) throw ErroDeConversao("Não foi possível narrar um trecho do texto, mesmo após dividi-lo. Confira o texto reconhecido ou escolha outra voz.")
+                        return menores.flatMap { gerar(it, tentativa + 1) }
+                    }
+                    val normalizado = TextoDaNarracao.normalizar(texto)
+                    if (normalizado.isBlank()) throw ErroDeConversao("Não há texto legível para narrar.")
+                    val partes = Wav.dividirTexto(normalizado, 200)
+                    partes.forEachIndexed { indice, parte ->
+                        trabalho.ensureActive()
+                        for (samples in gerar(parte, 0)) destino.adicionar(samples)
                         progresso(10 + (indice + 1) * 75 / partes.size)
                     }
+
                 }
             } finally { tts.release() }
         }

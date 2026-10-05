@@ -1,5 +1,5 @@
 {
-  "commit": "0c255fd2e19041452af85a81f1d41f51d3888821",
+  "commit": "bdef66ae5c642d43898319f92ee8bd49f42f501c",
   "repository": "https://github.com/mikerock12/smells-like-tech-converter-demo",
   "originals": [
     {
@@ -34,7 +34,7 @@
     },
     {
       "path": "android/app/build.gradle.kts",
-      "sha256": "9360785b46a0844d2385fb7267776850f2f4aa35fdb4da0b2324ebdfdd82a37a",
+      "sha256": "5741dcb98521c13cc90fdbd85b846cf481f6bf55e151422947dcd3002c929def",
       "bytes": 7006
     },
     {
@@ -56,6 +56,11 @@
       "path": "android/app/src/androidTest/assets/video-com-audio.mp4",
       "sha256": "9db72f8e85f91fca2f25513bb44595d438aa7e3ba099fa7244ccd40c5bb18db1",
       "bytes": 55282
+    },
+    {
+      "path": "android/app/src/androidTest/java/br/com/smellsliketech/converter/conversao/KokoroRegressionTest.kt",
+      "sha256": "99564c3aacfdd9dce68d25090bb8acc46f835266fe22bcacc66211d93646f1c6",
+      "bytes": 2653
     },
     {
       "path": "android/app/src/androidTest/java/br/com/smellsliketech/converter/conversao/OfflineTest.kt",
@@ -109,8 +114,8 @@
     },
     {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/conversao/Kokoro.kt",
-      "sha256": "18627ee8bf5c3f4da7072c3579ce8bbe7a06f462762d297f17b5174b053ed9a4",
-      "bytes": 5157
+      "sha256": "9955483b0eb5231d794d5a205865851bc4971d172595e1087718714be692be76",
+      "bytes": 5679
     },
     {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/conversao/Legenda.kt",
@@ -161,6 +166,11 @@
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/conversao/Saida.kt",
       "sha256": "a85824b6c04d3c9356d10cf38fa22b8e05a2a3bd9064a582b4b87b20a3704b0b",
       "bytes": 2408
+    },
+    {
+      "path": "android/app/src/main/java/br/com/smellsliketech/converter/conversao/TextoDaNarracao.kt",
+      "sha256": "d79f664bfd63448e72847aba6c61f0587f55a98e4d1ae5892a84b8ca32d9c584",
+      "bytes": 993
     },
     {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/conversao/Transcricao.kt",
@@ -336,6 +346,11 @@
       "path": "android/app/src/test/java/br/com/smellsliketech/converter/conversao/PcmWavTest.kt",
       "sha256": "3ecef2698e259b6f6c34f7a26f0d2982a66cfc8c4a9e14e8a60d7527c969c4e6",
       "bytes": 1231
+    },
+    {
+      "path": "android/app/src/test/java/br/com/smellsliketech/converter/conversao/TextoDaNarracaoTest.kt",
+      "sha256": "742c7278c73e4c9212f3cb2f3a4864269c5d18d3603f8577b354ac583ee0403e",
+      "bytes": 1062
     },
     {
       "path": "android/app/src/test/java/br/com/smellsliketech/converter/conversao/WavTest.kt",
@@ -749,7 +764,7 @@
     },
     {
       "path": "desktop/Directory.Build.props",
-      "sha256": "639fef33b09ea4d03c095e66033559e78ab72637567b56e7ac46845e69255781",
+      "sha256": "a7f9b32f9ff99c4deb0aae3fea5d8e67115f5b316bb413518b8ce45550ecddf0",
       "bytes": 472
     },
     {
@@ -774,8 +789,8 @@
     },
     {
       "path": "desktop/installer/Licenses/AVISOS-DE-TERCEIROS.txt",
-      "sha256": "356d97ba621a0727319d7b9a2c8c21624e90674ca082d7908b699fa1b78fc153",
-      "bytes": 4977
+      "sha256": "575c44d66d8dbb15b94da403fbedf544d7be65b9ca7e4b10d9ea898b39361e40",
+      "bytes": 5013
     },
     {
       "path": "desktop/installer/SmellsLikeTechConverter.iss",
@@ -1318,9 +1333,14 @@
       "bytes": 665
     },
     {
+      "path": "desktop/src/SmellsLikeTech.Converter.Engine.Speech/KokoroText.cs",
+      "sha256": "043e087d03a6a0595a387029babbbc650ae07ed28ec6875b4dc782da23d618dc",
+      "bytes": 1172
+    },
+    {
       "path": "desktop/src/SmellsLikeTech.Converter.Engine.Speech/KokoroTtsEngine.cs",
-      "sha256": "f3f833af14c85c2ba44d1dc0e5cc02e3cc471924ab483fa9cf67c06d6776dc9c",
-      "bytes": 6233
+      "sha256": "185f02b5223067539002bd89a700442b45bfa5da4c17da9b0a5a940a1a54c102",
+      "bytes": 6720
     },
     {
       "path": "desktop/src/SmellsLikeTech.Converter.Engine.Speech/SmellsLikeTech.Converter.Engine.Speech.csproj",
@@ -1483,6 +1503,11 @@
       "bytes": 2501
     },
     {
+      "path": "desktop/tests/SmellsLikeTech.Converter.Tests/KokoroTextTests.cs",
+      "sha256": "60cf45bc1a492e018ff9e91b34e81449eb7552bd1f634cfe63cd0f12e5eadbe3",
+      "bytes": 1843
+    },
+    {
       "path": "desktop/tests/SmellsLikeTech.Converter.Tests/LicenseTests.cs",
       "sha256": "d303dafdeb148825d8a67274d1f473af41fcd0bdb9bfa3348af584eca10c50f0",
       "bytes": 5503
@@ -1539,8 +1564,8 @@
     },
     {
       "path": "docs/kokoro.md",
-      "sha256": "d70978edab20ec33ac44d8835d9f22cd23b1b03a0b1cbd94296b13dc8cdbc19d",
-      "bytes": 4603
+      "sha256": "37d1f50018f7b6691f0ccdc8c5f40b55e0dfc7b3fcbdb3656a56b909de4150d8",
+      "bytes": 5358
     },
     {
       "path": "eslint.config.mjs",
@@ -1619,8 +1644,8 @@
     },
     {
       "path": "lib/converter/pagina/narracao.ts",
-      "sha256": "91b1e84caf75262cf2b87ecc060ac03cc9fcc780da8e368ce10259a5ef370ad2",
-      "bytes": 8250
+      "sha256": "c7eb10717f31312fab1cd03867c0552ff3e151cf486f745d5b4c709f7babadec",
+      "bytes": 8275
     },
     {
       "path": "lib/converter/pagina/ocr.ts",
@@ -1859,18 +1884,18 @@
     },
     {
       "path": "packages/kokoro/NOTICE.txt",
-      "sha256": "8208242e3518b856704a699afd41e0c3bf83a56401283fef70769838fb779f98",
-      "bytes": 2088
+      "sha256": "a6a6416f6abad092efa09acaf053c8063bc39afe853904ffd7bdfe9ae8320ead",
+      "bytes": 2093
     },
     {
       "path": "packages/kokoro/config.mjs",
-      "sha256": "febf008e708df14910f60961b3af41c389ec30160216a2f953e36b207d393160",
-      "bytes": 1490
+      "sha256": "23b3ff859cc869844fb00f1aac4eec216e92e10cf418b1b3335f6527307125df",
+      "bytes": 1795
     },
     {
       "path": "packages/kokoro/runner.js",
-      "sha256": "13462eb7990cd9262560057a1fdb7fde2526ac041e3e6a063054a9a1885ba954",
-      "bytes": 2264
+      "sha256": "1191e3aa43cc115e3feb603c596d1f12e56e2140c04b34fae1c72e7e83bc0ae4",
+      "bytes": 3163
     },
     {
       "path": "packages/licenca/chave-publica.d.mts",
@@ -1924,13 +1949,13 @@
     },
     {
       "path": "public/baixar/app.json",
-      "sha256": "b55c5c2adcef5d92e41adb275d6e5ab7150a1fe369742b400783785795e8f594",
-      "bytes": 209
+      "sha256": "b9a3910f1f2036afac322a52c1784f308eb00266213fbf29a9eb6f095808c1aa",
+      "bytes": 210
     },
     {
       "path": "public/baixar/plugin.json",
-      "sha256": "a8783d1316898e881c58fe01a339dea86bd436338f2a8c44d832192c25c98272",
-      "bytes": 206
+      "sha256": "4440f422c1604dfe5c6fa2e2b69d21c73a3a8bae087d1ac20d7fc031b246ed20",
+      "bytes": 207
     },
     {
       "path": "public/codigo-aberto/licencas-android.txt",
@@ -2034,8 +2059,8 @@
     },
     {
       "path": "scripts/kokoro.py",
-      "sha256": "2687cc202ffd383df28c53fa6f7604b38b31662dfb721b7aaa2d4ffe6e534b58",
-      "bytes": 10024
+      "sha256": "fd98cf6f063347c8937230f7db9500597e1aa6cd3b5173c325ce62f54afcbc79",
+      "bytes": 10413
     },
     {
       "path": "scripts/pwa.mjs",
@@ -2044,8 +2069,8 @@
     },
     {
       "path": "scripts/testar-kokoro.mjs",
-      "sha256": "6bafa85a8707efb82966e4c924e59e7563dcb05feed8868bb74b0b6e77447948",
-      "bytes": 9143
+      "sha256": "ee5e52c6c4e670077dbb3ca73448796e1c3c5d14720043430d732dd81d9a5cc5",
+      "bytes": 10766
     },
     {
       "path": "scripts/testar-offline.mjs",
@@ -2054,8 +2079,8 @@
     },
     {
       "path": "tests/kokoro.test.mjs",
-      "sha256": "e324a219600f147fc4dfcdfbbb20e470866f13125f0ac9ed5d1ad4e37abb1c9c",
-      "bytes": 2252
+      "sha256": "779e4bce98c0e479d2a445a4430488c7cfb39dc6f84a4e9de3e106ced272e2b4",
+      "bytes": 4617
     },
     {
       "path": "tsconfig.json",
@@ -2089,8 +2114,8 @@
     },
     {
       "path": "app/api/motores/kokoro/route.ts",
-      "sha256": "230f8b329ad9d2f14b1347707dda1ff9e71afc0541dca22f4b6111b739c6a063",
-      "bytes": 647
+      "sha256": "5d0d074492680c37fadee5278176d2e94cc3bd70c15d9713356abd1721f8bb0d",
+      "bytes": 652
     }
   ]
 }

@@ -73,14 +73,16 @@ def download(key):
 
 
 def model():
-    source = WORK / 'kokoro-int8-multi-lang-v1_0'
-    archive = download('model')
-    if not (source / 'model.int8.onnx').exists():
+    source = WORK / 'kokoro-multi-lang-v1_0'
+    archive = download('webmodel')
+    if not (source / 'model.onnx').exists():
         with tarfile.open(archive) as tar:
             tar.extractall(WORK, filter='data')
     target = ROOT / 'packages/kokoro/model'
+    if (target / 'model.int8.onnx').exists():
+        raise ValueError('Assets int8 antigos: preserve packages/kokoro/model em outputs antes de preparar fp32. Não empacotar os dois modelos.')
     target.mkdir(parents=True, exist_ok=True)
-    for name in ['model.int8.onnx', 'voices.bin', 'tokens.txt', 'LICENSE']:
+    for name in ['model.onnx', 'voices.bin', 'tokens.txt', 'LICENSE']:
         shutil.copy2(source / name, target / name)
     shutil.copytree(source / 'espeak-ng-data', target / 'espeak-ng-data', dirs_exist_ok=True)
     notices = target / 'Licenses'
@@ -95,7 +97,7 @@ def model():
     shutil.copy2(ROOT / 'packages/kokoro/NOTICE.txt', notices / 'NOTICE.txt')
     shutil.copy2(ROOT / 'LICENSING.md', notices / 'LICENSING.md')
     shutil.copy2(ROOT / 'docs/kokoro-fontes.md', notices / 'FONTES.md')
-    # Nem lexicons ingleses/chineses nem normalizadores chineses são usados: lang=pt.
+    # Mesmos pesos fp32 em todas as plataformas; o dialeto é explicitamente pt-br.
     return target
 
 
@@ -108,6 +110,8 @@ def main():
         return
     target = model()
     if args.target in ['all', 'android']:
+        if (ROOT / 'android/app/src/main/assets/kokoro/model.int8.onnx').exists():
+            raise ValueError('Assets Android int8 antigos: preserve a pasta kokoro em outputs antes de preparar fp32.')
         aar = download('android')
         libs = ROOT / 'android/app/libs'
         libs.mkdir(parents=True, exist_ok=True)
@@ -158,7 +162,7 @@ def main():
                     zip.writestr(info, path.read_bytes(), compresslevel=6)
         files = [{'name': p.relative_to(web_target).as_posix(), 'bytes': p.stat().st_size, 'sha256': sha(p)} for p in sorted(web_target.rglob('*')) if p.is_file()]
         manifest = {
-            'version': 'kokoro-82m-v1-fp32', 'runtime': VERSION, 'language': 'pt',
+            'version': 'kokoro-82m-v1-fp32-ptbr', 'runtime': VERSION, 'language': 'pt-br',
             'bundle': {'name': bundle.name, 'bytes': bundle.stat().st_size, 'sha256': sha(bundle)},
             'files': files,
             'voices': [{'id': 'pf_dora', 'sid': 42, 'name': 'Dora'}, {'id': 'pm_alex', 'sid': 43, 'name': 'Alex'}, {'id': 'pm_santa', 'sid': 44, 'name': 'Santa'}],

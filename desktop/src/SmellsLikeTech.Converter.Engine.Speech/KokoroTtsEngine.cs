@@ -6,7 +6,7 @@ using SmellsLikeTech.Converter.Core.Abstractions;
 
 namespace SmellsLikeTech.Converter.Engine.Speech;
 
-/// <summary>Kokoro-82M int8, português e síntese inteiramente local.</summary>
+/// <summary>Kokoro-82M fp32, português brasileiro e síntese inteiramente local.</summary>
 public sealed class KokoroTtsEngine : ITtsEngine, IDisposable
 {
     private readonly string directory;
@@ -22,8 +22,8 @@ public sealed class KokoroTtsEngine : ITtsEngine, IDisposable
     public KokoroTtsEngine(string? modelDirectory = null) =>
         directory = modelDirectory ?? Path.Combine(AppContext.BaseDirectory, "kokoro");
     public string Name => "Kokoro-82M";
-    public string Version => "v1.0 int8 / Sherpa-ONNX 1.13.8";
-    public IReadOnlyList<SpeechVoice> ListVoices() => File.Exists(Path.Combine(directory, "model.int8.onnx")) &&
+    public string Version => "v1.0 fp32 pt-BR / Sherpa-ONNX 1.13.8";
+    public IReadOnlyList<SpeechVoice> ListVoices() => File.Exists(Path.Combine(directory, "model.onnx")) &&
         File.Exists(Path.Combine(directory, "tokens.txt")) && File.Exists(Path.Combine(directory, "voices.bin")) &&
         Directory.Exists(Path.Combine(directory, "espeak-ng-data")) ? Voices.ToArray() : [];
     public static float Speed(int rate) => (float)Math.Pow(2, Math.Clamp(rate, -10, 10) / 10d);
@@ -38,15 +38,15 @@ public sealed class KokoroTtsEngine : ITtsEngine, IDisposable
     private OfflineTts GetEngine()
     {
         if (engine is not null) return engine;
-        Verify("model.int8.onnx", "4b86207ef680e394d8343bee22dfc4c512e5c707c6d9578e3f35ab09bffd6b36");
+        Verify("model.onnx", "b40f62b166ac8164b0627ef48a0b358eda0985e272fb03ef5252e7206305da11");
         Verify("voices.bin", "1c5a5b983d3d50d8586d437a51f3faa2da7919ce76a013c081e65671a3447c29");
         if (ListVoices().Count == 0) throw new ConversionException("kokoro_invalid", "Os dados do Kokoro estão incompletos. Reinstale o aplicativo completo.");
         var config = new OfflineTtsConfig();
-        config.Model.Kokoro.Model = Path.Combine(directory, "model.int8.onnx");
+        config.Model.Kokoro.Model = Path.Combine(directory, "model.onnx");
         config.Model.Kokoro.Voices = Path.Combine(directory, "voices.bin");
         config.Model.Kokoro.Tokens = Path.Combine(directory, "tokens.txt");
         config.Model.Kokoro.DataDir = Path.Combine(directory, "espeak-ng-data");
-        config.Model.Kokoro.Lang = "pt";
+        config.Model.Kokoro.Lang = "pt-br";
         config.Model.NumThreads = 2;
         config.Model.Provider = "cpu";
         config.MaxNumSentences = 1;
@@ -66,7 +66,8 @@ public sealed class KokoroTtsEngine : ITtsEngine, IDisposable
     public async Task SynthesizeToWaveAsync(string text, string voiceId, int rate, int volume,
         string outputWavePath, IProgress<double>? progress, CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(text)) throw new ConversionException("empty_text", "Não há texto para narrar.");
+        text = KokoroText.Normalize(text);
+        if (string.IsNullOrWhiteSpace(text)) throw new ConversionException("empty_text", "Não há texto legível para narrar.");
         var speaker = Speaker(voiceId);
         await gate.WaitAsync(cancellationToken);
         try
@@ -82,21 +83,12 @@ public sealed class KokoroTtsEngine : ITtsEngine, IDisposable
                 for (var index = 0; index < chunks.Count; index++)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
-                    var audio = tts.GenerateWithCallbackProgress(chunks[index], Speed(rate), speaker,
-                        (_, _, _) => cancellationToken.IsCancellationRequested ? 0 : 1);
-                    try
+                    foreach (var samples in Generate(chunks[index], 0))
                     {
-                        cancellationToken.ThrowIfCancellationRequested();
-                        if (audio.SampleRate != 24_000 || audio.NumSamples == 0)
-                            throw new ConversionException("synthesis_failed", "O Kokoro não gerou áudio válido.");
-                        var samples = audio.Samples;
-                        if (samples.Any(sample => !float.IsFinite(sample)) || samples.Max(sample => Math.Abs(sample)) < .00001f)
-                            throw new ConversionException("synthesis_failed", "O Kokoro produziu áudio inválido ou silencioso. Tente novamente.");
                         var scale = Math.Clamp(volume, 0, 100) / 100f;
                         foreach (var sample in samples)
                             writer.Write((short)Math.Round(Math.Clamp(sample * scale, -1, 1) * 32767));
                     }
-                    finally { audio.Dispose(); }
                     progress?.Report((index + 1d) / chunks.Count);
                 }
                 var dataLength = checked((int)(stream.Length - 44));
@@ -106,6 +98,24 @@ public sealed class KokoroTtsEngine : ITtsEngine, IDisposable
                 writer.Write((short)1); writer.Write((short)1); writer.Write(24_000); writer.Write(48_000);
                 writer.Write((short)2); writer.Write((short)16);
                 writer.Write(Encoding.ASCII.GetBytes("data")); writer.Write(dataLength);
+
+                IEnumerable<float[]> Generate(string part, int attempt)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    var audio = tts.GenerateWithCallbackProgress(part, Speed(rate), speaker,
+                        (_, _, _) => cancellationToken.IsCancellationRequested ? 0 : 1);
+                    float[] samples;
+                    int sampleRate;
+                    try { samples = audio.Samples; sampleRate = audio.SampleRate; }
+                    finally { audio.Dispose(); }
+                    cancellationToken.ThrowIfCancellationRequested();
+                    if (sampleRate == 24_000 && KokoroText.ValidSamples(samples)) { yield return samples; yield break; }
+                    var halves = attempt < 3 ? KokoroText.SplitForRetry(part) : [];
+                    if (halves.Count == 0)
+                        throw new ConversionException("synthesis_failed", "Não foi possível narrar um trecho do texto, mesmo após dividi-lo. Confira o texto reconhecido ou escolha outra voz.");
+                    foreach (var half in halves)
+                        foreach (var chunk in Generate(half, attempt + 1)) yield return chunk;
+                }
             }, cancellationToken);
         }
         finally { gate.Release(); }

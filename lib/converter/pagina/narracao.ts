@@ -1,7 +1,7 @@
 import { unzipSync } from "fflate";
 import { outputFileName, kindOf } from "@/packages/converter-core/index.mjs";
 import { converterLegenda } from "@/packages/converter-core/legendas.mjs";
-import { dividirTexto, locutor, velocidade } from "@/packages/kokoro/config.mjs";
+import { dividirTexto, locutor, velocidade, normalizarTexto } from "@/packages/kokoro/config.mjs";
 import { ConversionError, type ContextoDoMotor, type Saida } from "../protocol";
 import { arquivosKokoro } from "./kokoro";
 
@@ -63,7 +63,7 @@ export async function narrar(contexto: ContextoDoMotor): Promise<{ saidas: Saida
   let worker: Worker | null = null;
   try {
     if (contexto.cancelado()) throw new Error("Narração cancelada.");
-    const texto = (await lerTexto({ ...contexto, progresso: (etapa, fracao) => contexto.progresso(etapa, fracao * 0.15) })).trim();
+    const texto = normalizarTexto(await lerTexto({ ...contexto, progresso: (etapa, fracao) => contexto.progresso(etapa, fracao * 0.15) }));
     if (!texto) throw new Error("Não há texto legível para narrar.");
     // Evita esgotar a memória do navegador; o aplicativo grava em fluxo sem este limite.
     if (texto.length > 50_000) throw new Error("Este texto excede 50 mil caracteres. Narre pelo aplicativo Windows ou Android.");

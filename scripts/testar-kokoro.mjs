@@ -5,7 +5,7 @@ import { PDFDocument, StandardFonts } from "pdf-lib";
 import { zipSync, strToU8 } from "fflate";
 import { resolve } from "node:path";
 import { createServer } from "node:http";
-import { createReadStream, statSync, mkdtempSync } from "node:fs";
+import { createReadStream, statSync, mkdtempSync, readFileSync } from "node:fs";
 
 const site = (process.env.KOKORO_TEST_SITE ?? "http://127.0.0.1:3002").replace(/\/$/, "");
 let servidorDoModelo;
@@ -44,11 +44,32 @@ try {
   page.on('console', (message) => { if (message.type() === 'error') console.log('Browser:', message.text()); });
   const erros = [];
   const envios = [];
+  const metricas = [];
+  let semRede = false;
+  const campos = new Set(['startTime','pageloadId','eventType','nt','location','versions','bi','memory','firstPaint','firstContentfulPaint','timingsV2','siteToken','st']);
   const externos = [];
   const sondagensLocais = [];
   page.on("pageerror", (erro) => erros.push(erro.message));
-  context.on("request", (request) => { if (request.method() !== "GET" && /^https?:/.test(request.url())) envios.push(`${request.method()} ${new URL(request.url()).pathname}`); });
+  context.on("request", (request) => {
+    if (request.method() === 'GET' || !/^https?:/.test(request.url())) return;
+    const url = new URL(request.url());
+    let metrica = false;
+    // Apenas métricas reconhecidas de carregamento, antes de fornecer qualquer arquivo.
+    if (!semRede && url.origin === new URL(site).origin && url.pathname === '/cdn-cgi/rum' && request.method() === 'POST') {
+      try {
+        const dados = JSON.parse(request.postData());
+        metrica = Object.keys(dados).every(c => campos.has(c)) && 'timingsV2' in dados && 'pageloadId' in dados;
+      } catch { /* Qualquer conteúdo desconhecido reprova o teste. */ }
+    }
+    if (metrica) metricas.push('desempenho do carregamento antes de qualquer entrada');
+    else envios.push(`${request.method()} ${url.pathname}`);
+  });
   context.on('request', (request) => {
+    if (!semRede && request.method() === 'GET' && /^https?:/.test(request.url()) &&
+        new URL(request.url()).origin === 'https://static.cloudflareinsights.com' &&
+        /^\/beacon\.min\.js(?:\/v[a-z0-9]+)?$/.test(new URL(request.url()).pathname)) {
+      metricas.push('GET do beacon de desempenho antes de qualquer entrada'); return;
+    }
     // A descoberta do plugin é um GET sem conteúdo no loopback, não um serviço externo.
     if (request.method() === 'GET' && request.url() === 'http://127.0.0.1:5199/v1/ola') {
       sondagensLocais.push(request.url()); return;
@@ -62,7 +83,7 @@ try {
   await page.getByRole("button", { name: "Preparar narração offline", exact: true }).click();
   console.log('Baixando e verificando modelo Kokoro.');
   await page.locator('[data-kokoro-pronto="true"]').waitFor({ timeout: 180000 });
-  console.log('Modelo preparado. Cortando a rede para as dez conversões.');
+  console.log('Modelo preparado. Cortando a rede para as conversões.');
   const pdf = await PDFDocument.create();
   const fonte = await pdf.embedFont(StandardFonts.Helvetica);
   pdf.addPage().drawText("Esta narracao de PDF funciona sem internet.", { font: fonte, size: 16 });
@@ -86,6 +107,13 @@ try {
     ["Imagem OCR", arquivo("texto.png", Buffer.from(png, "base64"), "image/png"), "pf_dora", "mp3"],
     ["Texto em blocos", arquivo("longo.txt", "Esta frase em português precisa ser lida até o fim. ".repeat(5) + "Fim do documento."), "pf_dora", "wav"],
   ];
+  // Fixture privada opcional: o arquivo nunca entra no repositório ou em pedidos HTTP.
+  if (process.env.KOKORO_TEST_IMAGE) casos.push([
+    'Imagem de regressão informada localmente',
+    arquivo('regressao.jpg', readFileSync(resolve(process.env.KOKORO_TEST_IMAGE)), 'image/jpeg'),
+    'pf_dora', 'wav',
+  ]);
+  semRede = true;
   await context.setOffline(true);
   for (const [nome, entrada, voz, formato] of casos) {
     console.log(`Testando ${nome} com rede desligada...`);
@@ -121,7 +149,7 @@ try {
     console.log(`✓ ${nome}: ${audio.duracao.toFixed(1)} s, ${audio.bytes} bytes, sem internet.`);
   }
   assert.deepEqual(erros, []); assert.deepEqual(envios, []); assert.deepEqual(externos, []);
-  console.log(`OK: ${casos.length} narrações Kokoro reais, três vozes, MP3/WAV, recarga offline e nenhum envio. ${sondagensLocais.length} sondagens GET sem conteúdo no loopback do plugin.`);
+  console.log(`OK: ${casos.length} narrações Kokoro reais, três vozes, MP3/WAV, recarga offline e nenhum envio de conversão. ${sondagensLocais.length} sondagens GET sem conteúdo no loopback do plugin. ${metricas.length} métricas reconhecidas antes de qualquer entrada.`);
 } catch (error) {
   console.error(error);
   if (pagina) {

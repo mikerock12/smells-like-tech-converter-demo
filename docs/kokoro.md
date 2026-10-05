@@ -1,13 +1,17 @@
-# Narração Kokoro-82M (0.4.0)
+# Narração Kokoro-82M (0.4.1)
 
 Todas as saídas narradas usam o modelo oficial Kokoro v1.0 no Sherpa-ONNX
-1.13.8, com `lang=pt` explícito: Dora (`pf_dora`, locutor 42), Alex (`pm_alex`, 43)
+1.13.8, com `lang=pt-br` explícito: Dora (`pf_dora`, locutor 42), Alex (`pm_alex`, 43)
 e Santa (`pm_santa`, 44). Português é o idioma alvo; não é detecção automática.
 As vozes do Windows/Android não são fallback silencioso.
-Os apps usam int8. No navegador, os testes reais encontraram saídas silenciosas
-intermitentes com int8 no WASM; ele usa os pesos oficiais fp32. Mantém as mesmas
-três vozes e o idioma, não a mesma precisão numérica. Saídas silenciosas ou não
-finitas são rejeitadas antes da codificação, em todas as plataformas.
+Todos os clientes usam os mesmos pesos oficiais fp32. O int8 apresentou saídas
+silenciosas no WASM e foi removido também dos apps após relato em aparelho Android.
+A falha desse aparelho não foi reproduzida no emulador x86_64; não se presume
+validar o hardware ARM somente por esse teste. Os pesos completos evitam a
+quantização, com maior tamanho de pacote e uso de memória.
+Linhas de OCR sem letras/números são removidas; palavras e números são preservados.
+Saídas silenciosas/não finitas são repetidas com blocos menores (até três níveis),
+sem descartar trechos. Se ainda falhar, nenhum áudio inválido é entregue.
 
 `npm run kokoro:all` prepara os ativos oficiais e confere SHA-256. Não versionar
 modelos, AAR ou WASM; o script reconstitui tudo. Os builds web/APK/AAB chamam esse
@@ -25,7 +29,7 @@ preparo automaticamente. No Windows, executar `npm run kokoro:windows` antes de
   das versões da página. Limpeza/expulsão de dados exige novo preparo.
 - Nenhum texto, documento, nome de arquivo ou PCM é enviado para a rota do modelo.
   `/api/motores/kokoro` só faz GET de uma URL constante de pesos públicos.
-- A rota aponta para a release `kokoro-82m-v1`, arquivo
+- A rota aponta para a release `kokoro-82m-ptbr-v1`, arquivo
   `kokoro-82m-v1-fp32.zip`. Só publicar essa release e o site após a revisão de
   licenciamento abaixo; antes disso, os testes locais interceptam o GET do modelo.
 
@@ -37,6 +41,13 @@ proteger a memória, sem truncar; Windows/Android gravam WAV incrementalmente.
 Blocos de até 200 caracteres evitam exceder a janela do Kokoro. O rate Windows
 e site −10..10 vira `2 ** (rate/10)`, de 0,5 a 2x; Android usa diretamente esse fator.
 Todos produzem PCM mono de 24 kHz antes da codificação.
+
+Ao atualizar um workspace já preparado com 0.4.0, preserve as pastas geradas
+packages/kokoro/model e android/app/src/main/assets/kokoro em outputs antes
+de rodar kokoro:all. O preparador recusa misturar os assets int8 antigos com
+fp32 para não duplicar pesos nos instaladores. Use uma pasta nova de publicação
+dotnet/Inno. A instalação Android usa cache privado fp32 próprio, sem depender
+do cache int8 da versão anterior.
 
 ## Licenças
 

@@ -1,4 +1,4 @@
-Kokoro-82M v1.0 / int8 nos apps, fp32 no navegador / Sherpa-ONNX 1.13.8 / idioma pt
+Kokoro-82M v1.0 / pesos fp32 em todos os clientes / Sherpa-ONNX 1.13.8 / idioma pt-br
 Integração Smells Like Tech Converter, 04/10/2026.
 
 Modelo: Copyright hexgrad e colaboradores. Apache-2.0; texto completo em ../LICENSE.
@@ -22,7 +22,7 @@ Receita: cmake/espeak-ng-for-piper.cmake no código-fonte Sherpa-ONNX 1.13.8.
 São preservados os direitos de obter, modificar e redistribuir esse componente sob GPLv3.
 
 O JS upstream foi alterado apenas para desativar o preload do pacote de 380 MB.
-O runner carrega os pesos fp32 verificados em FS e configura explicitamente lang=pt.
+O runner carrega os pesos fp32 verificados em FS e configura explicitamente lang=pt-br.
 Receita reproduzível, hashes e código da integração: scripts/kokoro.py e packages/kokoro/.
 https://github.com/mikerock12/smells-like-tech-converter-demo
 

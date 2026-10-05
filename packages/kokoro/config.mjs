@@ -14,6 +14,11 @@ export function velocidade(rate = 0) {
   if (!Number.isFinite(rate)) throw new Error("Velocidade inválida.");
   return 2 ** (Math.max(-10, Math.min(10, rate)) / 10);
 }
+/** Marcas soltas do OCR não têm pronúncia; palavras e números são preservados. */
+export function normalizarTexto(texto) {
+  return texto.normalize("NFC").split(/\r?\n/u).filter(linha => /[\p{L}\p{N}]/u.test(linha))
+    .map(linha => linha.replace(/[\t\u00a0]+/gu, " ").trim()).join("\n").trim();
+}
 /** Limita cada inferência, sem descartar o fim de documentos longos. */
 export function dividirTexto(texto, limite = 200) {
   if (!Number.isInteger(limite) || limite < 2) throw new Error("Limite inválido.");

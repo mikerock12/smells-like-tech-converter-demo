@@ -61,12 +61,12 @@ Microsoft.Data.Sqlite: licença MIT
 SQLitePCLRaw: licença Apache-2.0
 
 --------------------------------------------------------------------------
-System.Speech / SAPI e vozes do Windows
+Kokoro-82M / Sherpa-ONNX / eSpeak-NG
 --------------------------------------------------------------------------
-A síntese de voz usa o motor e as vozes já instalados no Windows. Nenhuma
-voz é redistribuída por este instalador. As vozes podem ter termos próprios
-de uso; confirme a permissão de uso comercial antes de distribuir áudios
-gerados a partir delas.
+A narração usa Kokoro-82M fp32, com fonemização explicitamente pt-br.
+Modelo e vozes acompanham o instalador; nenhuma voz do Windows é usada
+como fallback. Kokoro/Sherpa-ONNX: Apache-2.0. eSpeak-NG: GPLv3 ou posterior.
+Licenças completas, fontes públicos e receitas em kokoro/Licenses.
 
 --------------------------------------------------------------------------
 PdfPig
