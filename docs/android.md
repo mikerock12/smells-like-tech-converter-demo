@@ -220,7 +220,16 @@ desempenho/temperatura ainda podem alterar a estimativa.
 
 Teste local: `SegundoPlanoTest`, PDF sintético de 12 páginas → MP3, Activity
 recriada/fechada, outro aplicativo, tela apagada, resultado e limpeza da notificação;
-teste adicional de cancelamento da fila. Os testes de tempo usam relógio simulado.
+testes adicionais de cancelamento da fila e limite de execução do Android.
+Os testes de tempo usam relógio simulado. O teste de notificações negadas é
+separado: revogar a permissão durante o runner mata o processo. Em um emulador
+isolado, antes de iniciar o runner, use `adb shell pm revoke
+br.com.smellsliketech.converter android.permission.POST_NOTIFICATIONS` e
+`adb shell pm set-permission-flags br.com.smellsliketech.converter
+android.permission.POST_NOTIFICATIONS user-set user-fixed`. Execute o método
+`SegundoPlanoTest#notificacaoNegadaNaoImpedeConversao` com `-e notificacoes negadas`.
+Ao terminar, restaure com `pm clear-permission-flags` (os mesmos flags) e `pm grant`.
+Sem esse argumento o teste separado é ignorado, não simula uma negação falsa.
 
 Referências: [tipos de serviço](https://developer.android.com/develop/background-work/services/fgs/service-types),
 [limites](https://developer.android.com/develop/background-work/services/fgs/timeout),

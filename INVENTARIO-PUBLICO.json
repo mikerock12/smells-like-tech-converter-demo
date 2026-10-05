@@ -1,5 +1,5 @@
 {
-  "commit": "ef55f2a8cca59784190bd4883bdcf859d02876be",
+  "commit": "3f6b2c198068cfbd9d8ce3009d7d15f1de94f53b",
   "repository": "https://github.com/mikerock12/smells-like-tech-converter-demo",
   "originals": [
     {
@@ -74,8 +74,8 @@
     },
     {
       "path": "android/app/src/androidTest/java/br/com/smellsliketech/converter/conversao/SegundoPlanoTest.kt",
-      "sha256": "01fe98ebda53e2c4dd437b6aa5d4a7e56a94019eba5629be22719f8a86d5842e",
-      "bytes": 10407
+      "sha256": "97c34187f4e5ee1cac7dd2a3fb48cf48b93866b1bb21ccd5ff5bd3b6322dcec7",
+      "bytes": 10569
     },
     {
       "path": "android/app/src/main/AndroidManifest.xml",
@@ -1584,8 +1584,8 @@
     },
     {
       "path": "docs/android.md",
-      "sha256": "4a48cf708c1c484bd68738cd73bb8feec3e1ea6b7bae24d5aa2f1c297b4295ce",
-      "bytes": 16807
+      "sha256": "a776c47aafb91838797efef5ac05760eaee5204b59a4208f43a73c439e8c914a",
+      "bytes": 17493
     },
     {
       "path": "docs/kokoro-fontes.md",

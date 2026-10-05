@@ -16,6 +16,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import org.junit.Assert.*
+import org.junit.Assume.assumeTrue
 import org.junit.Test
 import org.junit.Before
 import org.junit.runner.RunWith
@@ -27,7 +28,11 @@ import java.util.UUID
 class SegundoPlanoTest {
     private val instrumentacao = InstrumentationRegistry.getInstrumentation()
     private val context = instrumentacao.targetContext
-    @Before fun prepararNotificacao() { shell("pm grant ${context.packageName} android.permission.POST_NOTIFICATIONS") }
+    @Before fun prepararNotificacao() {
+        if (InstrumentationRegistry.getArguments().getString("notificacoes") != "negadas") {
+            shell("pm grant ${context.packageName} android.permission.POST_NOTIFICATIONS")
+        }
+    }
     private fun principal(fazer: () -> Unit) = instrumentacao.runOnMainSync(fazer)
     private fun shell(comando: String): String = instrumentacao.uiAutomation.executeShellCommand(comando).use {
         android.os.ParcelFileDescriptor.AutoCloseInputStream(it).bufferedReader().readText()
@@ -145,18 +150,18 @@ class SegundoPlanoTest {
     }
 
     @Test fun notificacaoNegadaNaoImpedeConversao() = runBlocking {
+        // A revogação mata o processo do app. Preparar via adb ANTES de iniciar o runner.
+        assumeTrue("Executar separadamente com -e notificacoes negadas e permissão revogada",
+            InstrumentationRegistry.getArguments().getString("notificacoes") == "negadas")
+        assertFalse(context.getSystemService(NotificationManager::class.java).areNotificationsEnabled())
         val cenario = ActivityScenario.launch(MainActivity::class.java)
         val fila = FilaDeConversoes.obter(context)
         val trabalho = Trabalho(UUID.randomUUID().toString(), "Notificação negada", emptyList())
         try {
-            // Bloqueia notificações sem revogar uma permissão que pode matar o próprio runner.
-            shell("cmd appops set ${context.packageName} POST_NOTIFICATION ignore")
-            assertFalse(context.getSystemService(NotificationManager::class.java).areNotificationsEnabled())
             principal { fila.enfileirar(trabalho) { delay(3_000); emptyList() } }
             esperar { trabalho.terminado }
             principal { assertNull(trabalho.erro); assertEquals(100, trabalho.progresso) }
         } finally {
-            shell("cmd appops set ${context.packageName} POST_NOTIFICATION allow")
             cenario.close()
         }
     }
