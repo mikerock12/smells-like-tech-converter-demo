@@ -1,5 +1,5 @@
 {
-  "commit": "3cad566816033b732885fcfdd562f3ffaf66b0ee",
+  "commit": "ef55f2a8cca59784190bd4883bdcf859d02876be",
   "repository": "https://github.com/mikerock12/smells-like-tech-converter-demo",
   "originals": [
     {
@@ -74,8 +74,8 @@
     },
     {
       "path": "android/app/src/androidTest/java/br/com/smellsliketech/converter/conversao/SegundoPlanoTest.kt",
-      "sha256": "c7762a2462562f00f9f5d05a19b510497857774aa6177045b45dc89cdf1c3bba",
-      "bytes": 10214
+      "sha256": "01fe98ebda53e2c4dd437b6aa5d4a7e56a94019eba5629be22719f8a86d5842e",
+      "bytes": 10407
     },
     {
       "path": "android/app/src/main/AndroidManifest.xml",

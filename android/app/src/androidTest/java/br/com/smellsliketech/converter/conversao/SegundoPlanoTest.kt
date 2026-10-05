@@ -149,12 +149,14 @@ class SegundoPlanoTest {
         val fila = FilaDeConversoes.obter(context)
         val trabalho = Trabalho(UUID.randomUUID().toString(), "Notificação negada", emptyList())
         try {
-            shell("pm revoke ${context.packageName} android.permission.POST_NOTIFICATIONS")
+            // Bloqueia notificações sem revogar uma permissão que pode matar o próprio runner.
+            shell("cmd appops set ${context.packageName} POST_NOTIFICATION ignore")
+            assertFalse(context.getSystemService(NotificationManager::class.java).areNotificationsEnabled())
             principal { fila.enfileirar(trabalho) { delay(3_000); emptyList() } }
             esperar { trabalho.terminado }
             principal { assertNull(trabalho.erro); assertEquals(100, trabalho.progresso) }
         } finally {
-            shell("pm grant ${context.packageName} android.permission.POST_NOTIFICATIONS")
+            shell("cmd appops set ${context.packageName} POST_NOTIFICATION allow")
             cenario.close()
         }
     }
