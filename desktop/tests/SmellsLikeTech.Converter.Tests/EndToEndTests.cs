@@ -79,7 +79,8 @@ public class EndToEndTests : IAsyncLifetime
             new JobWorkspaceFactory(paths),
             history,
             log,
-            new QueueSettings { MaxConcurrentJobs = 2, JobTimeout = TimeSpan.FromMinutes(3) });
+            new QueueSettings { MaxConcurrentJobs = 2, JobTimeout = TimeSpan.FromMinutes(3) },
+            () => WindowsExecutionLease.TryAcquire(log));
     }
 
     [Fact]
@@ -230,6 +231,52 @@ public class EndToEndTests : IAsyncLifetime
         var produced = await inspector.InspectAsync(output, CancellationToken.None);
         Assert.True(produced.HasAudio);
         Assert.True(produced.Duration > TimeSpan.FromSeconds(1));
+    }
+
+    [Fact]
+    public async Task PdfDozePaginas_ConcluiNarracaoComProgressoReal()
+    {
+        if (!FfmpegAvailable) return;
+        Assert.NotEmpty(ttsEngine.ListVoices());
+        var pdf = Path.Combine(root, "doze-paginas.pdf");
+        var builder = new PdfDocumentBuilder();
+        var font = builder.AddStandard14Font(Standard14Font.Helvetica);
+        for (var n = 1; n <= 12; n++)
+        {
+            var page = builder.AddPage(PageSize.A4);
+            page.AddText($"Pagina {n}. Este documento deve ser narrado ate o fim.", 12, new PdfPoint(50, 700), font);
+            page.AddText("O progresso mede texto concluido. A previsao usa a velocidade recente.", 12, new PdfPoint(50, 670), font);
+            page.AddText("A tela pode apagar sem interromper a conversao local.", 12, new PdfPoint(50, 640), font);
+        }
+        await File.WriteAllBytesAsync(pdf, builder.Build());
+        var job = new ConversionJob
+        {
+            Options = new SynthesizeOptions { OutputFormat = "mp3", VoiceId = "pf_dora" },
+            InputPath = pdf, OutputDirectory = destination, OutputBaseName = "doze-paginas-narradas"
+        };
+        var snapshots = new List<JobSnapshot>();
+        void Changed(object? sender, JobSnapshot state)
+        {
+            if (state.Id == job.Id) lock (snapshots) { snapshots.Add(state); }
+        }
+        queue.JobChanged += Changed;
+        try
+        {
+            var result = await RunAsync(job, JobStatus.Completed);
+            var audio = await inspector.InspectAsync(Assert.Single(result.OutputFiles), CancellationToken.None);
+            Assert.True(audio.HasAudio);
+            Assert.True(audio.Duration > TimeSpan.FromSeconds(20));
+            JobSnapshot[] states;
+            lock (snapshots) { states = snapshots.ToArray(); }
+            Assert.All(states.Where(s => s.Stage == JobStage.PreparingInput), s => Assert.Null(s.Eta));
+            var synthesis = states.Where(s => s.Stage == JobStage.Synthesizing).ToArray();
+            Assert.True(synthesis.Length > 3);
+            Assert.Null(synthesis[0].Eta);
+            Assert.Contains(synthesis, s => s.Eta is not null);
+            Assert.All(synthesis.Zip(synthesis.Skip(1)), pair => Assert.True(pair.Second.Progress >= pair.First.Progress));
+            Assert.Null(result.Eta);
+        }
+        finally { queue.JobChanged -= Changed; }
     }
 
     [Fact]

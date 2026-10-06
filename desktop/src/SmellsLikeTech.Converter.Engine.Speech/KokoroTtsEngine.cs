@@ -35,6 +35,21 @@ public sealed class KokoroTtsEngine : ITtsEngine, IDisposable
         _ => throw new ConversionException("voice_not_available", "Escolha Dora, Alex ou Santa do Kokoro-82M.")
     };
 
+    public async Task PrepareAsync(CancellationToken cancellationToken)
+    {
+        await gate.WaitAsync(cancellationToken);
+        try
+        {
+            await Task.Run(() =>
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                GetEngine();
+                cancellationToken.ThrowIfCancellationRequested();
+            }, cancellationToken);
+        }
+        finally { gate.Release(); }
+    }
+
     private OfflineTts GetEngine()
     {
         if (engine is not null) return engine;

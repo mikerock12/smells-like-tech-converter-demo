@@ -38,7 +38,8 @@ public sealed class SpeechSynthesisEngine(
         options.Validate();
 
         context.Progress.Report(JobProgress.Step(JobStage.PreparingInput));
-        var text = await ReadTextAsync(context, cancellationToken);
+        // Limpa linhas sem fala antes de dividir; um bloco só de decoração não gera áudio.
+        var text = KokoroText.Normalize(await ReadTextAsync(context, cancellationToken));
 
         var limit = Math.Clamp(maximumCharactersAccessor(), 1, SynthesizeOptions.MaxCharacters);
         if (text.Length > limit)
@@ -48,7 +49,7 @@ public sealed class SpeechSynthesisEngine(
                 $"O texto tem {text.Length:N0} caracteres e o limite atual é {limit:N0}.");
         }
 
-        var chunks = TextChunker.Split(text);
+        var chunks = TextChunker.Split(text, 200);
         if (chunks.Count == 0)
         {
             throw new ConversionException("empty_text", "Não há texto para sintetizar.");
@@ -58,36 +59,74 @@ public sealed class SpeechSynthesisEngine(
         var inicio = context.Job.InputText is null && context.Job.InputPath is { } entrada
             && FormatCatalog.KindOfExtension(Path.GetExtension(entrada).TrimStart('.')) != MediaKind.Text ? 0.3 : 0;
         var waves = new List<string>(chunks.Count);
-        context.Progress.Report(JobProgress.Step(JobStage.Synthesizing));
-
-        for (var index = 0; index < chunks.Count; index++)
+        context.Progress.Report(new JobProgress
         {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            var wavePath = context.Workspace.WorkPath($"chunk_{index:000}.wav");
-            var chunkIndex = index;
-            var chunkProgress = new Progress<double>(value => context.Progress.Report(new JobProgress
+            Percent = inicio, Stage = JobStage.PreparingInput, Message = "preparando o motor de voz"
+        });
+        await ttsEngine.PrepareAsync(cancellationToken);
+        var estimator = new NarrationProgress(chunks.Select(chunk => chunk.Length));
+        var progressGate = new object();
+        var completedChunks = 0;
+        void ReportNarration()
+        {
+            var state = estimator.Snapshot();
+            context.Progress.Report(new JobProgress
             {
-                Percent = inicio + (0.9 - inicio) * (chunkIndex + Math.Clamp(value, 0, 1)) / chunks.Count,
+                Percent = inicio + (0.9 - inicio) * state.Fraction,
                 Stage = JobStage.Synthesizing,
-                Message = chunks.Count > 1 ? $"bloco {chunkIndex + 1} de {chunks.Count}" : null
-            }));
-
-            await ttsEngine.SynthesizeToWaveAsync(
-                chunks[index],
-                options.VoiceId,
-                options.Rate,
-                options.Volume,
-                wavePath,
-                chunkProgress,
-                cancellationToken);
-
-            if (!File.Exists(wavePath) || new FileInfo(wavePath).Length <= 44)
+                Eta = state.Eta,
+                Message = $"blocos concluídos: {completedChunks} de {chunks.Count}"
+            });
+        }
+        ReportNarration();
+        using var pulseCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        var pulse = PulseAsync();
+        async Task PulseAsync()
+        {
+            using var timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
+            try
             {
-                throw new ConversionException("synthesis_failed", "O motor de voz não produziu áudio.");
+                while (await timer.WaitForNextTickAsync(pulseCancellation.Token))
+                    lock (progressGate) { ReportNarration(); }
             }
+            catch (OperationCanceledException) when (pulseCancellation.IsCancellationRequested) { }
+        }
 
-            waves.Add(wavePath);
+        try
+        {
+            for (var index = 0; index < chunks.Count; index++)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                var wavePath = context.Workspace.WorkPath($"chunk_{index:000}.wav");
+
+                await ttsEngine.SynthesizeToWaveAsync(
+                    chunks[index],
+                    options.VoiceId,
+                    options.Rate,
+                    options.Volume,
+                    wavePath,
+                    null,
+                    cancellationToken);
+
+                if (!File.Exists(wavePath) || new FileInfo(wavePath).Length <= 44)
+                {
+                    throw new ConversionException("synthesis_failed", "O motor de voz não produziu áudio.");
+                }
+
+                waves.Add(wavePath);
+                lock (progressGate)
+                {
+                    estimator.CompleteChunk();
+                    completedChunks++;
+                    ReportNarration();
+                }
+            }
+        }
+        finally
+        {
+            await pulseCancellation.CancelAsync();
+            await pulse;
         }
 
         var engine = optionsAccessor();
@@ -148,7 +187,7 @@ public sealed class SpeechSynthesisEngine(
                 throw new ConversionException("unsupported_document", $"A narração não lê arquivos .{extension.ToLowerInvariant()}.");
             }
 
-            var reading = new Progress<double>(value => context.Progress.Report(new JobProgress
+            var reading = new InlineProgress(value => context.Progress.Report(new JobProgress
             {
                 Percent = 0.3 * Math.Clamp(value, 0, 1),
                 Stage = JobStage.PreparingInput,
@@ -198,5 +237,10 @@ public sealed class SpeechSynthesisEngine(
         var detail = SafeDiagnostics.FromEngine(result.StandardError, context.Workspace.JobDirectory);
         log.Error("tts_encode_failed", $"{context.Job.Id:N} · saída {result.ExitCode} · {detail}");
         throw new ConversionException("tts_encode_failed", $"Falha ao gerar o áudio final ({result.ExitCode}).");
+    }
+
+    private sealed class InlineProgress(Action<double> report) : IProgress<double>
+    {
+        public void Report(double value) => report(value);
     }
 }

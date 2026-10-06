@@ -15,6 +15,7 @@ public sealed class ConversionQueue : IAsyncDisposable
     private readonly IWorkspaceFactory workspaces;
     private readonly IJobHistoryStore history;
     private readonly IConverterLog log;
+    private readonly Func<IDisposable?>? acquireExecutionLease;
     private readonly object gate = new();
     private readonly List<ConversionJob> pending = [];
     private readonly Dictionary<Guid, RunningJob> running = [];
@@ -30,13 +31,15 @@ public sealed class ConversionQueue : IAsyncDisposable
         IWorkspaceFactory workspaces,
         IJobHistoryStore history,
         IConverterLog log,
-        QueueSettings? settings = null)
+        QueueSettings? settings = null,
+        Func<IDisposable?>? acquireExecutionLease = null)
     {
         this.engines = engines.ToArray();
         this.workspaces = workspaces;
         this.history = history;
         this.log = log;
         this.settings = settings ?? new QueueSettings();
+        this.acquireExecutionLease = acquireExecutionLease;
         pump = Task.Run(PumpAsync);
     }
 
@@ -288,6 +291,7 @@ public sealed class ConversionQueue : IAsyncDisposable
         var token = entry.Cancellation.Token;
         var stopwatch = Stopwatch.StartNew();
         IJobWorkspace? workspace = null;
+        IDisposable? executionLease = null;
         var engineName = "desconhecido";
 
         job.Status = JobStatus.Preparing;
@@ -297,6 +301,7 @@ public sealed class ConversionQueue : IAsyncDisposable
 
         try
         {
+            executionLease = acquireExecutionLease?.Invoke();
             job.Options.Validate();
 
             var engine = engines.FirstOrDefault(candidate => candidate.CanExecute(job.Operation))
@@ -355,6 +360,7 @@ public sealed class ConversionQueue : IAsyncDisposable
         }
         finally
         {
+            executionLease?.Dispose();
             stopwatch.Stop();
             job.CompletedAt = DateTimeOffset.Now;
             job.Eta = null;
@@ -539,11 +545,16 @@ public sealed class ConversionQueue : IAsyncDisposable
             if (value.Percent is not null)
             {
                 job.Progress = Math.Clamp(value.Percent.Value, 0, 1);
-                job.Eta = value.Eta ?? EstimateEta(job.Progress.Value);
+                job.Eta = value.Eta ?? (job.Operation == OperationIds.SpeechSynthesize
+                    ? null : EstimateEta(job.Progress.Value));
             }
             else if (value.Eta is not null)
             {
                 job.Eta = value.Eta;
+            }
+            else if (changedStage || job.Operation == OperationIds.SpeechSynthesize)
+            {
+                job.Eta = null;
             }
 
             var elapsed = stopwatch.Elapsed;

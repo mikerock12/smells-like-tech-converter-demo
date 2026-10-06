@@ -12,7 +12,7 @@
     "start": "vinext start",
     "lint": "eslint . --ignore-pattern dist",
     "typecheck": "tsc --noEmit --incremental false",
-    "test": "node --test tests/kokoro.test.mjs",
+    "test": "node --test tests/kokoro*.test.mjs",
     "check": "npm run lint && npm run typecheck && npm run build && npm test",
     "motores": "node scripts/copiar-motores.mjs",
     "kokoro:web": "python scripts/kokoro.py web",

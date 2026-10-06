@@ -1,5 +1,5 @@
 {
-  "commit": "3f6b2c198068cfbd9d8ce3009d7d15f1de94f53b",
+  "commit": "1cfa1779002f1d593254bac86655c3408fee0729",
   "repository": "https://github.com/mikerock12/smells-like-tech-converter-demo",
   "originals": [
     {
@@ -554,8 +554,8 @@
     },
     {
       "path": "app/SiteChrome.tsx",
-      "sha256": "0b96f76df449fbdd5bf0cc718199b95e365e1cc15544e3d82bdc427583e168a6",
-      "bytes": 5677
+      "sha256": "555c86a5d88d7c3939c39c816557826c8946ce1d0cdf7a944d8edd24cf38ffdc",
+      "bytes": 6166
     },
     {
       "path": "app/StatusOffline.tsx",
@@ -624,8 +624,8 @@
     },
     {
       "path": "app/converter/Fila.tsx",
-      "sha256": "2f73ccaf680553c45b2cdee18793b8262ff11bb25e8a86deb9b3c2f9521a20de",
-      "bytes": 9565
+      "sha256": "3dc9d0509f150c17525f419a1bfc44e5fa3f4ce530f58992d38f3a72149c7fae",
+      "bytes": 10010
     },
     {
       "path": "app/converter/GrupoDeArquivos.tsx",
@@ -794,7 +794,7 @@
     },
     {
       "path": "desktop/Directory.Build.props",
-      "sha256": "a7f9b32f9ff99c4deb0aae3fea5d8e67115f5b316bb413518b8ce45550ecddf0",
+      "sha256": "23b6fce4454e470461da6ed8b5ed5bdef1f7b8687ba8f204ddd9b78511d1a9ec",
       "bytes": 472
     },
     {
@@ -914,8 +914,8 @@
     },
     {
       "path": "desktop/src/SmellsLikeTech.Converter.Composition/AppServices.cs",
-      "sha256": "e9c4b9a774346af357b92267a1043426f4c77ac5ffe87955c96a411464bff0f7",
-      "bytes": 9826
+      "sha256": "07e7df98bc389a064436c5250174611ea80749781a32281188d6570d34881ffa",
+      "bytes": 9883
     },
     {
       "path": "desktop/src/SmellsLikeTech.Converter.Composition/NativeFileDialog.cs",
@@ -944,8 +944,8 @@
     },
     {
       "path": "desktop/src/SmellsLikeTech.Converter.Core/Abstractions/ISpeechEngines.cs",
-      "sha256": "4589fee2ab81f63cc4a57d0f772ec9299bfe4f7c0e3fc640795d31d39d93ad86",
-      "bytes": 1608
+      "sha256": "882b09f2087c7a05429f57f7fa59dea05e57a71cdf9d290a9cda56432484b1b5",
+      "bytes": 1789
     },
     {
       "path": "desktop/src/SmellsLikeTech.Converter.Core/Batch/BatchPlanner.cs",
@@ -1049,8 +1049,8 @@
     },
     {
       "path": "desktop/src/SmellsLikeTech.Converter.Core/Queue/ConversionQueue.cs",
-      "sha256": "e557c974f24b83b96a0962c1e66c707a3b2df8d85ce550d5072b3dbe9b419804",
-      "bytes": 18134
+      "sha256": "244ec6bf340d6a2c58e3cf1fd3c75e3e5bca32801101c546db770a56de98cc82",
+      "bytes": 18684
     },
     {
       "path": "desktop/src/SmellsLikeTech.Converter.Core/Queue/QueueSettings.cs",
@@ -1369,8 +1369,13 @@
     },
     {
       "path": "desktop/src/SmellsLikeTech.Converter.Engine.Speech/KokoroTtsEngine.cs",
-      "sha256": "185f02b5223067539002bd89a700442b45bfa5da4c17da9b0a5a940a1a54c102",
-      "bytes": 6720
+      "sha256": "e8f977c249bbc03429242d1a8b1f58d26de38d7025b36cf431d0fa5e354de76b",
+      "bytes": 7165
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Engine.Speech/NarrationProgress.cs",
+      "sha256": "7d04c177425855b36b7248981deeec50b1595957866c9a10efd01dbed2e79e7e",
+      "bytes": 1989
     },
     {
       "path": "desktop/src/SmellsLikeTech.Converter.Engine.Speech/SmellsLikeTech.Converter.Engine.Speech.csproj",
@@ -1379,8 +1384,8 @@
     },
     {
       "path": "desktop/src/SmellsLikeTech.Converter.Engine.Speech/SpeechSynthesisEngine.cs",
-      "sha256": "ccd964958c9460e2905feda85f4e762b722bf963fc55a8032bd161219631fd5f",
-      "bytes": 8297
+      "sha256": "09fa1e41bc649503208bf1732c18f87c38a2a641caf0bee933b53ce9720b2866",
+      "bytes": 9866
     },
     {
       "path": "desktop/src/SmellsLikeTech.Converter.Engine.Speech/SubtitleConverter.cs",
@@ -1448,6 +1453,11 @@
       "bytes": 3941
     },
     {
+      "path": "desktop/src/SmellsLikeTech.Converter.Infrastructure/Execution/WindowsExecutionLease.cs",
+      "sha256": "dd44f0ffe4096af7c66022006672ec631e86fa71c71bfd8c242f220fdaf33be0",
+      "bytes": 3256
+    },
+    {
       "path": "desktop/src/SmellsLikeTech.Converter.Infrastructure/Hardware/GpuInventory.cs",
       "sha256": "e5fed76a3a6ef935e2cc045814458b658d0f01a0aaf3f050c395152ada07e6d0",
       "bytes": 5705
@@ -1509,8 +1519,8 @@
     },
     {
       "path": "desktop/tests/SmellsLikeTech.Converter.Tests/EndToEndTests.cs",
-      "sha256": "4890f4c33566bcc7fe37461c2fc1da17ade9426be1a3e759833a351e84b48303",
-      "bytes": 23098
+      "sha256": "9cbf4a01dc7be1497bb05d0f75279445248462f57f6d3d0cece148e50c649143",
+      "bytes": 25521
     },
     {
       "path": "desktop/tests/SmellsLikeTech.Converter.Tests/FfmpegIntegrationTests.cs",
@@ -1543,6 +1553,11 @@
       "bytes": 5503
     },
     {
+      "path": "desktop/tests/SmellsLikeTech.Converter.Tests/NarrationProgressTests.cs",
+      "sha256": "94a1af3bd0b2a8285717f21f6e2690a4d4daaae7bc50f8aa06cf276be09e7b15",
+      "bytes": 1611
+    },
+    {
       "path": "desktop/tests/SmellsLikeTech.Converter.Tests/OptionsValidationTests.cs",
       "sha256": "e5447abf2bb478eb86ff581374f8cf6d776cc331de43a04864f4553a073af1b5",
       "bytes": 5357
@@ -1554,8 +1569,8 @@
     },
     {
       "path": "desktop/tests/SmellsLikeTech.Converter.Tests/QueueTests.cs",
-      "sha256": "b8b02e1a4c6832b17ef6e441eada9516e08b393f9bf1d2b78a467406bec41869",
-      "bytes": 9107
+      "sha256": "7817c8045583218ae95d84f7d7e8c28566d7f58554a345b02c145ec1cd8822b4",
+      "bytes": 11179
     },
     {
       "path": "desktop/tests/SmellsLikeTech.Converter.Tests/SmellsLikeTech.Converter.Tests.csproj",
@@ -1578,6 +1593,11 @@
       "bytes": 5315
     },
     {
+      "path": "desktop/tests/SmellsLikeTech.Converter.Tests/WindowsExecutionLeaseTests.cs",
+      "sha256": "ac328eb8a5c7065a87a9214a590971c4c3d87c87fa5835ec00f5aaacc8d71f17",
+      "bytes": 714
+    },
+    {
       "path": "desktop/tests/SmellsLikeTech.Converter.Tests/WorkspaceTests.cs",
       "sha256": "0efbe516ac1484acde854065a95997e3b803ce705ce03aa380809164a53e07a3",
       "bytes": 8029
@@ -1586,6 +1606,11 @@
       "path": "docs/android.md",
       "sha256": "a776c47aafb91838797efef5ac05760eaee5204b59a4208f43a73c439e8c914a",
       "bytes": 17493
+    },
+    {
+      "path": "docs/ecossistema-0.4.2.md",
+      "sha256": "069a52e9cbe67fbbb37eae54cea2112d5784db8bca0bf0427f990a129787b47d",
+      "bytes": 2838
     },
     {
       "path": "docs/kokoro-fontes.md",
@@ -1674,8 +1699,8 @@
     },
     {
       "path": "lib/converter/pagina/narracao.ts",
-      "sha256": "c7eb10717f31312fab1cd03867c0552ff3e151cf486f745d5b4c709f7babadec",
-      "bytes": 8275
+      "sha256": "f5927de86677eacd8099aac78f4cbcf65801a20ba8108782d2a0c7a84f08260b",
+      "bytes": 8779
     },
     {
       "path": "lib/converter/pagina/ocr.ts",
@@ -1689,13 +1714,13 @@
     },
     {
       "path": "lib/converter/protocol.ts",
-      "sha256": "8aa47794bf79b4e1884f58da8b11e0f8a2179bc06ee3f07ba63b2c6fec837fa5",
-      "bytes": 2812
+      "sha256": "9a6ea419d6a6447c433c31ba4bade15ed9bcdc58e2ea5e6587e80d55fc6260a6",
+      "bytes": 2847
     },
     {
       "path": "lib/converter/queue.ts",
-      "sha256": "ea3a24d5e79c627cc98d484e383f2a74f0bde0a41a50b776262c342d5bad8946",
-      "bytes": 16014
+      "sha256": "9fa6fdd970ed593f30ad3c0ad0b3c53f3bd98383a6718ebf9be70843ae62b918",
+      "bytes": 16481
     },
     {
       "path": "lib/plano/chave.ts",
@@ -1923,6 +1948,11 @@
       "bytes": 1795
     },
     {
+      "path": "packages/kokoro/progresso.mjs",
+      "sha256": "cd5f432c7d91d37beba7d2620cd48992d69fd88f972731df1c1ca06b34a38bad",
+      "bytes": 1667
+    },
+    {
       "path": "packages/kokoro/runner.js",
       "sha256": "1191e3aa43cc115e3feb603c596d1f12e56e2140c04b34fae1c72e7e83bc0ae4",
       "bytes": 3163
@@ -1979,12 +2009,12 @@
     },
     {
       "path": "public/baixar/app.json",
-      "sha256": "b9a3910f1f2036afac322a52c1784f308eb00266213fbf29a9eb6f095808c1aa",
+      "sha256": "f6569dd103f0f07bda4c0edbaaaf6e39900656f95fcb1381a98e7767e33a4f9e",
       "bytes": 210
     },
     {
       "path": "public/baixar/plugin.json",
-      "sha256": "4440f422c1604dfe5c6fa2e2b69d21c73a3a8bae087d1ac20d7fc031b246ed20",
+      "sha256": "ed9d06570653a2abc07b80b88ce72f5631ca149ca56cad4eaed03f706a94035b",
       "bytes": 207
     },
     {
@@ -2099,13 +2129,18 @@
     },
     {
       "path": "scripts/testar-kokoro.mjs",
-      "sha256": "ee5e52c6c4e670077dbb3ca73448796e1c3c5d14720043430d732dd81d9a5cc5",
-      "bytes": 10766
+      "sha256": "885200269996c1c4be779b61e419b5c727d9b406f9c142d6c6ed0464686eab57",
+      "bytes": 11871
     },
     {
       "path": "scripts/testar-offline.mjs",
       "sha256": "1ff97cc7a94f512313dbdd442a5d74687d672c168f99e4cf1a2a9144c4e2592f",
       "bytes": 12389
+    },
+    {
+      "path": "tests/kokoro-progresso.test.mjs",
+      "sha256": "bcaf5e306e2c2965d2173b6559141019a55b3c03fc42cd9c10dd99b418a6a996",
+      "bytes": 1521
     },
     {
       "path": "tests/kokoro.test.mjs",

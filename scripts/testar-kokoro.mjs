@@ -87,6 +87,13 @@ try {
   const pdf = await PDFDocument.create();
   const fonte = await pdf.embedFont(StandardFonts.Helvetica);
   pdf.addPage().drawText("Esta narracao de PDF funciona sem internet.", { font: fonte, size: 16 });
+  const pdfLongo = await PDFDocument.create();
+  const fonteLonga = await pdfLongo.embedFont(StandardFonts.Helvetica);
+  for (let n = 1; n <= 12; n++) {
+    const paginaLonga = pdfLongo.addPage();
+    paginaLonga.drawText("Pagina " + n + ". Este documento deve ser narrado ate o fim.", { font: fonteLonga, size: 12, x: 30, y: 740 });
+    paginaLonga.drawText("O progresso mede texto concluido. A previsao usa a velocidade recente.", { font: fonteLonga, size: 12, x: 30, y: 710 });
+  }
   const docx = zipSync({ "word/document.xml": strToU8('<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:p><w:r><w:t>Este documento é narrado no aparelho.</w:t></w:r></w:p></w:body></w:document>') });
   const png = await page.evaluate(async () => {
     const canvas = document.createElement("canvas"); canvas.width = 1000; canvas.height = 160;
@@ -100,6 +107,7 @@ try {
     ["Alex TXT", arquivo("texto.txt", "Olá. Esta é a voz Alex narrando no seu computador."), "pm_alex", "wav"],
     ["Santa TXT", arquivo("texto.txt", "Olá. Esta é a voz Santa narrando localmente."), "pm_santa", "wav"],
     ["PDF", arquivo("texto.pdf", await pdf.save(), "application/pdf"), "pf_dora", "mp3"],
+    ["PDF de 12 páginas", arquivo("doze-paginas.pdf", await pdfLongo.save(), "application/pdf"), "pf_dora", "mp3"],
     ["DOCX", arquivo("texto.docx", docx, "application/vnd.openxmlformats-officedocument.wordprocessingml.document"), "pf_dora", "wav"],
     ["MD", arquivo("texto.md", "# Documento\nEste **texto** funciona sem internet."), "pm_alex", "wav"],
     ["HTML", arquivo("texto.html", '<p>Texto em HTML, narrado localmente.</p><img src="https://invalid.example/conteudo-privado"><iframe src="https://invalid.example/pagina"></iframe><script>não narrar</script>', "text/html"), "pm_santa", "mp3"],
@@ -130,7 +138,16 @@ try {
     for (const [rotulo, valor] of [["Voz Kokoro-82M", voz], ["Formato de saída", formato]])
       await grupo.locator("label").filter({ has: page.getByText(rotulo, { exact: true }) }).locator("select").selectOption(valor);
     await grupo.locator(".grupo__acoes button").click();
-    await page.waitForFunction(() => document.querySelector(".job--done, .job--failed") !== null, null, { timeout: 180000 });
+    // Uma fixture de 12 páginas pode exceder o teto dos testes curtos em CPU/WASM.
+    // Observa o progresso real; aumentar o teto do teste não altera o ETA do app.
+    const monitor = setInterval(() => {
+      void page.locator(".job--running .progress__label").textContent()
+        .then((estado) => { if (estado) console.log("Andamento: " + estado.trim()); }).catch(() => {});
+    }, 15000);
+    try {
+      await page.waitForFunction(() => document.querySelector(".job--done, .job--failed") !== null, null,
+        { timeout: nome === "PDF de 12 páginas" ? 900000 : 180000 });
+    } finally { clearInterval(monitor); }
     if (await page.locator(".job--failed").count()) throw new Error(`${nome}: ${await page.locator(".job__error").innerText()}`);
     const audio = await page.locator('.job--done a[download]').first().evaluate(async (link) => {
       const bytes = await (await fetch(link.href)).arrayBuffer();

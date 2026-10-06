@@ -27,6 +27,7 @@ export interface Job {
   readonly formato: FormatId | null;
   readonly status: JobStatus;
   readonly progress: number;
+  readonly segundosRestantes: number | null;
   readonly etapa: string;
   readonly error: string | null;
   readonly resultados: readonly Resultado[] | null;
@@ -117,6 +118,7 @@ export class Oficina {
           formato: grupo[0]?.formato ?? null,
           status: aceito ? "pending" : "failed",
           progress: 0,
+          segundosRestantes: null,
           etapa: "",
           error: aceito ? null : `“${ferramenta.titulo}” não aceita ${grupo.map((entrada) => entrada.nome).join(", ")}.`,
           resultados: null,
@@ -176,6 +178,7 @@ export class Oficina {
         ...job,
         status: "pending",
         progress: 0,
+        segundosRestantes: null,
         etapa: "",
         resultados: null,
         nota: null,
@@ -296,7 +299,8 @@ export class Oficina {
       ferramenta: job.ferramenta,
       entradas: job.entradas,
       opcoes: job.opcoes,
-      progresso: (etapa: string, fraction: number) => this.update(jobId, { etapa, progress: Math.max(0, Math.min(1, fraction)) }),
+      progresso: (etapa: string, fraction: number, segundosRestantes: number | null = null) =>
+        this.update(jobId, { etapa, progress: Math.max(0, Math.min(1, fraction)), segundosRestantes }),
       cancelado: () => this.disposed || this.canceladosNaPagina.has(jobId),
     };
 
@@ -412,7 +416,12 @@ export class Oficina {
   }
 
   private update(id: string, patch: Partial<InternalJob>): void {
-    this.jobs = this.jobs.map((job) => (job.id === id ? { ...job, ...patch } : job));
+    if (patch.status && patch.status !== "running") patch = { ...patch, segundosRestantes: null };
+    this.jobs = this.jobs.map((job) => {
+      if (job.id !== id) return job;
+      const updated = { ...job, ...patch };
+      return updated.status === "running" ? updated : { ...updated, segundosRestantes: null };
+    });
     this.publish();
   }
 
@@ -427,6 +436,7 @@ export class Oficina {
       formato: job.formato,
       status: job.status,
       progress: job.progress,
+      segundosRestantes: job.segundosRestantes,
       etapa: job.etapa,
       error: job.error,
       resultados: job.resultados,

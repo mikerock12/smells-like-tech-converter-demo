@@ -94,6 +94,9 @@ export default function Fila({
       {rodando > 0 && (
         <p className="summary summary--muted">Processando no seu computador — {rodando} em andamento. Nada está sendo enviado.</p>
       )}
+      {jobs.some((job) => job.status === "running") && (
+        <p className="summary summary--muted">Mantenha esta aba aberta. O navegador pode suspender conversões ao bloquear o aparelho ou ficar em segundo plano. Para conversões longas em segundo plano, use o app Android, Windows ou o plugin.</p>
+      )}
     </section>
   );
 }
@@ -121,6 +124,7 @@ function JobRow({ job, onCancel, onRemove, onRetry }: { job: Job; onCancel: () =
             <div className="progress__bar" style={{ width: `${percent}%` }} />
             <span className="progress__label">
               {job.status === "pending" ? "na fila" : job.etapa} {job.status === "running" ? `${percent}%` : ""}
+              {job.status === "running" && job.segundosRestantes !== null ? <> · {tempoRestante(job.segundosRestantes)}</> : null}
             </span>
           </div>
         )}

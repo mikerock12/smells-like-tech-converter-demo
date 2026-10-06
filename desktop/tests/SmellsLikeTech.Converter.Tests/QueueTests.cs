@@ -153,12 +153,69 @@ public class QueueTests : IDisposable
 
     // ==================== apoio ====================
 
-    private ConversionQueue Build(IConversionEngine engine) => new(
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ExecutionLease_IsHeldDuringWork_AndReleasedOnSuccessOrFailure(bool fail)
+    {
+        var lease = new FakeLease();
+        var engine = new FakeEngine
+        {
+            Behavior = context =>
+            {
+                Assert.False(lease.Disposed);
+                if (fail) throw new ConversionException("test_failure", "Falha de teste");
+                var output = context.Workspace.OutputPath("result.mp3");
+                File.WriteAllText(output, "audio");
+                return new EngineResult([output]);
+            }
+        };
+        await using var queue = Build(engine, () => lease);
+        var job = NewJob(Path.Combine(root, "saida"));
+        var completion = WaitFor(queue, job.Id, fail ? JobStatus.Failed : JobStatus.Completed);
+        queue.Enqueue(job);
+        await completion;
+        Assert.True(lease.Disposed);
+    }
+
+    [Fact]
+    public async Task ExecutionLease_IsReleasedOnCancellation()
+    {
+        var lease = new FakeLease();
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var engine = new FakeEngine
+        {
+            BehaviorAsync = async (_, token) =>
+            {
+                started.SetResult();
+                await Task.Delay(Timeout.Infinite, token);
+                return new EngineResult([]);
+            }
+        };
+        await using var queue = Build(engine, () => lease);
+        var job = NewJob(Path.Combine(root, "saida"));
+        var completion = WaitFor(queue, job.Id, JobStatus.Cancelled);
+        queue.Enqueue(job);
+        await started.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        Assert.False(lease.Disposed);
+        queue.Cancel(job.Id);
+        await completion;
+        Assert.True(lease.Disposed);
+    }
+
+    private sealed class FakeLease : IDisposable
+    {
+        public bool Disposed { get; private set; }
+        public void Dispose() => Disposed = true;
+    }
+
+    private ConversionQueue Build(IConversionEngine engine, Func<IDisposable?>? acquireLease = null) => new(
         [engine],
         new JobWorkspaceFactory(new ConverterPaths(root)),
         new FakeHistory(),
         new FakeLog(),
-        new QueueSettings { MaxConcurrentJobs = 2, JobTimeout = TimeSpan.FromMinutes(1) });
+        new QueueSettings { MaxConcurrentJobs = 2, JobTimeout = TimeSpan.FromMinutes(1) },
+        acquireLease);
 
     private ConversionJob NewJob(string destination)
     {

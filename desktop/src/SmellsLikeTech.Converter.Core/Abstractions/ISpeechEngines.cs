@@ -20,6 +20,9 @@ public interface ITtsEngine
     /// <summary>Vozes realmente instaladas e utilizaveis nesta maquina.</summary>
     IReadOnlyList<SpeechVoice> ListVoices();
 
+    /// <summary>Carrega o modelo antes de começar a medir a velocidade da narração.</summary>
+    Task PrepareAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+
     /// <summary>Sintetiza o texto em um WAV local. A codificacao final fica com o FFmpeg.</summary>
     Task SynthesizeToWaveAsync(
         string text,

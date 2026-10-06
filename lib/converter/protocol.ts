@@ -96,7 +96,7 @@ export interface ContextoDoMotor {
   readonly ferramenta: string;
   readonly entradas: readonly Entrada[];
   readonly opcoes: Opcoes;
-  readonly progresso: (etapa: string, fraction: number) => void;
+  readonly progresso: (etapa: string, fraction: number, segundosRestantes?: number | null) => void;
   readonly cancelado: () => boolean;
 }
 

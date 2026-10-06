@@ -4,6 +4,7 @@ import { converterLegenda } from "@/packages/converter-core/legendas.mjs";
 import { dividirTexto, locutor, velocidade, normalizarTexto } from "@/packages/kokoro/config.mjs";
 import { ConversionError, type ContextoDoMotor, type Saida } from "../protocol";
 import { arquivosKokoro } from "./kokoro";
+import { ProgressoNarracao } from "@/packages/kokoro/progresso.mjs";
 
 export async function lerTexto(contexto: ContextoDoMotor): Promise<string> {
   const entrada = contexto.entradas[0];
@@ -61,6 +62,7 @@ export async function narrar(contexto: ContextoDoMotor): Promise<{ saidas: Saida
   contexto.progresso("aguardando o motor Kokoro", 0);
   await anterior;
   let worker: Worker | null = null;
+  let pulso: ReturnType<typeof setInterval> | undefined;
   try {
     if (contexto.cancelado()) throw new Error("Narração cancelada.");
     const texto = normalizarTexto(await lerTexto({ ...contexto, progresso: (etapa, fracao) => contexto.progresso(etapa, fracao * 0.15) }));
@@ -87,19 +89,29 @@ export async function narrar(contexto: ContextoDoMotor): Promise<{ saidas: Saida
     });
     await pedir({ type: "initialize", files: arquivos }, arquivos.map(([, bytes]) => bytes));
     const partes = dividirTexto(texto);
+    const estimador = new ProgressoNarracao(partes.map((parte) => parte.length));
+    const informar = () => {
+      const estado = estimador.retrato();
+      contexto.progresso("narrando com Kokoro-82M", 0.2 + estado.fracao * 0.7, estado.segundosRestantes);
+    };
     const canais: Float32Array[] = [];
     const sid = locutor(String(contexto.opcoes.voz ?? "pf_dora"));
     const speed = velocidade(Number(contexto.opcoes.velocidade ?? 0));
     const volume = Number(contexto.opcoes.volume ?? 100);
     if (!Number.isFinite(volume)) throw new Error("Volume inválido.");
-    for (const [indice, parte] of partes.entries()) {
+    informar();
+    pulso = setInterval(informar, 1000);
+    for (const parte of partes) {
       const audio = await pedir({ type: "generate", text: parte, sid, speed });
       if (audio.sampleRate !== 24000 || !audio.samples) throw new Error("Áudio Kokoro inválido.");
       const amostras = new Float32Array(audio.samples);
       for (let i = 0; i < amostras.length; i++) amostras[i] *= Math.max(0, Math.min(100, volume)) / 100;
       canais.push(amostras);
-      contexto.progresso("narrando com Kokoro-82M", 0.2 + (indice + 1) / partes.length * 0.7);
+      estimador.concluirBloco();
+      informar();
     }
+    clearInterval(pulso); pulso = undefined;
+    contexto.progresso("gravando narração", 0.9);
     worker.terminate(); worker = null;
     const pcm = new Float32Array(canais.reduce((n, parte) => n + parte.length, 0));
     let posicao = 0;
@@ -124,5 +136,5 @@ export async function narrar(contexto: ContextoDoMotor): Promise<{ saidas: Saida
       codificador.postMessage({ type: "codificarAudio", jobId: contexto.jobId, nome, canais: [pcm], sampleRate: 24000, formato, bitrate: 128 }, [pcm.buffer]);
     });
     return { saidas, nota: "Kokoro-82M · português · processamento local" };
-  } finally { worker?.terminate(); liberar(); }
+  } finally { clearInterval(pulso); worker?.terminate(); liberar(); }
 }

@@ -86,7 +86,8 @@ public sealed class AppServices : IAsyncDisposable
             new JobWorkspaceFactory(paths),
             history,
             log,
-            settings.ToQueueSettings());
+            settings.ToQueueSettings(),
+            () => WindowsExecutionLease.TryAcquire(log));
     }
 
     public ConverterPaths Paths { get; }
