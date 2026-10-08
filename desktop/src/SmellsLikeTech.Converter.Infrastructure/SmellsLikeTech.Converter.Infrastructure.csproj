@@ -12,6 +12,12 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Os testes trocam a espera entre tentativas de apagar a pasta do job por um gancho
+         e soltam o arquivo preso exatamente entre uma tentativa e a seguinte. -->
+    <InternalsVisibleTo Include="SmellsLikeTech.Converter.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\SmellsLikeTech.Converter.Core\SmellsLikeTech.Converter.Core.csproj" />
   </ItemGroup>
 </Project>

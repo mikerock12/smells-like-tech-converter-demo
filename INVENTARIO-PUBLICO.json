@@ -1,5 +1,5 @@
 {
-  "commit": "1cfa1779002f1d593254bac86655c3408fee0729",
+  "commit": "0a8832e8be4a85e24dcfc0d2d0ef52e8c10e7faa",
   "repository": "https://github.com/mikerock12/smells-like-tech-converter-demo",
   "originals": [
     {
@@ -754,8 +754,8 @@
     },
     {
       "path": "app/robots.ts",
-      "sha256": "37191aabea17814d60fdcee9c040d7d20f6694a7b4247b130a2ab4573f827c8b",
-      "bytes": 362
+      "sha256": "fe088b17c9e47f937830a1f1eb27cb544b53275a9ad649008db1eec9d8d51f18",
+      "bytes": 526
     },
     {
       "path": "app/sem-upload/page.tsx",
@@ -794,7 +794,7 @@
     },
     {
       "path": "desktop/Directory.Build.props",
-      "sha256": "23b6fce4454e470461da6ed8b5ed5bdef1f7b8687ba8f204ddd9b78511d1a9ec",
+      "sha256": "82df36b4445bb8b30006ef5e494e03021d0980559a56d60797d175e122b14fe4",
       "bytes": 472
     },
     {
@@ -1479,8 +1479,8 @@
     },
     {
       "path": "desktop/src/SmellsLikeTech.Converter.Infrastructure/SmellsLikeTech.Converter.Infrastructure.csproj",
-      "sha256": "59e0593b8d97490c7e0383f1771bb8ce7229cff66a0824155be94f66af5ca312",
-      "bytes": 708
+      "sha256": "29775ee65c4f056fc3103d128414fe0777f6299ce5e60211fb23e3dc8cc9ba0d",
+      "bytes": 980
     },
     {
       "path": "desktop/src/SmellsLikeTech.Converter.Infrastructure/Storage/ConverterPaths.cs",
@@ -1494,8 +1494,8 @@
     },
     {
       "path": "desktop/src/SmellsLikeTech.Converter.Infrastructure/Storage/JobWorkspace.cs",
-      "sha256": "66f708fbf251e4a774855c096264b8807c4f53301fbfc750d406ef84fdd03c5c",
-      "bytes": 5208
+      "sha256": "d2aa7752b036d588123c2d12899601ccfd2f6d1079152bc127ce7641a9777951",
+      "bytes": 6033
     },
     {
       "path": "desktop/src/SmellsLikeTech.Converter.Infrastructure/Storage/RetentionService.cs",
@@ -1599,8 +1599,8 @@
     },
     {
       "path": "desktop/tests/SmellsLikeTech.Converter.Tests/WorkspaceTests.cs",
-      "sha256": "0efbe516ac1484acde854065a95997e3b803ce705ce03aa380809164a53e07a3",
-      "bytes": 8029
+      "sha256": "44aa9da44e6b60ba540a6a8f7b1bd72dad83ae2e93cf7d2806e999d64a1fdedd",
+      "bytes": 9649
     },
     {
       "path": "docs/android.md",
@@ -2009,12 +2009,12 @@
     },
     {
       "path": "public/baixar/app.json",
-      "sha256": "f6569dd103f0f07bda4c0edbaaaf6e39900656f95fcb1381a98e7767e33a4f9e",
+      "sha256": "c64768032d47f02792a18e48444486935121022030b08cd15c8d1dfbf3dbb655",
       "bytes": 210
     },
     {
       "path": "public/baixar/plugin.json",
-      "sha256": "ed9d06570653a2abc07b80b88ce72f5631ca149ca56cad4eaed03f706a94035b",
+      "sha256": "f2e17ae4cbc477b01180c7ac552e76a8c37ad7da6b0c2e9e72d1fbcbb5f71f89",
       "bytes": 207
     },
     {

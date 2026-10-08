@@ -59,26 +59,62 @@ public class WorkspaceTests : IDisposable
     /// devolve os handles dele no mesmo instante, e a primeira tentativa de apagar pega o
     /// arquivo parcial ainda em uso. Aqui o arquivo e solto no meio das tentativas.
     /// </summary>
+    /// <remarks>
+    /// A soltura acontece dentro da espera entre tentativas, e nao num Task.Delay correndo
+    /// contra o relogio: no CI a continuacao do Task.Delay chegou a atrasar mais que todas
+    /// as esperas somadas, e o teste falhava sem defeito no produto.
+    /// </remarks>
     [Fact]
-    public async Task TryDelete_ComArquivoPresoQueEhSoltoLogoDepois_Apaga()
+    public void TryDelete_ComArquivoPresoQueEhSoltoLogoDepois_Apaga()
     {
         var workspace = JobWorkspace.Create(root, Guid.NewGuid());
         var jobDirectory = workspace.JobDirectory;
-        var preso = File.Create(Path.Combine(workspace.OutputDirectory, "result.mp4"));
+        using var preso = File.Create(Path.Combine(workspace.OutputDirectory, "result.mp4"));
+        var esperas = new List<int>();
 
         // Solta o arquivo depois de a primeira tentativa ter falhado, como o Windows faz
         // quando termina de fechar a tabela de handles do processo morto.
-        var soltando = Task.Run(async () =>
+        var apagou = workspace.TryDelete(delay =>
         {
-            await Task.Delay(120);
+            esperas.Add(delay);
             preso.Dispose();
+            Thread.Sleep(delay);
         });
 
-        var apagou = await Task.Run(workspace.TryDelete);
-
-        await soltando;
         Assert.True(apagou);
         Assert.False(Directory.Exists(jobDirectory));
+        Assert.NotEmpty(esperas);
+    }
+
+    /// <summary>
+    /// Acesso negado tambem pode passar sozinho. No Windows 10, enquanto existe uma secao
+    /// mapeada do arquivo (processo morto que o mapeou, visualizador, gerador de
+    /// miniatura), a exclusao e recusada com acesso negado, e nao com "em uso", ate o
+    /// mapeamento sumir. Versoes mais novas, como a do runner do CI, ja apagam o arquivo
+    /// mapeado de primeira, entao o teste provoca o mesmo ERROR_ACCESS_DENIED com o
+    /// atributo de somente leitura, que barra a exclusao em qualquer versao. Quem tira o
+    /// atributo e o teste, entre uma tentativa e outra: o TryDelete nunca mexe em atributo.
+    /// </summary>
+    [Fact]
+    public void TryDelete_ComAcessoNegadoQuePassaLogoDepois_Apaga()
+    {
+        var workspace = JobWorkspace.Create(root, Guid.NewGuid());
+        var jobDirectory = workspace.JobDirectory;
+        var arquivo = Path.Combine(workspace.OutputDirectory, "result.mp4");
+        File.WriteAllText(arquivo, "parcial");
+        File.SetAttributes(arquivo, FileAttributes.ReadOnly);
+        var esperas = new List<int>();
+
+        var apagou = workspace.TryDelete(delay =>
+        {
+            esperas.Add(delay);
+            File.SetAttributes(arquivo, FileAttributes.Normal);
+            Thread.Sleep(delay);
+        });
+
+        Assert.True(apagou);
+        Assert.False(Directory.Exists(jobDirectory));
+        Assert.NotEmpty(esperas);
     }
 
     [Fact]
@@ -97,13 +133,12 @@ public class WorkspaceTests : IDisposable
         var workspace = JobWorkspace.Create(root, Guid.NewGuid());
         File.WriteAllText(Path.Combine(workspace.OutputDirectory, "result.mp4"), "parcial");
 
-        var relogio = System.Diagnostics.Stopwatch.StartNew();
-        var apagou = workspace.TryDelete();
-        relogio.Stop();
+        var esperas = new List<int>();
+        var apagou = workspace.TryDelete(esperas.Add);
 
         Assert.True(apagou);
         // Sem nada preso ninguem espera: as esperas so existem para o caso raro.
-        Assert.True(relogio.ElapsedMilliseconds < 200, $"demorou {relogio.ElapsedMilliseconds} ms");
+        Assert.Empty(esperas);
     }
 
     [Fact]

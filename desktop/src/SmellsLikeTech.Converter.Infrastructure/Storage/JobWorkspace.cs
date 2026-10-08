@@ -91,7 +91,14 @@ public sealed class JobWorkspace : IJobWorkspace
 
     public void Dispose() => TryDelete();
 
-    public bool TryDelete()
+    public bool TryDelete() => TryDelete(Thread.Sleep);
+
+    /// <param name="wait">
+    /// Como esperar entre uma tentativa e a seguinte. Fora dos testes e sempre
+    /// <see cref="Thread.Sleep(int)"/>; os testes usam o gancho para soltar o arquivo preso
+    /// exatamente depois de uma tentativa falhar, sem depender do relogio.
+    /// </param>
+    internal bool TryDelete(Action<int> wait)
     {
         if (!Directory.Exists(JobDirectory))
         {
@@ -113,7 +120,7 @@ public sealed class JobWorkspace : IJobWorkspace
             {
                 // A espera roda na propria tarefa do job, nunca na thread da interface, e
                 // so acontece quando a pasta esta mesmo presa - o caso comum sai na primeira.
-                Thread.Sleep(delay);
+                wait(delay);
             }
 
             try
@@ -121,15 +128,16 @@ public sealed class JobWorkspace : IJobWorkspace
                 Directory.Delete(JobDirectory, recursive: true);
                 return true;
             }
-            catch (IOException)
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
             {
-                // Ainda preso. Tenta de novo depois da proxima espera.
-            }
-            catch (UnauthorizedAccessException)
-            {
-                // Permissao nao melhora com o tempo, e privilegio nao se eleva por causa
-                // de uma pasta temporaria.
-                return false;
+                // Ainda preso. Tenta de novo depois da proxima espera. Acesso negado tambem
+                // pode ser passageiro: o Windows recusa apagar um arquivo enquanto ainda ha
+                // uma secao mapeada dele em memoria (processo morto que mapeou o arquivo,
+                // visualizador, gerador de miniatura) e devolve ERROR_ACCESS_DENIED ate o
+                // mapeamento sumir. A nova tentativa repete a mesma chamada, com o mesmo
+                // usuario: nada de mexer em atributo, dono ou permissao para forcar a
+                // remocao. Se o acesso for negado de verdade, as esperas acabam e o metodo
+                // devolve falso como no arquivo preso para sempre.
             }
         }
 
