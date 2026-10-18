@@ -19,11 +19,18 @@
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" tools:node="remove" />
 
-    <!-- Android 11+: permite encontrar motores de voz locais instalados no aparelho. -->
+    <!-- Android 11+: permite encontrar motores de voz locais instalados no aparelho, os apps
+         que recebem um arquivo (ícones de compartilhar) e o WhatsApp (figurinhas). -->
     <queries>
         <intent>
             <action android:name="android.intent.action.TTS_SERVICE" />
         </intent>
+        <intent>
+            <action android:name="android.intent.action.SEND" />
+            <data android:mimeType="*/*" />
+        </intent>
+        <package android:name="com.whatsapp" />
+        <package android:name="com.whatsapp.w4b" />
     </queries>
 
     <application
@@ -44,6 +51,19 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/arquivos" />
         </provider>
+
+        <!-- Figurinhas: o WhatsApp lê os nossos pacotes por aqui (e só ele: a permissão é dele). -->
+        <provider
+            android:name=".figurinhas.ProvedorDeFigurinhas"
+            android:authorities="${applicationId}.figurinhas"
+            android:enabled="true"
+            android:exported="true"
+            android:readPermission="com.whatsapp.sticker.READ" />
+
+        <!-- A Play baixa o modelo de remoção de fundo junto com o app (sem esperar o primeiro uso). -->
+        <meta-data
+            android:name="com.google.mlkit.vision.DEPENDENCIES"
+            android:value="subject_segment" />
 
         <service android:name=".conversao.ServicoDeConversao"
             android:exported="false" android:stopWithTask="false"

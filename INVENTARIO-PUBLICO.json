@@ -1,5 +1,5 @@
 {
-  "commit": "aa3407786fcff8e5a3b0fe1ca08fa8df2edb1a98",
+  "commit": "378b9c77958032d29c9cf1417c47f38c0e2f65d3",
   "repository": "https://github.com/mikerock12/smells-like-tech-converter-demo",
   "originals": [
     {
@@ -34,8 +34,8 @@
     },
     {
       "path": "android/app/build.gradle.kts",
-      "sha256": "0f79c7097d9020833b308d008ee5e6b1925862b509333180d5508b7a325d19d1",
-      "bytes": 7007
+      "sha256": "b2f30ef3e043c2cde7dacf6ec94b44a1ef455947148b98910b6b1ae16670aed7",
+      "bytes": 7213
     },
     {
       "path": "android/app/proguard-rules.pro",
@@ -78,9 +78,54 @@
       "bytes": 10773
     },
     {
+      "path": "android/app/src/androidTest/java/br/com/smellsliketech/converter/figurinhas/FigurinhasTest.kt",
+      "sha256": "11462b98c587d27285956d015c9b3a023caaa9df4f13d140df721bcd5e968cba",
+      "bytes": 7614
+    },
+    {
       "path": "android/app/src/main/AndroidManifest.xml",
-      "sha256": "b1b1631c452cf3cfacc1ecc6ecc4de89c31ab52545b2d38237fac3c1a90d3494",
-      "bytes": 5127
+      "sha256": "cb58f57653a4868f087f1961844c3cfa3135b5fe5f31ba27d5ba9507c5fb5a6f",
+      "bytes": 6086
+    },
+    {
+      "path": "android/app/src/main/assets/fontes/Anton-Regular.ttf",
+      "sha256": "a4ba3a92350ebb031da0cb47630ac49eb265082ca1bc0450442f4a83ab947cab",
+      "bytes": 170812
+    },
+    {
+      "path": "android/app/src/main/assets/fontes/Bangers-Regular.ttf",
+      "sha256": "4160a7311de9342674cce9160cde9fcbb30f48190397d86ff1b70b455af65824",
+      "bytes": 93148
+    },
+    {
+      "path": "android/app/src/main/assets/fontes/LICENSE-PermanentMarker.txt",
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+      "bytes": 11358
+    },
+    {
+      "path": "android/app/src/main/assets/fontes/OFL-Anton.txt",
+      "sha256": "eee1d24ff8f553eb732237c7dd9b945a78313ed49ad6de02872a47277741b44a",
+      "bytes": 4391
+    },
+    {
+      "path": "android/app/src/main/assets/fontes/OFL-Bangers.txt",
+      "sha256": "c36ad22ae5daf9bb19fa6decb3d9ec51cb9dc5b89c04c630aebe34ef26fb962e",
+      "bytes": 4388
+    },
+    {
+      "path": "android/app/src/main/assets/fontes/OFL-Pacifico.txt",
+      "sha256": "a47e5daeda73568969395c656823102678f2eefb0d7d7ecb47aac4cc17e42204",
+      "bytes": 4389
+    },
+    {
+      "path": "android/app/src/main/assets/fontes/Pacifico-Regular.ttf",
+      "sha256": "5b6c0d5334a7bf77dea52b975c5a0c408878c0f7115ed5b6fb151f634b7bf701",
+      "bytes": 329380
+    },
+    {
+      "path": "android/app/src/main/assets/fontes/PermanentMarker-Regular.ttf",
+      "sha256": "28f82c8a7943cb8e9d599f8554da1d4fc75dbcf69b9885ad6c0611d20c6946c5",
+      "bytes": 74632
     },
     {
       "path": "android/app/src/main/assets/licencas-nativas.txt",
@@ -89,8 +134,8 @@
     },
     {
       "path": "android/app/src/main/assets/licencas.txt",
-      "sha256": "5ff4ea2a5ab6edcd305a8f9aac30ea1e7506035f730adab232957db642dc7dd4",
-      "bytes": 1691
+      "sha256": "eea5f346da7c887f7c32c212449794ad65cd33fcffe6dbd9bba4d9dcd95b2dd5",
+      "bytes": 2168
     },
     {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/MainActivity.kt",
@@ -278,6 +323,41 @@
       "bytes": 7998
     },
     {
+      "path": "android/app/src/main/java/br/com/smellsliketech/converter/figurinhas/Edicao.kt",
+      "sha256": "81cb86f48c6bed8fcea661229a38ffdd217699ec83610fd3363fa2ffec910967",
+      "bytes": 10096
+    },
+    {
+      "path": "android/app/src/main/java/br/com/smellsliketech/converter/figurinhas/FigurinhasViewModel.kt",
+      "sha256": "6d75771f634ef48e43ae3067e1eced6530f4be6de5e460a0e22f51fffca302c7",
+      "bytes": 12838
+    },
+    {
+      "path": "android/app/src/main/java/br/com/smellsliketech/converter/figurinhas/Fundo.kt",
+      "sha256": "a5dbc8fe543de5f4b5209ad67c0dd999012afd2c274a81fc41b2c5100ffb9517",
+      "bytes": 3513
+    },
+    {
+      "path": "android/app/src/main/java/br/com/smellsliketech/converter/figurinhas/Pacotes.kt",
+      "sha256": "31ec2f3293f8f7baa41f5b906a04928daca28e8be8a14900b5cba9cb312933e1",
+      "bytes": 7812
+    },
+    {
+      "path": "android/app/src/main/java/br/com/smellsliketech/converter/figurinhas/Producao.kt",
+      "sha256": "1c7776312810a892946f3de7e951fbc6fa9ddc11c222052e40629e901992390c",
+      "bytes": 5821
+    },
+    {
+      "path": "android/app/src/main/java/br/com/smellsliketech/converter/figurinhas/ProvedorDeFigurinhas.kt",
+      "sha256": "d5c58c4ca37c8909fe57ecd301209b1f0c8acd59cdb5067b047dd87852d2c81c",
+      "bytes": 6239
+    },
+    {
+      "path": "android/app/src/main/java/br/com/smellsliketech/converter/figurinhas/WhatsApp.kt",
+      "sha256": "6bcfbee8bd05c9473e72a3f3db61968f2173032be8f75faee1c559cd8e66dc87",
+      "bytes": 2383
+    },
+    {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/licenca/Acesso.kt",
       "sha256": "3a8aba4d4f40dc62b81b4c6819214b239a4254c04ceb808416e57157c71774b5",
       "bytes": 4650
@@ -298,9 +378,14 @@
       "bytes": 1156
     },
     {
+      "path": "android/app/src/main/java/br/com/smellsliketech/converter/ui/Compartilhar.kt",
+      "sha256": "dbe06b643c384528d66b1dcab90f74186274c3f96fc72880b8978eb64c008c87",
+      "bytes": 5778
+    },
+    {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/ui/OficinaViewModel.kt",
-      "sha256": "fac769bf0dca37aa6ea70cf20dc7cc8559b99edb68256f1e8c52dbd49c1682f2",
-      "bytes": 13189
+      "sha256": "1edb9e8a2e623cb66d1263b1c80e1b89e83aaa88dfea13a28bfae538824b84ac",
+      "bytes": 13240
     },
     {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/ui/Previa.kt",
@@ -309,8 +394,13 @@
     },
     {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/ui/Telas.kt",
-      "sha256": "db57ce4dcb16a7f8e1bb6af4792d7c8a470bc68ccf9406662bfdaccba5d59bc0",
-      "bytes": 46217
+      "sha256": "0eb4346aef4632aaf26491f8cf937500e6d9f0cf08818319206328548a561d17",
+      "bytes": 46384
+    },
+    {
+      "path": "android/app/src/main/java/br/com/smellsliketech/converter/ui/TelasDasFigurinhas.kt",
+      "sha256": "13e5c9b97a792d0fd3ca173e193eca037b61b1be84e15cea59dfdb4b8dfc5039",
+      "bytes": 28848
     },
     {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/ui/Tema.kt",
@@ -413,6 +503,11 @@
       "bytes": 16874
     },
     {
+      "path": "android/app/src/test/java/br/com/smellsliketech/converter/figurinhas/PacotesTest.kt",
+      "sha256": "214942120fc4dbda49c463c5796b1016cf4b469eb1f044d2876fc03373df4b26",
+      "bytes": 1357
+    },
+    {
       "path": "android/app/src/test/java/br/com/smellsliketech/converter/licenca/LicencaTest.kt",
       "sha256": "43a19ddcd4931c2108566d2559f2da26854a9eeed7aa772d4cac52872619ff4c",
       "bytes": 3329
@@ -474,8 +569,8 @@
     },
     {
       "path": "android/nativos/compilar.sh",
-      "sha256": "0627b069d4eb86e305cb6b4d2b43673229870d5b93a9a0bbca394e7fe5d71c61",
-      "bytes": 9672
+      "sha256": "3a630136cb59e2f860c4c7b2e9c7abdbcd8821a66409a3d6b1d11fadbdd44c62",
+      "bytes": 10443
     },
     {
       "path": "android/nativos/licencas.sh",
@@ -484,8 +579,8 @@
     },
     {
       "path": "android/nativos/versao.json",
-      "sha256": "a30d70223ae2ff933fad13b2859737f88a0c821b215a78af9192fe13e122785f",
-      "bytes": 411
+      "sha256": "693383b85709b9ab72ea3806e65c5870d5f4bfd4674cc717d5965de00202f2f9",
+      "bytes": 424
     },
     {
       "path": "android/play/capturas/brutas/1.png",
@@ -584,8 +679,8 @@
     },
     {
       "path": "app/android/page.tsx",
-      "sha256": "3943134a31e455806aa3e444a6a65367e02a339da99d5c342aacf4a058d9297b",
-      "bytes": 6693
+      "sha256": "896e656d898afc61d243ff0eef6b869e0c8b2971b3f5edf37cf664d3d14cdc01",
+      "bytes": 7042
     },
     {
       "path": "app/aplicativo/page.tsx",
@@ -1654,8 +1749,8 @@
     },
     {
       "path": "docs/android.md",
-      "sha256": "d39275ba177f6bc3b0be8b7df941c522d732ed8cec9d4a3053193d56de75f027",
-      "bytes": 18117
+      "sha256": "d92b8fc10fe6702b931d686ca02398c87236528307c3b9edc0394d158f8fada9",
+      "bytes": 19597
     },
     {
       "path": "docs/ecossistema-0.4.2.md",

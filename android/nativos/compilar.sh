@@ -8,8 +8,9 @@
 # como no desktop. O nome "lib*.so" é o que faz o Android extraí-lo, com permissão de
 # execução, para a pasta das bibliotecas nativas do app.
 #
-# Licenças: tudo aqui é LGPL ou mais permissivo. Não há --enable-gpl (nada de x264/x265):
-# o H.264 e o H.265 saem pelo codificador do próprio celular (MediaCodec).
+# Licenças: tudo aqui é LGPL ou mais permissivo (a libwebp, das figurinhas, é BSD). Não há
+# --enable-gpl (nada de x264/x265): o H.264 e o H.265 saem pelo codificador do próprio
+# celular (MediaCodec).
 #
 # Roda num Linux x86_64 com o NDK (ANDROID_NDK_HOME), nasm, autoconf, automake, libtool,
 # pkg-config, cmake e ninja. O GitHub Actions (.github/workflows/android-nativos.yml)
@@ -90,6 +91,7 @@ baixar ogg.tar.xz https://downloads.xiph.org/releases/ogg/libogg-1.3.6.tar.xz 5c
 baixar vorbis.tar.xz https://downloads.xiph.org/releases/vorbis/libvorbis-1.3.7.tar.xz b33cc4934322bcbf6efcbacf49e3ca01aadbea4114ec9589d1b1e9d20f72954b
 baixar vpx.tar.gz https://github.com/webmproject/libvpx/archive/refs/tags/v1.17.0.tar.gz 1020f184046187baa2985dbde38e0691f49c44088bca7a1842b0236c6081dc0a
 baixar aom.tar.gz https://storage.googleapis.com/aom-releases/libaom-3.15.1.tar.gz 8ca0c52746174603500f0adb6f2a215d69c9ca2aab2acb3caa06fb791d8d01bf
+baixar webp.tar.gz https://storage.googleapis.com/downloads.webmproject.org/releases/webp/libwebp-1.6.0.tar.gz e4ab7009bf0629fd11982d4c2aa83964cf244cffba7347ecd39019a9e38c4564
 
 echo "::group::LAME (MP3)"
 desempacotar lame.tar.gz lame
@@ -161,6 +163,16 @@ cmake -S "$OBRA/aom" -B "$OBRA/aom/obra" "${CMAKE_ANDROID[@]}" \
 cmake --build "$OBRA/aom/obra" -j"$TAREFAS" && cmake --install "$OBRA/aom/obra"
 echo "::endgroup::"
 
+echo "::group::libwebp (figurinhas do WhatsApp: WebP estático e animado)"
+desempacotar webp.tar.gz webp
+cmake -S "$OBRA/webp" -B "$OBRA/webp/obra" "${CMAKE_ANDROID[@]}" \
+  -DWEBP_BUILD_ANIM_UTILS=OFF -DWEBP_BUILD_CWEBP=OFF -DWEBP_BUILD_DWEBP=OFF \
+  -DWEBP_BUILD_GIF2WEBP=OFF -DWEBP_BUILD_IMG2WEBP=OFF -DWEBP_BUILD_VWEBP=OFF \
+  -DWEBP_BUILD_WEBPINFO=OFF -DWEBP_BUILD_WEBPMUX=OFF -DWEBP_BUILD_EXTRAS=OFF \
+  -DWEBP_BUILD_LIBWEBPMUX=ON
+cmake --build "$OBRA/webp/obra" -j"$TAREFAS" && cmake --install "$OBRA/webp/obra"
+echo "::endgroup::"
+
 echo "::group::whisper.cpp"
 desempacotar whisper.tar.gz whisper
 # Sem otimização para um processador específico: o mesmo executável roda em qualquer
@@ -200,7 +212,7 @@ desempacotar ffmpeg.tar.xz ffmpeg
     --enable-pic --enable-static --disable-shared \
     --disable-ffplay --disable-ffprobe --disable-doc --disable-debug \
     --disable-network --disable-indevs --disable-outdevs --disable-vulkan \
-    --enable-libmp3lame --enable-libopus --enable-libvorbis --enable-libvpx --enable-libaom \
+    --enable-libmp3lame --enable-libopus --enable-libvorbis --enable-libvpx --enable-libaom --enable-libwebp \
     --enable-whisper --enable-jni --enable-mediacodec     --disable-decoder=libaom_av1 \
     "${FFMPEG_ABI[@]}"
   make -j"$TAREFAS"

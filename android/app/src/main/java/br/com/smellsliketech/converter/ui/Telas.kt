@@ -59,6 +59,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import br.com.smellsliketech.converter.BuildConfig
 import br.com.smellsliketech.converter.conversao.Andamento
 import br.com.smellsliketech.converter.conversao.CompressaoPdf
@@ -97,6 +98,15 @@ fun Oficina(modelo: OficinaViewModel, escolherArquivos: () -> Unit) {
         TelaDosModelos(modelo) { modelo.mostrarModelos = false }
         return
     }
+    if (modelo.mostrarFigurinhas) {
+        TelaDasFigurinhas(
+            viewModel(),
+            podeCriar = modelo.situacao.podeConverter,
+            abrirLicenca = { modelo.mostrarLicenca = true },
+            voltar = { modelo.mostrarFigurinhas = false },
+        )
+        return
+    }
     modelo.textoParaNarrar?.let { inicial -> DialogoDeNarracao(modelo, inicial, aoFechar = { modelo.textoParaNarrar = null }) }
 
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
@@ -110,6 +120,9 @@ fun Oficina(modelo: OficinaViewModel, escolherArquivos: () -> Unit) {
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     Button(onClick = escolherArquivos) { Text("Escolher arquivos") }
                     OutlinedButton(onClick = { modelo.textoParaNarrar = "" }) { Text("Narrar um texto") }
+                }
+                OutlinedButton(onClick = { modelo.mostrarFigurinhas = true }, modifier = Modifier.padding(top = 8.dp)) {
+                    Text("Figurinhas do WhatsApp")
                 }
             }
             modelo.aviso?.let { aviso -> item { Aviso(aviso) } }
@@ -339,7 +352,7 @@ private fun Ajustes(modelo: OficinaViewModel, ferramenta: Ferramenta, opcoes: Op
 }
 
 @Composable
-private fun Dica(texto: String) {
+internal fun Dica(texto: String) {
     Text(texto, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
 }
 
@@ -449,8 +462,8 @@ private fun CartaoDoTrabalho(trabalho: br.com.smellsliketech.converter.conversao
                     Text(tamanho(resultado.bytes), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
                 }
                 TextButton(onClick = { abrir(contexto, resultado) }) { Text("Abrir") }
-                TextButton(onClick = { compartilhar(contexto, resultado) }) { Text("Enviar") }
             }
+            BarraDeCompartilhar(resultado)
         }
         val resto = trabalho.resultados.size - RESULTADOS_NA_TELA
         if (resto > 0) Text("E mais $resto ${if (resto == 1) "arquivo" else "arquivos"}.", fontSize = 13.sp)
@@ -729,7 +742,7 @@ private fun Rotulo(texto: String, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun Aviso(texto: String) {
+internal fun Aviso(texto: String) {
     Surface(shape = RoundedCornerShape(8.dp), color = Cores.amarelo.copy(alpha = 0.08f), border = BorderStroke(1.dp, Cores.amarelo.copy(alpha = 0.35f))) {
         Row(Modifier.padding(10.dp)) {
             Spacer(Modifier.width(2.dp))
@@ -759,11 +772,6 @@ private fun abrirNoNavegador(contexto: Context, endereco: String) {
 private fun abrir(contexto: Context, resultado: Resultado) {
     val intencao = Intent(Intent.ACTION_VIEW).setDataAndType(resultado.uri, resultado.mime).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
     runCatching { contexto.startActivity(intencao) }
-}
-
-private fun compartilhar(contexto: Context, resultado: Resultado) {
-    val intencao = Intent(Intent.ACTION_SEND).setType(resultado.mime).putExtra(Intent.EXTRA_STREAM, resultado.uri).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-    contexto.startActivity(Intent.createChooser(intencao, "Enviar ${resultado.nome}"))
 }
 
 /** A tela vive dentro da MainActivity; a compra da Google Play precisa dela para abrir. */

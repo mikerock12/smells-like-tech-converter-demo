@@ -119,6 +119,13 @@ export default function PaginaDoAndroid() {
               <strong>OCR e narração</strong>
               <p>Texto de foto e de PDF escaneado, e texto ou legenda virando áudio com a voz do celular, em português.</p>
             </div>
+            <div className="cartao">
+              <strong>Figurinhas do WhatsApp</strong>
+              <p>
+                Foto, GIF ou vídeo viram figurinha estática ou animada, com recorte, remoção de fundo, filtros, texto e contorno.
+                O pacote vai direto para o WhatsApp, sem anúncios.
+              </p>
+            </div>
           </div>
         </section>
 

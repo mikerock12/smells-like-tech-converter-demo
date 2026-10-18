@@ -108,6 +108,7 @@ class OficinaViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) {
     var aviso by mutableStateOf<String?>(null)
     var mostrarLicenca by mutableStateOf(false)
     var mostrarModelos by mutableStateOf(false)
+    var mostrarFigurinhas by mutableStateOf(false)
     var textoParaNarrar by mutableStateOf<String?>(null)
     var opcoesDaNarracao by mutableStateOf(Ferramenta.TEXTO_NARRAR.opcoesPadrao())
 

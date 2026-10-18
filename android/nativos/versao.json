@@ -1,9 +1,9 @@
 {
-  "release": "android-nativos-5",
-  "commit": "compilado por android/nativos/compilar.sh (API 28) no GitHub Actions (run 38018769052)",
+  "release": "android-nativos-7",
+  "commit": "compilado por android/nativos/compilar.sh (API 28, com libwebp) no GitHub Actions (run 39152042601)",
   "sha256": {
-    "arm64-v8a": "ba3ce343e0c3a93bce9e6ec8f967fdcb36d78796f4d2002f8a8dfaa37075da5c",
-    "armeabi-v7a": "73649b2edf404232c5dce9eda81b671662cb25146cd0b3e87570982968d8dfa5",
-    "x86_64": "048fd2ee1b41741a4d0b2d953b14e1673d61b5a7bf7e93d7d6890764bab4d006"
+    "arm64-v8a": "76fa9f6b5150cf387cc687a60a76f5635253d0d6aadf1209795bea0ace3f36f4",
+    "armeabi-v7a": "0012559241c131b89d653f2538f32b848478d7f96828175bf2359f644a93b3b3",
+    "x86_64": "40e7bd698e70556cf4c84aba1955d66fd7cf4cb808589d798090f3dec1e25db2"
   }
 }

@@ -25,6 +25,24 @@ para a API 28 (`android/nativos/compilar.sh`): compilado para a 29 ele dependia 
 `android_get_device_api_level` na libc e não abria no Android 9. Com menos de ~3,5 GB de RAM a
 tela de narração avisa que o Kokoro pode demorar ou ser interrompido.
 
+**Figurinhas do WhatsApp (desde a 0.5.0).** Função à parte da conversão, só no Android
+(`figurinhas/`, `ui/TelasDasFigurinhas.kt`): imagem, GIF ou vídeo viram figurinha estática (um
+quadro) ou animada (trecho de até 10 s, 12 quadros/s), com enquadramento por gestos, remoção de
+fundo (ML Kit Subject Segmentation, pelo Google Play Services; pincel para apagar/restaurar;
+na animada, quadro a quadro), filtros, texto (fontes OFL/Apache em `assets/fontes`) e contorno.
+`Producao` codifica WebP 512×512: estática pelo Android (≤100 KB), animada pelo FFmpeg
+`libwebp_anim` (≤500 KB; a libwebp entrou no FFmpeg do app na release android-nativos-7). Os
+pacotes ficam em `files/figurinhas/<id>` (`pacote.json`, `NN.webp`, `bandeja.png` 96×96) e o
+`ProvedorDeFigurinhas` (`${applicationId}.figurinhas`, leitura só com
+`com.whatsapp.sticker.READ`) expõe `metadata`, `stickers` e `stickers_asset` no contrato do
+WhatsApp. Regras: 3 a 30 por pacote, só estáticas ou só animadas, até 3 emojis. "Adicionar ao
+WhatsApp" usa `com.whatsapp.intent.action.ENABLE_STICKER_PACK` (WhatsApp e Business); mudanças
+sobem `image_data_version`. Testes: `FigurinhasTest` (instrumentado) e `PacotesTest`.
+
+**Compartilhar.** Cada resultado mostra os ícones dos apps instalados que aceitam o arquivo
+(WhatsApp, Instagram, Telegram, Facebook, Messenger, TikTok, X, Discord, Signal, Gmail, Drive) e
+"Outros" (a lista do Android); `ui/Compartilhar.kt`, com `<queries>` de `ACTION_SEND`.
+
 **Paridade com o Windows (0.3.0, 30/09/2026).** O app tem as operações do aplicativo para
 Windows (`OperationCatalog`), com os mesmos formatos e ajustes: a lista está em
 `conversao/Modelo.kt` (`Ferramenta`, `Opcoes`, `Listas`). Por tipo de arquivo:

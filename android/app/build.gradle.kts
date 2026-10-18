@@ -31,8 +31,8 @@ android {
         minSdk = 28
         // A Google Play exige o Android 16 como alvo desde 31/08/2026.
         targetSdk = 36
-        versionCode = 13
-        versionName = "0.4.5"
+        versionCode = 14
+        versionName = "0.5.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         // As arquiteturas do FFmpeg compilado (android/nativos): celulares ARM e, em x86_64,
         // Chromebooks e o emulador. A Google Play entrega a cada aparelho só a sua.
@@ -128,6 +128,8 @@ dependencies {
     // Vídeo, áudio e transcrição: o FFmpeg compilado em android/nativos (npm run android:nativos).
     // OCR no aparelho, com o modelo embutido (funciona sem internet e sem Google Play).
     implementation("com.google.mlkit:text-recognition:16.0.1")
+    // Remoção de fundo das figurinhas: segmentação de assunto no aparelho, pelo Google Play Services.
+    implementation("com.google.android.gms:play-services-mlkit-subject-segmentation:16.0.0-beta1")
     // PDF: juntar, dividir, girar (o Android só sabe desenhar e criar PDF).
     implementation("com.tom-roush:pdfbox-android:2.0.27.0")
     // HTML e EPUB (documentos): um leitor que aguenta HTML malformado.
