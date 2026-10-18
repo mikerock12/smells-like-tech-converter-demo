@@ -15,8 +15,15 @@ chegou a ficar no site por algumas horas, como APK, e foi retirada no mesmo dia.
 ## Como é feito
 
 `android/` · Kotlin + Jetpack Compose · pacote `br.com.smellsliketech.converter` ·
-Android 10 (API 29) ou mais novo, alvo Android 16 (API 36) · Gradle 8.14.5, Android Gradle
+Android 9 (API 28) ou mais novo, alvo Android 16 (API 36) · Gradle 8.14.5, Android Gradle
 Plugin 8.13.2, Kotlin 2.2.21.
+
+**Android 9 (desde a 0.4.3):** sem `MediaStore.Downloads`, os resultados são gravados direto
+em `Download/SmellsLikeTech` com `WRITE_EXTERNAL_STORAGE` (`maxSdkVersion=28`, pedida ao abrir
+o app) e abertos/enviados por um `FileProvider` (`res/xml/arquivos.xml`). O FFmpeg é compilado
+para a API 28 (`android/nativos/compilar.sh`): compilado para a 29 ele dependia de
+`android_get_device_api_level` na libc e não abria no Android 9. Com menos de ~3,5 GB de RAM a
+tela de narração avisa que o Kokoro pode demorar ou ser interrompido.
 
 **Paridade com o Windows (0.3.0, 30/09/2026).** O app tem as operações do aplicativo para
 Windows (`OperationCatalog`), com os mesmos formatos e ajustes: a lista está em
@@ -198,7 +205,8 @@ arquivos recebidos por Compartilhar. A fila executa um motor por vez para não
 duplicar RAM/CPU do Kokoro; os demais trabalhos mostram “Na fila…”.
 
 Android 15+: `mediaProcessing` para narração/mídia; `dataSync` para processamento
-local de documentos e para compatibilidade em Android 10–14. Não usamos
+local de documentos e para compatibilidade em Android 10–14. No Android 9 o serviço não tem
+tipo (a API não existe) e só mostra a notificação. Não usamos
 `mediaPlayback` (não há reprodução), `shortService`, exclusão de otimização de
 bateria nem serviço iniciado no boot. Declare os dois tipos na seção **Conteúdo
 do app → Serviços em primeiro plano** do Play Console, com demonstração da

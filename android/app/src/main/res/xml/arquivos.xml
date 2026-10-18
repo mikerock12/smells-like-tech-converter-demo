@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 9: só a pasta de resultados do app em Downloads fica visível pelo FileProvider. -->
+<paths>
+    <external-path name="resultados" path="Download/SmellsLikeTech/" />
+</paths>

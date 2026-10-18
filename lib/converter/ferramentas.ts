@@ -51,7 +51,7 @@ const BITRATE: Campo = {
   quando: (opcoes) => opcoes.formato === "mp3",
 };
 
-const INICIO: Campo = { id: "inicio", tipo: "tempo", rotulo: "Começar em", padrao: "", ajuda: "mm:ss ou hh:mm:ss. Vazio = do início." };
+const INICIO: Campo = { id: "inicio", tipo: "tempo", rotulo: "Começar em", padrao: "", ajuda: "mm:ss (no celular, mm-ss). Vazio = do início." };
 const FIM: Campo = { id: "fim", tipo: "tempo", rotulo: "Terminar em", padrao: "", ajuda: "Vazio = até o fim." };
 
 const REDIMENSIONAR: Campo[] = [
@@ -428,15 +428,7 @@ export function formatoDeSaida(ferramenta: Ferramenta, opcoes: Opcoes): FormatId
 }
 
 /** "mm:ss", "hh:mm:ss" ou segundos → segundos. Vazio devolve nulo. */
-export function lerTempoEmSegundos(texto: string | number | boolean | undefined): number | null {
-  const valor = String(texto ?? "").trim();
-  if (!valor) return null;
-  const partes = valor.replace(",", ".").split(":").map(Number);
-  if (partes.some((parte) => !Number.isFinite(parte))) return null;
-  let segundos = 0;
-  for (const parte of partes) segundos = segundos * 60 + parte;
-  return segundos >= 0 ? segundos : null;
-}
+export { lerTempoEmSegundos } from "./tempo";
 
 /** "1-3, 7, 10-12" → [1,2,3,7,10,11,12], limitado ao total. Vazio = todas. */
 export function lerPaginas(texto: string | number | boolean | undefined, total: number): number[] {

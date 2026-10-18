@@ -1,4 +1,5 @@
 using System.Globalization;
+using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using SmellsLikeTech.Converter.Core;
@@ -7,6 +8,8 @@ using SmellsLikeTech.Converter.Core.Operations;
 using SmellsLikeTech.Converter.Core.Options;
 using SmellsLikeTech.Converter.Desktop.ViewModels;
 using SmellsLikeTech.Converter.Engine.Documents;
+using Windows.Media.Core;
+using Windows.Media.Playback;
 
 namespace SmellsLikeTech.Converter.Desktop.Controls;
 
@@ -25,6 +28,7 @@ public sealed partial class ConversionOptionsView : UserControl
     {
         InitializeComponent();
         PopulateStaticChoices();
+        Unloaded += (_, _) => ClearTrimPreview();
     }
 
     /// <summary>
@@ -53,6 +57,7 @@ public sealed partial class ConversionOptionsView : UserControl
         ShowPanelsFor(descriptor.Id);
         PopulateAudioTracks(allowTrackChoice ? sample : null);
         Apply(values);
+        ShowTrimPreview(sample);
     }
 
     /// <summary>Opções montadas a partir do que está na tela. Quem chama é que valida.</summary>
@@ -88,8 +93,8 @@ public sealed partial class ConversionOptionsView : UserControl
                 SampleRateHz = Value(SampleRateCombo, (int?)null),
                 Channels = Value(ChannelsCombo, (int?)null),
                 Normalize = NormalizeCheck.IsChecked == true,
-                TrimStart = ParseTime(TrimStartBox.Text),
-                TrimDuration = ParseTime(TrimDurationBox.Text)
+                TrimStart = TrimTime.Parse(TrimStartBox.Text),
+                TrimDuration = TrimDurationFromScreen()
             },
 
             OperationIds.AudioConvert => new AudioConvertOptions
@@ -99,16 +104,16 @@ public sealed partial class ConversionOptionsView : UserControl
                 SampleRateHz = Value(SampleRateCombo, (int?)null),
                 Channels = Value(ChannelsCombo, (int?)null),
                 Normalize = NormalizeCheck.IsChecked == true,
-                TrimStart = ParseTime(TrimStartBox.Text),
-                TrimDuration = ParseTime(TrimDurationBox.Text)
+                TrimStart = TrimTime.Parse(TrimStartBox.Text),
+                TrimDuration = TrimDurationFromScreen()
             },
 
             OperationIds.VideoToGif => new VideoToGifOptions
             {
                 FrameRate = Value(GifFpsCombo, 12),
                 Width = Value(GifWidthCombo, 480),
-                TrimStart = ParseTime(TrimStartBox.Text),
-                TrimDuration = ParseTime(TrimDurationBox.Text) ?? TimeSpan.FromSeconds(10)
+                TrimStart = TrimTime.Parse(TrimStartBox.Text),
+                TrimDuration = TrimDurationFromScreen() ?? TimeSpan.FromSeconds(10)
             },
 
             OperationIds.VideoToFrames => new VideoToFramesOptions
@@ -116,8 +121,8 @@ public sealed partial class ConversionOptionsView : UserControl
                 ImageFormat = format,
                 FramesPerSecond = Value(FramesRateCombo, 1.0),
                 MaxFrames = (int)MaxFramesBox.Value,
-                TrimStart = ParseTime(TrimStartBox.Text),
-                TrimDuration = ParseTime(TrimDurationBox.Text)
+                TrimStart = TrimTime.Parse(TrimStartBox.Text),
+                TrimDuration = TrimDurationFromScreen()
             },
 
             OperationIds.SpeechTranscribe => new TranscribeOptions
@@ -177,8 +182,8 @@ public sealed partial class ConversionOptionsView : UserControl
             FlipVertical = FlipVerticalCheck.IsChecked == true,
             Speed = Value(SpeedCombo, 1.0),
             Audio = Value(AudioActionCombo, AudioTrackAction.Keep),
-            TrimStart = ParseTime(TrimStartBox.Text),
-            TrimDuration = ParseTime(TrimDurationBox.Text)
+            TrimStart = TrimTime.Parse(TrimStartBox.Text),
+            TrimDuration = TrimDurationFromScreen()
         };
     }
 
@@ -207,7 +212,7 @@ public sealed partial class ConversionOptionsView : UserControl
                 FlipHorizontalCheck.IsChecked = video.FlipHorizontal;
                 FlipVerticalCheck.IsChecked = video.FlipVertical;
                 TrimStartBox.Text = OptionalTime(video.TrimStart);
-                TrimDurationBox.Text = OptionalTime(video.TrimDuration);
+                TrimEndBox.Text = OptionalTime(TrimTime.EndFromDuration(video.TrimStart, video.TrimDuration));
                 break;
 
             case ExtractAudioOptions audio:
@@ -218,7 +223,7 @@ public sealed partial class ConversionOptionsView : UserControl
                 SelectValue(ChannelsCombo, audio.Channels);
                 NormalizeCheck.IsChecked = audio.Normalize;
                 TrimStartBox.Text = OptionalTime(audio.TrimStart);
-                TrimDurationBox.Text = OptionalTime(audio.TrimDuration);
+                TrimEndBox.Text = OptionalTime(TrimTime.EndFromDuration(audio.TrimStart, audio.TrimDuration));
                 break;
 
             case AudioConvertOptions audio:
@@ -228,7 +233,7 @@ public sealed partial class ConversionOptionsView : UserControl
                 SelectValue(ChannelsCombo, audio.Channels);
                 NormalizeCheck.IsChecked = audio.Normalize;
                 TrimStartBox.Text = OptionalTime(audio.TrimStart);
-                TrimDurationBox.Text = OptionalTime(audio.TrimDuration);
+                TrimEndBox.Text = OptionalTime(TrimTime.EndFromDuration(audio.TrimStart, audio.TrimDuration));
                 break;
 
             case ImageConvertOptions image:
@@ -255,7 +260,7 @@ public sealed partial class ConversionOptionsView : UserControl
                 SelectValue(GifFpsCombo, gif.FrameRate);
                 SelectValue(GifWidthCombo, gif.Width);
                 TrimStartBox.Text = OptionalTime(gif.TrimStart);
-                TrimDurationBox.Text = gif.TrimDuration is { } duration ? FormatTime(duration) : string.Empty;
+                TrimEndBox.Text = OptionalTime(TrimTime.EndFromDuration(gif.TrimStart, gif.TrimDuration));
                 break;
 
             case VideoToFramesOptions frames:
@@ -263,7 +268,7 @@ public sealed partial class ConversionOptionsView : UserControl
                 SelectValue(FramesRateCombo, frames.FramesPerSecond);
                 MaxFramesBox.Value = frames.MaxFrames;
                 TrimStartBox.Text = OptionalTime(frames.TrimStart);
-                TrimDurationBox.Text = OptionalTime(frames.TrimDuration);
+                TrimEndBox.Text = OptionalTime(TrimTime.EndFromDuration(frames.TrimStart, frames.TrimDuration));
                 break;
 
             case PdfToDocumentOptions pdf:
@@ -623,30 +628,169 @@ public sealed partial class ConversionOptionsView : UserControl
         }
     }
 
-    private static string OptionalTime(TimeSpan? value) => value is { } time ? FormatTime(time) : string.Empty;
+    private static string OptionalTime(TimeSpan? value) => value is { } time ? TrimTime.Format(time) : string.Empty;
 
-    private static TimeSpan? ParseTime(string? text)
+    /// <summary>A tela mostra início e fim; as opções guardam início e duração.</summary>
+    private TimeSpan? TrimDurationFromScreen() =>
+        TrimTime.DurationFromEnd(TrimTime.Parse(TrimStartBox.Text), TrimTime.Parse(TrimEndBox.Text));
+
+    // ---- Prévia do corte -------------------------------------------------------------
+
+    private MediaPlayer? trimPlayer;
+    private string? trimPreviewPath;
+    private TimeSpan? playUntil;
+    private DispatcherQueueTimer? trimTimer;
+
+    /// <summary>
+    /// Abre o arquivo no mini player quando a operação tem corte e o arquivo é vídeo ou
+    /// áudio. No lote, a prévia é do primeiro arquivo e o corte vale para todos.
+    /// </summary>
+    private void ShowTrimPreview(MediaInfo? sample)
     {
-        if (string.IsNullOrWhiteSpace(text))
+        if (TrimPanel.Visibility != Visibility.Visible
+            || sample is null
+            || !(sample.HasVideo || sample.HasAudio)
+            || !File.Exists(sample.Path))
         {
-            return null;
+            ClearTrimPreview();
+            UpdateTrimSummary();
+            return;
         }
 
-        var value = text.Trim();
-        string[] formats = [@"h\:mm\:ss", @"m\:ss", @"mm\:ss", @"s", @"h\:mm\:ss\.fff", @"m\:ss\.fff"];
-        if (TimeSpan.TryParseExact(value, formats, CultureInfo.InvariantCulture, out var parsed))
+        if (trimPlayer is null || !string.Equals(trimPreviewPath, sample.Path, StringComparison.OrdinalIgnoreCase))
         {
-            return parsed;
+            ClearTrimPreview();
+            trimPreviewPath = sample.Path;
+            trimPlayer = new MediaPlayer
+            {
+                AutoPlay = false,
+                Source = MediaSource.CreateFromUri(new Uri(sample.Path))
+            };
+            TrimPreview.SetMediaPlayer(trimPlayer);
         }
 
-        if (double.TryParse(value, NumberStyles.Float, CultureInfo.CurrentCulture, out var seconds) && seconds > 0)
-        {
-            return TimeSpan.FromSeconds(seconds);
-        }
-
-        throw new ConversionException("invalid_trim", $"Tempo inválido: “{text}”. Use 00:30 ou 1:02:15.");
+        TrimPreview.Height = sample.HasVideo ? 220 : 64;
+        TrimPreviewPanel.Visibility = Visibility.Visible;
+        UpdateTrimSummary();
     }
 
-    private static string FormatTime(TimeSpan value) =>
-        value.TotalHours >= 1 ? value.ToString(@"h\:mm\:ss") : value.ToString(@"m\:ss");
+    private void ClearTrimPreview()
+    {
+        trimTimer?.Stop();
+        playUntil = null;
+        TrimPreview.SetMediaPlayer(null);
+        if (trimPlayer is not null)
+        {
+            trimPlayer.Pause();
+            (trimPlayer.Source as IDisposable)?.Dispose();
+            trimPlayer.Dispose();
+            trimPlayer = null;
+        }
+
+        trimPreviewPath = null;
+        TrimPreviewPanel.Visibility = Visibility.Collapsed;
+    }
+
+    private TimeSpan CurrentPosition() => trimPlayer?.PlaybackSession.Position ?? TimeSpan.Zero;
+
+    private TimeSpan? MediaDuration() =>
+        trimPlayer?.PlaybackSession.NaturalDuration is { } duracao && duracao > TimeSpan.Zero ? duracao : null;
+
+    private void OnTrimStartHere(object sender, RoutedEventArgs e)
+    {
+        var agora = Arredondar(CurrentPosition());
+        TrimStartBox.Text = TrimTime.Format(agora);
+        // Início depois do fim marcado: o fim volta a ser o fim do arquivo.
+        if (TryParse(TrimEndBox.Text) is { } fim && fim <= agora)
+        {
+            TrimEndBox.Text = string.Empty;
+        }
+    }
+
+    private void OnTrimEndHere(object sender, RoutedEventArgs e)
+    {
+        var agora = Arredondar(CurrentPosition());
+        if (agora > (TryParse(TrimStartBox.Text) ?? TimeSpan.Zero))
+        {
+            TrimEndBox.Text = TrimTime.Format(agora);
+        }
+    }
+
+    private void OnPlayTrim(object sender, RoutedEventArgs e)
+    {
+        if (trimPlayer is null)
+        {
+            return;
+        }
+
+        trimPlayer.PlaybackSession.Position = TryParse(TrimStartBox.Text) ?? TimeSpan.Zero;
+        playUntil = TryParse(TrimEndBox.Text) ?? MediaDuration();
+        trimPlayer.Play();
+        if (trimTimer is null)
+        {
+            trimTimer = DispatcherQueue.CreateTimer();
+            trimTimer.Interval = TimeSpan.FromMilliseconds(100);
+            trimTimer.Tick += (_, _) =>
+            {
+                // "Tocar o trecho" para sozinho no fim marcado.
+                if (trimPlayer is null || playUntil is null || CurrentPosition() >= playUntil)
+                {
+                    trimPlayer?.Pause();
+                    playUntil = null;
+                    trimTimer?.Stop();
+                }
+            };
+        }
+
+        trimTimer.Start();
+    }
+
+    private void OnTrimTextChanged(object sender, TextChangedEventArgs e) => UpdateTrimSummary();
+
+    /// <summary>Resumo do trecho, ou o motivo de o tempo não valer, enquanto a pessoa digita.</summary>
+    private void UpdateTrimSummary()
+    {
+        var inicio = TryParse(TrimStartBox.Text, out var inicioValido);
+        var fim = TryParse(TrimEndBox.Text, out var fimValido);
+        if (!inicioValido || !fimValido)
+        {
+            TrimSummaryText.Text = "Tempo inválido. Use 0:30, 1:05.5 ou 1:02:15.";
+            return;
+        }
+
+        var de = inicio ?? TimeSpan.Zero;
+        if (fim is { } marcado && marcado <= de)
+        {
+            TrimSummaryText.Text = "O fim do trecho deve ser maior que o início.";
+            return;
+        }
+
+        if (inicio is null && fim is null)
+        {
+            TrimSummaryText.Text = "Sem corte: o arquivo inteiro.";
+            return;
+        }
+
+        TrimSummaryText.Text = (fim ?? MediaDuration()) is { } ate
+            ? $"Trecho: {TrimTime.Format(de)} até {TrimTime.Format(ate)} · {TrimTime.Format(ate - de)}"
+            : $"Trecho: de {TrimTime.Format(de)} até o fim.";
+    }
+
+    private static TimeSpan? TryParse(string? text) => TryParse(text, out _);
+
+    private static TimeSpan? TryParse(string? text, out bool valido)
+    {
+        try
+        {
+            valido = true;
+            return TrimTime.Parse(text);
+        }
+        catch (ConversionException)
+        {
+            valido = false;
+            return null;
+        }
+    }
+
+    private static TimeSpan Arredondar(TimeSpan valor) => TimeSpan.FromSeconds(Math.Round(valor.TotalSeconds, 1));
 }

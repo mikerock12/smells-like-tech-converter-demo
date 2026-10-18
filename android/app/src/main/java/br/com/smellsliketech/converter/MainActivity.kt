@@ -13,6 +13,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
+import br.com.smellsliketech.converter.conversao.Saida
 import br.com.smellsliketech.converter.ui.Oficina
 import br.com.smellsliketech.converter.ui.OficinaViewModel
 import br.com.smellsliketech.converter.ui.TemaDoConverter
@@ -20,6 +21,7 @@ import br.com.smellsliketech.converter.ui.TemaDoConverter
 class MainActivity : ComponentActivity() {
     private val modelo: OficinaViewModel by viewModels()
     private val notificacoes = registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
+    private val armazenamento = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { }
 
     private val escolher = registerForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
         if (uris.isNotEmpty()) modelo.adicionar(uris)
@@ -39,6 +41,8 @@ class MainActivity : ComponentActivity() {
             getPreferences(MODE_PRIVATE).edit().putBoolean("notificacoes-pedidas", true).apply()
             notificacoes.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
+        // Android 9: sem esta permissão os resultados não chegam a Downloads (veja Saida).
+        if (Saida.precisaDePermissao(this)) armazenamento.launch(Saida.PERMISSOES)
         setContent {
             TemaDoConverter {
                 // Qualquer arquivo: documentos vêm com dezenas de tipos, e o app recusa o que não converte.

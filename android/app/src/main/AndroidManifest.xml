@@ -14,6 +14,9 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROCESSING" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Só no Android 9: sem o MediaStore.Downloads, gravar em Downloads pede estas permissões. -->
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" tools:node="remove" />
 
     <!-- Android 11+: permite encontrar motores de voz locais instalados no aparelho. -->
@@ -30,6 +33,17 @@
         android:label="@string/nome_do_app"
         android:supportsRtl="true"
         android:theme="@style/Tema.Abertura">
+
+        <!-- Android 9: resultados gravados direto em Downloads são abertos e enviados por aqui. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.arquivos"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/arquivos" />
+        </provider>
 
         <service android:name=".conversao.ServicoDeConversao"
             android:exported="false" android:stopWithTask="false"

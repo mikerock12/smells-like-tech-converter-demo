@@ -167,6 +167,8 @@ class SegundoPlanoTest {
     }
 
     @Test fun limiteDoAndroidEncerraComErroSemFingirSucesso() = runBlocking {
+        // O limite de tempo do serviço (onTimeout) só existe a partir do Android 15.
+        assumeTrue("Limite de tempo do serviço só existe no Android 15+", android.os.Build.VERSION.SDK_INT >= 35)
         val chave = "media_processing_fgs_timeout_duration"
         val anterior = shell("device_config get activity_manager $chave").trim()
         assertTrue(anterior == "null" || anterior.matches(Regex("[0-9]+")))

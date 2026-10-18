@@ -38,7 +38,7 @@ export default function PaginaDoAndroid() {
       <main className="plugin-page">
         <header className="plugin-page__topo">
           <p className="converter__eyebrow">
-            {ANDROID_NA_PLAY ? "Na Google Play" : "Em breve na Google Play"} · {DIAS_DE_TESTE_DO_APP} dias de teste · Android 10 ou mais novo
+            {ANDROID_NA_PLAY ? "Na Google Play" : "Em breve na Google Play"} · {DIAS_DE_TESTE_DO_APP} dias de teste · Android 9 ou mais novo
           </p>
           <h1>
             O conversor completo no celular,

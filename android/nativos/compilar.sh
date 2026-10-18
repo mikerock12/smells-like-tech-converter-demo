@@ -17,7 +17,9 @@
 set -euo pipefail
 
 ABI="${1:?informe a ABI: arm64-v8a, armeabi-v7a ou x86_64}"
-API=29
+# Android 9 (API 28): o mínimo do app. Compilar para uma API acima amarra o executável a
+# funções da libc que o sistema mais antigo não tem (ex.: android_get_device_api_level).
+API=28
 NDK="${ANDROID_NDK_HOME:?defina ANDROID_NDK_HOME}"
 TOOLCHAIN="$NDK/toolchains/llvm/prebuilt/linux-x86_64"
 RAIZ="$(cd "$(dirname "$0")" && pwd)"

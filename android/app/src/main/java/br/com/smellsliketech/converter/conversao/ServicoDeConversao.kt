@@ -28,7 +28,8 @@ class ServicoDeConversao : Service() {
     private var trava: PowerManager.WakeLock? = null
     private var tipos = 0
     private var encerrando = false
-    private val atualizar = Runnable { atualizarNotificacao() }
+    private var agendada = false
+    private val atualizar = Runnable { agendada = false; atualizarNotificacao() }
 
     override fun onCreate() {
         super.onCreate()
@@ -38,7 +39,7 @@ class ServicoDeConversao : Service() {
         )
         fila.aoMudar = {
             if (fila.trabalhos.none { !it.terminado }) atualizarNotificacao()
-            else if (!handler.hasCallbacks(atualizar)) handler.postDelayed(atualizar, 500)
+            else if (!agendada) { agendada = true; handler.postDelayed(atualizar, 500) }
         }
     }
 
@@ -74,11 +75,16 @@ class ServicoDeConversao : Service() {
         val ativos = fila.trabalhos.filterNot { it.terminado }
         if (ativos.isEmpty()) { encerrar(); return }
         val trabalho = ativos.lastOrNull { it.etapa != "Na fila…" } ?: ativos.last()
+        if (Build.VERSION.SDK_INT < 29) {
+            // Android 9 não tem tipos de serviço em primeiro plano: a notificação basta.
+            startForeground(NOTIFICACAO, notificacao(trabalho, ativos.size))
+            return
+        }
         val tipo = if (Build.VERSION.SDK_INT >= 35 && ativos.all { it.midia })
             ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROCESSING
         else ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
         tipos = tipos or tipo
-        // minSdk 29: chamada nativa preserva também mediaProcessing (API 35).
+        // Chamada nativa preserva também mediaProcessing (API 35).
         // Versões antigas do AndroidX filtram esse novo bit e passam tipo NONE.
         startForeground(NOTIFICACAO, notificacao(trabalho, ativos.size), tipos)
     }
@@ -103,6 +109,7 @@ class ServicoDeConversao : Service() {
     private fun encerrar() {
         encerrando = true
         handler.removeCallbacksAndMessages(null)
+        agendada = false
         if (trava?.isHeld == true) trava?.release()
         trava = null
         stopForeground(STOP_FOREGROUND_REMOVE)

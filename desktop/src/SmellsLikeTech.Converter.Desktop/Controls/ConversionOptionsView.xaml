@@ -310,14 +310,35 @@
         <StackPanel x:Name="TrimPanel" Spacing="8" Visibility="Collapsed">
             <Border Height="1" Background="{StaticResource BrandStrokeBrush}" />
             <TextBlock Text="Cortar trecho (opcional)" Style="{StaticResource FieldLabelStyle}" />
+            <!-- Prévia do arquivo para marcar o corte: assistir, parar no ponto e marcar. -->
+            <StackPanel x:Name="TrimPreviewPanel" Spacing="8" Visibility="Collapsed">
+                <MediaPlayerElement
+                    x:Name="TrimPreview"
+                    Height="220"
+                    Stretch="Uniform"
+                    AreTransportControlsEnabled="True">
+                    <MediaPlayerElement.TransportControls>
+                        <MediaTransportControls
+                            IsCompact="True"
+                            IsZoomButtonVisible="False"
+                            IsVolumeButtonVisible="True" />
+                    </MediaPlayerElement.TransportControls>
+                </MediaPlayerElement>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <Button Content="Início aqui" Click="OnTrimStartHere" />
+                    <Button Content="Fim aqui" Click="OnTrimEndHere" />
+                    <Button Content="Tocar o trecho" Click="OnPlayTrim" />
+                </StackPanel>
+            </StackPanel>
             <Grid ColumnSpacing="12">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
-                <TextBox x:Name="TrimStartBox" Grid.Column="0" PlaceholderText="Início — 00:00" />
-                <TextBox x:Name="TrimDurationBox" Grid.Column="1" PlaceholderText="Duração — 00:30" />
+                <TextBox x:Name="TrimStartBox" Grid.Column="0" Header="Início" PlaceholderText="0:00" TextChanged="OnTrimTextChanged" />
+                <TextBox x:Name="TrimEndBox" Grid.Column="1" Header="Fim" PlaceholderText="até o fim" TextChanged="OnTrimTextChanged" />
             </Grid>
+            <TextBlock x:Name="TrimSummaryText" Opacity="0.7" TextWrapping="Wrap" />
         </StackPanel>
     </StackPanel>
 </UserControl>

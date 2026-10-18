@@ -6,11 +6,12 @@ import { formatBytes, type FormatId } from "@/packages/converter-core/index.mjs"
 import { TIPOS, ferramentasPara, type Ferramenta, type TipoDeMidia } from "@/packages/converter-core/catalogo.mjs";
 
 import { FERRAMENTAS_DE_LOTE } from "@/lib/converter/queue";
-import type { Opcoes } from "@/lib/converter/ferramentas";
+import { camposVisiveis, type Opcoes } from "@/lib/converter/ferramentas";
 import type { Bloqueio, ItemParaConverter } from "@/lib/converter/limites";
 
 import CamposDeOpcoes from "./CamposDeOpcoes";
 import Paywall from "./Paywall";
+import PreviaDoTrecho from "./PreviaDoTrecho";
 
 export interface Item extends ItemParaConverter {
   readonly id: string;
@@ -67,6 +68,10 @@ export default function GrupoDeArquivos({
   const viaPlugin = precisaDoPlugin || (podeEscolherOnde && grupo.peloPlugin);
   const bloqueado = precisaDoPlugin && !pluginLigado;
   const ehPro = ferramenta.plano === "pro";
+  // A prévia do corte: só com início e fim na tela e o arquivo aberto no navegador.
+  const amostra = grupo.itens[0]?.arquivo;
+  const temCorte = camposVisiveis(ferramenta.id, grupo.opcoes).some((campo) => campo.id === "fim");
+  const comPrevia = temCorte && amostra && (grupo.tipo === "video" || grupo.tipo === "audio") ? amostra : null;
 
   return (
     <section className={`grupo grupo--${grupo.tipo}`} aria-label={`${tipo.plural}`}>
@@ -128,6 +133,17 @@ export default function GrupoDeArquivos({
         </label>
         <p className="grupo__resumo">{ferramenta.resumo}</p>
       </div>
+
+      {comPrevia && (
+        <PreviaDoTrecho
+          key={`${comPrevia.name}-${comPrevia.size}-${comPrevia.lastModified}`}
+          arquivo={comPrevia}
+          video={grupo.tipo === "video"}
+          opcoes={grupo.opcoes}
+          onChange={(opcoes) => onChange({ opcoes })}
+          disabled={grupo.convertendo}
+        />
+      )}
 
       <CamposDeOpcoes ferramentaId={ferramenta.id} opcoes={grupo.opcoes} onChange={(opcoes) => onChange({ opcoes })} disabled={grupo.convertendo} />
 

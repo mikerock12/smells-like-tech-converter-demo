@@ -63,6 +63,7 @@ import br.com.smellsliketech.converter.BuildConfig
 import br.com.smellsliketech.converter.conversao.Andamento
 import br.com.smellsliketech.converter.conversao.CompressaoPdf
 import br.com.smellsliketech.converter.conversao.Encaixe
+import br.com.smellsliketech.converter.conversao.Entrada
 import br.com.smellsliketech.converter.conversao.Ferramenta
 import br.com.smellsliketech.converter.conversao.Listas
 import br.com.smellsliketech.converter.conversao.ModeloWhisper
@@ -70,6 +71,7 @@ import br.com.smellsliketech.converter.conversao.ModelosWhisper
 import br.com.smellsliketech.converter.conversao.ModoDeDividir
 import br.com.smellsliketech.converter.conversao.Opcoes
 import br.com.smellsliketech.converter.conversao.Proporcao
+import br.com.smellsliketech.converter.conversao.Relogio
 import br.com.smellsliketech.converter.conversao.Resultado
 import br.com.smellsliketech.converter.conversao.Tipo
 import br.com.smellsliketech.converter.conversao.textoDoAndamento
@@ -196,7 +198,7 @@ private fun CartaoDoTipo(modelo: OficinaViewModel, tipo: Tipo) {
                 FilterChip(selected = opcao == ferramenta, onClick = { modelo.ferramentaDoTipo[tipo] = opcao }, label = { Text(opcao.titulo, fontSize = 12.sp) })
             }
         }
-        Ajustes(modelo, ferramenta, opcoes) { modelo.opcoesDaFerramenta[ferramenta] = it }
+        Ajustes(modelo, ferramenta, opcoes, arquivos.firstOrNull()) { modelo.opcoesDaFerramenta[ferramenta] = it }
         Button(onClick = { modelo.converter(tipo) }, modifier = Modifier.fillMaxWidth()) {
             Text(if (arquivos.size == 1 || ferramenta.juntaTudo) ferramenta.titulo else "${ferramenta.titulo} (${arquivos.size})")
         }
@@ -229,7 +231,7 @@ private fun decimal(valor: Number) = valor.toString().removeSuffix(".0").replace
  * listas permitidas (Listas), e o motor confere de novo antes de montar o comando.
  */
 @Composable
-private fun Ajustes(modelo: OficinaViewModel, ferramenta: Ferramenta, opcoes: Opcoes, mudar: (Opcoes) -> Unit) {
+private fun Ajustes(modelo: OficinaViewModel, ferramenta: Ferramenta, opcoes: Opcoes, amostra: Entrada?, mudar: (Opcoes) -> Unit) {
     var mais by remember(ferramenta) { mutableStateOf(false) }
     if (ferramenta.formatos.size > 1) {
         Escolha("Formato", ferramenta.formatos, opcoes.formato, ::maiusculo) { mudar(opcoes.copy(formato = it)) }
@@ -271,9 +273,9 @@ private fun Ajustes(modelo: OficinaViewModel, ferramenta: Ferramenta, opcoes: Op
                 }
             }
         }
-        Ferramenta.VIDEO_CORTAR -> Trecho(opcoes, mudar)
+        Ferramenta.VIDEO_CORTAR -> Trecho(amostra, opcoes, mudar)
         Ferramenta.AUDIO_CORTAR, Ferramenta.AUDIO_EDITAR -> {
-            Trecho(opcoes, mudar)
+            Trecho(amostra, opcoes, mudar)
             AjustesDeAudio(opcoes, mudar)
             Escolha("Volume", listOf(0.0, 0.5, 1.0, 1.5, 2.0, 3.0, 4.0), opcoes.volume, { "${(it * 100).toInt()}%" }) { mudar(opcoes.copy(volume = it)) }
             Escolha("Velocidade", Listas.VELOCIDADES, opcoes.velocidade, { "${decimal(it)}x" }) { mudar(opcoes.copy(velocidade = it)) }
@@ -283,18 +285,18 @@ private fun Ajustes(modelo: OficinaViewModel, ferramenta: Ferramenta, opcoes: Op
         Ferramenta.VIDEO_PARA_AUDIO, Ferramenta.AUDIO_CONVERTER -> {
             AjustesDeAudio(opcoes, mudar)
             Chave("Cortar um trecho", mais) { mais = it }
-            if (mais) Trecho(opcoes, mudar)
+            if (mais) Trecho(amostra, opcoes, mudar)
         }
         Ferramenta.VIDEO_GIF -> {
             Escolha("Quadros por segundo", Listas.FPS_DO_GIF, opcoes.fpsDoGif, { "$it" }) { mudar(opcoes.copy(fpsDoGif = it)) }
             Escolha("Largura", Listas.LARGURAS_DO_GIF, opcoes.larguraDoGif, { "$it px" }) { mudar(opcoes.copy(larguraDoGif = it)) }
             Dica("Sem corte, o GIF usa os 10 primeiros segundos (no máximo 2 minutos).")
-            Trecho(opcoes, mudar)
+            Trecho(amostra, opcoes, mudar)
         }
         Ferramenta.VIDEO_QUADROS -> {
             Escolha("Imagens por segundo de vídeo", Listas.TAXAS_DE_QUADROS, opcoes.quadrosExtraidosPorSegundo, ::decimal) { mudar(opcoes.copy(quadrosExtraidosPorSegundo = it)) }
             Escolha("No máximo", listOf(30, 100, 300, 1000), opcoes.maximoDeQuadros, { "$it imagens" }) { mudar(opcoes.copy(maximoDeQuadros = it)) }
-            Trecho(opcoes, mudar)
+            Trecho(amostra, opcoes, mudar)
         }
         Ferramenta.VIDEO_TRANSCREVER, Ferramenta.AUDIO_TRANSCREVER -> {
             val instalados = modelo.modelosInstalados()
@@ -306,7 +308,7 @@ private fun Ajustes(modelo: OficinaViewModel, ferramenta: Ferramenta, opcoes: Op
             OutlinedButton(onClick = { modelo.mostrarModelos = true }) { Text(if (instalados.isEmpty()) "Baixar um modelo" else "Modelos de transcrição") }
             Escolha("Idioma", Listas.IDIOMAS.keys.toList(), opcoes.idioma, { Listas.IDIOMAS[it] ?: it }) { mudar(opcoes.copy(idioma = it)) }
             Chave("Transcrever só um trecho", mais) { mais = it }
-            if (mais) Trecho(opcoes, mudar)
+            if (mais) Trecho(amostra, opcoes, mudar)
         }
 
         Ferramenta.PDF_DIVIDIR -> {
@@ -354,8 +356,19 @@ private fun AjustesDeAudio(opcoes: Opcoes, mudar: (Opcoes) -> Unit) {
     Chave("Normalizar o volume", opcoes.normalizar) { mudar(opcoes.copy(normalizar = it)) }
 }
 
+/** Abaixo disso (≈3,5 GB de RAM, comum em celulares com Android 9) a narração avisa do risco. */
+private const val MEMORIA_CONFORTAVEL_PARA_NARRAR = 3_500L * 1024 * 1024
+
 @Composable
 private fun AjustesDaFala(opcoes: Opcoes, mudar: (Opcoes) -> Unit) {
+    val contexto = LocalContext.current
+    val poucaMemoria = remember {
+        val memoria = android.app.ActivityManager.MemoryInfo()
+        contexto.getSystemService(android.app.ActivityManager::class.java).getMemoryInfo(memoria)
+        memoria.totalMem in 1 until MEMORIA_CONFORTAVEL_PARA_NARRAR
+    }
+    // O modelo Kokoro fp32 ocupa ~320 MB carregado; com pouca RAM o Android pode encerrar o app.
+    if (poucaMemoria) Dica("Este celular tem pouca memória para a voz Kokoro: a narração pode demorar bastante ou ser interrompida. Feche outros apps antes e prefira textos mais curtos.")
     Escolha("Voz Kokoro-82M", listOf("pf_dora", "pm_alex", "pm_santa"), opcoes.vozDaNarracao, {
         when (it) { "pf_dora" -> "Dora"; "pm_alex" -> "Alex"; else -> "Santa" }
     }) { mudar(opcoes.copy(vozDaNarracao = it)) }
@@ -366,7 +379,11 @@ private fun AjustesDaFala(opcoes: Opcoes, mudar: (Opcoes) -> Unit) {
 }
 
 @Composable
-private fun Trecho(opcoes: Opcoes, mudar: (Opcoes) -> Unit) {
+private fun Trecho(amostra: Entrada?, opcoes: Opcoes, mudar: (Opcoes) -> Unit) {
+    // Com o arquivo à mão, o mini player marca o trecho; os campos continuam valendo.
+    if (amostra != null && amostra.tipo in setOf(Tipo.VIDEO, Tipo.AUDIO)) {
+        PreviaDoTrecho(amostra.uri, amostra.tipo == Tipo.VIDEO, opcoes, mudar)
+    }
     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         CampoDeTempo("Início", opcoes.inicioSegundos, Modifier.weight(1f)) { mudar(opcoes.copy(inicioSegundos = it)) }
         CampoDeTempo("Fim", opcoes.fimSegundos, Modifier.weight(1f)) { mudar(opcoes.copy(fimSegundos = it)) }
@@ -378,30 +395,30 @@ private fun CampoDeTexto(rotulo: String, valor: String, mudar: (String) -> Unit)
     OutlinedTextField(value = valor, onValueChange = mudar, label = { Text(rotulo) }, singleLine = true, modifier = Modifier.fillMaxWidth())
 }
 
-/** Tempo em "m:ss" ou em segundos. */
+/**
+ * Tempo em "m:ss" ou em segundos. O teclado numérico não tem ":", então "1-05" e "1.05" também
+ * valem (veja Relogio). Quando o mini player marca um tempo, o campo acompanha.
+ */
 @Composable
 private fun CampoDeTempo(rotulo: String, segundos: Double, modifier: Modifier, mudar: (Double) -> Unit) {
-    var texto by remember { mutableStateOf(if (segundos > 0) paraRelogio(segundos) else "") }
+    var texto by remember { mutableStateOf(if (segundos > 0) Relogio.escrever(segundos) else "") }
+    LaunchedEffect(segundos) {
+        val digitado = Relogio.ler(texto) ?: 0.0
+        if (Relogio.decimo(digitado) != Relogio.decimo(segundos)) texto = if (segundos > 0) Relogio.escrever(segundos) else ""
+    }
     OutlinedTextField(
         value = texto,
         onValueChange = { novo ->
             texto = novo
-            if (novo.isBlank()) mudar(0.0) else deRelogio(novo)?.let(mudar)
+            if (novo.isBlank()) mudar(0.0) else Relogio.ler(novo)?.let(mudar)
         },
         label = { Text("$rotulo (m:ss)") },
+        isError = texto.isNotBlank() && Relogio.ler(texto) == null,
         singleLine = true,
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
         modifier = modifier,
     )
 }
-
-fun deRelogio(texto: String): Double? {
-    val partes = texto.trim().split(":").map { it.trim().replace(',', '.') }
-    if (partes.isEmpty() || partes.any { it.isEmpty() }) return null
-    return partes.fold(0.0) { total, parte -> total * 60 + (parte.toDoubleOrNull() ?: return null) }
-}
-
-fun paraRelogio(segundos: Double): String = "%d:%02d".format(Locale.ROOT, (segundos / 60).toInt(), (segundos % 60).toInt())
 
 /** Resultados mostrados por conversão; o resto fica só na pasta (um vídeo pode virar 300 quadros). */
 private const val RESULTADOS_NA_TELA = 12

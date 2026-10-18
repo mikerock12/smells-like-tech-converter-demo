@@ -28,11 +28,11 @@ android {
     defaultConfig {
         applicationId = "br.com.smellsliketech.converter"
         // Android 10: salvar em Downloads pelo MediaStore sem permissão de armazenamento.
-        minSdk = 29
+        minSdk = 28
         // A Google Play exige o Android 16 como alvo desde 31/08/2026.
         targetSdk = 36
-        versionCode = 10
-        versionName = "0.4.2"
+        versionCode = 12
+        versionName = "0.4.4"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         // As arquiteturas do FFmpeg compilado (android/nativos): celulares ARM e, em x86_64,
         // Chromebooks e o emulador. A Google Play entrega a cada aparelho só a sua.
