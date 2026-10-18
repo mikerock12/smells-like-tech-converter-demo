@@ -2,7 +2,6 @@ package br.com.smellsliketech.converter.figurinhas
 
 import android.app.Application
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.graphics.ImageDecoder
 import android.net.Uri
 import android.provider.OpenableColumns
@@ -11,6 +10,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import br.com.smellsliketech.converter.conversao.Andamento
 import br.com.smellsliketech.converter.conversao.Entrada
 import br.com.smellsliketech.converter.conversao.ErroDeConversao
 import br.com.smellsliketech.converter.conversao.Tipo
@@ -64,6 +64,21 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
         private set
     var progresso by mutableStateOf<Int?>(null)
         private set
+    /** O tempo que falta (segundos), pelo mesmo cálculo das conversões; null enquanto não dá. */
+    var restante by mutableStateOf<Int?>(null)
+        private set
+    private var andamento = Andamento()
+
+    /**
+     * Uma só porcentagem, de 0 a 100, somando as etapas pelo peso de cada uma; nunca volta
+     * para trás. `etapa` é o que aparece no diálogo.
+     */
+    private fun relatar(fracao: Double, etapa: String) {
+        val novo = (fracao * 100).toInt().coerceIn(0, 99)
+        progresso = maxOf(progresso ?: 0, novo)
+        ocupado = etapa
+        restante = andamento.registrar(progresso!!)
+    }
     private var trabalho: Job? = null
     private var trabalhoDaBase: Job? = null
 
@@ -220,6 +235,8 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
         trabalho = viewModelScope.launch {
             ocupado = "Gerando a figurinha…"
             progresso = 0
+            restante = null
+            andamento = Andamento()
             try {
                 val webp = if (animada && atual.tipo != TipoDaOrigem.IMAGEM) gerarAnimada(atual) else gerarEstatica()
                 val pacote = destino?.let { pacotes.ler(it.id) } ?: pacotes.criar(nomeDoNovo, animada)
@@ -235,40 +252,57 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
             } finally {
                 ocupado = null
                 progresso = null
+                restante = null
             }
         }
     }
 
     private suspend fun gerarEstatica(): ByteArray = withContext(Dispatchers.Default) {
         val imagem = base ?: throw ErroDeConversao("Nada para salvar.")
-        Producao.estatica(renderizador.desenhar(imagem, mascara, edicao))
+        relatar(0.2, "Desenhando a figurinha…")
+        val desenho = renderizador.desenhar(imagem, mascara, edicao)
+        relatar(0.6, "Compactando para o WhatsApp (até 100 KB)…")
+        Producao.estatica(desenho)
     }
 
+    /**
+     * A figurinha animada em três etapas, com peso pelo custo de cada uma: tirar os quadros
+     * (12%), desenhar (43%, ou 60% removendo o fundo, que é o mais caro) e compactar (o resto).
+     */
     private suspend fun gerarAnimada(atual: Origem): ByteArray {
         val arquivo = atual.copia ?: throw ErroDeConversao("Nada para salvar.")
-        val brutos = Producao.quadros(contexto, arquivo, inicio, fim.coerceAtLeast(inicio + 0.1)) { progresso = it / 4 }
-        val prontos = withContext(Dispatchers.Default) {
-            brutos.mapIndexed { indice, quadro ->
-                val imagem = BitmapFactory.decodeFile(quadro.absolutePath) ?: throw ErroDeConversao("Quadro ilegível.")
-                // Remoção de fundo quadro a quadro: a figura se move no vídeo.
-                val mascaraDoQuadro = if (edicao.removerFundo) runCatching { Fundo.mascara(imagem) }.getOrNull() else null
-                val desenho = renderizador.desenhar(imagem, mascaraDoQuadro, edicao)
-                File(quadro.parentFile, "d%04d.png".format(indice)).also { destino ->
-                    destino.outputStream().use { desenho.compress(Bitmap.CompressFormat.PNG, 100, it) }
-                    imagem.recycle(); mascaraDoQuadro?.recycle(); desenho.recycle()
-                    progresso = 25 + (indice + 1) * 60 / brutos.size
+        val pesoDaExtracao = 0.12
+        val pesoDoDesenho = if (edicao.removerFundo) 0.60 else 0.43
+        val inicioDaCompactacao = pesoDaExtracao + pesoDoDesenho
+        relatar(0.0, "Tirando os quadros do vídeo…")
+        val quadros = Producao.quadros(
+            contexto, arquivo, inicio, fim.coerceAtLeast(inicio + 0.1),
+            transparencia = atual.tipo == TipoDaOrigem.GIF,
+        ) { relatar(it * pesoDaExtracao, "Tirando os quadros do vídeo…") }
+        val pasta = quadros.arquivos.first().parentFile!!
+        try {
+            val crus = Producao.QuadrosCrus(File(pasta, "desenhados.argb"), quadros.porSegundo)
+            crus.use {
+                val total = quadros.arquivos.size
+                Producao.desenharTodos(quadros, crus, desenho = { imagem ->
+                    // Remoção de fundo quadro a quadro: a figura se move no vídeo.
+                    val mascaraDoQuadro = if (edicao.removerFundo) runCatching { Fundo.mascara(imagem) }.getOrNull() else null
+                    try { renderizador.desenhar(imagem, mascaraDoQuadro, edicao) } finally { mascaraDoQuadro?.recycle() }
+                }) { feitos ->
+                    val etapa = if (edicao.removerFundo) "Removendo o fundo e desenhando ($feitos de $total)…" else "Desenhando os quadros ($feitos de $total)…"
+                    relatar(pesoDaExtracao + pesoDoDesenho * feitos / total, etapa)
                 }
             }
-        }
-        progresso = 90
-        return try {
-            Producao.animada(contexto, prontos)
+            return Producao.animada(contexto, crus) { fracao ->
+                relatar(inicioDaCompactacao + (1 - inicioDaCompactacao) * fracao, "Compactando para o WhatsApp (até 500 KB)…")
+            }
         } finally {
-            prontos.firstOrNull()?.parentFile?.deleteRecursively()
+            pasta.deleteRecursively()
         }
     }
 
     fun cancelar() {
+        restante = null
         trabalho?.cancel()
         trabalhoDaBase?.cancel()
         ocupado = null

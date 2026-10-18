@@ -6,6 +6,8 @@ import android.graphics.Color as CorAndroid
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -61,6 +63,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import br.com.smellsliketech.converter.conversao.Opcoes
+import br.com.smellsliketech.converter.conversao.textoDoAndamento
 import br.com.smellsliketech.converter.figurinhas.Edicao
 import br.com.smellsliketech.converter.figurinhas.FigurinhasViewModel
 import br.com.smellsliketech.converter.figurinhas.Filtro
@@ -105,7 +108,7 @@ fun TelaDasFigurinhas(modelo: FigurinhasViewModel, podeCriar: Boolean, abrirLice
                     ListaDePacotes(modelo, novaFigurinha, voltar)
                 }
             }
-            modelo.ocupado?.let { texto -> Ocupado(texto, modelo.progresso, modelo::cancelar) }
+            modelo.ocupado?.let { texto -> Ocupado(texto, modelo.progresso, modelo.restante, modelo::cancelar) }
             modelo.aviso?.let { texto ->
                 AlertDialog(
                     onDismissRequest = { modelo.aviso = null },
@@ -117,16 +120,25 @@ fun TelaDasFigurinhas(modelo: FigurinhasViewModel, podeCriar: Boolean, abrirLice
     }
 }
 
+/**
+ * O andamento da figurinha: a etapa, a barra (que desliza entre uma atualização e outra) e
+ * "47% · faltam cerca de 20 s", pelo mesmo cálculo das conversões.
+ */
 @Composable
-private fun Ocupado(texto: String, progresso: Int?, cancelar: () -> Unit) {
+private fun Ocupado(texto: String, progresso: Int?, restante: Int?, cancelar: () -> Unit) {
+    val suave by animateFloatAsState((progresso ?: 0) / 100f, animationSpec = tween(400), label = "progresso")
     AlertDialog(
         onDismissRequest = {},
         confirmButton = { TextButton(onClick = cancelar) { Text("Cancelar") } },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text(texto)
-                if (progresso != null) LinearProgressIndicator(progress = { progresso / 100f }, modifier = Modifier.fillMaxWidth())
-                else LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                if (progresso != null) {
+                    LinearProgressIndicator(progress = { suave }, modifier = Modifier.fillMaxWidth())
+                    Text(textoDoAndamento(progresso, restante), fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                } else {
+                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                }
             }
         },
     )

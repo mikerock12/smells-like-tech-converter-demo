@@ -27,17 +27,23 @@ tela de narração avisa que o Kokoro pode demorar ou ser interrompido.
 
 **Figurinhas do WhatsApp (desde a 0.5.0).** Função à parte da conversão, só no Android
 (`figurinhas/`, `ui/TelasDasFigurinhas.kt`): imagem, GIF ou vídeo viram figurinha estática (um
-quadro) ou animada (trecho de até 10 s, 12 quadros/s), com enquadramento por gestos, remoção de
+quadro) ou animada (trecho de até 10 s; 15, 12 ou 10 quadros/s conforme a duração), com enquadramento por gestos, remoção de
 fundo (ML Kit Subject Segmentation, pelo Google Play Services; pincel para apagar/restaurar;
 na animada, quadro a quadro), filtros, texto (fontes OFL/Apache em `assets/fontes`) e contorno.
 `Producao` codifica WebP 512×512: estática pelo Android (≤100 KB), animada pelo FFmpeg
-`libwebp_anim` (≤500 KB; a libwebp entrou no FFmpeg do app na release android-nativos-7). Os
+`libwebp_anim` (≤500 KB; a libwebp entrou no FFmpeg do app na release android-nativos-7). Desde
+a 0.5.1 a animada é rápida e mostra o andamento: os quadros saem do vídeo em JPEG com teto de
+quantidade, são desenhados em paralelo (até 4 núcleos) e gravados crus (ARGB) num arquivo só; um
+ensaio com até 24 quadros prevê o tamanho e escolhe a qualidade para caber de primeira (no
+máximo 3 passadas, `compression_level` 4). O diálogo mostra etapa, porcentagem e tempo restante
+(`Andamento`). Uma animação vazia (figura arrastada para fora) vira erro em vez de figurinha. Os
 pacotes ficam em `files/figurinhas/<id>` (`pacote.json`, `NN.webp`, `bandeja.png` 96×96) e o
 `ProvedorDeFigurinhas` (`${applicationId}.figurinhas`, leitura só com
 `com.whatsapp.sticker.READ`) expõe `metadata`, `stickers` e `stickers_asset` no contrato do
 WhatsApp. Regras: 3 a 30 por pacote, só estáticas ou só animadas, até 3 emojis. "Adicionar ao
 WhatsApp" usa `com.whatsapp.intent.action.ENABLE_STICKER_PACK` (WhatsApp e Business); mudanças
-sobem `image_data_version`. Testes: `FigurinhasTest` (instrumentado) e `PacotesTest`.
+sobem `image_data_version`. Testes: `FigurinhasTest` (instrumentado), `PacotesTest` e
+`FigurinhaDesempenhoTest` (mede as etapas com `/data/local/tmp/figurinha-video.mp4`, se existir).
 
 **Compartilhar.** Cada resultado mostra os ícones dos apps instalados que aceitam o arquivo
 (WhatsApp, Instagram, Telegram, Facebook, Messenger, TikTok, X, Discord, Signal, Gmail, Drive) e

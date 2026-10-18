@@ -8,6 +8,7 @@ import android.graphics.Paint
 import android.net.Uri
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import br.com.smellsliketech.converter.conversao.ErroDeConversao
 import br.com.smellsliketech.converter.conversao.ffmpeg.Ffmpeg
 import kotlinx.coroutines.runBlocking
 import org.junit.After
@@ -114,15 +115,18 @@ class FigurinhasTest {
         assumeTrue("FFmpeg do app", Ffmpeg.disponivel(contexto))
         val pasta = File(contexto.cacheDir, "teste-animada").apply { deleteRecursively(); mkdirs() }
         val renderizador = Renderizador(contexto)
-        val quadros = (0 until 24).map { indice ->
-            val fonte = Bitmap.createBitmap(600, 600, Bitmap.Config.ARGB_8888).apply {
-                Canvas(this).drawCircle(100f + indice * 16f, 300f, 90f, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.MAGENTA })
-            }
-            File(pasta, "d%04d.png".format(indice)).also { destino ->
-                destino.outputStream().use { renderizador.desenhar(fonte, null, Edicao(texto = "oi", contorno = true)).compress(Bitmap.CompressFormat.PNG, 100, it) }
+        val crus = Producao.QuadrosCrus(File(pasta, "desenhados.argb"), porSegundo = 12)
+        crus.use {
+            repeat(24) { indice ->
+                val fonte = Bitmap.createBitmap(600, 600, Bitmap.Config.ARGB_8888).apply {
+                    Canvas(this).drawCircle(100f + indice * 16f, 300f, 90f, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.MAGENTA })
+                }
+                crus.gravar(renderizador.desenhar(fonte, null, Edicao(texto = "oi", contorno = true)))
             }
         }
-        val webp = Producao.animada(contexto, quadros)
+        val avancos = mutableListOf<Double>()
+        val webp = Producao.animada(contexto, crus) { avancos += it }
+        assertTrue("o andamento nunca volta", avancos.zipWithNext().all { (antes, depois) -> depois >= antes })
         pasta.deleteRecursively()
         assertTrue("${webp.size} bytes", webp.size in 1..Regras.ANIMADA_MAX_BYTES)
         // RIFF....WEBPVP8X com o bit de animação ligado.
@@ -130,8 +134,20 @@ class FigurinhasTest {
         assertEquals("WEBP", String(webp.copyOfRange(8, 12)))
         assertEquals("VP8X", String(webp.copyOfRange(12, 16)))
         assertTrue("animada", webp[20].toInt() and 0x02 != 0)
+        assertTrue(Producao.descrever(webp), Producao.temImagem(webp))
         var pacote = pacotes.criar("Animado", animado = true).also { criados += it }
         pacote = pacotes.adicionar(pacote, webp, listOf("🎉"))
         assertEquals(1, pacote.figurinhas.size)
+    }
+
+    @Test fun animadaVaziaViraErro() = runBlocking {
+        assumeTrue("FFmpeg do app", Ffmpeg.disponivel(contexto))
+        val pasta = File(contexto.cacheDir, "teste-vazia").apply { deleteRecursively(); mkdirs() }
+        val crus = Producao.QuadrosCrus(File(pasta, "desenhados.argb"), porSegundo = 10)
+        val vazio = Bitmap.createBitmap(Regras.LADO, Regras.LADO, Bitmap.Config.ARGB_8888)
+        crus.use { repeat(10) { crus.gravar(vazio) } }
+        val erro = runCatching { Producao.animada(contexto, crus) }.exceptionOrNull()
+        pasta.deleteRecursively()
+        assertTrue("$erro", erro is ErroDeConversao)
     }
 }

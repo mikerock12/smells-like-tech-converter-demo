@@ -15,6 +15,7 @@ import android.graphics.Typeface
 import android.text.Layout
 import android.text.StaticLayout
 import android.text.TextPaint
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.math.cos
 import kotlin.math.min
 import kotlin.math.sin
@@ -80,7 +81,8 @@ data class Edicao(
  * vem da remoção automática de fundo ou do pincel.
  */
 class Renderizador(private val contexto: Context) {
-    private val fontes = mutableMapOf<Fonte, Typeface>()
+    // Os quadros da animada são desenhados em paralelo.
+    private val fontes = ConcurrentHashMap<Fonte, Typeface>()
 
     fun desenhar(fonte: Bitmap, mascara: Bitmap?, edicao: Edicao): Bitmap {
         val lado = Regras.LADO
