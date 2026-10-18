@@ -43,15 +43,16 @@ public static partial class TrimTime
         return TimeSpan.FromSeconds(total);
     }
 
-    /// <summary>"m:ss" ou "h:mm:ss", com o décimo de segundo quando houver ("1:05.5").</summary>
+    /// <summary>"m:ss" ou "h:mm:ss", com os milissegundos quando houver ("1:05.5", "1:05.135").</summary>
     public static string Format(TimeSpan value)
     {
-        var decimos = (long)Math.Round(Math.Max(0, value.TotalSeconds) * 10, MidpointRounding.AwayFromZero);
-        var inteiros = decimos / 10;
+        var milesimos = (long)Math.Round(Math.Max(0, value.TotalSeconds) * 1000, MidpointRounding.AwayFromZero);
+        var inteiros = milesimos / 1000;
         var texto = inteiros >= 3600
             ? string.Create(CultureInfo.InvariantCulture, $"{inteiros / 3600}:{inteiros % 3600 / 60:00}:{inteiros % 60:00}")
             : string.Create(CultureInfo.InvariantCulture, $"{inteiros / 60}:{inteiros % 60:00}");
-        return decimos % 10 == 0 ? texto : string.Create(CultureInfo.InvariantCulture, $"{texto}.{decimos % 10}");
+        var fracao = (milesimos % 1000).ToString("000", CultureInfo.InvariantCulture).TrimEnd('0');
+        return fracao.Length == 0 ? texto : $"{texto}.{fracao}";
     }
 
     /// <summary>A duração que as opções guardam, a partir do fim mostrado na tela.</summary>

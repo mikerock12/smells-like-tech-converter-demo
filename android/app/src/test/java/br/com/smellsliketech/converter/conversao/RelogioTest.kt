@@ -22,12 +22,19 @@ class RelogioTest {
         for (texto in listOf("", "  ", "abc", "1:", ":30", "1:75", "1:2:3:4", "1,5:30", "-5")) assertNull(texto, Relogio.ler(texto))
     }
 
-    @Test fun escreveComDecimoSoQuandoPrecisa() {
+    @Test fun escreveComMilissegundosSoQuandoPrecisa() {
         assertEquals("0:21", Relogio.escrever(21.0))
         assertEquals("1:05,5", Relogio.escrever(65.5))
+        assertEquals("1:05,135", Relogio.escrever(65.135))
         assertEquals("1:02:03", Relogio.escrever(3723.0))
         assertEquals("0:00", Relogio.escrever(-3.0))
-        assertEquals("0:10", Relogio.escrever(9.96))
-        assertEquals(65.5, Relogio.ler(Relogio.escrever(65.52))!!, 1e-9)
+        assertEquals("0:10", Relogio.escrever(9.9996))
+        assertEquals(65.135, Relogio.ler(Relogio.escrever(65.1351))!!, 1e-9)
+    }
+
+    @Test fun linhaDoTempoMostraHorasMinutosSegundosEMilissegundos() {
+        assertEquals("00:00:21,100", Relogio.completo(21.1))
+        assertEquals("01:02:03,045", Relogio.completo(3723.045))
+        assertEquals(21.123, Relogio.milesimo(21.12345), 0.0)
     }
 }

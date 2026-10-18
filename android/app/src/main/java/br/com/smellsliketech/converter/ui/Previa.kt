@@ -1,18 +1,30 @@
 package br.com.smellsliketech.converter.ui
 
 import android.content.Context
+import android.media.MediaExtractor
+import android.media.MediaFormat
 import android.media.MediaPlayer
+import android.media.PlaybackParams
 import android.net.Uri
-import android.widget.MediaController.MediaPlayerControl
 import android.widget.VideoView
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.RangeSlider
@@ -23,6 +35,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableDoubleStateOf
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -31,139 +44,270 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import br.com.smellsliketech.converter.conversao.Opcoes
 import br.com.smellsliketech.converter.conversao.Relogio
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
+
+/** Velocidades da prévia: devagar para achar o quadro exato, rápido para passar o resto. */
+private val VELOCIDADES = listOf(0.25f, 0.5f, 0.75f, 1f, 1.5f, 2f)
 
 /**
- * O mini player do corte: assiste (ou ouve) o arquivo, marca início e fim no ponto em que
- * está tocando ou arrastando a faixa, e toca só o trecho escolhido. Usa o player do próprio
- * Android, no aparelho; nada é convertido aqui. Com vários arquivos, a prévia mostra o
- * primeiro e o corte vale para todos.
+ * O que a prévia guarda ao entrar e sair da tela cheia: o player é recriado no outro lugar e
+ * volta para o mesmo ponto, na mesma velocidade.
  */
-@OptIn(ExperimentalMaterial3Api::class)
+private class EstadoDaPrevia {
+    var posicao by mutableDoubleStateOf(0.0)
+    var velocidade by mutableFloatStateOf(1f)
+    var quadrosPorSegundo by mutableDoubleStateOf(30.0)
+}
+
+/**
+ * O mini player do corte: assiste (ou ouve) o arquivo, anda quadro a quadro, toca devagar
+ * (até 0,25x), marca início e fim no ponto exato (milissegundo) e toca só o trecho. Abre em
+ * tela cheia com os mesmos controles embaixo. Usa o player do próprio Android, no aparelho;
+ * nada é convertido aqui. Com vários arquivos, a prévia mostra o primeiro e o corte vale
+ * para todos.
+ */
 @Composable
 fun PreviaDoTrecho(uri: Uri, video: Boolean, opcoes: Opcoes, mudar: (Opcoes) -> Unit) {
     val contexto = LocalContext.current
-    var reprodutor by remember(uri) { mutableStateOf<MediaPlayerControl?>(null) }
-    var duracao by remember(uri) { mutableDoubleStateOf(0.0) }
-    var posicao by remember(uri) { mutableDoubleStateOf(0.0) }
-    var tocando by remember(uri) { mutableStateOf(false) }
-    var falhou by remember(uri) { mutableStateOf(false) }
-    // "Tocar o trecho" para sozinho ao chegar no fim marcado.
-    var pararEm by remember(uri) { mutableStateOf<Double?>(null) }
+    val estado = remember(uri) { EstadoDaPrevia() }
+    var telaCheia by remember(uri) { mutableStateOf(false) }
 
-    val audio = remember(uri) { if (video) null else Audio(contexto, uri, { duracao = it }, { falhou = true }) }
-    DisposableEffect(uri) {
-        if (audio != null) reprodutor = audio
+    // A taxa de quadros do arquivo, para andar exatamente um quadro (30 quando não informa).
+    LaunchedEffect(uri) {
+        if (video) quadrosDoVideo(contexto, uri)?.let { estado.quadrosPorSegundo = it }
+    }
+
+    if (telaCheia) {
+        Text("A prévia está em tela cheia.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+        Dialog(
+            onDismissRequest = { telaCheia = false },
+            properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
+        ) {
+            Box(Modifier.fillMaxSize().background(Color.Black)) {
+                Player(uri, video, opcoes, mudar, estado, telaCheia = true) { telaCheia = false }
+            }
+        }
+    } else {
+        Player(uri, video, opcoes, mudar, estado, telaCheia = false) { telaCheia = true }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@Composable
+private fun Player(
+    uri: Uri,
+    video: Boolean,
+    opcoes: Opcoes,
+    mudar: (Opcoes) -> Unit,
+    estado: EstadoDaPrevia,
+    telaCheia: Boolean,
+    alternarTelaCheia: () -> Unit,
+) {
+    val contexto = LocalContext.current
+    var player by remember { mutableStateOf<MediaPlayer?>(null) }
+    var videoView by remember { mutableStateOf<VideoView?>(null) }
+    var duracao by remember { mutableDoubleStateOf(0.0) }
+    var tocando by remember { mutableStateOf(false) }
+    var falhou by remember { mutableStateOf(false) }
+    // "Tocar o trecho" para sozinho ao chegar no fim marcado.
+    var pararEm by remember { mutableStateOf<Double?>(null) }
+
+    fun preparado(mp: MediaPlayer) {
+        player = mp
+        duracao = mp.duration / 1000.0
+        mp.setOnSeekCompleteListener { estado.posicao = it.currentPosition / 1000.0 }
+        // Volta ao ponto em que estava (ou mostra o primeiro quadro em vez da tela preta).
+        mp.seekTo((estado.posicao * 1000).toLong().coerceAtLeast(1), MediaPlayer.SEEK_CLOSEST)
+    }
+
+    val audio = remember { if (video) null else Audio(contexto, uri, ::preparado) { falhou = true } }
+    DisposableEffect(Unit) {
         onDispose {
             audio?.liberar()
-            (reprodutor as? VideoView)?.stopPlayback()
-            reprodutor = null
+            videoView?.stopPlayback()
+            player = null
         }
     }
 
-    if (video && !falhou) {
-        AndroidView(
-            factory = { ctx ->
-                VideoView(ctx).apply {
-                    setOnPreparedListener { mp ->
-                        duracao = mp.duration / 1000.0
-                        seekTo(1) // Mostra o primeiro quadro em vez da tela preta.
-                    }
-                    setOnErrorListener { _, _, _ -> falhou = true; true }
-                    setOnCompletionListener { tocando = false; pararEm = null }
-                    setVideoURI(uri)
-                    reprodutor = this
-                }
-            },
-            modifier = Modifier.fillMaxWidth().height(200.dp).clip(RoundedCornerShape(8.dp)).background(Color.Black),
-        )
+    fun tocar() {
+        val mp = player ?: return
+        if (video) videoView?.start() else mp.start()
+        // A velocidade só vale com o player andando; aplicada parada, alguns aparelhos já tocam.
+        runCatching { mp.playbackParams = PlaybackParams().setSpeed(estado.velocidade) }
+        tocando = true
+    }
+
+    fun pausar() {
+        val mp = player ?: return
+        val agora = runCatching { mp.currentPosition / 1000.0 }.getOrNull()
+        if (video) videoView?.pause() else if (mp.isPlaying) mp.pause()
+        tocando = false
+        pararEm = null
+        if (agora != null && agora > 0) estado.posicao = agora
+    }
+
+    fun irPara(segundos: Double) {
+        val mp = player ?: return
+        estado.posicao = segundos.coerceIn(0.0, duracao)
+        mp.seekTo((estado.posicao * 1000).toLong(), MediaPlayer.SEEK_CLOSEST)
+    }
+
+    fun quadro(sentido: Int) {
+        pausar()
+        irPara(estado.posicao + sentido / estado.quadrosPorSegundo)
     }
 
     // Lê a posição enquanto toca: move a barra e para no fim do trecho.
-    LaunchedEffect(reprodutor, tocando) {
-        val player = reprodutor ?: return@LaunchedEffect
+    LaunchedEffect(player, tocando) {
+        val mp = player ?: return@LaunchedEffect
         while (tocando) {
-            posicao = player.currentPosition / 1000.0
-            pararEm?.let { fim -> if (posicao >= fim) { player.pause(); tocando = false; pararEm = null } }
-            delay(100)
+            estado.posicao = mp.currentPosition / 1000.0
+            pararEm?.let { fim -> if (estado.posicao >= fim) pausar() }
+            if (!mp.isPlaying && estado.posicao >= duracao - 0.05) tocando = false
+            delay(50)
         }
     }
 
-    if (falhou) {
-        Text("A prévia não abriu este arquivo; o corte continua funcionando pelos campos abaixo.", color = Cores.amarelo, fontSize = 13.sp)
-        return
-    }
-    if (duracao <= 0) {
-        Text("Carregando a prévia…", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
-        return
-    }
+    val inicio = opcoes.inicioSegundos.coerceIn(0.0, duracao.coerceAtLeast(0.0))
+    val fim = (if (opcoes.fimSegundos > 0) opcoes.fimSegundos else duracao).coerceIn(inicio, duracao.coerceAtLeast(inicio))
 
-    val inicio = opcoes.inicioSegundos.coerceIn(0.0, duracao)
-    val fim = (if (opcoes.fimSegundos > 0) opcoes.fimSegundos else duracao).coerceIn(inicio, duracao)
-    fun irPara(segundos: Double) {
-        posicao = segundos.coerceIn(0.0, duracao)
-        reprodutor?.seekTo((posicao * 1000).toInt())
-    }
-
-    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            OutlinedButton(onClick = {
-                val player = reprodutor ?: return@OutlinedButton
-                if (tocando) { player.pause(); tocando = false; pararEm = null } else { player.start(); tocando = true }
-            }) { Text(if (tocando) "Pausar" else "Tocar") }
-            Text("${Relogio.escrever(posicao)} / ${Relogio.escrever(duracao)}", fontSize = 13.sp)
+    Column(
+        Modifier.fillMaxWidth().then(if (telaCheia) Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding() else Modifier),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        if (telaCheia) {
+            // Em tela cheia a saída fica no alto, sempre à vista; os outros controles ficam embaixo.
+            Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp), horizontalArrangement = Arrangement.End) {
+                OutlinedButton(onClick = { pausar(); alternarTelaCheia() }) { Text("Sair da tela cheia", fontSize = 12.sp) }
+            }
         }
-        Slider(value = posicao.toFloat(), onValueChange = { irPara(it.toDouble()) }, valueRange = 0f..duracao.toFloat())
-        Text(
-            "Trecho: ${Relogio.escrever(inicio)} até ${Relogio.escrever(fim)} · ${Relogio.escrever(fim - inicio)}",
-            color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp,
-        )
-        RangeSlider(
-            value = inicio.toFloat()..fim.toFloat(),
-            onValueChange = { faixa ->
-                val novoInicio = Relogio.decimo(faixa.start.toDouble())
-                val novoFim = Relogio.decimo(faixa.endInclusive.toDouble())
-                // Mostra o quadro da ponta que está sendo arrastada.
-                irPara(if (novoInicio != Relogio.decimo(inicio)) novoInicio else novoFim)
-                mudar(opcoes.copy(inicioSegundos = novoInicio, fimSegundos = novoFim))
-            },
-            valueRange = 0f..duracao.toFloat(),
-        )
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedButton(onClick = {
-                val agora = Relogio.decimo(posicao)
-                // Início depois do fim marcado: o fim volta para o fim do arquivo.
-                mudar(opcoes.copy(inicioSegundos = agora, fimSegundos = if (opcoes.fimSegundos in 0.0..agora) 0.0 else opcoes.fimSegundos))
-            }) { Text("Início aqui", fontSize = 12.sp) }
-            OutlinedButton(onClick = {
-                val agora = Relogio.decimo(posicao)
-                if (agora > inicio) mudar(opcoes.copy(fimSegundos = agora))
-            }) { Text("Fim aqui", fontSize = 12.sp) }
-            OutlinedButton(onClick = {
-                val player = reprodutor ?: return@OutlinedButton
-                irPara(inicio)
-                pararEm = fim
-                player.start()
-                tocando = true
-            }) { Text("Tocar o trecho", fontSize = 12.sp) }
+        if (video && !falhou) {
+            AndroidView(
+                factory = { ctx ->
+                    VideoView(ctx).apply {
+                        setOnPreparedListener { mp -> preparado(mp) }
+                        setOnErrorListener { _, _, _ -> falhou = true; true }
+                        setOnCompletionListener { tocando = false; pararEm = null; estado.posicao = duracao }
+                        setVideoURI(uri)
+                        videoView = this
+                    }
+                },
+                modifier = if (telaCheia) Modifier.fillMaxWidth().weight(1f)
+                else Modifier.fillMaxWidth().height(200.dp).clip(RoundedCornerShape(8.dp)).background(Color.Black),
+            )
+        }
+
+        if (falhou) {
+            Text("A prévia não abriu este arquivo; o corte continua funcionando pelos campos.", color = Cores.amarelo, fontSize = 13.sp)
+            if (telaCheia) OutlinedButton(onClick = alternarTelaCheia) { Text("Fechar") }
+            return@Column
+        }
+        if (duracao <= 0) {
+            Text("Carregando a prévia…", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+            return@Column
+        }
+
+        // Em tela cheia os controles ficam embaixo do vídeo e rolam se o celular estiver deitado.
+        Column(
+            (if (telaCheia) Modifier.padding(horizontal = 12.dp).verticalScroll(rememberScrollState()) else Modifier),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Text(
+                "${Relogio.completo(estado.posicao)} / ${Relogio.completo(duracao)}",
+                fontFamily = FontFamily.Monospace, fontSize = 13.sp, color = Color.White.takeIf { telaCheia } ?: Color.Unspecified,
+            )
+            Slider(value = estado.posicao.toFloat(), onValueChange = { irPara(it.toDouble()) }, valueRange = 0f..duracao.toFloat())
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                if (video) OutlinedButton(onClick = { quadro(-1) }) { Text("◀ quadro", fontSize = 12.sp) }
+                OutlinedButton(onClick = { if (tocando) pausar() else tocar() }) { Text(if (tocando) "Pausar" else "Tocar") }
+                if (video) OutlinedButton(onClick = { quadro(1) }) { Text("quadro ▶", fontSize = 12.sp) }
+            }
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                VELOCIDADES.forEach { velocidade ->
+                    FilterChip(
+                        selected = estado.velocidade == velocidade,
+                        onClick = {
+                            estado.velocidade = velocidade
+                            if (tocando) player?.let { runCatching { it.playbackParams = PlaybackParams().setSpeed(velocidade) } }
+                        },
+                        label = { Text("${velocidade.toString().removeSuffix(".0").replace('.', ',')}x", fontSize = 12.sp) },
+                    )
+                }
+            }
+            Text(
+                "Trecho: ${Relogio.completo(inicio)} até ${Relogio.completo(fim)} · ${Relogio.completo(fim - inicio)}",
+                color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp, fontFamily = FontFamily.Monospace,
+            )
+            RangeSlider(
+                value = inicio.toFloat()..fim.toFloat(),
+                onValueChange = { faixa ->
+                    val novoInicio = Relogio.milesimo(faixa.start.toDouble())
+                    val novoFim = Relogio.milesimo(faixa.endInclusive.toDouble())
+                    // Mostra o quadro da ponta que está sendo arrastada.
+                    irPara(if (novoInicio != Relogio.milesimo(inicio)) novoInicio else novoFim)
+                    mudar(opcoes.copy(inicioSegundos = novoInicio, fimSegundos = novoFim))
+                },
+                valueRange = 0f..duracao.toFloat(),
+            )
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                OutlinedButton(onClick = {
+                    val agora = Relogio.milesimo(estado.posicao)
+                    // Início depois do fim marcado: o fim volta para o fim do arquivo.
+                    mudar(opcoes.copy(inicioSegundos = agora, fimSegundos = if (opcoes.fimSegundos in 0.0..agora) 0.0 else opcoes.fimSegundos))
+                }) { Text("Início aqui", fontSize = 12.sp) }
+                OutlinedButton(onClick = {
+                    val agora = Relogio.milesimo(estado.posicao)
+                    if (agora > inicio) mudar(opcoes.copy(fimSegundos = agora))
+                }) { Text("Fim aqui", fontSize = 12.sp) }
+                OutlinedButton(onClick = {
+                    irPara(inicio)
+                    pararEm = fim
+                    tocar()
+                }) { Text("Tocar o trecho", fontSize = 12.sp) }
+                if (!telaCheia) OutlinedButton(onClick = { pausar(); alternarTelaCheia() }) { Text("Tela cheia", fontSize = 12.sp) }
+            }
         }
     }
 }
 
-/** Áudio sem tela: o MediaPlayer atrás da mesma interface do VideoView. */
-private class Audio(contexto: Context, uri: Uri, pronto: (Double) -> Unit, erro: () -> Unit) : MediaPlayerControl {
+/** Quadros por segundo da trilha de vídeo, ou nulo se o arquivo não diz. */
+private suspend fun quadrosDoVideo(contexto: Context, uri: Uri): Double? = withContext(Dispatchers.IO) {
+    val extrator = MediaExtractor()
+    try {
+        extrator.setDataSource(contexto, uri, null)
+        (0 until extrator.trackCount).map { extrator.getTrackFormat(it) }
+            .firstOrNull { it.getString(MediaFormat.KEY_MIME).orEmpty().startsWith("video/") }
+            ?.takeIf { it.containsKey(MediaFormat.KEY_FRAME_RATE) }
+            ?.let { formato ->
+                runCatching { formato.getInteger(MediaFormat.KEY_FRAME_RATE).toDouble() }
+                    .getOrElse { formato.getFloat(MediaFormat.KEY_FRAME_RATE).toDouble() }
+            }
+            ?.takeIf { it in 1.0..240.0 }
+    } catch (_: Exception) {
+        null
+    } finally {
+        extrator.release()
+    }
+}
+
+/** Áudio sem tela: um MediaPlayer preparado de forma assíncrona. */
+private class Audio(contexto: Context, uri: Uri, pronto: (MediaPlayer) -> Unit, erro: () -> Unit) {
     private val player = MediaPlayer()
-    private var preparado = false
 
     init {
         try {
             player.setDataSource(contexto, uri)
-            player.setOnPreparedListener { preparado = true; pronto(it.duration / 1000.0) }
+            player.setOnPreparedListener { pronto(it) }
             player.setOnErrorListener { _, _, _ -> erro(); true }
             player.prepareAsync()
         } catch (_: Exception) {
@@ -172,15 +316,4 @@ private class Audio(contexto: Context, uri: Uri, pronto: (Double) -> Unit, erro:
     }
 
     fun liberar() = player.release()
-    override fun start() { if (preparado) player.start() }
-    override fun pause() { if (preparado && player.isPlaying) player.pause() }
-    override fun getDuration() = if (preparado) player.duration else 0
-    override fun getCurrentPosition() = if (preparado) player.currentPosition else 0
-    override fun seekTo(pos: Int) { if (preparado) player.seekTo(pos) }
-    override fun isPlaying() = preparado && player.isPlaying
-    override fun getBufferPercentage() = 100
-    override fun canPause() = true
-    override fun canSeekBackward() = true
-    override fun canSeekForward() = true
-    override fun getAudioSessionId() = player.audioSessionId
 }

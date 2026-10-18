@@ -1,5 +1,4 @@
 using System.Globalization;
-using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using SmellsLikeTech.Converter.Core;
@@ -638,11 +637,12 @@ public sealed partial class ConversionOptionsView : UserControl
 
     private MediaPlayer? trimPlayer;
     private string? trimPreviewPath;
-    private TimeSpan? playUntil;
-    private DispatcherQueueTimer? trimTimer;
+    private bool trimHasVideo;
+    private TrimFullscreenWindow? fullscreen;
+    private bool previewEventsWired;
 
     /// <summary>
-    /// Abre o arquivo no mini player quando a operação tem corte e o arquivo é vídeo ou
+    /// Abre o arquivo no player do corte quando a operação tem corte e o arquivo é vídeo ou
     /// áudio. No lote, a prévia é do primeiro arquivo e o corte vale para todos.
     /// </summary>
     private void ShowTrimPreview(MediaInfo? sample)
@@ -657,28 +657,33 @@ public sealed partial class ConversionOptionsView : UserControl
             return;
         }
 
+        if (!previewEventsWired)
+        {
+            WirePlayerEvents(TrimPreview);
+            previewEventsWired = true;
+        }
+
         if (trimPlayer is null || !string.Equals(trimPreviewPath, sample.Path, StringComparison.OrdinalIgnoreCase))
         {
             ClearTrimPreview();
             trimPreviewPath = sample.Path;
+            trimHasVideo = sample.HasVideo;
             trimPlayer = new MediaPlayer
             {
                 AutoPlay = false,
                 Source = MediaSource.CreateFromUri(new Uri(sample.Path))
             };
-            TrimPreview.SetMediaPlayer(trimPlayer);
+            TrimPreview.Attach(trimPlayer, trimHasVideo);
         }
 
-        TrimPreview.Height = sample.HasVideo ? 220 : 64;
         TrimPreviewPanel.Visibility = Visibility.Visible;
         UpdateTrimSummary();
     }
 
     private void ClearTrimPreview()
     {
-        trimTimer?.Stop();
-        playUntil = null;
-        TrimPreview.SetMediaPlayer(null);
+        fullscreen?.Close();
+        TrimPreview.Detach();
         if (trimPlayer is not null)
         {
             trimPlayer.Pause();
@@ -691,14 +696,15 @@ public sealed partial class ConversionOptionsView : UserControl
         TrimPreviewPanel.Visibility = Visibility.Collapsed;
     }
 
-    private TimeSpan CurrentPosition() => trimPlayer?.PlaybackSession.Position ?? TimeSpan.Zero;
-
-    private TimeSpan? MediaDuration() =>
-        trimPlayer?.PlaybackSession.NaturalDuration is { } duracao && duracao > TimeSpan.Zero ? duracao : null;
-
-    private void OnTrimStartHere(object sender, RoutedEventArgs e)
+    private void WirePlayerEvents(TrimPlayer alvo)
     {
-        var agora = Arredondar(CurrentPosition());
+        alvo.StartMarked += OnStartMarked;
+        alvo.EndMarked += OnEndMarked;
+        alvo.FullscreenToggled += OnFullscreenToggled;
+    }
+
+    private void OnStartMarked(TimeSpan agora)
+    {
         TrimStartBox.Text = TrimTime.Format(agora);
         // Início depois do fim marcado: o fim volta a ser o fim do arquivo.
         if (TryParse(TrimEndBox.Text) is { } fim && fim <= agora)
@@ -707,42 +713,49 @@ public sealed partial class ConversionOptionsView : UserControl
         }
     }
 
-    private void OnTrimEndHere(object sender, RoutedEventArgs e)
+    private void OnEndMarked(TimeSpan agora)
     {
-        var agora = Arredondar(CurrentPosition());
         if (agora > (TryParse(TrimStartBox.Text) ?? TimeSpan.Zero))
         {
             TrimEndBox.Text = TrimTime.Format(agora);
         }
     }
 
-    private void OnPlayTrim(object sender, RoutedEventArgs e)
+    /// <summary>
+    /// Tela cheia: o mesmo player vai para uma janela própria, com os controles embaixo, e
+    /// volta para o formulário ao sair, no mesmo ponto e na mesma velocidade.
+    /// </summary>
+    private void OnFullscreenToggled()
     {
+        if (fullscreen is not null)
+        {
+            fullscreen.Close();
+            return;
+        }
+
         if (trimPlayer is null)
         {
             return;
         }
 
-        trimPlayer.PlaybackSession.Position = TryParse(TrimStartBox.Text) ?? TimeSpan.Zero;
-        playUntil = TryParse(TrimEndBox.Text) ?? MediaDuration();
-        trimPlayer.Play();
-        if (trimTimer is null)
+        var player = trimPlayer;
+        TrimPreview.Detach();
+        fullscreen = new TrimFullscreenWindow(player, trimHasVideo, $"Prévia do corte — {Path.GetFileName(trimPreviewPath)}");
+        // Desliga só o pedido de tela cheia do formulário: dentro da janela, o botão fecha a janela.
+        fullscreen.Player.StartMarked += OnStartMarked;
+        fullscreen.Player.EndMarked += OnEndMarked;
+        fullscreen.Closed += (_, _) =>
         {
-            trimTimer = DispatcherQueue.CreateTimer();
-            trimTimer.Interval = TimeSpan.FromMilliseconds(100);
-            trimTimer.Tick += (_, _) =>
+            fullscreen.Player.Detach();
+            fullscreen = null;
+            if (trimPlayer == player)
             {
-                // "Tocar o trecho" para sozinho no fim marcado.
-                if (trimPlayer is null || playUntil is null || CurrentPosition() >= playUntil)
-                {
-                    trimPlayer?.Pause();
-                    playUntil = null;
-                    trimTimer?.Stop();
-                }
-            };
-        }
-
-        trimTimer.Start();
+                TrimPreview.Attach(player, trimHasVideo);
+                UpdateTrimSummary();
+            }
+        };
+        fullscreen.Activate();
+        UpdateTrimSummary();
     }
 
     private void OnTrimTextChanged(object sender, TextChangedEventArgs e) => UpdateTrimSummary();
@@ -752,9 +765,12 @@ public sealed partial class ConversionOptionsView : UserControl
     {
         var inicio = TryParse(TrimStartBox.Text, out var inicioValido);
         var fim = TryParse(TrimEndBox.Text, out var fimValido);
+        TrimPreview.SetTrim(inicio ?? TimeSpan.Zero, fim);
+        fullscreen?.Player.SetTrim(inicio ?? TimeSpan.Zero, fim);
+
         if (!inicioValido || !fimValido)
         {
-            TrimSummaryText.Text = "Tempo inválido. Use 0:30, 1:05.5 ou 1:02:15.";
+            TrimSummaryText.Text = "Tempo inválido. Use 0:30, 1:05.135 ou 1:02:15.";
             return;
         }
 
@@ -765,15 +781,11 @@ public sealed partial class ConversionOptionsView : UserControl
             return;
         }
 
-        if (inicio is null && fim is null)
-        {
-            TrimSummaryText.Text = "Sem corte: o arquivo inteiro.";
-            return;
-        }
-
-        TrimSummaryText.Text = (fim ?? MediaDuration()) is { } ate
-            ? $"Trecho: {TrimTime.Format(de)} até {TrimTime.Format(ate)} · {TrimTime.Format(ate - de)}"
-            : $"Trecho: de {TrimTime.Format(de)} até o fim.";
+        TrimSummaryText.Text = inicio is null && fim is null
+            ? "Sem corte: o arquivo inteiro."
+            : fim is { } ate
+                ? $"Trecho: {TrimPlayer.Long(de)} até {TrimPlayer.Long(ate)} · {TrimPlayer.Long(ate - de)}"
+                : $"Trecho: de {TrimPlayer.Long(de)} até o fim.";
     }
 
     private static TimeSpan? TryParse(string? text) => TryParse(text, out _);
@@ -791,6 +803,4 @@ public sealed partial class ConversionOptionsView : UserControl
             return null;
         }
     }
-
-    private static TimeSpan Arredondar(TimeSpan valor) => TimeSpan.FromSeconds(Math.Round(valor.TotalSeconds, 1));
 }

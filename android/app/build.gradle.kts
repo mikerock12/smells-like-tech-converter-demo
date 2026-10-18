@@ -31,8 +31,8 @@ android {
         minSdk = 28
         // A Google Play exige o Android 16 como alvo desde 31/08/2026.
         targetSdk = 36
-        versionCode = 12
-        versionName = "0.4.4"
+        versionCode = 13
+        versionName = "0.4.5"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         // As arquiteturas do FFmpeg compilado (android/nativos): celulares ARM e, em x86_64,
         // Chromebooks e o emulador. A Google Play entrega a cada aparelho só a sua.

@@ -27,18 +27,29 @@ object Relogio {
         return total
     }
 
-    /** "m:ss", "h:mm:ss" e um décimo quando houver ("1:05,5"); arredonda para o décimo. */
+    /**
+     * "m:ss" ou "h:mm:ss", com os milissegundos quando houver ("1:05,5", "1:05,135"); arredonda
+     * para o milissegundo, a precisão das marcações do player.
+     */
     fun escrever(segundos: Double): String {
-        val decimos = (segundos.coerceAtLeast(0.0) * 10).roundToLong()
-        val inteiros = decimos / 10
+        val milesimos = (segundos.coerceAtLeast(0.0) * 1000).roundToLong()
+        val inteiros = milesimos / 1000
         val horas = inteiros / 3600
         val minutos = (inteiros % 3600) / 60
         val resto = inteiros % 60
         val base = if (horas > 0) "%d:%02d:%02d".format(Locale.ROOT, horas, minutos, resto)
         else "%d:%02d".format(Locale.ROOT, minutos, resto)
-        return if (decimos % 10 == 0L) base else "$base,${decimos % 10}"
+        val fracao = "%03d".format(Locale.ROOT, milesimos % 1000).trimEnd('0')
+        return if (fracao.isEmpty()) base else "$base,$fracao"
     }
 
-    /** Arredonda para o décimo de segundo, a precisão que a tela mostra. */
-    fun decimo(segundos: Double): Double = (segundos * 10).roundToLong() / 10.0
+    /** A posição na linha do tempo do player, sempre completa: "00:01:05,135". */
+    fun completo(segundos: Double): String {
+        val milesimos = (segundos.coerceAtLeast(0.0) * 1000).roundToLong()
+        val inteiros = milesimos / 1000
+        return "%02d:%02d:%02d,%03d".format(Locale.ROOT, inteiros / 3600, (inteiros % 3600) / 60, inteiros % 60, milesimos % 1000)
+    }
+
+    /** Arredonda para o milissegundo, a precisão das marcações. */
+    fun milesimo(segundos: Double): Double = (segundos * 1000).roundToLong() / 1000.0
 }

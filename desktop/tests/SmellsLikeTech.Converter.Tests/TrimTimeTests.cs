@@ -41,12 +41,13 @@ public sealed class TrimTimeTests
     }
 
     [Fact]
-    public void Format_MostraDecimoSoQuandoPrecisa()
+    public void Format_MostraMilissegundosSoQuandoPrecisa()
     {
         Assert.Equal("0:21", TrimTime.Format(TimeSpan.FromSeconds(21)));
-        Assert.Equal("1:05.5", TrimTime.Format(TimeSpan.FromSeconds(65.52)));
+        Assert.Equal("1:05.5", TrimTime.Format(TimeSpan.FromSeconds(65.5)));
+        Assert.Equal("1:05.135", TrimTime.Format(TimeSpan.FromSeconds(65.1351)));
         Assert.Equal("1:02:03", TrimTime.Format(TimeSpan.FromSeconds(3723)));
-        Assert.Equal(TimeSpan.FromSeconds(65.5), TrimTime.Parse(TrimTime.Format(TimeSpan.FromSeconds(65.5))));
+        Assert.Equal(TimeSpan.FromSeconds(65.135), TrimTime.Parse(TrimTime.Format(TimeSpan.FromSeconds(65.135))));
     }
 
     [Fact]

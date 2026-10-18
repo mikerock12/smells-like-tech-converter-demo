@@ -1,0 +1,50 @@
+<UserControl
+    x:Class="SmellsLikeTech.Converter.Desktop.Controls.TrimPlayer"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- O player do corte: o mesmo controle no formulário e na tela cheia. Os controles ficam
+         embaixo do vídeo, para marcar o trecho sem sair da imagem. -->
+    <Grid RowSpacing="8">
+        <Grid.RowDefinitions>
+            <RowDefinition x:Name="VideoRow" Height="220" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <Border Grid.Row="0" Background="Black" CornerRadius="6">
+            <MediaPlayerElement x:Name="Surface" Stretch="Uniform" AreTransportControlsEnabled="False" />
+        </Border>
+
+        <StackPanel Grid.Row="1" Spacing="8">
+            <Grid ColumnSpacing="10">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <TextBlock x:Name="PositionText" Grid.Column="0" VerticalAlignment="Center"
+                           FontFamily="Consolas" Text="00:00:00.000 / 00:00:00.000" />
+                <Slider x:Name="Timeline" Grid.Column="1" Minimum="0" Maximum="1" StepFrequency="0.001"
+                        IsThumbToolTipEnabled="False" ValueChanged="OnTimelineChanged" />
+            </Grid>
+
+            <StackPanel Orientation="Horizontal" Spacing="8">
+                <Button x:Name="FrameBackButton" Content="◀ Quadro" Click="OnFrameBack"
+                        ToolTipService.ToolTip="Volta um quadro (seta para a esquerda na tela cheia)" />
+                <Button x:Name="PlayButton" Content="Tocar" MinWidth="80" Click="OnPlayPause" />
+                <Button x:Name="FrameForwardButton" Content="Quadro ▶" Click="OnFrameForward"
+                        ToolTipService.ToolTip="Avança um quadro (seta para a direita na tela cheia)" />
+                <ComboBox x:Name="SpeedCombo" MinWidth="96" SelectionChanged="OnSpeedChanged"
+                          ToolTipService.ToolTip="Velocidade da prévia" />
+            </StackPanel>
+
+            <StackPanel Orientation="Horizontal" Spacing="8">
+                <Button Content="Início aqui" Click="OnMarkStart" />
+                <Button Content="Fim aqui" Click="OnMarkEnd" />
+                <Button Content="Tocar o trecho" Click="OnPlayTrim" />
+                <Button x:Name="FullscreenButton" Content="Tela cheia" Click="OnFullscreen" />
+            </StackPanel>
+
+            <TextBlock x:Name="TrimText" Opacity="0.75" FontFamily="Consolas" TextWrapping="Wrap" />
+        </StackPanel>
+    </Grid>
+</UserControl>

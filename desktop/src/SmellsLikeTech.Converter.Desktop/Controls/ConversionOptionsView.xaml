@@ -1,7 +1,8 @@
 <UserControl
     x:Class="SmellsLikeTech.Converter.Desktop.Controls.ConversionOptionsView"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:SmellsLikeTech.Converter.Desktop.Controls">
 
     <!-- Os campos de todas as conversões moram aqui, e só um conjunto fica visível por vez.
          A tela de um arquivo e a tela de lote usam este mesmo controle: duas cópias destes
@@ -310,25 +311,9 @@
         <StackPanel x:Name="TrimPanel" Spacing="8" Visibility="Collapsed">
             <Border Height="1" Background="{StaticResource BrandStrokeBrush}" />
             <TextBlock Text="Cortar trecho (opcional)" Style="{StaticResource FieldLabelStyle}" />
-            <!-- Prévia do arquivo para marcar o corte: assistir, parar no ponto e marcar. -->
-            <StackPanel x:Name="TrimPreviewPanel" Spacing="8" Visibility="Collapsed">
-                <MediaPlayerElement
-                    x:Name="TrimPreview"
-                    Height="220"
-                    Stretch="Uniform"
-                    AreTransportControlsEnabled="True">
-                    <MediaPlayerElement.TransportControls>
-                        <MediaTransportControls
-                            IsCompact="True"
-                            IsZoomButtonVisible="False"
-                            IsVolumeButtonVisible="True" />
-                    </MediaPlayerElement.TransportControls>
-                </MediaPlayerElement>
-                <StackPanel Orientation="Horizontal" Spacing="8">
-                    <Button Content="Início aqui" Click="OnTrimStartHere" />
-                    <Button Content="Fim aqui" Click="OnTrimEndHere" />
-                    <Button Content="Tocar o trecho" Click="OnPlayTrim" />
-                </StackPanel>
+            <!-- Prévia do arquivo para marcar o corte: assistir, parar no quadro e marcar. -->
+            <StackPanel x:Name="TrimPreviewPanel" Visibility="Collapsed">
+                <local:TrimPlayer x:Name="TrimPreview" />
             </StackPanel>
             <Grid ColumnSpacing="12">
                 <Grid.ColumnDefinitions>

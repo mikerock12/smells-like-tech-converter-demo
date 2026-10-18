@@ -404,7 +404,7 @@ private fun CampoDeTempo(rotulo: String, segundos: Double, modifier: Modifier, m
     var texto by remember { mutableStateOf(if (segundos > 0) Relogio.escrever(segundos) else "") }
     LaunchedEffect(segundos) {
         val digitado = Relogio.ler(texto) ?: 0.0
-        if (Relogio.decimo(digitado) != Relogio.decimo(segundos)) texto = if (segundos > 0) Relogio.escrever(segundos) else ""
+        if (Relogio.milesimo(digitado) != Relogio.milesimo(segundos)) texto = if (segundos > 0) Relogio.escrever(segundos) else ""
     }
     OutlinedTextField(
         value = texto,

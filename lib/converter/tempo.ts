@@ -20,13 +20,27 @@ export function lerTempoEmSegundos(texto: string | number | boolean | undefined)
   return segundos;
 }
 
-/** "m:ss" ou "h:mm:ss", com o décimo quando houver ("1:05,5"). */
+/** "m:ss" ou "h:mm:ss", com os milissegundos quando houver ("1:05,5", "1:05,135"). */
 export function escreverTempo(segundos: number): string {
-  const decimos = Math.round(Math.max(0, segundos) * 10);
-  const inteiros = Math.floor(decimos / 10);
+  const milesimos = Math.round(Math.max(0, segundos) * 1000);
+  const inteiros = Math.floor(milesimos / 1000);
   const horas = Math.floor(inteiros / 3600);
   const minutos = Math.floor((inteiros % 3600) / 60);
   const resto = String(inteiros % 60).padStart(2, "0");
   const base = horas > 0 ? `${horas}:${String(minutos).padStart(2, "0")}:${resto}` : `${minutos}:${resto}`;
-  return decimos % 10 === 0 ? base : `${base},${decimos % 10}`;
+  const fracao = String(milesimos % 1000).padStart(3, "0").replace(/0+$/, "");
+  return fracao ? `${base},${fracao}` : base;
+}
+
+/** A posição na linha do tempo do player, sempre completa: "00:01:05,135". */
+export function escreverTempoCompleto(segundos: number): string {
+  const milesimos = Math.round(Math.max(0, segundos) * 1000);
+  const inteiros = Math.floor(milesimos / 1000);
+  const dois = (valor: number) => String(valor).padStart(2, "0");
+  return `${dois(Math.floor(inteiros / 3600))}:${dois(Math.floor((inteiros % 3600) / 60))}:${dois(inteiros % 60)},${String(milesimos % 1000).padStart(3, "0")}`;
+}
+
+/** Arredonda para o milissegundo, a precisão das marcações. */
+export function milesimo(segundos: number): number {
+  return Math.round(segundos * 1000) / 1000;
 }
