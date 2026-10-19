@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <RootNamespace>SmellsLikeTech.Converter.Engine.Studio</RootNamespace>
+    <Description>Estudio: monta video, GIF, imagem, audio ou texto a partir de um projeto (FFmpeg + Magick.NET + Whisper).</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Magick.NET-Q8-AnyCPU" Version="14.16.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- As mesmas fontes do texto no Android e no site (OFL/Apache), com as licencas. -->
+    <Content Include="..\..\..\android\app\src\main\assets\fontes\*">
+      <Link>fontes\%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\SmellsLikeTech.Converter.Core\SmellsLikeTech.Converter.Core.csproj" />
+    <ProjectReference Include="..\SmellsLikeTech.Converter.Infrastructure\SmellsLikeTech.Converter.Infrastructure.csproj" />
+    <ProjectReference Include="..\SmellsLikeTech.Converter.Engine.FFmpeg\SmellsLikeTech.Converter.Engine.FFmpeg.csproj" />
+  </ItemGroup>
+</Project>

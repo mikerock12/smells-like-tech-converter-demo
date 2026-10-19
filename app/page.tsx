@@ -40,6 +40,51 @@ const lugares = [
   },
 ];
 
+/**
+ * As portas da página inicial, as mesmas da tela inicial dos apps: converter e criar são as
+ * duas grandes; transcrever, narrar e comprimir para o WhatsApp são os pedidos mais comuns e
+ * ninguém os acharia dentro de "converter".
+ */
+const CAMINHOS = [
+  {
+    icone: "⇄",
+    titulo: "Converter uma mídia",
+    descricao: "Troque o formato, comprima, corte ou junte vídeos, áudios, imagens, PDFs e documentos.",
+    acao: "Abrir a oficina",
+    destino: "/converter",
+    destaque: true,
+  },
+  {
+    icone: "✦",
+    titulo: "Criar no estúdio",
+    descricao: "Monte vídeo, GIF, imagem ou áudio no tamanho certo para Reels, Stories, TikTok, Shorts, Kwai e WhatsApp: cortes, textos e música.",
+    acao: "Abrir o estúdio",
+    destino: "/estudio",
+    destaque: true,
+  },
+  {
+    icone: "✎",
+    titulo: "Transcrever áudio ou vídeo",
+    descricao: "A fala vira texto ou legenda com o Whisper, no seu computador.",
+    acao: "Transcrever",
+    destino: "/converter/audio-para-texto",
+  },
+  {
+    icone: "♪",
+    titulo: "Narrar um texto",
+    descricao: "Texto, PDF ou documento viram áudio com vozes naturais em português.",
+    acao: "Narrar",
+    destino: "/converter/texto-para-voz",
+  },
+  {
+    icone: "⬇",
+    titulo: "Comprimir vídeo para o WhatsApp",
+    descricao: "O vídeo cabe no limite do WhatsApp sem virar borrão.",
+    acao: "Comprimir",
+    destino: "/comprimir-video-whatsapp",
+  },
+];
+
 export default function Home() {
   const { total, noNavegador } = contagem();
   const { total: paginas } = contagemDePaginas();
@@ -75,13 +120,34 @@ export default function Home() {
           <p>Imagem, áudio, vídeo, PDF e texto. No seu computador. Sem cadastro, sem marca d&apos;água, sem servidor no meio.</p>
           <div className="hero-actions">
             <a className="primary-action" href="/converter">
-              Abrir a oficina <span aria-hidden="true">→</span>
+              Converter uma mídia <span aria-hidden="true">→</span>
             </a>
-            <a className="hero-link" href="/ferramentas">
-              Ver as ferramentas <span aria-hidden="true">→</span>
+            <a className="primary-action primary-action--secundaria" href="/estudio">
+              Criar no estúdio <span aria-hidden="true">→</span>
             </a>
           </div>
         </div>
+      </section>
+
+      <section className="caminhos" aria-labelledby="caminhos-titulo">
+        <div className="section-heading section-heading--compacta">
+          <div>
+            <span>Comece por aqui</span>
+            <h2 id="caminhos-titulo">O que você quer fazer?</h2>
+          </div>
+        </div>
+        <ul className="caminhos__grade">
+          {CAMINHOS.map((caminho) => (
+            <li key={caminho.destino} className={caminho.destaque ? "caminhos__item caminhos__item--destaque" : "caminhos__item"}>
+              <a href={caminho.destino}>
+                <span className="caminhos__icone" aria-hidden="true">{caminho.icone}</span>
+                <strong>{caminho.titulo}</strong>
+                <p>{caminho.descricao}</p>
+                <span className="caminhos__ir">{caminho.acao} <span aria-hidden="true">→</span></span>
+              </a>
+            </li>
+          ))}
+        </ul>
       </section>
 
       <section className="prova-rapida" aria-labelledby="prova-titulo">

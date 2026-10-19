@@ -45,8 +45,9 @@ class MainActivity : ComponentActivity() {
         if (Saida.precisaDePermissao(this)) armazenamento.launch(Saida.PERMISSOES)
         setContent {
             TemaDoConverter {
-                // Qualquer arquivo: documentos vêm com dezenas de tipos, e o app recusa o que não converte.
-                Oficina(modelo) { escolher.launch(arrayOf("*/*")) }
+                // "*/*" para converter (documentos vêm com dezenas de tipos, e o app recusa o que
+                // não converte); áudio e vídeo para transcrever.
+                Oficina(modelo) { tipos -> escolher.launch(tipos) }
             }
         }
     }

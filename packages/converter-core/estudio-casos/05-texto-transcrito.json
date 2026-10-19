@@ -1,0 +1,114 @@
+{
+  "descricao": "Transcrição: vídeo sem trilha de áudio vira silêncio; música com fade de saída.",
+  "projeto": {
+    "versao": 1,
+    "destino": "linkedin",
+    "largura": 1920,
+    "altura": 1080,
+    "fps": 30,
+    "saida": "texto",
+    "clipes": [
+      {
+        "id": "c1",
+        "arquivo": "e.mp4",
+        "tipo": "video",
+        "inicio": 0.333,
+        "fim": 8.123,
+        "ajuste": "caber-desfocado",
+        "volume": 1
+      },
+      {
+        "id": "c2",
+        "arquivo": "h.mp4",
+        "tipo": "video",
+        "inicio": 5,
+        "fim": 7,
+        "ajuste": "caber",
+        "volume": 1.5
+      }
+    ],
+    "textos": [],
+    "audios": [
+      {
+        "id": "m1",
+        "arquivo": "o.mp3",
+        "entrada": 2.5,
+        "inicio": 3,
+        "fim": 9,
+        "volume": 0.25,
+        "fadeEntrada": 0,
+        "fadeSaida": 1.5
+      }
+    ],
+    "quadro": 0
+  },
+  "entradas": {
+    "clipes": [
+      {
+        "caminho": "e.mp4",
+        "temAudio": false
+      },
+      {
+        "caminho": "h.mp4",
+        "temAudio": true
+      }
+    ],
+    "textos": [],
+    "audios": [
+      "o.mp3"
+    ]
+  },
+  "esperado": {
+    "duracao": 9.79,
+    "segmentos": [
+      {
+        "indice": 0,
+        "id": "c1",
+        "inicio": 0,
+        "fim": 7.79,
+        "duracao": 7.79
+      },
+      {
+        "indice": 1,
+        "id": "c2",
+        "inicio": 7.79,
+        "fim": 9.79,
+        "duracao": 2
+      }
+    ],
+    "problemas": [],
+    "avisos": [],
+    "gif": {
+      "largura": 854,
+      "altura": 480
+    },
+    "receita": {
+      "args": [
+        "-ss",
+        "0.333",
+        "-t",
+        "7.79",
+        "-i",
+        "e.mp4",
+        "-ss",
+        "5",
+        "-t",
+        "2",
+        "-i",
+        "h.mp4",
+        "-ss",
+        "3",
+        "-t",
+        "6",
+        "-i",
+        "o.mp3"
+      ],
+      "filtro": "anullsrc=r=48000:cl=stereo,atrim=duration=7.79,asetpts=PTS-STARTPTS[a0];[1:a]aresample=48000,aformat=channel_layouts=stereo,volume=1.5,apad=whole_dur=2,atrim=duration=2,asetpts=PTS-STARTPTS[a1];[a0][a1]concat=n=2:v=0:a=1[ab];[2:a]aresample=48000,aformat=channel_layouts=stereo,volume=0.25,afade=t=out:st=4.5:d=1.5,adelay=2500:all=1[m0];[ab][m0]amix=inputs=2:duration=first:normalize=0[am]",
+      "mapas": [
+        "-map",
+        "[am]"
+      ],
+      "duracao": 9.79
+    }
+  }
+}

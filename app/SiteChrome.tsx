@@ -8,9 +8,10 @@ import { ARTIGOS } from "@/packages/conteudo/artigos.mjs";
  * âncoras, porque agora existem páginas de verdade para cada assunto.
  */
 
-type Page = "home" | "converter" | "ferramentas" | "precos" | "plugin" | "aplicativo" | "chave" | "conta" | "outra";
+type Page = "home" | "converter" | "estudio" | "ferramentas" | "precos" | "plugin" | "aplicativo" | "chave" | "conta" | "outra";
 
 const links: { href: string; rotulo: string; pagina: Page }[] = [
+  { href: "/estudio", rotulo: "Estúdio", pagina: "estudio" },
   { href: "/ferramentas", rotulo: "Ferramentas", pagina: "ferramentas" },
   { href: "/precos", rotulo: "Preços", pagina: "precos" },
   { href: "/plugin", rotulo: "Plugin", pagina: "plugin" },
@@ -38,7 +39,7 @@ export function SiteHeader({ page }: { page: Page }) {
         ))}
         <a href="/#privacidade">Privacidade</a>
       </nav>
-      {page === "converter" ? (
+      {page === "converter" || page === "estudio" ? (
         // eslint-disable-next-line @next/next/no-html-link-for-pages
         <a className="header-cta header-cta--quiet" href="/">
           <span aria-hidden="true">←</span> Início

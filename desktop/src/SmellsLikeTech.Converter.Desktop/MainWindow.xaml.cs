@@ -59,7 +59,7 @@ public sealed partial class MainWindow : Window
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
         App.CreateQueueViewModel(DispatcherQueue);
-        ContentFrame.Navigate(typeof(HomePage));
+        ContentFrame.Navigate(typeof(StartPage));
 
         App.QueueViewModel.PropertyChanged += (_, _) => UpdateStatus();
         statusTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
@@ -91,6 +91,8 @@ public sealed partial class MainWindow : Window
 
         var page = (item.Tag as string) switch
         {
+            "start" => typeof(StartPage),
+            "studio" => typeof(StudioPage),
             "batch" => typeof(BatchPage),
             "queue" => typeof(QueuePage),
             "speech" => typeof(SpeechPage),
@@ -103,6 +105,22 @@ public sealed partial class MainWindow : Window
         {
             ContentFrame.Navigate(page);
         }
+    }
+
+    /// <summary>
+    /// Abre uma das portas da tela inicial. "transcribe" é a tela de conversão já pedindo o
+    /// arquivo de áudio ou vídeo, com a transcrição escolhida.
+    /// </summary>
+    public void Open(string destino)
+    {
+        if (destino == "transcribe")
+        {
+            ContentFrame.Navigate(typeof(HomePage), HomePage.Transcrever);
+            Select("home");
+            return;
+        }
+
+        Select(destino);
     }
 
     /// <summary>Leva o usuário para a fila depois de enfileirar um job.</summary>

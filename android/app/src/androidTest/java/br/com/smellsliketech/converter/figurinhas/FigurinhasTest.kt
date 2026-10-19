@@ -49,6 +49,30 @@ class FigurinhasTest {
         assertEquals(Regras.LADO, lida.width)
     }
 
+    /** Metade esquerda vermelha, direita azul: espelhar e girar trocam os lados como na tela. */
+    @Test fun girarEEspelharMudamOsLadosEOPincelAcompanha() {
+        val fonte = Bitmap.createBitmap(200, 200, Bitmap.Config.ARGB_8888).apply {
+            Canvas(this).apply {
+                drawRect(0f, 0f, 100f, 200f, Paint().apply { color = Color.RED })
+                drawRect(100f, 0f, 200f, 200f, Paint().apply { color = Color.BLUE })
+            }
+        }
+        val renderizador = Renderizador(contexto)
+        fun cor(edicao: Edicao, x: Int, y: Int) = renderizador.desenhar(fonte, null, edicao).getPixel(x, y)
+        assertEquals(Color.RED, cor(Edicao(), 100, 256))
+        assertEquals(Color.BLUE, cor(Edicao(espelharHorizontal = true), 100, 256))
+        // Girada 90° no sentido do relógio, a metade esquerda (vermelha) vai para cima.
+        assertEquals(Color.RED, cor(Edicao(giro = 90), 256, 100))
+        assertEquals(Color.BLUE, cor(Edicao(giro = 90), 256, 412))
+        assertEquals(Color.BLUE, cor(Edicao(giro = 90, espelharVertical = true), 256, 100))
+        // O pincel: tocar em cima da figurinha girada cai na metade esquerda da imagem original.
+        val (x, y, _) = renderizador.pontoNaImagem(0.5f, 0.2f, 0.05f, 200, 200, Edicao(giro = 90))
+        assertTrue("x=$x", x < 0.5f)
+        assertEquals(0.5f, y, 0.01f)
+        val (x2, _, _) = renderizador.pontoNaImagem(0.2f, 0.5f, 0.05f, 200, 200, Edicao(espelharHorizontal = true))
+        assertTrue("x2=$x2", x2 > 0.5f)
+    }
+
     @Test fun mascaraRecortaOFundo() {
         val fonte = imagem(Color.BLUE)
         // Só o círculo é figura: o canto do quadrado (fundo) tem de ficar transparente.

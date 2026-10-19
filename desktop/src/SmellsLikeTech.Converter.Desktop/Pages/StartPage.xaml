@@ -1,0 +1,22 @@
+<Page
+    x:Class="SmellsLikeTech.Converter.Desktop.Pages.StartPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Background="{StaticResource BrandBackgroundBrush}">
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel Padding="28,24" Spacing="18" MaxWidth="1100" HorizontalAlignment="Left">
+            <StackPanel Spacing="6">
+                <TextBlock Text="COMECE POR AQUI" Style="{StaticResource SectionTitleStyle}" Margin="0" />
+                <TextBlock Text="O que você quer fazer?" FontSize="30" FontWeight="SemiBold" />
+                <TextBlock
+                    Text="Tudo acontece neste computador: nenhum arquivo é enviado para a internet."
+                    FontSize="14"
+                    Foreground="{StaticResource BrandTextMutedBrush}" />
+            </StackPanel>
+
+            <!-- As portas do aplicativo, as mesmas do site e do Android. -->
+            <VariableSizedWrapGrid x:Name="PathsGrid" Orientation="Horizontal" ItemWidth="340" ItemHeight="196" />
+        </StackPanel>
+    </ScrollViewer>
+</Page>

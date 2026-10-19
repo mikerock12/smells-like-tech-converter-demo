@@ -1,0 +1,166 @@
+{
+  "descricao": "Reels com vídeo desfocado, foto, vídeo mudo, texto e música com fades e atraso.",
+  "projeto": {
+    "versao": 1,
+    "destino": "instagram-reels",
+    "largura": 1080,
+    "altura": 1920,
+    "fps": 30,
+    "saida": "video",
+    "clipes": [
+      {
+        "id": "c1",
+        "arquivo": "a.mp4",
+        "tipo": "video",
+        "inicio": 2.5,
+        "fim": 6,
+        "ajuste": "caber-desfocado",
+        "volume": 1
+      },
+      {
+        "id": "c2",
+        "arquivo": "f.jpg",
+        "tipo": "imagem",
+        "duracao": 2,
+        "ajuste": "preencher"
+      },
+      {
+        "id": "c3",
+        "arquivo": "a.mp4",
+        "tipo": "video",
+        "inicio": 0,
+        "fim": 1.5,
+        "ajuste": "caber",
+        "mudo": true
+      }
+    ],
+    "textos": [
+      {
+        "id": "t1",
+        "texto": "Promoção!",
+        "inicio": 0.5,
+        "fim": 4,
+        "x": 0.5,
+        "y": 0.2,
+        "tamanho": 0.06,
+        "cor": "#FFFFFF",
+        "contorno": "#000000",
+        "caixa": null,
+        "fonte": "anton"
+      }
+    ],
+    "audios": [
+      {
+        "id": "m1",
+        "arquivo": "m.mp3",
+        "entrada": 1,
+        "inicio": 10,
+        "fim": 40,
+        "volume": 0.6,
+        "fadeEntrada": 1,
+        "fadeSaida": 2
+      }
+    ],
+    "quadro": 0
+  },
+  "entradas": {
+    "clipes": [
+      {
+        "caminho": "a.mp4",
+        "temAudio": true
+      },
+      {
+        "caminho": "f.jpg",
+        "temAudio": false
+      },
+      {
+        "caminho": "a.mp4",
+        "temAudio": true
+      }
+    ],
+    "textos": [
+      "texto-1.png"
+    ],
+    "audios": [
+      "m.mp3"
+    ]
+  },
+  "esperado": {
+    "duracao": 7,
+    "segmentos": [
+      {
+        "indice": 0,
+        "id": "c1",
+        "inicio": 0,
+        "fim": 3.5,
+        "duracao": 3.5
+      },
+      {
+        "indice": 1,
+        "id": "c2",
+        "inicio": 3.5,
+        "fim": 5.5,
+        "duracao": 2
+      },
+      {
+        "indice": 2,
+        "id": "c3",
+        "inicio": 5.5,
+        "fim": 7,
+        "duracao": 1.5
+      }
+    ],
+    "problemas": [],
+    "avisos": [],
+    "gif": {
+      "largura": 480,
+      "altura": 854
+    },
+    "receita": {
+      "args": [
+        "-ss",
+        "2.5",
+        "-t",
+        "3.5",
+        "-i",
+        "a.mp4",
+        "-loop",
+        "1",
+        "-framerate",
+        "30",
+        "-t",
+        "2",
+        "-i",
+        "f.jpg",
+        "-ss",
+        "0",
+        "-t",
+        "1.5",
+        "-i",
+        "a.mp4",
+        "-loop",
+        "1",
+        "-framerate",
+        "30",
+        "-t",
+        "7",
+        "-i",
+        "texto-1.png",
+        "-ss",
+        "10",
+        "-t",
+        "30",
+        "-i",
+        "m.mp3"
+      ],
+      "filtro": "[0:v]fps=30,split[f0][p0];[f0]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,scale=136:240,gblur=sigma=3,scale=1080:1920[fd0];[p0]scale=1080:1920:force_original_aspect_ratio=decrease:force_divisible_by=2[pc0];[fd0][pc0]overlay=(W-w)/2:(H-h)/2,setsar=1,format=yuv420p,setpts=PTS-STARTPTS[v0];[0:a]aresample=48000,aformat=channel_layouts=stereo,volume=1,apad=whole_dur=3.5,atrim=duration=3.5,asetpts=PTS-STARTPTS[a0];[1:v]fps=30,scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,setsar=1,format=yuv420p,setpts=PTS-STARTPTS[v1];anullsrc=r=48000:cl=stereo,atrim=duration=2,asetpts=PTS-STARTPTS[a1];[2:v]fps=30,scale=1080:1920:force_original_aspect_ratio=decrease:force_divisible_by=2,pad=1080:1920:(ow-iw)/2:(oh-ih)/2:color=black,setsar=1,format=yuv420p,setpts=PTS-STARTPTS[v2];anullsrc=r=48000:cl=stereo,atrim=duration=1.5,asetpts=PTS-STARTPTS[a2];[v0][a0][v1][a1][v2][a2]concat=n=3:v=1:a=1[vb][ab];[vb][3:v]overlay=0:0:enable='between(t,0.5,4)'[vt0];[4:a]aresample=48000,aformat=channel_layouts=stereo,volume=0.6,afade=t=in:st=0:d=1,afade=t=out:st=28:d=2,adelay=1000:all=1[m0];[ab][m0]amix=inputs=2:duration=first:normalize=0[am]",
+      "mapas": [
+        "-map",
+        "[vt0]",
+        "-map",
+        "[am]"
+      ],
+      "duracao": 7
+    }
+  }
+}

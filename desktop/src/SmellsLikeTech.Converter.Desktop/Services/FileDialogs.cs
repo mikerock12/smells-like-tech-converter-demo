@@ -39,6 +39,21 @@ public static class FileDialogs
     public static IReadOnlyList<string> PickInputFiles(Window? owner) =>
         NativeFileDialog.PickFiles(HandleOf(owner), "Selecionar arquivos para converter", InputFilters);
 
+    /// <summary>Clipes do estudio: videos e fotos, varios de uma vez.</summary>
+    public static IReadOnlyList<string> PickStudioMedia(Window? owner) =>
+        NativeFileDialog.PickFiles(HandleOf(owner), "Adicionar vídeos ou fotos ao estúdio", [
+            new("Vídeos e fotos", [.. FormatCatalog.VideoFormats, .. FormatCatalog.ImageFormats]),
+            new("Vídeo", FormatCatalog.VideoFormats),
+            new("Imagem", FormatCatalog.ImageFormats)
+        ]);
+
+    /// <summary>Musica ou audio extra do estudio.</summary>
+    public static string? PickStudioAudio(Window? owner) =>
+        NativeFileDialog.PickFile(HandleOf(owner), "Adicionar música ou áudio ao estúdio", [
+            new("Áudio", FormatCatalog.AudioFormats),
+            new("Vídeo (usa o som)", FormatCatalog.VideoFormats)
+        ]);
+
     public static string? PickTextFile(Window? owner) =>
         NativeFileDialog.PickFile(HandleOf(owner), "Selecionar arquivo de texto", TextFilters);
 

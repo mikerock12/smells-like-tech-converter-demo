@@ -4,4 +4,9 @@
     <RootNamespace>SmellsLikeTech.Converter.Core</RootNamespace>
     <Description>Nucleo de conversao reutilizavel entre desktop, worker e nuvem.</Description>
   </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Presets do estudio: a mesma fonte do site e do Android. -->
+    <EmbeddedResource Include="..\..\..\packages\converter-core\estudio-presets.json" LogicalName="estudio-presets.json" Link="Studio\estudio-presets.json" />
+  </ItemGroup>
 </Project>

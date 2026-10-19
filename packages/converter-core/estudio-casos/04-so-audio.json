@@ -1,0 +1,128 @@
+{
+  "descricao": "Só o áudio: um vídeo com volume baixo, uma imagem (silêncio) e música sem fade.",
+  "projeto": {
+    "versao": 1,
+    "destino": "tiktok",
+    "largura": 1080,
+    "altura": 1920,
+    "fps": 30,
+    "saida": "audio",
+    "clipes": [
+      {
+        "id": "c1",
+        "arquivo": "d.mp4",
+        "tipo": "video",
+        "inicio": 0,
+        "fim": 3,
+        "ajuste": "preencher",
+        "volume": 0.5
+      },
+      {
+        "id": "c2",
+        "arquivo": "g.png",
+        "tipo": "imagem",
+        "duracao": 1.5,
+        "ajuste": "caber"
+      }
+    ],
+    "textos": [
+      {
+        "id": "t1",
+        "texto": "Ignorado no áudio",
+        "inicio": 0,
+        "fim": 2,
+        "x": 0.5,
+        "y": 0.2,
+        "tamanho": 0.06,
+        "cor": "#FFFFFF",
+        "contorno": "#000000",
+        "caixa": null,
+        "fonte": "anton"
+      }
+    ],
+    "audios": [
+      {
+        "id": "m1",
+        "arquivo": "n.m4a",
+        "entrada": 0,
+        "inicio": 0,
+        "fim": 4.5,
+        "volume": 1
+      }
+    ],
+    "quadro": 0
+  },
+  "entradas": {
+    "clipes": [
+      {
+        "caminho": "d.mp4",
+        "temAudio": true
+      },
+      {
+        "caminho": "g.png",
+        "temAudio": false
+      }
+    ],
+    "textos": [
+      "texto-1.png"
+    ],
+    "audios": [
+      "n.m4a"
+    ]
+  },
+  "esperado": {
+    "duracao": 4.5,
+    "segmentos": [
+      {
+        "indice": 0,
+        "id": "c1",
+        "inicio": 0,
+        "fim": 3,
+        "duracao": 3
+      },
+      {
+        "indice": 1,
+        "id": "c2",
+        "inicio": 3,
+        "fim": 4.5,
+        "duracao": 1.5
+      }
+    ],
+    "problemas": [],
+    "avisos": [],
+    "gif": {
+      "largura": 480,
+      "altura": 854
+    },
+    "receita": {
+      "args": [
+        "-ss",
+        "0",
+        "-t",
+        "3",
+        "-i",
+        "d.mp4",
+        "-loop",
+        "1",
+        "-framerate",
+        "30",
+        "-t",
+        "1.5",
+        "-i",
+        "g.png",
+        "-ss",
+        "0",
+        "-t",
+        "4.5",
+        "-i",
+        "n.m4a"
+      ],
+      "filtro": "[0:a]aresample=48000,aformat=channel_layouts=stereo,volume=0.5,apad=whole_dur=3,atrim=duration=3,asetpts=PTS-STARTPTS[a0];anullsrc=r=48000:cl=stereo,atrim=duration=1.5,asetpts=PTS-STARTPTS[a1];[a0][a1]concat=n=2:v=0:a=1[ab];[2:a]aresample=48000,aformat=channel_layouts=stereo,volume=1[m0];[ab][m0]amix=inputs=2:duration=first:normalize=0[am]",
+      "mapas": [
+        "-map",
+        "[am]"
+      ],
+      "duracao": 4.5
+    }
+  }
+}

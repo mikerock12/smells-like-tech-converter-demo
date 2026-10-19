@@ -488,7 +488,7 @@ public static class FfmpegCommandPlanner
         };
     }
 
-    private static void AddQualityArguments(List<string> arguments, string encoder, int quality)
+    internal static void AddQualityArguments(List<string> arguments, string encoder, int quality)
     {
         if (encoder.EndsWith("_nvenc", StringComparison.Ordinal))
         {

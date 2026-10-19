@@ -21,6 +21,14 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Casos compartilhados do estudio: os mesmos que o site e o Android conferem. -->
+    <Content Include="..\..\..\packages\converter-core\estudio-casos\*.json">
+      <Link>estudio-casos\%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\..\src\SmellsLikeTech.Converter.Bridge\SmellsLikeTech.Converter.Bridge.csproj" />
     <ProjectReference Include="..\..\src\SmellsLikeTech.Converter.Core\SmellsLikeTech.Converter.Core.csproj" />
     <ProjectReference Include="..\..\src\SmellsLikeTech.Converter.Infrastructure\SmellsLikeTech.Converter.Infrastructure.csproj" />
@@ -28,5 +36,6 @@
     <ProjectReference Include="..\..\src\SmellsLikeTech.Converter.Engine.Image\SmellsLikeTech.Converter.Engine.Image.csproj" />
     <ProjectReference Include="..\..\src\SmellsLikeTech.Converter.Engine.Speech\SmellsLikeTech.Converter.Engine.Speech.csproj" />
     <ProjectReference Include="..\..\src\SmellsLikeTech.Converter.Engine.Documents\SmellsLikeTech.Converter.Engine.Documents.csproj" />
+    <ProjectReference Include="..\..\src\SmellsLikeTech.Converter.Engine.Studio\SmellsLikeTech.Converter.Engine.Studio.csproj" />
   </ItemGroup>
 </Project>

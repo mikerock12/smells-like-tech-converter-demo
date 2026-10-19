@@ -1,0 +1,90 @@
+{
+  "descricao": "Projeto inválido: sem clipes válidos, texto vazio e áudio invertido; não gera receita.",
+  "projeto": {
+    "versao": 1,
+    "destino": "personalizado",
+    "largura": 8,
+    "altura": 5000,
+    "fps": 30,
+    "saida": "video",
+    "clipes": [
+      {
+        "id": "c1",
+        "arquivo": "x.mp4",
+        "tipo": "video",
+        "inicio": 5,
+        "fim": 4,
+        "ajuste": "torto",
+        "volume": 1
+      }
+    ],
+    "textos": [
+      {
+        "id": "t1",
+        "texto": "   ",
+        "inicio": 2,
+        "fim": 1,
+        "x": 0.5,
+        "y": 0.2,
+        "tamanho": 0.06,
+        "cor": "#FFFFFF",
+        "contorno": "#000000",
+        "caixa": null,
+        "fonte": "anton"
+      }
+    ],
+    "audios": [
+      {
+        "id": "m1",
+        "arquivo": "y.mp3",
+        "entrada": 0,
+        "inicio": 3,
+        "fim": 2,
+        "volume": 1
+      }
+    ],
+    "quadro": 0
+  },
+  "entradas": {
+    "clipes": [
+      {
+        "caminho": "x.mp4",
+        "temAudio": true
+      }
+    ],
+    "textos": [
+      "texto-1.png"
+    ],
+    "audios": [
+      "y.mp3"
+    ]
+  },
+  "esperado": {
+    "duracao": 0.1,
+    "segmentos": [
+      {
+        "indice": 0,
+        "id": "c1",
+        "inicio": 0,
+        "fim": 0.1,
+        "duracao": 0.1
+      }
+    ],
+    "problemas": [
+      "O tamanho do quadro precisa ficar entre 16 e 4096 pixels.",
+      "O clipe 1 termina antes de começar.",
+      "O clipe 1 está sem enquadramento.",
+      "O texto 1 está vazio.",
+      "O texto 1 termina antes de começar.",
+      "O áudio 1 termina antes de começar."
+    ],
+    "avisos": [
+      "Algum texto começa depois do fim do vídeo e não vai aparecer."
+    ],
+    "gif": {
+      "largura": 8,
+      "altura": 5000
+    },
+    "receita": null
+  }
+}

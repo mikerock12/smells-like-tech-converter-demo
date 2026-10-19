@@ -87,6 +87,25 @@ export class PluginClient {
     return (await resposta.json()) as Trabalho;
   }
 
+  /**
+   * Vários arquivos num trabalho só (o estúdio): o primeiro é a entrada, os outros vão como
+   * extras, na mesma ordem — o projeto os cita como "#0", "#1"…
+   */
+  async converterArquivos(
+    arquivos: readonly File[],
+    opcoes: Record<string, unknown>,
+    nomeDeSaida?: string,
+  ): Promise<Trabalho> {
+    const corpo = new FormData();
+    for (const arquivo of arquivos) corpo.append("arquivo", arquivo, arquivo.name);
+    corpo.append("opcoes", JSON.stringify(opcoes));
+    if (nomeDeSaida) corpo.append("nomeDeSaida", nomeDeSaida);
+
+    const resposta = await this.buscar("/v1/trabalhos", { method: "POST", body: corpo });
+    if (!resposta.ok) throw await this.erro(resposta);
+    return (await resposta.json()) as Trabalho;
+  }
+
   async consultar(id: string): Promise<Trabalho> {
     const resposta = await this.buscar(`/v1/trabalhos/${id}`, { method: "GET" });
     if (!resposta.ok) throw await this.erro(resposta);

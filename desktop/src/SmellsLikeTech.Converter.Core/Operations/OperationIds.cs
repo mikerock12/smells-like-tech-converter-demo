@@ -26,6 +26,9 @@ public static class OperationIds
     public const string PdfMerge = "pdf.merge";
     public const string PdfSplit = "pdf.split";
 
+    /// <summary>Exportar um projeto do estudio (video, GIF, imagem, audio ou texto).</summary>
+    public const string StudioExport = "studio.export";
+
     // Ainda sem engine local.
     public const string DocumentConvert = "document.convert";
 

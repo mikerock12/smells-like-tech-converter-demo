@@ -87,7 +87,8 @@ private const val CODIGO_ABERTO = "https://converter.smellsliketech.com.br/codig
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun Oficina(modelo: OficinaViewModel, escolherArquivos: () -> Unit) {
+fun Oficina(modelo: OficinaViewModel, escolher: (Array<String>) -> Unit) {
+    val escolherArquivos = { escolher(arrayOf("*/*")) }
     if (modelo.mostrarLicenca) {
         BackHandler { modelo.mostrarLicenca = false }
         TelaDaLicenca(modelo) { modelo.mostrarLicenca = false }
@@ -108,6 +109,32 @@ fun Oficina(modelo: OficinaViewModel, escolherArquivos: () -> Unit) {
         return
     }
     modelo.textoParaNarrar?.let { inicial -> DialogoDeNarracao(modelo, inicial, aoFechar = { modelo.textoParaNarrar = null }) }
+    when (modelo.tela) {
+        OficinaViewModel.Tela.INICIO -> {
+            TelaInicial(
+                situacao = modelo.situacao,
+                abrirLicenca = { modelo.mostrarLicenca = true },
+                converter = { modelo.tela = OficinaViewModel.Tela.CONVERTER },
+                estudio = { modelo.tela = OficinaViewModel.Tela.ESTUDIO },
+                transcrever = { modelo.transcreverAoReceber = true; escolher(arrayOf("audio/*", "video/*")) },
+                narrar = { modelo.textoParaNarrar = "" },
+                figurinhas = { modelo.mostrarFigurinhas = true },
+                modelos = { modelo.mostrarModelos = true },
+            )
+            return
+        }
+        OficinaViewModel.Tela.ESTUDIO -> {
+            TelaDoEstudio(
+                viewModel(),
+                podeExportar = modelo.situacao.podeConverter,
+                abrirLicenca = { modelo.mostrarLicenca = true },
+                abrirModelos = { modelo.mostrarModelos = true },
+                voltar = { modelo.tela = OficinaViewModel.Tela.INICIO },
+            )
+            return
+        }
+        OficinaViewModel.Tela.CONVERTER -> BackHandler { modelo.tela = OficinaViewModel.Tela.INICIO }
+    }
 
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         LazyColumn(
@@ -115,14 +142,12 @@ fun Oficina(modelo: OficinaViewModel, escolherArquivos: () -> Unit) {
             contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
+            item { TextButton(onClick = { modelo.tela = OficinaViewModel.Tela.INICIO }) { Text("← Início") } }
             item { Cabecalho(modelo.situacao) { modelo.mostrarLicenca = true } }
             item {
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     Button(onClick = escolherArquivos) { Text("Escolher arquivos") }
                     OutlinedButton(onClick = { modelo.textoParaNarrar = "" }) { Text("Narrar um texto") }
-                }
-                OutlinedButton(onClick = { modelo.mostrarFigurinhas = true }, modifier = Modifier.padding(top = 8.dp)) {
-                    Text("Figurinhas do WhatsApp")
                 }
             }
             modelo.aviso?.let { aviso -> item { Aviso(aviso) } }

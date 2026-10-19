@@ -8,6 +8,7 @@
     <Project Path="src/SmellsLikeTech.Converter.Engine.FFmpeg/SmellsLikeTech.Converter.Engine.FFmpeg.csproj" />
     <Project Path="src/SmellsLikeTech.Converter.Engine.Image/SmellsLikeTech.Converter.Engine.Image.csproj" />
     <Project Path="src/SmellsLikeTech.Converter.Engine.Speech/SmellsLikeTech.Converter.Engine.Speech.csproj" />
+    <Project Path="src/SmellsLikeTech.Converter.Engine.Studio/SmellsLikeTech.Converter.Engine.Studio.csproj" />
     <Project Path="src/SmellsLikeTech.Converter.Infrastructure/SmellsLikeTech.Converter.Infrastructure.csproj" />
   </Folder>
   <Folder Name="/tests/">

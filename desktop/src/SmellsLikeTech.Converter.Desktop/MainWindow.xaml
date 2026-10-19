@@ -49,9 +49,19 @@
             SelectionChanged="OnNavigationSelectionChanged">
 
             <muxc:NavigationView.MenuItems>
-                <muxc:NavigationViewItem Content="Converter" Tag="home" IsSelected="True">
+                <muxc:NavigationViewItem Content="Início" Tag="start" IsSelected="True">
+                    <muxc:NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE80F;" />
+                    </muxc:NavigationViewItem.Icon>
+                </muxc:NavigationViewItem>
+                <muxc:NavigationViewItem Content="Converter" Tag="home">
                     <muxc:NavigationViewItem.Icon>
                         <FontIcon Glyph="&#xE8AB;" />
+                    </muxc:NavigationViewItem.Icon>
+                </muxc:NavigationViewItem>
+                <muxc:NavigationViewItem Content="Estúdio" Tag="studio">
+                    <muxc:NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE714;" />
                     </muxc:NavigationViewItem.Icon>
                 </muxc:NavigationViewItem>
                 <muxc:NavigationViewItem Content="Vários arquivos" Tag="batch">

@@ -88,6 +88,14 @@ Leitura e gravação de documentos do Word, redistribuído com o aplicativo.
 Licença MIT — https://github.com/dotnet/Open-XML-SDK
 
 --------------------------------------------------------------------------
+Fontes do texto do estúdio
+--------------------------------------------------------------------------
+Redistribuídas na pasta fontes\, com as licenças ao lado dos arquivos.
+Anton, Bangers e Pacifico: SIL Open Font License 1.1 —
+https://openfontlicense.org
+Permanent Marker: Apache License 2.0 — https://www.apache.org/licenses/LICENSE-2.0
+
+--------------------------------------------------------------------------
 Inno Setup
 --------------------------------------------------------------------------
 Usado apenas para gerar este instalador.

@@ -1,0 +1,89 @@
+<Page
+    x:Class="SmellsLikeTech.Converter.Desktop.Pages.StudioPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Background="{StaticResource BrandBackgroundBrush}">
+
+    <Grid Padding="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <Grid Grid.Row="0" Margin="0,0,0,12">
+            <StackPanel Spacing="2">
+                <TextBlock Text="ESTÚDIO" Style="{StaticResource SectionTitleStyle}" Margin="0" />
+                <Button x:Name="DestinationButton" Click="OnChangeDestination" Padding="0" Background="Transparent" BorderThickness="0" Visibility="Collapsed">
+                    <StackPanel>
+                        <TextBlock x:Name="DestinationTitle" FontSize="20" FontWeight="SemiBold" />
+                        <TextBlock x:Name="DestinationDetail" FontSize="12" Foreground="{StaticResource BrandTextMutedBrush}" />
+                    </StackPanel>
+                </Button>
+            </StackPanel>
+            <Button x:Name="NewProjectButton" Content="Novo projeto" HorizontalAlignment="Right" VerticalAlignment="Center" Click="OnNewProject" Visibility="Collapsed" />
+        </Grid>
+
+        <InfoBar x:Name="StatusBar" Grid.Row="1" IsOpen="False" IsClosable="True" Margin="0,0,0,10" />
+
+        <!-- Assistente: destino e saída. -->
+        <ScrollViewer x:Name="WizardView" Grid.Row="2" VerticalScrollBarVisibility="Auto">
+            <StackPanel x:Name="WizardPanel" Spacing="14" MaxWidth="1100" HorizontalAlignment="Left" />
+        </ScrollViewer>
+
+        <!-- Editor: prévia à esquerda, abas à direita. -->
+        <Grid x:Name="EditorView" Grid.Row="2" Visibility="Collapsed">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="440" />
+            </Grid.ColumnDefinitions>
+
+            <Border Grid.Column="0" Style="{StaticResource CardBorderStyle}" Margin="0,0,14,0">
+                <Grid RowSpacing="10">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <Border Grid.Row="0" Background="Black" CornerRadius="8" MinHeight="260">
+                        <Grid>
+                            <Image x:Name="PreviewImage" Stretch="Uniform" />
+                            <TextBlock x:Name="EmptyText" Text="Adicione vídeos ou fotos na aba Clipes" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{StaticResource BrandTextMutedBrush}" />
+                            <ProgressRing x:Name="PreviewRing" IsActive="False" Width="28" Height="28" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="10" />
+                        </Grid>
+                    </Border>
+                    <Grid Grid.Row="1">
+                        <TextBlock x:Name="TimeText" FontFamily="Consolas" FontSize="13" />
+                        <TextBlock x:Name="TotalText" FontFamily="Consolas" FontSize="13" HorizontalAlignment="Right" Foreground="{StaticResource BrandTextMutedBrush}" />
+                    </Grid>
+                    <Slider x:Name="TimeSlider" Grid.Row="2" Minimum="0" StepFrequency="0.05" ValueChanged="OnTimeChanged" />
+                    <Button x:Name="VideoPreviewButton" Grid.Row="3" Content="Assistir à prévia em vídeo (baixa resolução)" HorizontalAlignment="Stretch" Click="OnPreviewVideo" />
+                </Grid>
+            </Border>
+
+            <Pivot x:Name="EditorPivot" Grid.Column="1">
+                <PivotItem Header="Clipes">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <StackPanel x:Name="ClipsPanel" Spacing="10" Padding="0,8,8,8" />
+                    </ScrollViewer>
+                </PivotItem>
+                <PivotItem Header="Textos">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <StackPanel x:Name="TextsPanel" Spacing="10" Padding="0,8,8,8" />
+                    </ScrollViewer>
+                </PivotItem>
+                <PivotItem Header="Áudio">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <StackPanel x:Name="AudiosPanel" Spacing="10" Padding="0,8,8,8" />
+                    </ScrollViewer>
+                </PivotItem>
+                <PivotItem Header="Exportar">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <StackPanel x:Name="ExportPanel" Spacing="10" Padding="0,8,8,8" />
+                    </ScrollViewer>
+                </PivotItem>
+            </Pivot>
+        </Grid>
+    </Grid>
+</Page>

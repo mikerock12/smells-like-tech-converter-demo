@@ -362,6 +362,22 @@ private fun EditorDeFigurinha(modelo: FigurinhasViewModel) {
                 Rotulado("Zoom") { Slider(edicao.zoom, { modelo.mudar(edicao.copy(zoom = it)) }, valueRange = 0.3f..4f) }
                 Rotulado("Horizontal") { Slider(edicao.deslocamentoX, { modelo.mudar(edicao.copy(deslocamentoX = it)) }, valueRange = -1f..1f) }
                 Rotulado("Vertical") { Slider(edicao.deslocamentoY, { modelo.mudar(edicao.copy(deslocamentoY = it)) }, valueRange = -1f..1f) }
+                Rotulado("Girar e espelhar") {
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        OutlinedButton(onClick = { modelo.mudar(edicao.copy(giro = (edicao.giro + 270) % 360)) }) { Text("↺ Girar à esquerda") }
+                        OutlinedButton(onClick = { modelo.mudar(edicao.copy(giro = (edicao.giro + 90) % 360)) }) { Text("↻ Girar à direita") }
+                        FilterChip(
+                            selected = edicao.espelharHorizontal,
+                            onClick = { modelo.mudar(edicao.copy(espelharHorizontal = !edicao.espelharHorizontal)) },
+                            label = { Text("⇆ Espelhar") },
+                        )
+                        FilterChip(
+                            selected = edicao.espelharVertical,
+                            onClick = { modelo.mudar(edicao.copy(espelharVertical = !edicao.espelharVertical)) },
+                            label = { Text("⇅ De cabeça para baixo") },
+                        )
+                    }
+                }
                 TextButton(onClick = { modelo.mudar(edicao.copy(zoom = 1f, deslocamentoX = 0f, deslocamentoY = 0f)) }) { Text("Centralizar") }
             }
             Aba.FUNDO -> {

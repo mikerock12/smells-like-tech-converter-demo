@@ -56,6 +56,11 @@ data class Edicao(
     /** Deslocamento do centro, em frações do lado (−1..1). */
     val deslocamentoX: Float = 0f,
     val deslocamentoY: Float = 0f,
+    /** Giro da imagem em graus, no sentido do relógio: 0, 90, 180 ou 270. */
+    val giro: Int = 0,
+    /** Espelha como se vê na figurinha: da esquerda para a direita, e de cima para baixo. */
+    val espelharHorizontal: Boolean = false,
+    val espelharVertical: Boolean = false,
     /** Cor do fundo onde a imagem não cobre; transparente por padrão. */
     val corDeFundo: Int = Color.TRANSPARENT,
     val removerFundo: Boolean = false,
@@ -94,13 +99,24 @@ class Renderizador(private val contexto: Context) {
         val margem = if (edicao.contorno) edicao.larguraDoContorno + 4f else 0f
         val camada = Bitmap.createBitmap(lado, lado, Bitmap.Config.ARGB_8888)
         val desenhoDaCamada = Canvas(camada)
-        val destino = enquadramento(fonte.width, fonte.height, edicao, lado - 2 * margem).apply { offset(margem, margem) }
+        // Girada de lado, a imagem ocupa o quadro com largura e altura trocadas.
+        val deitada = edicao.giro % 180 != 0
+        val destino = enquadramento(if (deitada) fonte.height else fonte.width, if (deitada) fonte.width else fonte.height, edicao, lado - 2 * margem)
+            .apply { offset(margem, margem) }
         val pintura = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG).apply { colorFilter = filtroDeCor(edicao) }
-        desenhoDaCamada.drawBitmap(fonte, null, destino, pintura)
+        // A imagem e a máscara giram e espelham juntas, em torno do centro do enquadramento.
+        val semGiro = if (deitada) RectF(-destino.height() / 2, -destino.width() / 2, destino.height() / 2, destino.width() / 2)
+        else RectF(-destino.width() / 2, -destino.height() / 2, destino.width() / 2, destino.height() / 2)
+        desenhoDaCamada.save()
+        desenhoDaCamada.translate(destino.centerX(), destino.centerY())
+        desenhoDaCamada.scale(if (edicao.espelharHorizontal) -1f else 1f, if (edicao.espelharVertical) -1f else 1f)
+        desenhoDaCamada.rotate(edicao.giro.toFloat())
+        desenhoDaCamada.drawBitmap(fonte, null, semGiro, pintura)
         if (mascara != null && edicao.removerFundo) {
             val recorte = Paint(Paint.FILTER_BITMAP_FLAG).apply { xfermode = PorterDuffXfermode(PorterDuff.Mode.DST_IN) }
-            desenhoDaCamada.drawBitmap(mascara, null, destino, recorte)
+            desenhoDaCamada.drawBitmap(mascara, null, semGiro, recorte)
         }
+        desenhoDaCamada.restore()
 
         // 2. O contorno: a silhueta da figura, em branco, repetida em volta dela.
         if (edicao.contorno) {
@@ -130,10 +146,24 @@ class Renderizador(private val contexto: Context) {
      */
     fun pontoNaImagem(x: Float, y: Float, raio: Float, largura: Int, altura: Int, edicao: Edicao): Triple<Float, Float, Float> {
         val margem = if (edicao.contorno) edicao.larguraDoContorno + 4f else 0f
-        val area = enquadramento(largura, altura, edicao, Regras.LADO - 2 * margem).apply { offset(margem, margem) }
-        val px = x * Regras.LADO
-        val py = y * Regras.LADO
-        return Triple((px - area.left) / area.width(), (py - area.top) / area.height(), raio * Regras.LADO / maxOf(area.width(), area.height()))
+        val deitada = edicao.giro % 180 != 0
+        val area = enquadramento(if (deitada) altura else largura, if (deitada) largura else altura, edicao, Regras.LADO - 2 * margem)
+            .apply { offset(margem, margem) }
+        // O caminho inverso do desenho: tira o deslocamento, desfaz o espelho e depois o giro.
+        var dx = (x * Regras.LADO - area.centerX()).toDouble()
+        var dy = (y * Regras.LADO - area.centerY()).toDouble()
+        if (edicao.espelharHorizontal) dx = -dx
+        if (edicao.espelharVertical) dy = -dy
+        val angulo = Math.toRadians(-edicao.giro.toDouble())
+        val rx = dx * cos(angulo) - dy * sin(angulo)
+        val ry = dx * sin(angulo) + dy * cos(angulo)
+        val larguraSemGiro = if (deitada) area.height() else area.width()
+        val alturaSemGiro = if (deitada) area.width() else area.height()
+        return Triple(
+            ((rx + larguraSemGiro / 2) / larguraSemGiro).toFloat(),
+            ((ry + alturaSemGiro / 2) / alturaSemGiro).toFloat(),
+            raio * Regras.LADO / maxOf(area.width(), area.height()),
+        )
     }
 
     /** Onde a imagem cai no quadrado: cabe inteira com zoom 1, aproxima e desloca com mais. */

@@ -1,0 +1,98 @@
+{
+  "descricao": "Stories com 70 s: exporta, mas avisa que passa dos 60 s; texto depois do fim também avisa.",
+  "projeto": {
+    "versao": 1,
+    "destino": "instagram-stories",
+    "largura": 1080,
+    "altura": 1920,
+    "fps": 30,
+    "saida": "video",
+    "clipes": [
+      {
+        "id": "c1",
+        "arquivo": "longo.mp4",
+        "tipo": "video",
+        "inicio": 0,
+        "fim": 70,
+        "ajuste": "preencher",
+        "volume": 1
+      }
+    ],
+    "textos": [
+      {
+        "id": "t1",
+        "texto": "Tarde demais",
+        "inicio": 75,
+        "fim": 80,
+        "x": 0.5,
+        "y": 0.2,
+        "tamanho": 0.06,
+        "cor": "#FFFFFF",
+        "contorno": "#000000",
+        "caixa": null,
+        "fonte": "anton"
+      }
+    ],
+    "audios": [],
+    "quadro": 0
+  },
+  "entradas": {
+    "clipes": [
+      {
+        "caminho": "longo.mp4",
+        "temAudio": true
+      }
+    ],
+    "textos": [
+      "texto-1.png"
+    ],
+    "audios": []
+  },
+  "esperado": {
+    "duracao": 70,
+    "segmentos": [
+      {
+        "indice": 0,
+        "id": "c1",
+        "inicio": 0,
+        "fim": 70,
+        "duracao": 70
+      }
+    ],
+    "problemas": [],
+    "avisos": [
+      "Instagram · Stories costuma aceitar até 1 min; este projeto tem 1 min 10 s.",
+      "Algum texto começa depois do fim do vídeo e não vai aparecer."
+    ],
+    "gif": {
+      "largura": 480,
+      "altura": 854
+    },
+    "receita": {
+      "args": [
+        "-ss",
+        "0",
+        "-t",
+        "70",
+        "-i",
+        "longo.mp4",
+        "-loop",
+        "1",
+        "-framerate",
+        "30",
+        "-t",
+        "70",
+        "-i",
+        "texto-1.png"
+      ],
+      "filtro": "[0:v]fps=30,scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,setsar=1,format=yuv420p,setpts=PTS-STARTPTS[v0];[0:a]aresample=48000,aformat=channel_layouts=stereo,volume=1,apad=whole_dur=70,atrim=duration=70,asetpts=PTS-STARTPTS[a0];[v0][a0]concat=n=1:v=1:a=1[vb][ab];[vb][1:v]overlay=0:0:enable='between(t,75,80)'[vt0]",
+      "mapas": [
+        "-map",
+        "[vt0]",
+        "-map",
+        "[ab]"
+      ],
+      "duracao": 70
+    }
+  }
+}

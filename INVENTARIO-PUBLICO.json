@@ -1,5 +1,5 @@
 {
-  "commit": "639351e02be719321d09681eff465bd76a864d68",
+  "commit": "5e7b5134707d67f77e5163fa949da0d40293d3a7",
   "repository": "https://github.com/mikerock12/smells-like-tech-converter-demo",
   "originals": [
     {
@@ -34,8 +34,8 @@
     },
     {
       "path": "android/app/build.gradle.kts",
-      "sha256": "a434038251a470477d59eaa411c3f01806e32ff738e8a629be5041fac08dfd0d",
-      "bytes": 7213
+      "sha256": "5e4b3d45a44e86484976b3e33ed3a5eb12e4dcedf228a4a4f342a379c2f81d43",
+      "bytes": 7347
     },
     {
       "path": "android/app/proguard-rules.pro",
@@ -78,19 +78,29 @@
       "bytes": 10773
     },
     {
+      "path": "android/app/src/androidTest/java/br/com/smellsliketech/converter/estudio/EstudioExportadorTest.kt",
+      "sha256": "0aa98f09f506f01f6ddb68583d8667a9a9d45f9899e6ff86c2612879636d02ee",
+      "bytes": 5039
+    },
+    {
       "path": "android/app/src/androidTest/java/br/com/smellsliketech/converter/figurinhas/FigurinhaDesempenhoTest.kt",
       "sha256": "f0d8c3091ad45dc0453e4e2016c47cc13146d153ae2ab4bdcf4f046d60933896",
       "bytes": 6566
     },
     {
       "path": "android/app/src/androidTest/java/br/com/smellsliketech/converter/figurinhas/FigurinhasTest.kt",
-      "sha256": "ceb71f81f7be53c19296813ae519155c30482028bf18cf959b522433eef20984",
-      "bytes": 8526
+      "sha256": "6f18915d6c33c12054b6b9d2d79bcf207d34689160ab92b64c3e39e64d5123f5",
+      "bytes": 10041
     },
     {
       "path": "android/app/src/main/AndroidManifest.xml",
       "sha256": "cb58f57653a4868f087f1961844c3cfa3135b5fe5f31ba27d5ba9507c5fb5a6f",
       "bytes": 6086
+    },
+    {
+      "path": "android/app/src/main/assets/estudio/estudio-presets.json",
+      "sha256": "894df6b894a74775a0c2986330db367511a9a12a969e6f3302a829da681efda0",
+      "bytes": 2543
     },
     {
       "path": "android/app/src/main/assets/fontes/Anton-Regular.ttf",
@@ -144,8 +154,8 @@
     },
     {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/MainActivity.kt",
-      "sha256": "b92a6953af19b31abd354591c73338cdc9fe9eb2d227457e083bdc8e0e27f33f",
-      "bytes": 3741
+      "sha256": "5ab00fd6887b1652b35a76c5489d6f6c1831932d0b0fc051743f336fef741a48",
+      "bytes": 3799
     },
     {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/conversao/Andamento.kt",
@@ -328,9 +338,39 @@
       "bytes": 7998
     },
     {
+      "path": "android/app/src/main/java/br/com/smellsliketech/converter/estudio/DesenhoDoTexto.kt",
+      "sha256": "6f29848978c971de33f32f23e1f07810cf51e2f80d2a226ac4b9bf598bc6666a",
+      "bytes": 4635
+    },
+    {
+      "path": "android/app/src/main/java/br/com/smellsliketech/converter/estudio/Estudio.kt",
+      "sha256": "ea1cce972572a2269a0a2439ae8dcd7653f4d1580a05aa1f7e91a541fd3d5423",
+      "bytes": 14564
+    },
+    {
+      "path": "android/app/src/main/java/br/com/smellsliketech/converter/estudio/EstudioViewModel.kt",
+      "sha256": "d708b1d102208f4929e7374afe370a55f78b4b309cf251226f5012729997661b",
+      "bytes": 13882
+    },
+    {
+      "path": "android/app/src/main/java/br/com/smellsliketech/converter/estudio/Exportador.kt",
+      "sha256": "9e947e7d522e31ba6bf832891ea80b1f79f348c862e4f50d3ab324557f5c628e",
+      "bytes": 9987
+    },
+    {
+      "path": "android/app/src/main/java/br/com/smellsliketech/converter/estudio/PreviaDoEstudio.kt",
+      "sha256": "59c3e8c186aad60aafca8e913f551d2ca75b357e9ccce90efc21e2347f097374",
+      "bytes": 4536
+    },
+    {
+      "path": "android/app/src/main/java/br/com/smellsliketech/converter/estudio/Projeto.kt",
+      "sha256": "d8b66a9270664f3b2974ded4ed0ce36b950ae5673cd759f475b9a09776e052fa",
+      "bytes": 6789
+    },
+    {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/figurinhas/Edicao.kt",
-      "sha256": "3280ccc85eb925b2ce3445809e114f56b2630d426f448fdc3b4c12bcf2254b1a",
-      "bytes": 10205
+      "sha256": "14118beac4c3f151c23f2d2bc6118775eddc4cfe0eee51b7d77df13f78411eb8",
+      "bytes": 12093
     },
     {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/figurinhas/FigurinhasViewModel.kt",
@@ -389,8 +429,8 @@
     },
     {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/ui/OficinaViewModel.kt",
-      "sha256": "1edb9e8a2e623cb66d1263b1c80e1b89e83aaa88dfea13a28bfae538824b84ac",
-      "bytes": 13240
+      "sha256": "7cbd5e308bb43ad98cdfbf67ac274fdb57d6ad0d71f2a3eea478b7c4c3279f73",
+      "bytes": 13864
     },
     {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/ui/Previa.kt",
@@ -398,14 +438,24 @@
       "bytes": 14612
     },
     {
+      "path": "android/app/src/main/java/br/com/smellsliketech/converter/ui/TelaInicial.kt",
+      "sha256": "68695a973f265ed5f5fcb9b1f1a39708da37879dae605d563ec094d9c22fbc71",
+      "bytes": 6434
+    },
+    {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/ui/Telas.kt",
-      "sha256": "0eb4346aef4632aaf26491f8cf937500e6d9f0cf08818319206328548a561d17",
-      "bytes": 46384
+      "sha256": "13a88242641bae52e0c11738157d1fb2691cebc3ff3547503d73fc50cdbb22d6",
+      "bytes": 47577
     },
     {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/ui/TelasDasFigurinhas.kt",
-      "sha256": "591cd76a1bb1f32ab09d6cb1525e46c61db5384a802786f1e2422effd1d4c63c",
-      "bytes": 29522
+      "sha256": "0d5ed4239679931f42a6ba879e337f0f32fdb7d49086ea6c6156ef4b8463d935",
+      "bytes": 30658
+    },
+    {
+      "path": "android/app/src/main/java/br/com/smellsliketech/converter/ui/TelasDoEstudio.kt",
+      "sha256": "1bcef77db05b8f94cdbc5ea3c9b067b741fba9bbe0ae11b1ce6cf54a459eab51",
+      "bytes": 35740
     },
     {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/ui/Tema.kt",
@@ -506,6 +556,11 @@
       "path": "android/app/src/test/java/br/com/smellsliketech/converter/conversao/documentos/DocumentosTest.kt",
       "sha256": "5b6aa873b03ae0c6c1bb0a2dd32a0f4c6fb2462764f39823366c6c5ced2e9dd0",
       "bytes": 16874
+    },
+    {
+      "path": "android/app/src/test/java/br/com/smellsliketech/converter/estudio/EstudioTest.kt",
+      "sha256": "d969813118c6e744b93d139f4c389540afefdc372a80f87b91f5f11b60570379",
+      "bytes": 4969
     },
     {
       "path": "android/app/src/test/java/br/com/smellsliketech/converter/figurinhas/PacotesTest.kt",
@@ -674,8 +729,8 @@
     },
     {
       "path": "app/SiteChrome.tsx",
-      "sha256": "555c86a5d88d7c3939c39c816557826c8946ce1d0cdf7a944d8edd24cf38ffdc",
-      "bytes": 6166
+      "sha256": "ea7afc3a3e2a2b8f9572d53e221cbf755e788ded939c3821e6bc6da7cf8bf77e",
+      "bytes": 6263
     },
     {
       "path": "app/StatusOffline.tsx",
@@ -788,6 +843,16 @@
       "bytes": 588
     },
     {
+      "path": "app/estudio/Estudio.tsx",
+      "sha256": "eeb9e970e62ed6f5c44f8d958a8c4574b0054b2f8b6a709aa11bc0094f5362f0",
+      "bytes": 39791
+    },
+    {
+      "path": "app/estudio/page.tsx",
+      "sha256": "051541fd72c25a4f20a5a0d6664a5f22ae67ebf0c1970937e6f3e6276523f7f9",
+      "bytes": 653
+    },
+    {
       "path": "app/ferramentas/BuscaDeFerramentas.tsx",
       "sha256": "cc560d700eadc387de1ae843c3e6a05353ada197f134c902ed6530c098f6285e",
       "bytes": 1591
@@ -799,8 +864,8 @@
     },
     {
       "path": "app/globals.css",
-      "sha256": "42fb5a1d62bd7dc71c34b1cdbe7c3287e6b0b70863a753c1b05447cd2d5982ee",
-      "bytes": 66346
+      "sha256": "06188e21dbda93b2aef8b16509ab73ddad986b8f462074a4424924300596877c",
+      "bytes": 75092
     },
     {
       "path": "app/heic-iphone/page.tsx",
@@ -844,8 +909,8 @@
     },
     {
       "path": "app/page.tsx",
-      "sha256": "049457dc29cad5eeadf943d556ce8dea41f6f181335ed9cbf821f0b14fab073c",
-      "bytes": 14025
+      "sha256": "1d40cef4b180fd7f3924353174fab5dca7eb93c26f4247e770d63a09ec3dda01",
+      "bytes": 16418
     },
     {
       "path": "app/pdf-cliente/page.tsx",
@@ -889,8 +954,8 @@
     },
     {
       "path": "app/sitemap.ts",
-      "sha256": "7161d7e29b28c8a03c12315f8ba91c06bdafa72baad9e39f41762a82417790c1",
-      "bytes": 1582
+      "sha256": "98be4761228256b7b373e7c42fc2c1c13a0b4c6b7ff29a8394d485878dc9ccf3",
+      "bytes": 1594
     },
     {
       "path": "app/termos/page.tsx",
@@ -919,7 +984,7 @@
     },
     {
       "path": "desktop/Directory.Build.props",
-      "sha256": "27497d524766f17cdee179bed7a1b6c653eba2a43ad7ccedf3d00cd8850cc90c",
+      "sha256": "23093507e03866d7e3f37bfa6682d2967e61ddd3ba06e485ba6ecdd44c6e90b7",
       "bytes": 472
     },
     {
@@ -934,8 +999,8 @@
     },
     {
       "path": "desktop/SmellsLikeTechConverter.slnx",
-      "sha256": "107426e4754b3984ad5fea0c0833685a79d2fd1cd37db000b271c28c5714aae8",
-      "bytes": 1161
+      "sha256": "b56c8b3b76331f4f89eba0e2cdf7aaae3b1eafe0445dd2f59d22f929d9e167e0",
+      "bytes": 1273
     },
     {
       "path": "desktop/global.json",
@@ -944,8 +1009,8 @@
     },
     {
       "path": "desktop/installer/Licenses/AVISOS-DE-TERCEIROS.txt",
-      "sha256": "575c44d66d8dbb15b94da403fbedf544d7be65b9ca7e4b10d9ea898b39361e40",
-      "bytes": 5013
+      "sha256": "03eb00706785a211148a364b220b04f3e5f4db600a34de02e572c6ec7840d7b8",
+      "bytes": 5435
     },
     {
       "path": "desktop/installer/SmellsLikeTechConverter.iss",
@@ -989,8 +1054,8 @@
     },
     {
       "path": "desktop/src/SmellsLikeTech.Converter.Bridge/Hosting/BridgeServer.cs",
-      "sha256": "00fb164de14f5f375567208a1e846abb73b6c045e3053af0fa632f22c3d792e0",
-      "bytes": 24081
+      "sha256": "f30151c50e7f15f901faf20b5e53f9de9c303976f438efb57151b062f056a0c4",
+      "bytes": 24122
     },
     {
       "path": "desktop/src/SmellsLikeTech.Converter.Bridge/Hosting/JobRegistry.cs",
@@ -1039,8 +1104,8 @@
     },
     {
       "path": "desktop/src/SmellsLikeTech.Converter.Composition/AppServices.cs",
-      "sha256": "07e7df98bc389a064436c5250174611ea80749781a32281188d6570d34881ffa",
-      "bytes": 9883
+      "sha256": "6de8b9fc9d8f42742f4a80fa419728ec98750c522ba9544f348affd577c2dc1d",
+      "bytes": 10309
     },
     {
       "path": "desktop/src/SmellsLikeTech.Converter.Composition/NativeFileDialog.cs",
@@ -1049,8 +1114,8 @@
     },
     {
       "path": "desktop/src/SmellsLikeTech.Converter.Composition/SmellsLikeTech.Converter.Composition.csproj",
-      "sha256": "e404982acd313645560764229d265dc6faba25f994033e939109636f1092b90e",
-      "bytes": 1417
+      "sha256": "3d5b7eb9250bba09f18bd98a4e917d4bf76c5e4305f958165f5ead68c0e196fa",
+      "bytes": 1540
     },
     {
       "path": "desktop/src/SmellsLikeTech.Converter.Core/Abstractions/IConversionEngine.cs",
@@ -1124,13 +1189,13 @@
     },
     {
       "path": "desktop/src/SmellsLikeTech.Converter.Core/Operations/OperationCatalog.cs",
-      "sha256": "a22de7d7ea15fd3d6741b726726116910a3bb54863ae3c404a2fcf40e6577f15",
-      "bytes": 9659
+      "sha256": "19306777e0aa516038dfc33e0268f4e9daecff30b197c8fc741c9b6720e264fa",
+      "bytes": 10312
     },
     {
       "path": "desktop/src/SmellsLikeTech.Converter.Core/Operations/OperationIds.cs",
-      "sha256": "d84d089dbb779ecbb91b6adeb926a3ffc0ac1f3381f8cadad6051c9e8f7976cb",
-      "bytes": 1424
+      "sha256": "b6dc0324cb1587949897d0b1dce9288c61870157ed0c66cf37597dc884f9e249",
+      "bytes": 1577
     },
     {
       "path": "desktop/src/SmellsLikeTech.Converter.Core/Options/AudioAllowlist.cs",
@@ -1149,8 +1214,8 @@
     },
     {
       "path": "desktop/src/SmellsLikeTech.Converter.Core/Options/JobOptions.cs",
-      "sha256": "0436185f815a22ac9c99e08936cbeea02cb865ac55410494dabf48d591aef736",
-      "bytes": 2627
+      "sha256": "1367b65d54ff09ff9a87f57f13ba67d1517c3d37ae577f8f49ff9b795bdf5d75",
+      "bytes": 2701
     },
     {
       "path": "desktop/src/SmellsLikeTech.Converter.Core/Options/OptionEnums.cs",
@@ -1161,6 +1226,11 @@
       "path": "desktop/src/SmellsLikeTech.Converter.Core/Options/SpeechOptions.cs",
       "sha256": "c3e80e3b84d07fe276a93330c3471161f0fd927ba8c3e463e63a7a7bffae3d7e",
       "bytes": 4447
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Core/Options/StudioOptions.cs",
+      "sha256": "aab703ce0a03181e82f6c6b907ffa731e7301e9acb1cbd066a3b8bc5d27a1d13",
+      "bytes": 2353
     },
     {
       "path": "desktop/src/SmellsLikeTech.Converter.Core/Options/TrimTime.cs",
@@ -1189,8 +1259,18 @@
     },
     {
       "path": "desktop/src/SmellsLikeTech.Converter.Core/SmellsLikeTech.Converter.Core.csproj",
-      "sha256": "e0cbafe74ec5f8fd08a36cfd0a8ad188df68dd6c3ba0b2786363965e517d8ccd",
-      "bytes": 289
+      "sha256": "7d875f8efb308703ebe9ccdbb8ed208cc807e2e1662abbf0c8d6fe99fc282127",
+      "bytes": 547
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Core/Studio/StudioProject.cs",
+      "sha256": "6f4cf49aaf5e261dfddb79221727d53091ee46e2be1fb859b0a0485f52fb7c3d",
+      "bytes": 5757
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Core/Studio/StudioRules.cs",
+      "sha256": "23f6d861351eb76f7c59f9c18fed612c8dd3a89a6b727cf75b4902753d972416",
+      "bytes": 10159
     },
     {
       "path": "desktop/src/SmellsLikeTech.Converter.Desktop/App.xaml",
@@ -1279,13 +1359,13 @@
     },
     {
       "path": "desktop/src/SmellsLikeTech.Converter.Desktop/MainWindow.xaml",
-      "sha256": "ace507650d8e5689f7176088a32470b40f1b27fc0d5eff523018b62bbee2b686",
-      "bytes": 5317
+      "sha256": "94aaf1558c03807f27cb1984875ce738032028eaa8c76e36816c674f915c7f0b",
+      "bytes": 5863
     },
     {
       "path": "desktop/src/SmellsLikeTech.Converter.Desktop/MainWindow.xaml.cs",
-      "sha256": "14bc2254f4582ac166c9c64be032e63b23e9a95a9ea3a98358fc0e5d445f1984",
-      "bytes": 5350
+      "sha256": "349fe1ec9e0d047dee5b8dd90ceb02acd983c84847f8d6b347b2920f20c10cee",
+      "bytes": 5894
     },
     {
       "path": "desktop/src/SmellsLikeTech.Converter.Desktop/Pages/BatchPage.xaml",
@@ -1314,8 +1394,8 @@
     },
     {
       "path": "desktop/src/SmellsLikeTech.Converter.Desktop/Pages/HomePage.xaml.cs",
-      "sha256": "43e169ae4bb78f61fb94b31081b29fa2f08a983772bd4ce28a882ea55b20bd2d",
-      "bytes": 13854
+      "sha256": "875b001a6ad7d0814d6d1eb911abd7afab6d662efe3c2426920eed55b31408bc",
+      "bytes": 14815
     },
     {
       "path": "desktop/src/SmellsLikeTech.Converter.Desktop/Pages/QueuePage.xaml",
@@ -1348,14 +1428,34 @@
       "bytes": 9300
     },
     {
+      "path": "desktop/src/SmellsLikeTech.Converter.Desktop/Pages/StartPage.xaml",
+      "sha256": "47872f122997c25328d9b529630579983762bf9e8c2a481a0c5c77d38b117dd5",
+      "bytes": 1149
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Desktop/Pages/StartPage.xaml.cs",
+      "sha256": "712bfe02450be09f4ed285ea51abb018eaef7c61874d9fa0a9167ab98a9ece46",
+      "bytes": 4048
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Desktop/Pages/StudioPage.xaml",
+      "sha256": "c683a7e7674f5c19033b6b29276a626fe142a5fd5b6919144e7747f25ea9e37c",
+      "bytes": 5000
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Desktop/Pages/StudioPage.xaml.cs",
+      "sha256": "3580523d9573b96e6ad302ce19c901b6d916debc2ac63dcc4c9107ecf88d7188",
+      "bytes": 47311
+    },
+    {
       "path": "desktop/src/SmellsLikeTech.Converter.Desktop/Services/BrandInfo.cs",
       "sha256": "7fa95367d92ca1d7254e2fea65c672386de61f7c2bea652c0a0e991ab0daa577",
       "bytes": 1084
     },
     {
       "path": "desktop/src/SmellsLikeTech.Converter.Desktop/Services/FileDialogs.cs",
-      "sha256": "24090d27a2b819bcc062a5857b3db7a01af1911b189bd98c7e9332d6d89854ac",
-      "bytes": 2083
+      "sha256": "fb5217c37a0a78b34863323b992ff35ebf14e8f2b2fa9bf625549a1c8fc8b08d",
+      "bytes": 2907
     },
     {
       "path": "desktop/src/SmellsLikeTech.Converter.Desktop/Services/LicenseGate.cs",
@@ -1374,8 +1474,8 @@
     },
     {
       "path": "desktop/src/SmellsLikeTech.Converter.Desktop/SmellsLikeTech.Converter.Desktop.csproj",
-      "sha256": "7430b3138204356b82dec8b5169263a0e1abb3131c94472ed31dba32fea35644",
-      "bytes": 2312
+      "sha256": "26d624f6d1f86e760f795098893405ce75a20a3e0c16a2deb95fec7a6377dab2",
+      "bytes": 2435
     },
     {
       "path": "desktop/src/SmellsLikeTech.Converter.Desktop/SplashWindow.xaml",
@@ -1459,8 +1559,8 @@
     },
     {
       "path": "desktop/src/SmellsLikeTech.Converter.Engine.FFmpeg/FfmpegCommandPlanner.cs",
-      "sha256": "d3ee98bc8a58588d7d30f8e032836a155e6bca88279bc99719a3b5d84eedc291",
-      "bytes": 20912
+      "sha256": "fda9aa3ab112a205356232c05f04ed21c938c62b106fa82a3f9ea09cfbd67faf",
+      "bytes": 20913
     },
     {
       "path": "desktop/src/SmellsLikeTech.Converter.Engine.FFmpeg/FfmpegEngine.cs",
@@ -1491,6 +1591,11 @@
       "path": "desktop/src/SmellsLikeTech.Converter.Engine.FFmpeg/SmellsLikeTech.Converter.Engine.FFmpeg.csproj",
       "sha256": "f2aaf763dc1b1a77a3e36db0769208dbdcdff8da9aa5c3d141206f5637b0fd73",
       "bytes": 742
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Engine.FFmpeg/StudioRecipe.cs",
+      "sha256": "68165c259f2bcc2d014990e27da37037de80c261857e4510696915f873f7481e",
+      "bytes": 8870
     },
     {
       "path": "desktop/src/SmellsLikeTech.Converter.Engine.Image/MagickImageEngine.cs",
@@ -1561,6 +1666,21 @@
       "path": "desktop/src/SmellsLikeTech.Converter.Engine.Speech/WindowsTtsEngine.cs",
       "sha256": "2d6e85540d59e2aa09073a2dcec618dbe2aefc9f08a62294ef0c160795c8b37c",
       "bytes": 6037
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Engine.Studio/SmellsLikeTech.Converter.Engine.Studio.csproj",
+      "sha256": "b5dc1fcb62c763ddde00dc5739132237497404d76afb1e106084d21cc5c5c7a3",
+      "bytes": 1229
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Engine.Studio/StudioEngine.cs",
+      "sha256": "5b97a6a78ed93821e4b5f30e815a11e66f31e801c378c60cf853d9fc0b64760a",
+      "bytes": 9266
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Engine.Studio/StudioTextRenderer.cs",
+      "sha256": "56b801f13b24d5ee0942c394f2b4ee650a31955080ca970a1df839bd625743f1",
+      "bytes": 5607
     },
     {
       "path": "desktop/src/SmellsLikeTech.Converter.Infrastructure/Configuration/AppSettings.cs",
@@ -1719,13 +1839,23 @@
     },
     {
       "path": "desktop/tests/SmellsLikeTech.Converter.Tests/SmellsLikeTech.Converter.Tests.csproj",
-      "sha256": "82f6778dc7a83b8072b3cdc7c7b9f21b541845301eb2ea7aefe655cf3e6e3874",
-      "bytes": 1825
+      "sha256": "c0581b29e19e6f964aed4198b33bfa0e10665e1426166df642f1194a8b615b1a",
+      "bytes": 2292
     },
     {
       "path": "desktop/tests/SmellsLikeTech.Converter.Tests/SpeechTests.cs",
       "sha256": "c7766a80df459bd5a25780505ea17f5ac546e88a09ac62ea04ad4957b3b5579a",
       "bytes": 10199
+    },
+    {
+      "path": "desktop/tests/SmellsLikeTech.Converter.Tests/StudioEngineTests.cs",
+      "sha256": "9244b5626db269682e8752c31ad0ae550300421e53808fa138c467e845996076",
+      "bytes": 10209
+    },
+    {
+      "path": "desktop/tests/SmellsLikeTech.Converter.Tests/StudioTests.cs",
+      "sha256": "3e870bbbf51695d24420dbdd2108341bea24e11b8803fbdc76f6a49b24d6c33b",
+      "bytes": 6374
     },
     {
       "path": "desktop/tests/SmellsLikeTech.Converter.Tests/TestConfiguration.cs",
@@ -1754,8 +1884,8 @@
     },
     {
       "path": "docs/android.md",
-      "sha256": "84ececd79140bab4d9a749ce8241e6313bcaa862ca1eed2c50002f08b1dde54d",
-      "bytes": 20217
+      "sha256": "cd1c2ee6bf27ff1fd175ef4f5e8b62f21d8f3b4bffeac12b48a4974e0ec1c776",
+      "bytes": 20303
     },
     {
       "path": "docs/ecossistema-0.4.2.md",
@@ -1878,6 +2008,26 @@
       "bytes": 2306
     },
     {
+      "path": "lib/estudio/desenho.ts",
+      "sha256": "1e623f4fab40d7b17f333165a144550ee7ab8df002ad17e97d928991b304a78d",
+      "bytes": 5431
+    },
+    {
+      "path": "lib/estudio/exportar.ts",
+      "sha256": "1e5e3ce51f9ba1b41a042470d745623862f206e1e9153e02c134a666c8f57056",
+      "bytes": 13739
+    },
+    {
+      "path": "lib/estudio/plugin.ts",
+      "sha256": "7f5f61c7e25125cd6b5fc9fa017287c2545380abc60e09b125cf03970e79dbe0",
+      "bytes": 1379
+    },
+    {
+      "path": "lib/estudio/previa.ts",
+      "sha256": "de91f0bc73593eae3b5189950b2002f62b70ebf70b168ce229230813ce6340ce",
+      "bytes": 8075
+    },
+    {
       "path": "lib/plano/chave.ts",
       "sha256": "0743049fe61289cbe4d721ecf772780216269498e833058719ca616b40cc1488",
       "bytes": 2386
@@ -1894,8 +2044,8 @@
     },
     {
       "path": "lib/plugin/cliente.ts",
-      "sha256": "69190e315a0664756e673d7a33876058b5b97cbedae962b65c85a42cb4e56589",
-      "bytes": 6004
+      "sha256": "7130b8c74935265aaab45c96169d754896c69c5e3855eccfb6748745d37efab9",
+      "bytes": 6761
     },
     {
       "path": "lib/plugin/protocolo.ts",
@@ -2021,6 +2171,61 @@
       "path": "packages/converter-core/catalogo.mjs",
       "sha256": "ab9623bd5b3e98d809108fac2c15a57f6aa249f812e19a546c4c07993bd7f220",
       "bytes": 24469
+    },
+    {
+      "path": "packages/converter-core/estudio-casos.mjs",
+      "sha256": "ae6f57912d8177bbffe61db9a9323a9ba20bf3c4a30b18ded9962dacd96fc697",
+      "bytes": 645
+    },
+    {
+      "path": "packages/converter-core/estudio-casos/01-reels-completo.json",
+      "sha256": "079328b4d7ff6b457bd4f1b7f8f89fcae52a7e3930f9f7d7c579381b296e0631",
+      "bytes": 4047
+    },
+    {
+      "path": "packages/converter-core/estudio-casos/02-gif-curto.json",
+      "sha256": "e0d93608a804a3bf1d0d211183365c3b59e935194690cdea7696ff324d8b3ae8",
+      "bytes": 2445
+    },
+    {
+      "path": "packages/converter-core/estudio-casos/03-imagem-de-um-quadro.json",
+      "sha256": "8fd8f5f6c04dc710079447cb4bbc049adf74458130eb60d1617753206d5aa5bf",
+      "bytes": 1811
+    },
+    {
+      "path": "packages/converter-core/estudio-casos/04-so-audio.json",
+      "sha256": "0fb3191f234ec7a4dec14008c9946bc607378b25035fe901b35a1c5a8aaa8225",
+      "bytes": 2536
+    },
+    {
+      "path": "packages/converter-core/estudio-casos/05-texto-transcrito.json",
+      "sha256": "ce73ca8a05ffd16ed8ba8327d0062f8e70ebc26e362f41425919d22cab484543",
+      "bytes": 2356
+    },
+    {
+      "path": "packages/converter-core/estudio-casos/06-stories-longo.json",
+      "sha256": "29f03f4667c2ca5a734bfaae141f7ddc0868d9d153c44e0b933d6a5bd5d2cb69",
+      "bytes": 2167
+    },
+    {
+      "path": "packages/converter-core/estudio-casos/07-problemas.json",
+      "sha256": "f856d1233070616e455ae7f5db3d968e7e7d0a1414b7dfef4e9acb10838fc674",
+      "bytes": 1790
+    },
+    {
+      "path": "packages/converter-core/estudio-presets.json",
+      "sha256": "894df6b894a74775a0c2986330db367511a9a12a969e6f3302a829da681efda0",
+      "bytes": 2543
+    },
+    {
+      "path": "packages/converter-core/estudio.d.mts",
+      "sha256": "28d1131b10d3a0a64bb973544f4110ec53d173980ee364745657b55010a72167",
+      "bytes": 4455
+    },
+    {
+      "path": "packages/converter-core/estudio.mjs",
+      "sha256": "ef87cefa87a8d2cab67f0684a988707cce66e0c4eb87c305208b522b69ebf94e",
+      "bytes": 15086
     },
     {
       "path": "packages/converter-core/gif.d.mts",
@@ -2164,18 +2369,58 @@
     },
     {
       "path": "public/baixar/app.json",
-      "sha256": "e0fd63c80982390ef539b092118fe6257eaadeaea69332f958d224fa0a856363",
+      "sha256": "2d9698b5d92069cd3fbac68abc80f6d89662a6c4e99c3f949a996aa274e40c63",
       "bytes": 210
     },
     {
       "path": "public/baixar/plugin.json",
-      "sha256": "3db8f7d251d71f88f95e1f39ae35e9205c839ee1c31209fd9052b81c1e98f368",
+      "sha256": "a49801d2348aeaa5e5f1d78702ca7ca2cf3ae9973eb7726a71f1f6d038a6df52",
       "bytes": 207
     },
     {
       "path": "public/codigo-aberto/licencas-android.txt",
       "sha256": "8bb8096320dbd61d430ce516b313c30b8479832d6885528934819fdc07cdfe9f",
       "bytes": 81096
+    },
+    {
+      "path": "public/estudio/fontes/Anton-Regular.ttf",
+      "sha256": "a4ba3a92350ebb031da0cb47630ac49eb265082ca1bc0450442f4a83ab947cab",
+      "bytes": 170812
+    },
+    {
+      "path": "public/estudio/fontes/Bangers-Regular.ttf",
+      "sha256": "4160a7311de9342674cce9160cde9fcbb30f48190397d86ff1b70b455af65824",
+      "bytes": 93148
+    },
+    {
+      "path": "public/estudio/fontes/LICENSE-PermanentMarker.txt",
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+      "bytes": 11358
+    },
+    {
+      "path": "public/estudio/fontes/OFL-Anton.txt",
+      "sha256": "eee1d24ff8f553eb732237c7dd9b945a78313ed49ad6de02872a47277741b44a",
+      "bytes": 4391
+    },
+    {
+      "path": "public/estudio/fontes/OFL-Bangers.txt",
+      "sha256": "c36ad22ae5daf9bb19fa6decb3d9ec51cb9dc5b89c04c630aebe34ef26fb962e",
+      "bytes": 4388
+    },
+    {
+      "path": "public/estudio/fontes/OFL-Pacifico.txt",
+      "sha256": "a47e5daeda73568969395c656823102678f2eefb0d7d7ecb47aac4cc17e42204",
+      "bytes": 4389
+    },
+    {
+      "path": "public/estudio/fontes/Pacifico-Regular.ttf",
+      "sha256": "5b6c0d5334a7bf77dea52b975c5a0c408878c0f7115ed5b6fb151f634b7bf701",
+      "bytes": 329380
+    },
+    {
+      "path": "public/estudio/fontes/PermanentMarker-Regular.ttf",
+      "sha256": "28f82c8a7943cb8e9d599f8554da1d4fc75dbcf69b9885ad6c0611d20c6946c5",
+      "bytes": 74632
     },
     {
       "path": "public/favicon.svg",

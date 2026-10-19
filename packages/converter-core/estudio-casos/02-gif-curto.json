@@ -1,0 +1,115 @@
+{
+  "descricao": "GIF de um trecho, preenchendo o quadrado do feed, com dois textos.",
+  "projeto": {
+    "versao": 1,
+    "destino": "instagram-feed-quadrado",
+    "largura": 1080,
+    "altura": 1080,
+    "fps": 30,
+    "saida": "gif",
+    "clipes": [
+      {
+        "id": "c1",
+        "arquivo": "b.mov",
+        "tipo": "video",
+        "inicio": 1.25,
+        "fim": 4.75,
+        "ajuste": "preencher",
+        "volume": 1
+      }
+    ],
+    "textos": [
+      {
+        "id": "t1",
+        "texto": "Antes",
+        "inicio": 0,
+        "fim": 1.5,
+        "x": 0.5,
+        "y": 0.1,
+        "tamanho": 0.06,
+        "cor": "#FFFFFF",
+        "contorno": "#000000",
+        "caixa": null,
+        "fonte": "anton"
+      },
+      {
+        "id": "t2",
+        "texto": "Depois",
+        "inicio": 1.5,
+        "fim": 3.5,
+        "x": 0.5,
+        "y": 0.9,
+        "tamanho": 0.06,
+        "cor": "#FFFFFF",
+        "contorno": null,
+        "caixa": "#00000099",
+        "fonte": "anton"
+      }
+    ],
+    "audios": [],
+    "quadro": 0
+  },
+  "entradas": {
+    "clipes": [
+      {
+        "caminho": "b.mov",
+        "temAudio": true
+      }
+    ],
+    "textos": [
+      "texto-1.png",
+      "texto-2.png"
+    ],
+    "audios": []
+  },
+  "esperado": {
+    "duracao": 3.5,
+    "segmentos": [
+      {
+        "indice": 0,
+        "id": "c1",
+        "inicio": 0,
+        "fim": 3.5,
+        "duracao": 3.5
+      }
+    ],
+    "problemas": [],
+    "avisos": [],
+    "gif": {
+      "largura": 480,
+      "altura": 480
+    },
+    "receita": {
+      "args": [
+        "-ss",
+        "1.25",
+        "-t",
+        "3.5",
+        "-i",
+        "b.mov",
+        "-loop",
+        "1",
+        "-framerate",
+        "30",
+        "-t",
+        "3.5",
+        "-i",
+        "texto-1.png",
+        "-loop",
+        "1",
+        "-framerate",
+        "30",
+        "-t",
+        "3.5",
+        "-i",
+        "texto-2.png"
+      ],
+      "filtro": "[0:v]fps=30,scale=1080:1080:force_original_aspect_ratio=increase,crop=1080:1080,setsar=1,format=yuv420p,setpts=PTS-STARTPTS[v0];[v0]concat=n=1:v=1:a=0[vb];[vb][1:v]overlay=0:0:enable='between(t,0,1.5)'[vt0];[vt0][2:v]overlay=0:0:enable='between(t,1.5,3.5)'[vt1];[vt1]fps=15,scale=480:480:flags=lanczos,split[g0][g1];[g0]palettegen=stats_mode=diff[paleta];[g1][paleta]paletteuse=dither=bayer:bayer_scale=4[gif]",
+      "mapas": [
+        "-map",
+        "[gif]"
+      ],
+      "duracao": 3.5
+    }
+  }
+}

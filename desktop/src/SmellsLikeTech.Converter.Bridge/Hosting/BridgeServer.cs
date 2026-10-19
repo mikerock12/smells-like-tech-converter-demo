@@ -155,7 +155,8 @@ public sealed class BridgeServer(AppServices servicos, BridgeOptions opcoes, UiT
             or OperationIds.VideoToFrames
             or OperationIds.AudioConvert
             or OperationIds.SpeechTranscribe
-            or OperationIds.SpeechSynthesize;
+            or OperationIds.SpeechSynthesize
+            or OperationIds.StudioExport;
 
     // ==================== criacao de jobs ====================
 

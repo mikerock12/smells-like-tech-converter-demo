@@ -6,6 +6,7 @@ using SmellsLikeTech.Converter.Engine.Documents;
 using SmellsLikeTech.Converter.Engine.FFmpeg;
 using SmellsLikeTech.Converter.Engine.Image;
 using SmellsLikeTech.Converter.Engine.Speech;
+using SmellsLikeTech.Converter.Engine.Studio;
 using SmellsLikeTech.Converter.Infrastructure.Configuration;
 using SmellsLikeTech.Converter.Infrastructure.Database;
 using SmellsLikeTech.Converter.Infrastructure.Execution;
@@ -56,17 +57,28 @@ public sealed class AppServices : IAsyncDisposable
         MediaProbe = probe;
         Inspector = new CompositeMediaInspector([probe, new MagickImageInspector()]);
 
+        var transcriber = new WhisperTranscriptionEngine(
+            () => ffmpeg,
+            Processes,
+            probe,
+            Models,
+            () => Settings.MaxTranscriptionMinutes,
+            log);
+
+        Studio = new StudioEngine(
+            () => ffmpeg,
+            Processes,
+            probe,
+            transcriber,
+            log,
+            Path.Combine(AppContext.BaseDirectory, "fontes"));
+
         var engines = new IConversionEngine[]
         {
             new FfmpegEngine(() => ffmpeg, Processes, probe, log),
             new MagickImageEngine(log),
-            new WhisperTranscriptionEngine(
-                () => ffmpeg,
-                Processes,
-                probe,
-                Models,
-                () => Settings.MaxTranscriptionMinutes,
-                log),
+            transcriber,
+            Studio,
             new SpeechSynthesisEngine(
                 TtsEngine,
                 () => ffmpeg,
@@ -99,6 +111,8 @@ public sealed class AppServices : IAsyncDisposable
     public ConversionQueue Queue { get; }
     public CompositeMediaInspector Inspector { get; }
     public FfprobeInspector MediaProbe { get; }
+    /// <summary>O estudio: exporta pela fila e monta as previas da tela do estudio.</summary>
+    public StudioEngine Studio { get; }
     public WhisperModelCatalog Models { get; }
     public WhisperModelInstaller ModelInstaller { get; }
     public ITtsEngine TtsEngine { get; }

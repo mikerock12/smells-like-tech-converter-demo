@@ -210,6 +210,18 @@ public static class OperationCatalog
             DefaultOptions = _ => new ImageToPdfOptions()
         },
 
+        // O estudio recebe varios arquivos de uma vez e tem telas proprias: sem tipo de
+        // entrada, nunca aparece entre as conversoes de um arquivo, mas o plugin o anuncia.
+        new OperationDescriptor
+        {
+            Id = OperationIds.StudioExport,
+            Title = "Estúdio",
+            Description = "Monta vídeos, imagens, textos e música num vídeo, GIF, imagem, áudio ou texto para as redes.",
+            InputKinds = [],
+            OutputFormats = ["mp4", "gif", "png", "mp3", "txt"],
+            DefaultOptions = _ => new StudioExportOptions { Project = Studio.StudioRules.NewProject("instagram-reels") }
+        },
+
         // Marcos seguintes: aparecem na interface como indisponíveis, sem prometer o que ainda não existe.
         new OperationDescriptor
         {

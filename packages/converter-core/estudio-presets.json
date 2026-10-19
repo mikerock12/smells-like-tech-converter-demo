@@ -1,0 +1,24 @@
+{
+  "versao": 1,
+  "conferidoEm": "2026-10",
+  "nota": "Duração de referência das redes em 10/2026. As redes mudam: o estúdio só avisa, não bloqueia.",
+  "presets": [
+    { "id": "instagram-reels", "rede": "Instagram", "nome": "Reels", "largura": 1080, "altura": 1920, "fps": 30, "duracaoMaxima": 180 },
+    { "id": "instagram-stories", "rede": "Instagram", "nome": "Stories", "largura": 1080, "altura": 1920, "fps": 30, "duracaoMaxima": 60 },
+    { "id": "instagram-feed-retrato", "rede": "Instagram", "nome": "Feed retrato (4:5)", "largura": 1080, "altura": 1350, "fps": 30, "duracaoMaxima": 3600 },
+    { "id": "instagram-feed-quadrado", "rede": "Instagram", "nome": "Feed quadrado (1:1)", "largura": 1080, "altura": 1080, "fps": 30, "duracaoMaxima": 3600 },
+    { "id": "tiktok", "rede": "TikTok", "nome": "Vídeo", "largura": 1080, "altura": 1920, "fps": 30, "duracaoMaxima": 600 },
+    { "id": "kwai", "rede": "Kwai", "nome": "Vídeo", "largura": 1080, "altura": 1920, "fps": 30, "duracaoMaxima": null },
+    { "id": "youtube", "rede": "YouTube", "nome": "Vídeo horizontal (16:9)", "largura": 1920, "altura": 1080, "fps": 30, "duracaoMaxima": null },
+    { "id": "youtube-shorts", "rede": "YouTube", "nome": "Shorts", "largura": 1080, "altura": 1920, "fps": 30, "duracaoMaxima": 180 },
+    { "id": "facebook-feed", "rede": "Facebook", "nome": "Feed (4:5)", "largura": 1080, "altura": 1350, "fps": 30, "duracaoMaxima": null },
+    { "id": "facebook-stories", "rede": "Facebook", "nome": "Stories", "largura": 1080, "altura": 1920, "fps": 30, "duracaoMaxima": 60 },
+    { "id": "facebook-reels", "rede": "Facebook", "nome": "Reels", "largura": 1080, "altura": 1920, "fps": 30, "duracaoMaxima": 90 },
+    { "id": "whatsapp-status", "rede": "WhatsApp", "nome": "Status", "largura": 1080, "altura": 1920, "fps": 30, "duracaoMaxima": 60 },
+    { "id": "x", "rede": "X (Twitter)", "nome": "Vídeo (16:9)", "largura": 1920, "altura": 1080, "fps": 30, "duracaoMaxima": 140 },
+    { "id": "linkedin", "rede": "LinkedIn", "nome": "Vídeo (16:9)", "largura": 1920, "altura": 1080, "fps": 30, "duracaoMaxima": 600 },
+    { "id": "pinterest", "rede": "Pinterest", "nome": "Pin (2:3)", "largura": 1000, "altura": 1500, "fps": 30, "duracaoMaxima": null },
+    { "id": "threads", "rede": "Threads", "nome": "Post (4:5)", "largura": 1080, "altura": 1350, "fps": 30, "duracaoMaxima": 300 },
+    { "id": "personalizado", "rede": "Personalizado", "nome": "Tamanho à escolha", "largura": 1080, "altura": 1080, "fps": 30, "duracaoMaxima": null }
+  ]
+}

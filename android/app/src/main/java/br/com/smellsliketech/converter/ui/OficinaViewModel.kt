@@ -110,6 +110,13 @@ class OficinaViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) {
     var mostrarModelos by mutableStateOf(false)
     var mostrarFigurinhas by mutableStateOf(false)
     var textoParaNarrar by mutableStateOf<String?>(null)
+
+    /** As portas da tela inicial: o app abre nela, e arquivos recebidos vão direto à conversão. */
+    enum class Tela { INICIO, CONVERTER, ESTUDIO }
+    var tela by mutableStateOf(Tela.INICIO)
+
+    /** Veio de "Transcrever áudio ou vídeo": os arquivos escolhidos já entram na transcrição. */
+    var transcreverAoReceber = false
     var opcoesDaNarracao by mutableStateOf(Ferramenta.TEXTO_NARRAR.opcoesPadrao())
 
     /** Os modelos do Whisper no celular; a tela dos modelos atualiza enquanto está aberta. */
@@ -142,6 +149,12 @@ class OficinaViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) {
             val tipo = Tipo.de(mime, nome)
             if (tipo == null) recusados += nome else if (entradas.none { it.uri == uri }) entradas += Entrada(uri, nome, tipo, bytes)
         }
+        if (transcreverAoReceber) {
+            ferramentaDoTipo[Tipo.AUDIO] = Ferramenta.AUDIO_TRANSCREVER
+            ferramentaDoTipo[Tipo.VIDEO] = Ferramenta.VIDEO_TRANSCREVER
+            transcreverAoReceber = false
+        }
+        if (uris.isNotEmpty()) tela = Tela.CONVERTER
         aviso = when (recusados.size) {
             0 -> null
             1 -> "“${recusados.first()}” não é de um tipo que o app converte."

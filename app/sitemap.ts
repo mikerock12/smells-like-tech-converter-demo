@@ -12,7 +12,7 @@ const PESO_DO_ARTIGO = { A: 0.8, B: 0.7, C: 0.6 } as const;
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const agora = new Date();
-  const fixas = ["", "/converter", "/ferramentas", "/precos", "/plugin", "/aplicativo", "/android", "/instalar", "/privacidade", "/termos", "/codigo-aberto"].map((caminho) => ({
+  const fixas = ["", "/converter", "/estudio", "/ferramentas", "/precos", "/plugin", "/aplicativo", "/android", "/instalar", "/privacidade", "/termos", "/codigo-aberto"].map((caminho) => ({
     url: `${origem}${caminho}`,
     lastModified: agora,
     changeFrequency: "weekly" as const,

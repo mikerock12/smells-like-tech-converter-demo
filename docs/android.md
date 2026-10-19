@@ -27,7 +27,8 @@ tela de narração avisa que o Kokoro pode demorar ou ser interrompido.
 
 **Figurinhas do WhatsApp (desde a 0.5.0).** Função à parte da conversão, só no Android
 (`figurinhas/`, `ui/TelasDasFigurinhas.kt`): imagem, GIF ou vídeo viram figurinha estática (um
-quadro) ou animada (trecho de até 10 s; 15, 12 ou 10 quadros/s conforme a duração), com enquadramento por gestos, remoção de
+quadro) ou animada (trecho de até 10 s; 15, 12 ou 10 quadros/s conforme a duração), com enquadramento por gestos (mais girar 90° e espelhar na horizontal e na vertical, desde a
+Etapa 1 do estúdio), remoção de
 fundo (ML Kit Subject Segmentation, pelo Google Play Services; pincel para apagar/restaurar;
 na animada, quadro a quadro), filtros, texto (fontes OFL/Apache em `assets/fontes`) e contorno.
 `Producao` codifica WebP 512×512: estática pelo Android (≤100 KB), animada pelo FFmpeg

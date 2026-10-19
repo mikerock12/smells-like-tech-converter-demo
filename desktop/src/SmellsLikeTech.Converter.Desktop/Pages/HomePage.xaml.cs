@@ -2,6 +2,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
+using Microsoft.UI.Xaml.Navigation;
 using SmellsLikeTech.Converter.Core;
 using SmellsLikeTech.Converter.Core.Abstractions;
 using SmellsLikeTech.Converter.Core.Jobs;
@@ -24,6 +25,12 @@ public sealed partial class HomePage : Page
 {
     private MediaInfo? currentFile;
     private OperationDescriptor? currentOperation;
+
+    /// <summary>Parametro da navegacao vindo da porta "Transcrever" da tela inicial.</summary>
+    public const string Transcrever = "transcrever";
+
+    /// <summary>Operacao que a tela inicial pediu; ganha das outras quando o arquivo aceita.</summary>
+    private string? preferredOperation;
     private string outputDirectory = string.Empty;
     private bool suppressSelection;
 
@@ -112,6 +119,20 @@ public sealed partial class HomePage : Page
         {
             adiar.Complete();
         }
+    }
+
+    protected override void OnNavigatedTo(NavigationEventArgs e)
+    {
+        base.OnNavigatedTo(e);
+        if (e.Parameter as string != Transcrever)
+        {
+            return;
+        }
+
+        preferredOperation = OperationIds.SpeechTranscribe;
+        ShowStatus("Escolha o áudio ou o vídeo para transcrever.", InfoBarSeverity.Informational);
+        // A janela de arquivo abre depois que a tela termina de aparecer.
+        DispatcherQueue.TryEnqueue(() => OnPickFile(this, new RoutedEventArgs()));
     }
 
     private async void OnPickFile(object sender, RoutedEventArgs e)
@@ -267,7 +288,8 @@ public sealed partial class HomePage : Page
             ? "Nenhuma conversão disponível para este tipo de arquivo."
             : $"{operations.Count} conversão(ões) compatível(is) com {info.Kind.Display().ToLowerInvariant()}.";
 
-        var first = operations.FirstOrDefault(item => item.IsAvailable);
+        var first = operations.FirstOrDefault(item => item.IsAvailable && item.Descriptor.Id == preferredOperation)
+            ?? operations.FirstOrDefault(item => item.IsAvailable);
         if (first is not null)
         {
             OperationList.SelectedItem = first;
