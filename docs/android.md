@@ -46,6 +46,15 @@ WhatsApp" usa `com.whatsapp.intent.action.ENABLE_STICKER_PACK` (WhatsApp e Busin
 sobem `image_data_version`. Testes: `FigurinhasTest` (instrumentado), `PacotesTest` e
 `FigurinhaDesempenhoTest` (mede as etapas com `/data/local/tmp/figurinha-video.mp4`, se existir).
 
+**Compatibilidade das animadas (0.6.1).** O salto de quadros podia transformar um trecho de
+10 s em um WebP de 10,2 s (34 quadros × 300 ms), recusado pelo WhatsApp com
+`handleStickerPackPreviewResult/failed`. `WebpAnimado` lê os tempos ANMF reais e os ajusta
+ao trecho e ao máximo de 10.000 ms, sem recodificar os pixels. Verifica também 512×512,
+mais de um quadro e mínimo de 8 ms por quadro, conforme o
+[validador oficial](https://github.com/WhatsApp/stickers/blob/main/Android/app/src/main/java/com/example/samplestickerapp/StickerPackValidator.java).
+Antes de abrir o WhatsApp ou Business, o app repara os tempos dos pacotes já salvos e aumenta
+`image_data_version` só quando há mudança; basta tentar adicionar o pacote de novo.
+
 **Compartilhar.** Cada resultado mostra os ícones dos apps instalados que aceitam o arquivo
 (WhatsApp, Instagram, Telegram, Facebook, Messenger, TikTok, X, Discord, Signal, Gmail, Drive) e
 "Outros" (a lista do Android); `ui/Compartilhar.kt`, com `<queries>` de `ACTION_SEND`.

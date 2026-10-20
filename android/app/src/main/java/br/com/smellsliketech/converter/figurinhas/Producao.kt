@@ -196,8 +196,10 @@ object Producao {
                 val tamanho = codificar(contexto, crus, saida, qualidade, pular, null, quadros) { aoAvancar(inicioDaParte + it * parte * 0.95) }
                 aoTentar("q=$qualidade pular=$pular ${tamanho / 1024}KB")
                 if (tamanho in 1..Regras.ANIMADA_MAX_BYTES.toLong()) {
-                    val webp = saida.readBytes()
-                    if (!temImagem(webp)) throw ErroDeConversao("A figurinha ficou vazia: a imagem saiu do quadro. Toque em Centralizar e tente de novo.")
+                    val gerada = saida.readBytes()
+                    if (!temImagem(gerada)) throw ErroDeConversao("A figurinha ficou vazia: a imagem saiu do quadro. Toque em Centralizar e tente de novo.")
+                    val duracaoMs = (total * 1000L / crus.porSegundo).coerceIn(16, WebpAnimado.DURACAO_MAX_MS.toLong()).toInt()
+                    val webp = WebpAnimado.normalizar(gerada, duracaoMs)
                     aoAvancar(1.0)
                     return@withContext webp
                 }

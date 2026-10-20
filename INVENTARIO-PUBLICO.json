@@ -1,5 +1,5 @@
 {
-  "commit": "5e7b5134707d67f77e5163fa949da0d40293d3a7",
+  "commit": "569a3e3fd86c451d59d6de673f748f2058e5b593",
   "repository": "https://github.com/mikerock12/smells-like-tech-converter-demo",
   "originals": [
     {
@@ -34,7 +34,7 @@
     },
     {
       "path": "android/app/build.gradle.kts",
-      "sha256": "5e4b3d45a44e86484976b3e33ed3a5eb12e4dcedf228a4a4f342a379c2f81d43",
+      "sha256": "1f02eafc3ccf91fcbfc14462c439fec8c1b1c411386236567b6828b3e8593847",
       "bytes": 7347
     },
     {
@@ -89,8 +89,8 @@
     },
     {
       "path": "android/app/src/androidTest/java/br/com/smellsliketech/converter/figurinhas/FigurinhasTest.kt",
-      "sha256": "6f18915d6c33c12054b6b9d2d79bcf207d34689160ab92b64c3e39e64d5123f5",
-      "bytes": 10041
+      "sha256": "a75a93a2b6b2b3a5cfe2add45584968081f7ef11a16829e1555ee23a26db904d",
+      "bytes": 11855
     },
     {
       "path": "android/app/src/main/AndroidManifest.xml",
@@ -374,8 +374,8 @@
     },
     {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/figurinhas/FigurinhasViewModel.kt",
-      "sha256": "76d5c7be953e6b19e8f8bc966887659a52208712e71c7ea665f6666cdd6f9035",
-      "bytes": 14457
+      "sha256": "7afd0ced1e500600f4446adb411d90e0c740e2e4b45bc7c2f4a75457d30199bf",
+      "bytes": 15271
     },
     {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/figurinhas/Fundo.kt",
@@ -384,18 +384,23 @@
     },
     {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/figurinhas/Pacotes.kt",
-      "sha256": "31ec2f3293f8f7baa41f5b906a04928daca28e8be8a14900b5cba9cb312933e1",
-      "bytes": 7812
+      "sha256": "931336a11ccee68b9cb06e7b7672b5bd003b1cd3946f818d8c54a9aa108aadf6",
+      "bytes": 9653
     },
     {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/figurinhas/Producao.kt",
-      "sha256": "aab28c89ffde90f6c76695536dd57c407a3197b4015135c3d6f1369057de6237",
-      "bytes": 14330
+      "sha256": "df7b7a6f07087c8cb0ed3b02b1f9d58fdd5f74f7370b03f33bc6181147e289d6",
+      "bytes": 14535
     },
     {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/figurinhas/ProvedorDeFigurinhas.kt",
       "sha256": "d5c58c4ca37c8909fe57ecd301209b1f0c8acd59cdb5067b047dd87852d2c81c",
       "bytes": 6239
+    },
+    {
+      "path": "android/app/src/main/java/br/com/smellsliketech/converter/figurinhas/WebpAnimado.kt",
+      "sha256": "3a16c14d8d02ea68691ae409db45597f0840963daebabb9fab7bb6c492dcac61",
+      "bytes": 4501
     },
     {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/figurinhas/WhatsApp.kt",
@@ -449,8 +454,8 @@
     },
     {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/ui/TelasDasFigurinhas.kt",
-      "sha256": "0d5ed4239679931f42a6ba879e337f0f32fdb7d49086ea6c6156ef4b8463d935",
-      "bytes": 30658
+      "sha256": "f1e7ba561d2e1092304510b71b70bae8e096dce28b124a254b62a9e4655e3162",
+      "bytes": 30569
     },
     {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/ui/TelasDoEstudio.kt",
@@ -568,6 +573,11 @@
       "bytes": 1357
     },
     {
+      "path": "android/app/src/test/java/br/com/smellsliketech/converter/figurinhas/WebpAnimadoTest.kt",
+      "sha256": "d6d49ff1af7be9f482c78cb0426239a974eb74381a00120fd2c7cac07a55a851",
+      "bytes": 3450
+    },
+    {
       "path": "android/app/src/test/java/br/com/smellsliketech/converter/licenca/LicencaTest.kt",
       "sha256": "43a19ddcd4931c2108566d2559f2da26854a9eeed7aa772d4cac52872619ff4c",
       "bytes": 3329
@@ -576,6 +586,16 @@
       "path": "android/app/src/test/java/br/com/smellsliketech/converter/licenca/ReciboDaPlayTest.kt",
       "sha256": "a96633428db6d97387b21ed223f6aa6deda7b86165a59773bee0c237cd964961",
       "bytes": 3237
+    },
+    {
+      "path": "android/app/src/test/resources/figurinhas/LEIA-ME.md",
+      "sha256": "d76855f683fd98bd76075d770ba134a8a5e93355ea731764061dc92dd373a384",
+      "bytes": 788
+    },
+    {
+      "path": "android/app/src/test/resources/figurinhas/animada-pulo3-10200ms.webp",
+      "sha256": "c79ff792267e89a1d4a78a0e04aa74765bec5ed0da1bec64791f2deb45416cc9",
+      "bytes": 55890
     },
     {
       "path": "android/app/src/test/resources/office97/LEIA-ME.md",
@@ -1884,8 +1904,8 @@
     },
     {
       "path": "docs/android.md",
-      "sha256": "cd1c2ee6bf27ff1fd175ef4f5e8b62f21d8f3b4bffeac12b48a4974e0ec1c776",
-      "bytes": 20303
+      "sha256": "2d2f792b370a8aeedff8fbba2a81c3ab92c51796998951a57d029a1ec5e26002",
+      "bytes": 21047
     },
     {
       "path": "docs/ecossistema-0.4.2.md",

@@ -107,7 +107,8 @@ class Pacotes(private val contexto: Context) {
         val usados = pacote.figurinhas.map { it.arquivo }.toSet()
         val nome = generateSequence(pacote.figurinhas.size + 1) { it + 1 }
             .map { "%02d.webp".format(it) }.first { it !in usados }
-        File(pasta(pacote.id), nome).writeBytes(webp)
+        val pronta = if (pacote.animado) WebpAnimado.normalizar(webp) else webp
+        File(pasta(pacote.id), nome).writeBytes(pronta)
         val atualizado = pacote.copy(
             figurinhas = pacote.figurinhas + Figurinha(nome, emojis.filter { it.isNotBlank() }.take(Regras.EMOJIS_MAX).ifEmpty { listOf(EMOJI_PADRAO) }),
             versao = pacote.versao + 1,
@@ -130,6 +131,37 @@ class Pacotes(private val contexto: Context) {
     }
 
     fun arquivo(pacote: PacoteDeFigurinhas, nome: String): File = File(pasta(pacote.id), nome)
+
+    /**
+     * Corrige também os pacotes criados antes da atualização, antes de abrir o WhatsApp.
+     * Mantém identificador, imagens e emojis; muda a versão só se algum tempo for ajustado.
+     */
+    fun prepararParaWhatsApp(pacote: PacoteDeFigurinhas): PacoteDeFigurinhas {
+        require(pacote.prontoParaWhatsApp) { "O pacote precisa ter de 3 a 30 figurinhas." }
+        val alteradas = mutableListOf<Pair<File, ByteArray>>()
+        pacote.figurinhas.forEach { figurinha ->
+            val arquivo = arquivo(pacote, figurinha.arquivo)
+            val bytes = arquivo.readBytes()
+            if (pacote.animado) {
+                val corrigida = WebpAnimado.normalizar(bytes)
+                if (corrigida !== bytes) {
+                    alteradas += arquivo to corrigida
+                }
+            } else {
+                val medidas = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                BitmapFactory.decodeByteArray(bytes, 0, bytes.size, medidas)
+                require(bytes.size <= Regras.ESTATICA_MAX_BYTES && medidas.outMimeType == "image/webp" &&
+                    medidas.outWidth == Regras.LADO && medidas.outHeight == Regras.LADO) { "A figurinha ${figurinha.arquivo} não está no formato do WhatsApp." }
+            }
+        }
+        alteradas.forEach { (arquivo, corrigida) ->
+            val temporario = File(arquivo.parentFile, "${arquivo.name}.tmp")
+            temporario.writeBytes(corrigida)
+            check(temporario.renameTo(arquivo)) { "Não deu para atualizar a figurinha. Tente de novo." }
+        }
+        if (!arquivo(pacote, BANDEJA).isFile) gerarBandeja(pacote)
+        return if (alteradas.isNotEmpty()) pacote.copy(versao = pacote.versao + 1).also(::gravar) else pacote
+    }
 
     /**
      * O ícone da bandeja do WhatsApp: PNG 96×96 com até 50 KB, feito do primeiro quadro da

@@ -5,6 +5,8 @@ import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
+import android.graphics.ImageDecoder
+import android.graphics.drawable.AnimatedImageDrawable
 import android.net.Uri
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -159,9 +161,37 @@ class FigurinhasTest {
         assertEquals("VP8X", String(webp.copyOfRange(12, 16)))
         assertTrue("animada", webp[20].toInt() and 0x02 != 0)
         assertTrue(Producao.descrever(webp), Producao.temImagem(webp))
+        val info = WebpAnimado.ler(webp)
+        assertTrue(info.quadros.size > 1)
+        assertTrue(info.quadros.all { it.duracaoMs >= 8 })
+        assertTrue(info.duracaoMs <= 2_000)
         var pacote = pacotes.criar("Animado", animado = true).also { criados += it }
-        pacote = pacotes.adicionar(pacote, webp, listOf("🎉"))
-        assertEquals(1, pacote.figurinhas.size)
+        repeat(3) { pacote = pacotes.adicionar(pacote, webp, listOf("🎉")) }
+
+        // Simula pacotes existentes no celular: cada quadro com 500 ms passa de 10 s.
+        val antiga = webp.copyOf()
+        info.quadros.forEach { quadro ->
+            repeat(3) { k -> antiga[quadro.posicaoDoTempo + k] = (500 ushr (8 * k)).toByte() }
+        }
+        assertTrue(WebpAnimado.ler(antiga).duracaoMs > 10_000)
+        pacote.figurinhas.forEach { pacotes.arquivo(pacote, it.arquivo).writeBytes(antiga) }
+        val atualizado = pacotes.prepararParaWhatsApp(pacote)
+        assertEquals(pacote.id, atualizado.id)
+        assertEquals(pacote.figurinhas, atualizado.figurinhas)
+        assertEquals(pacote.versao + 1, atualizado.versao)
+        assertEquals(atualizado, pacotes.ler(pacote.id))
+        assertEquals(atualizado, pacotes.prepararParaWhatsApp(atualizado))
+        val autoridade = ProvedorDeFigurinhas.autoridade(contexto.packageName)
+        atualizado.figurinhas.forEach { figurinha ->
+            val uri = Uri.parse("content://$autoridade/stickers_asset/${pacote.id}/${figurinha.arquivo}")
+            val lida = contexto.contentResolver.openInputStream(uri)!!.use { it.readBytes() }
+            assertEquals(10_000L, WebpAnimado.ler(lida).duracaoMs)
+            // Além do cabeçalho, o decodificador real precisa conseguir abrir a animação.
+            val desenho = ImageDecoder.decodeDrawable(ImageDecoder.createSource(contexto.contentResolver, uri))
+            assertTrue(desenho is AnimatedImageDrawable)
+            assertEquals(512, desenho.intrinsicWidth)
+            assertEquals(512, desenho.intrinsicHeight)
+        }
     }
 
     @Test fun animadaVaziaViraErro() = runBlocking {

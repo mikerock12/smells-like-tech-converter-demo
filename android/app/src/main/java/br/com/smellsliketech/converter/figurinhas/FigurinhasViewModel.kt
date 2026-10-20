@@ -325,6 +325,24 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
 
     // ---- Pacotes ----
 
+    fun adicionarAoWhatsApp(pacote: PacoteDeFigurinhas, whatsapp: String, abrir: (android.content.Intent) -> Unit) {
+        trabalho = viewModelScope.launch {
+            ocupado = "Preparando o pacote para o WhatsApp…"
+            try {
+                val atualizado = withContext(Dispatchers.IO) {
+                    pacotes.prepararParaWhatsApp(pacotes.ler(pacote.id) ?: throw ErroDeConversao("O pacote não existe mais."))
+                }
+                WhatsApp.avisarMudanca(contexto)
+                recarregar()
+                abrir(WhatsApp.intencaoDeAdicionar(contexto, whatsapp, atualizado))
+            } catch (erro: Exception) {
+                aviso = "Não deu para adicionar o pacote: ${erro.message}"
+            } finally {
+                ocupado = null
+            }
+        }
+    }
+
     fun renomear(pacote: PacoteDeFigurinhas, nome: String) {
         pacoteAberto = pacotes.renomear(pacote, nome)
         WhatsApp.avisarMudanca(contexto)

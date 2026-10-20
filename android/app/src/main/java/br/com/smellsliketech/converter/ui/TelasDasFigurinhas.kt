@@ -247,7 +247,7 @@ private fun DetalheDoPacote(modelo: FigurinhasViewModel, pacote: PacoteDeFigurin
         instalados.forEach { whatsapp ->
             val jaEsta = remember(pacote.versao, whatsapp) { WhatsApp.jaAdicionado(contexto, whatsapp, pacote) }
             Button(
-                onClick = { runCatching { adicionar.launch(WhatsApp.intencaoDeAdicionar(contexto, whatsapp, pacote)) }.onFailure { modelo.aviso = "O WhatsApp não abriu: ${it.message}" } },
+                onClick = { modelo.adicionarAoWhatsApp(pacote, whatsapp) { adicionar.launch(it) } },
                 enabled = pacote.prontoParaWhatsApp,
                 modifier = Modifier.fillMaxWidth(),
             ) {
