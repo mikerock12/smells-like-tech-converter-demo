@@ -1,3 +1,4 @@
+import type { Transformacao } from "./camadas.mjs";
 export type IdDaSaida = "video" | "gif" | "imagem" | "audio" | "texto";
 export type IdDoAjuste = "preencher" | "caber" | "caber-desfocado";
 
@@ -17,6 +18,7 @@ export type Ajuste = { id: IdDoAjuste; titulo: string; descricao: string };
 export type Fonte = { id: string; nome: string; arquivo: string | null };
 
 export type Clipe = {
+  transformacao?: Partial<Transformacao>;
   id: string;
   /** Referência do arquivo no app (nome, caminho ou chave da sessão). */
   arquivo: string;
@@ -32,6 +34,7 @@ export type Clipe = {
 };
 
 export type Texto = {
+  transformacao?: Partial<Transformacao>;
   id: string;
   texto: string;
   /** Na linha do tempo final, em segundos. */
@@ -62,6 +65,8 @@ export type AudioExtra = {
 };
 
 export type Projeto = {
+  camadas?: Camada[];
+  fundo?: { cor: string; corFinal?: string };
   versao: number;
   destino: string;
   largura: number;
@@ -75,12 +80,28 @@ export type Projeto = {
   quadro: number;
 };
 
+export type Camada = {
+  id: string;
+  arquivo: string;
+  tipo: "imagem" | "video" | "gif";
+  inicio: number;
+  fim: number;
+  deslocamento?: number;
+  repetir?: boolean;
+  visivel?: boolean;
+  ordem?: number;
+  transformacao?: Partial<Transformacao>;
+};
+export declare function camadasNoTempo(projeto: Projeto, t: number): Camada[];
+export declare function usaCamadas(projeto: Projeto): boolean;
+
 export type Segmento = { indice: number; id: string; inicio: number; fim: number; duracao: number };
 
 export type EntradasDaReceita = {
   clipes: { caminho: string; temAudio: boolean }[];
   textos: string[];
   audios: string[];
+  camadas?: string[];
 };
 
 export type ReceitaFfmpeg = { args: string[]; filtro: string; mapas: string[]; duracao: number };

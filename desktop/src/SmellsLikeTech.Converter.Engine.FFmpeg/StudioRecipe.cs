@@ -9,7 +9,8 @@ namespace SmellsLikeTech.Converter.Engine.FFmpeg;
 public sealed record StudioInputs(
     IReadOnlyList<StudioClipInput> Clips,
     IReadOnlyList<string> Texts,
-    IReadOnlyList<string> Audios);
+    IReadOnlyList<string> Audios,
+    IReadOnlyList<string>? Layers = null);
 
 public sealed record StudioClipInput(string Path, bool HasAudio);
 
@@ -25,6 +26,8 @@ public static class StudioRecipe
 {
     public static StudioCommand Build(StudioProject project, StudioInputs inputs)
     {
+        if (project.Output is not ("audio" or "texto") && StudioRules.UsesLayers(project))
+            return StudioLayerRecipe.Build(project, inputs);
         int w = project.Width, h = project.Height, fps = project.Fps;
         var total = StudioRules.TotalDuration(project);
         var withVideo = project.Output is not ("audio" or "texto");

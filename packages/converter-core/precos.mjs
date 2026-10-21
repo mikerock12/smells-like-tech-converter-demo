@@ -38,7 +38,7 @@ export const PLANOS = deepFreeze({
     nome: "Pro",
     chamada: "Para quem trabalha com mídia todo dia",
     descricao:
-      "Sem limites de lote, de duração ou de páginas, e com as ferramentas de voz: transcrição, legenda, narração e OCR sem contador. No site e no plugin.",
+      "Sem limites de lote, de duração ou de páginas, com as ferramentas de voz (transcrição, legenda, narração e OCR sem contador) e o estúdio sem limite de exportações. No site e no plugin.",
     centavos: 1990,
     site: true,
     app: false,
@@ -163,6 +163,9 @@ export const LIMITES = deepFreeze({
     transcricao: 3,
     narracao: 1500,
     ocr: 5,
+    /** Estúdio: exportações por dia e duração do projeto, em segundos. */
+    estudio: 3,
+    estudioDuracao: 60,
   },
   pro: {
     lote: null,
@@ -172,6 +175,8 @@ export const LIMITES = deepFreeze({
     transcricao: null,
     narracao: null,
     ocr: null,
+    estudio: null,
+    estudioDuracao: null,
   },
 });
 
@@ -184,6 +189,8 @@ export const ROTULOS_DOS_LIMITES = deepFreeze({
   transcricao: { titulo: "Transcrição", unidade: "minutos por dia", periodo: "dia" },
   narracao: { titulo: "Narração", unidade: "caracteres por dia", periodo: "dia" },
   ocr: { titulo: "Reconhecimento de texto", unidade: "páginas por dia", periodo: "dia" },
+  estudio: { titulo: "Exportações do estúdio", unidade: "por dia", periodo: "dia" },
+  estudioDuracao: { titulo: "Duração do projeto no estúdio", unidade: "segundos por projeto", periodo: null },
 });
 
 /** Quadro comparativo da página de preços, na ordem em que aparece. */
@@ -198,6 +205,9 @@ export const COMPARATIVO = deepFreeze([
   { item: "Transcrição e legenda (Whisper local)", gratis: "3 minutos por dia, para testar", pro: "Sem limite" },
   { item: "Narração (texto → voz)", gratis: "1.500 caracteres por dia", pro: "Sem limite" },
   { item: "Foto e PDF escaneado → texto (OCR)", gratis: "5 páginas por dia", pro: "Sem limite" },
+  { item: "Estúdio: exportações de vídeo, GIF, imagem e áudio", gratis: "3 por dia", pro: "Sem limite" },
+  { item: "Estúdio: duração do projeto", gratis: "Até 1 min (Stories, Status, Reels curtos)", pro: "Sem limite" },
+  { item: "Estúdio: remoção de fundo", gratis: "Fotos, stickers e GIFs", pro: "Também em vídeo, quadro a quadro" },
   { item: "PDF → Word editável", gratis: "—", pro: "Incluído" },
   { item: "Presets salvos e fila prioritária", gratis: "—", pro: "Incluído" },
   { item: "Suporte", gratis: "Comunidade", pro: "E-mail em até 1 dia útil" },

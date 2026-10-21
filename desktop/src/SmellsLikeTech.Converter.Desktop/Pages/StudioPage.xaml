@@ -68,6 +68,11 @@
                         <StackPanel x:Name="ClipsPanel" Spacing="10" Padding="0,8,8,8" />
                     </ScrollViewer>
                 </PivotItem>
+                <PivotItem Header="Camadas">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <StackPanel x:Name="LayersPanel" Spacing="10" Padding="0,8,8,8" />
+                    </ScrollViewer>
+                </PivotItem>
                 <PivotItem Header="Textos">
                     <ScrollViewer VerticalScrollBarVisibility="Auto">
                         <StackPanel x:Name="TextsPanel" Spacing="10" Padding="0,8,8,8" />

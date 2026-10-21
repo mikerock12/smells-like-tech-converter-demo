@@ -3,10 +3,13 @@ import {
   LAYOUT_DO_TEXTO,
   retanguloDoAjuste,
   textosNoTempo,
+  camadasNoTempo,
+  clipeNoTempo,
   type IdDoAjuste,
   type Projeto,
   type Texto,
 } from "@/packages/converter-core/estudio.mjs";
+import { desenharCamada } from "./camadas";
 
 /**
  * O desenho do estúdio no navegador: o texto com o layout comum aos quatro apps
@@ -126,10 +129,38 @@ export function enquadrar(ctx: Contexto2D, imagem: Imagem, ajuste: IdDoAjuste, l
 }
 
 /** O quadro inteiro do projeto num instante: fundo preto, o clipe (se houver imagem) e os textos. */
-export function desenharQuadro(ctx: Contexto2D, projeto: Projeto, t: number, imagem: Imagem | null, ajuste: IdDoAjuste | null): void {
+export function desenharQuadro(ctx: Contexto2D, projeto: Projeto, t: number, imagem: Imagem | null, ajuste: IdDoAjuste | null, midias: ReadonlyMap<string, Imagem> = new Map()): void {
   const { largura, altura } = projeto;
-  ctx.fillStyle = "#000";
+  ctx.clearRect(0, 0, largura, altura);
+  const fundo = projeto.fundo;
+  if (fundo?.corFinal) {
+    const gradiente = ctx.createLinearGradient(0, 0, largura, altura);
+    gradiente.addColorStop(0, fundo.cor);
+    gradiente.addColorStop(1, fundo.corFinal);
+    ctx.fillStyle = gradiente;
+  } else ctx.fillStyle = fundo?.cor ?? "#000";
   ctx.fillRect(0, 0, largura, altura);
-  if (imagem && ajuste) enquadrar(ctx, imagem, ajuste, largura, altura);
-  for (const texto of textosNoTempo(projeto, t)) desenharTexto(ctx, texto, largura, altura);
+  const camadas = camadasNoTempo(projeto, t);
+  const desenharExtra = (camada: typeof camadas[number]) => {
+    const fonte = midias.get(camada.id);
+    if (fonte) desenharCamada(ctx, fonte, largura, altura, camada.transformacao);
+  };
+  camadas.filter(c => (c.ordem ?? 1) < 0).forEach(desenharExtra);
+  if (imagem && ajuste) {
+    const transformacao = clipeNoTempo(projeto, t)?.clipe.transformacao;
+    if (transformacao) {
+      const textura = new OffscreenCanvas(largura, altura);
+      const pincel = textura.getContext("2d")!;
+      enquadrar(pincel, imagem, ajuste, largura, altura);
+      desenharCamada(ctx, textura, largura, altura, transformacao);
+    } else enquadrar(ctx, imagem, ajuste, largura, altura);
+  }
+  camadas.filter(c => (c.ordem ?? 1) >= 0).forEach(desenharExtra);
+  for (const texto of textosNoTempo(projeto, t)) {
+    if (texto.transformacao) {
+      const textura = new OffscreenCanvas(largura, altura);
+      desenharTexto(textura.getContext("2d")!, texto, largura, altura);
+      desenharCamada(ctx, textura, largura, altura, texto.transformacao);
+    } else desenharTexto(ctx, texto, largura, altura);
+  }
 }

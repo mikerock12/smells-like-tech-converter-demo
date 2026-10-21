@@ -7,9 +7,15 @@
 
   <ItemGroup>
     <PackageReference Include="Magick.NET-Q8-AnyCPU" Version="14.16.0" />
+    <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.30.0" />
   </ItemGroup>
 
   <ItemGroup>
+    <Content Include="..\..\..\packages\recorte\*">
+      <Link>recorte\%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
     <!-- As mesmas fontes do texto no Android e no site (OFL/Apache), com as licencas. -->
     <Content Include="..\..\..\android\app\src\main\assets\fontes\*">
       <Link>fontes\%(Filename)%(Extension)</Link>

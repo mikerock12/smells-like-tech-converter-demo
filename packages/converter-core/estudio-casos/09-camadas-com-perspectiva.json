@@ -1,0 +1,239 @@
+{
+  "descricao": "Camadas com rotação X/Y/Z, GIF em repetição, filtros, mesclagem, fundo em gradiente e texto transformado.",
+  "projeto": {
+    "versao": 2,
+    "destino": "personalizado",
+    "largura": 320,
+    "altura": 240,
+    "fps": 15,
+    "saida": "video",
+    "quadro": 0,
+    "clipes": [
+      {
+        "id": "c1",
+        "arquivo": "c1.mp4",
+        "tipo": "video",
+        "inicio": 1,
+        "fim": 3,
+        "ajuste": "caber",
+        "transformacao": {
+          "giro": 37,
+          "giroX": -28,
+          "giroY": 42,
+          "filtro": "vintage",
+          "opacidade": 0.8
+        }
+      },
+      {
+        "id": "c2",
+        "arquivo": "c2.png",
+        "tipo": "imagem",
+        "duracao": 2,
+        "ajuste": "caber-desfocado",
+        "transformacao": {
+          "escala": 0.7,
+          "espelharX": true,
+          "mescla": "clarear"
+        }
+      }
+    ],
+    "camadas": [
+      {
+        "id": "fundo",
+        "arquivo": "fundo.png",
+        "tipo": "imagem",
+        "inicio": 0,
+        "fim": 4,
+        "ordem": -1,
+        "transformacao": {
+          "filtro": "frio",
+          "contraste": 0.2
+        }
+      },
+      {
+        "id": "gif",
+        "arquivo": "a.gif",
+        "tipo": "gif",
+        "inicio": 0.5,
+        "fim": 3.5,
+        "repetir": true,
+        "transformacao": {
+          "x": 0.7,
+          "y": 0.3,
+          "escala": 0.4,
+          "giroY": -35,
+          "mescla": "multiplicar"
+        }
+      },
+      {
+        "id": "video",
+        "arquivo": "b.mp4",
+        "tipo": "video",
+        "inicio": 1,
+        "fim": 4,
+        "deslocamento": 2,
+        "repetir": false,
+        "ordem": 2,
+        "transformacao": {
+          "escala": 0.5,
+          "mescla": "sobrepor",
+          "brilho": 0.2,
+          "saturacao": -0.3
+        }
+      },
+      {
+        "id": "oculta",
+        "arquivo": "oculta.png",
+        "tipo": "imagem",
+        "inicio": 0,
+        "fim": 4,
+        "visivel": false
+      }
+    ],
+    "textos": [
+      {
+        "id": "t",
+        "texto": "Teste",
+        "inicio": 0,
+        "fim": 4,
+        "x": 0.5,
+        "y": 0.2,
+        "tamanho": 0.12,
+        "cor": "#FFFFFF",
+        "fonte": "padrao",
+        "transformacao": {
+          "giro": -15,
+          "giroX": 25,
+          "filtro": "quente"
+        }
+      }
+    ],
+    "audios": [
+      {
+        "id": "a",
+        "arquivo": "a.mp3",
+        "inicio": 0,
+        "fim": 4,
+        "entrada": 0,
+        "volume": 0.4
+      }
+    ],
+    "fundo": {
+      "cor": "#20406080",
+      "corFinal": "#FFA030"
+    }
+  },
+  "entradas": {
+    "clipes": [
+      {
+        "caminho": "c1.mp4",
+        "temAudio": true
+      },
+      {
+        "caminho": "c2.png",
+        "temAudio": false
+      }
+    ],
+    "textos": [
+      "texto.png"
+    ],
+    "audios": [
+      "a.mp3"
+    ],
+    "camadas": [
+      "fundo.png",
+      "a.gif",
+      "b.mp4",
+      ""
+    ]
+  },
+  "esperado": {
+    "duracao": 4,
+    "segmentos": [
+      {
+        "indice": 0,
+        "id": "c1",
+        "inicio": 0,
+        "fim": 2,
+        "duracao": 2
+      },
+      {
+        "indice": 1,
+        "id": "c2",
+        "inicio": 2,
+        "fim": 4,
+        "duracao": 2
+      }
+    ],
+    "problemas": [],
+    "avisos": [],
+    "gif": {
+      "largura": 320,
+      "altura": 240
+    },
+    "receita": {
+      "args": [
+        "-ss",
+        "1",
+        "-t",
+        "2",
+        "-i",
+        "c1.mp4",
+        "-loop",
+        "1",
+        "-framerate",
+        "15",
+        "-t",
+        "2",
+        "-i",
+        "c2.png",
+        "-ss",
+        "0",
+        "-t",
+        "4",
+        "-i",
+        "a.mp3",
+        "-loop",
+        "1",
+        "-framerate",
+        "15",
+        "-t",
+        "4",
+        "-i",
+        "fundo.png",
+        "-stream_loop",
+        "-1",
+        "-ignore_loop",
+        "1",
+        "-ss",
+        "0",
+        "-t",
+        "3",
+        "-i",
+        "a.gif",
+        "-ss",
+        "2",
+        "-t",
+        "3",
+        "-i",
+        "b.mp4",
+        "-loop",
+        "1",
+        "-framerate",
+        "15",
+        "-t",
+        "4",
+        "-i",
+        "texto.png"
+      ],
+      "filtro": "[0:a]aresample=48000,aformat=channel_layouts=stereo,volume=1,apad=whole_dur=2,atrim=duration=2,asetpts=PTS-STARTPTS[a0];anullsrc=r=48000:cl=stereo,atrim=duration=2,asetpts=PTS-STARTPTS[a1];[a0][a1]concat=n=2:v=0:a=1[ab];[2:a]aresample=48000,aformat=channel_layouts=stereo,volume=0.4[m0];[ab][m0]amix=inputs=2:duration=first:normalize=0[am];color=c=black:s=320x240:r=15:d=4,format=rgba,geq=r='32+(223)*clip(((X+0.5)*W+(Y+0.5)*H)/(W*W+H*H),0,1)':g='64+(96)*clip(((X+0.5)*W+(Y+0.5)*H)/(W*W+H*H),0,1)':b='96+(-48)*clip(((X+0.5)*W+(Y+0.5)*H)/(W*W+H*H),0,1)':a='128+(127)*clip(((X+0.5)*W+(Y+0.5)*H)/(W*W+H*H),0,1)',format=rgba[cfundo];[3:v]fps=15,format=rgba,scale=320:240:force_original_aspect_ratio=decrease:force_divisible_by=2,pad=320:240:(ow-iw)/2:(oh-ih)/2:color=black@0,setsar=1,format=gbrap,geq=r='st(0,(W*(1*(X+0.5)/W+0*(Y+0.5)/H+0)/(0*(X+0.5)/W+0*(Y+0.5)/H+1)-0.5));st(1,(H*(0*(X+0.5)/W+1*(Y+0.5)/H+0)/(0*(X+0.5)/W+0*(Y+0.5)/H+1)-0.5));1.08*r(ld(0),ld(1))+0*g(ld(0),ld(1))+0*b(ld(0),ld(1))+-25.6':g='st(0,(W*(1*(X+0.5)/W+0*(Y+0.5)/H+0)/(0*(X+0.5)/W+0*(Y+0.5)/H+1)-0.5));st(1,(H*(0*(X+0.5)/W+1*(Y+0.5)/H+0)/(0*(X+0.5)/W+0*(Y+0.5)/H+1)-0.5));0*r(ld(0),ld(1))+1.2*g(ld(0),ld(1))+0*b(ld(0),ld(1))+-25.6':b='st(0,(W*(1*(X+0.5)/W+0*(Y+0.5)/H+0)/(0*(X+0.5)/W+0*(Y+0.5)/H+1)-0.5));st(1,(H*(0*(X+0.5)/W+1*(Y+0.5)/H+0)/(0*(X+0.5)/W+0*(Y+0.5)/H+1)-0.5));0*r(ld(0),ld(1))+0*g(ld(0),ld(1))+1.38*b(ld(0),ld(1))+-7.6':a='st(0,(W*(1*(X+0.5)/W+0*(Y+0.5)/H+0)/(0*(X+0.5)/W+0*(Y+0.5)/H+1)-0.5));st(1,(H*(0*(X+0.5)/W+1*(Y+0.5)/H+0)/(0*(X+0.5)/W+0*(Y+0.5)/H+1)-0.5));if(between(ld(0),-0.5,W-0.5)*between(ld(1),-0.5,H-0.5),alpha(ld(0),ld(1))*1,0)':interpolation=bilinear,format=rgba,tpad=stop_mode=clone:stop_duration=4,trim=duration=4,setpts=PTS-STARTPTS+0/TB[ce0];[cfundo][ce0]overlay=0:0:format=auto:enable='gte(t,0)*lt(t,4)'[cc0];[0:v]fps=15,format=rgba,scale=320:240:force_original_aspect_ratio=decrease:force_divisible_by=2,pad=320:240:(ow-iw)/2:(oh-ih)/2:color=black@0,setsar=1,format=gbrap,geq=r='st(0,(W*(0.62390515*(X+0.5)/W+0.637847496*(Y+0.5)/H+-0.208442542)/(-0.081249407*(X+0.5)/W+-0.235145419*(Y+0.5)/H+1.003064975)-0.5));st(1,(H*(-0.808437721*(X+0.5)/W+0.646619006*(Y+0.5)/H+0.503343138)/(-0.081249407*(X+0.5)/W+-0.235145419*(Y+0.5)/H+1.003064975)-0.5));0.6852*r(ld(0),ld(1))+0.286*g(ld(0),ld(1))+0.0288*b(ld(0),ld(1))+30':g='st(0,(W*(0.62390515*(X+0.5)/W+0.637847496*(Y+0.5)/H+-0.208442542)/(-0.081249407*(X+0.5)/W+-0.235145419*(Y+0.5)/H+1.003064975)-0.5));st(1,(H*(-0.808437721*(X+0.5)/W+0.646619006*(Y+0.5)/H+0.503343138)/(-0.081249407*(X+0.5)/W+-0.235145419*(Y+0.5)/H+1.003064975)-0.5));0.08094*r(ld(0),ld(1))+0.8417*g(ld(0),ld(1))+0.02736*b(ld(0),ld(1))+20':b='st(0,(W*(0.62390515*(X+0.5)/W+0.637847496*(Y+0.5)/H+-0.208442542)/(-0.081249407*(X+0.5)/W+-0.235145419*(Y+0.5)/H+1.003064975)-0.5));st(1,(H*(-0.808437721*(X+0.5)/W+0.646619006*(Y+0.5)/H+0.503343138)/(-0.081249407*(X+0.5)/W+-0.235145419*(Y+0.5)/H+1.003064975)-0.5));0.06816*r(ld(0),ld(1))+0.2288*g(ld(0),ld(1))+0.50304*b(ld(0),ld(1))+0':a='st(0,(W*(0.62390515*(X+0.5)/W+0.637847496*(Y+0.5)/H+-0.208442542)/(-0.081249407*(X+0.5)/W+-0.235145419*(Y+0.5)/H+1.003064975)-0.5));st(1,(H*(-0.808437721*(X+0.5)/W+0.646619006*(Y+0.5)/H+0.503343138)/(-0.081249407*(X+0.5)/W+-0.235145419*(Y+0.5)/H+1.003064975)-0.5));if(between(ld(0),-0.5,W-0.5)*between(ld(1),-0.5,H-0.5),alpha(ld(0),ld(1))*0.8,0)':interpolation=bilinear,format=rgba,setpts=PTS-STARTPTS+0/TB[cp0];[cc0][cp0]overlay=0:0:format=auto:enable='gte(t,0)*lt(t,2)'[cc1];[1:v]fps=15,format=rgba,split[cb1][cf1];[cb1]scale=320:240:force_original_aspect_ratio=increase,crop=320:240,scale=40:30,gblur=sigma=3,scale=320:240[cblur1];[cf1]scale=320:240:force_original_aspect_ratio=decrease:force_divisible_by=2[cfit1];[cblur1][cfit1]overlay=(W-w)/2:(H-h)/2:format=auto,setsar=1,format=gbrap,geq=r='st(0,(W*(-1.428571429*(X+0.5)/W+0*(Y+0.5)/H+1.214285714)/(0*(X+0.5)/W+0*(Y+0.5)/H+1)-0.5));st(1,(H*(0*(X+0.5)/W+1.428571429*(Y+0.5)/H+-0.214285714)/(0*(X+0.5)/W+0*(Y+0.5)/H+1)-0.5));1*r(ld(0),ld(1))+0*g(ld(0),ld(1))+0*b(ld(0),ld(1))+0':g='st(0,(W*(-1.428571429*(X+0.5)/W+0*(Y+0.5)/H+1.214285714)/(0*(X+0.5)/W+0*(Y+0.5)/H+1)-0.5));st(1,(H*(0*(X+0.5)/W+1.428571429*(Y+0.5)/H+-0.214285714)/(0*(X+0.5)/W+0*(Y+0.5)/H+1)-0.5));0*r(ld(0),ld(1))+1*g(ld(0),ld(1))+0*b(ld(0),ld(1))+0':b='st(0,(W*(-1.428571429*(X+0.5)/W+0*(Y+0.5)/H+1.214285714)/(0*(X+0.5)/W+0*(Y+0.5)/H+1)-0.5));st(1,(H*(0*(X+0.5)/W+1.428571429*(Y+0.5)/H+-0.214285714)/(0*(X+0.5)/W+0*(Y+0.5)/H+1)-0.5));0*r(ld(0),ld(1))+0*g(ld(0),ld(1))+1*b(ld(0),ld(1))+0':a='st(0,(W*(-1.428571429*(X+0.5)/W+0*(Y+0.5)/H+1.214285714)/(0*(X+0.5)/W+0*(Y+0.5)/H+1)-0.5));st(1,(H*(0*(X+0.5)/W+1.428571429*(Y+0.5)/H+-0.214285714)/(0*(X+0.5)/W+0*(Y+0.5)/H+1)-0.5));if(between(ld(0),-0.5,W-0.5)*between(ld(1),-0.5,H-0.5),alpha(ld(0),ld(1))*1,0)':interpolation=bilinear,format=rgba,setpts=PTS-STARTPTS+2/TB[cp1];[cc1]split=3[cc2b0][cc2b1][cc2b2];[cp1]split=3[cc2f0][cc2f1][cc2f2];[cc2b0][cc2f0]blend=all_mode=screen:shortest=0[cc2rgb];[cc2b1]alphaextract,format=gbrp[cc2ba];[cc2f1]alphaextract[cc2fa];[cc2f2][cc2rgb][cc2ba]maskedmerge[cc2mix];[cc2mix][cc2fa]alphamerge[cc2fg];[cc2b2][cc2fg]overlay=0:0:format=auto:enable='gte(t,2)*lt(t,4)'[cc2];[4:v]fps=15,format=rgba,scale=320:240:force_original_aspect_ratio=decrease:force_divisible_by=2,pad=320:240:(ow-iw)/2:(oh-ih)/2:color=black@0,setsar=1,format=gbrap,geq=r='st(0,(W*(3.289801457*(X+0.5)/W+0*(Y+0.5)/H+-1.783741806)/(0.242327458*(X+0.5)/W+0*(Y+0.5)/H+0.868609208)-0.5));st(1,(H*(0.121163729*(X+0.5)/W+2.595596073*(Y+0.5)/H+-0.344374218)/(0.242327458*(X+0.5)/W+0*(Y+0.5)/H+0.868609208)-0.5));1*r(ld(0),ld(1))+0*g(ld(0),ld(1))+0*b(ld(0),ld(1))+0':g='st(0,(W*(3.289801457*(X+0.5)/W+0*(Y+0.5)/H+-1.783741806)/(0.242327458*(X+0.5)/W+0*(Y+0.5)/H+0.868609208)-0.5));st(1,(H*(0.121163729*(X+0.5)/W+2.595596073*(Y+0.5)/H+-0.344374218)/(0.242327458*(X+0.5)/W+0*(Y+0.5)/H+0.868609208)-0.5));0*r(ld(0),ld(1))+1*g(ld(0),ld(1))+0*b(ld(0),ld(1))+0':b='st(0,(W*(3.289801457*(X+0.5)/W+0*(Y+0.5)/H+-1.783741806)/(0.242327458*(X+0.5)/W+0*(Y+0.5)/H+0.868609208)-0.5));st(1,(H*(0.121163729*(X+0.5)/W+2.595596073*(Y+0.5)/H+-0.344374218)/(0.242327458*(X+0.5)/W+0*(Y+0.5)/H+0.868609208)-0.5));0*r(ld(0),ld(1))+0*g(ld(0),ld(1))+1*b(ld(0),ld(1))+0':a='st(0,(W*(3.289801457*(X+0.5)/W+0*(Y+0.5)/H+-1.783741806)/(0.242327458*(X+0.5)/W+0*(Y+0.5)/H+0.868609208)-0.5));st(1,(H*(0.121163729*(X+0.5)/W+2.595596073*(Y+0.5)/H+-0.344374218)/(0.242327458*(X+0.5)/W+0*(Y+0.5)/H+0.868609208)-0.5));if(between(ld(0),-0.5,W-0.5)*between(ld(1),-0.5,H-0.5),alpha(ld(0),ld(1))*1,0)':interpolation=bilinear,format=rgba,tpad=stop_mode=clone:stop_duration=3,trim=duration=3,setpts=PTS-STARTPTS+0.5/TB[ce1];[cc2]split=3[cc3b0][cc3b1][cc3b2];[ce1]split=3[cc3f0][cc3f1][cc3f2];[cc3b0][cc3f0]blend=all_mode=multiply:shortest=0[cc3rgb];[cc3b1]alphaextract,format=gbrp[cc3ba];[cc3f1]alphaextract[cc3fa];[cc3f2][cc3rgb][cc3ba]maskedmerge[cc3mix];[cc3mix][cc3fa]alphamerge[cc3fg];[cc3b2][cc3fg]overlay=0:0:format=auto:enable='gte(t,0.5)*lt(t,3.5)'[cc3];[5:v]fps=15,format=rgba,scale=320:240:force_original_aspect_ratio=decrease:force_divisible_by=2,pad=320:240:(ow-iw)/2:(oh-ih)/2:color=black@0,setsar=1,format=gbrap,geq=r='st(0,(W*(2*(X+0.5)/W+0*(Y+0.5)/H+-0.5)/(0*(X+0.5)/W+0*(Y+0.5)/H+1)-0.5));st(1,(H*(0*(X+0.5)/W+2*(Y+0.5)/H+-0.5)/(0*(X+0.5)/W+0*(Y+0.5)/H+1)-0.5));0.7639*r(ld(0),ld(1))+0.2145*g(ld(0),ld(1))+0.0216*b(ld(0),ld(1))+20':g='st(0,(W*(2*(X+0.5)/W+0*(Y+0.5)/H+-0.5)/(0*(X+0.5)/W+0*(Y+0.5)/H+1)-0.5));st(1,(H*(0*(X+0.5)/W+2*(Y+0.5)/H+-0.5)/(0*(X+0.5)/W+0*(Y+0.5)/H+1)-0.5));0.0639*r(ld(0),ld(1))+0.9145*g(ld(0),ld(1))+0.0216*b(ld(0),ld(1))+20':b='st(0,(W*(2*(X+0.5)/W+0*(Y+0.5)/H+-0.5)/(0*(X+0.5)/W+0*(Y+0.5)/H+1)-0.5));st(1,(H*(0*(X+0.5)/W+2*(Y+0.5)/H+-0.5)/(0*(X+0.5)/W+0*(Y+0.5)/H+1)-0.5));0.0639*r(ld(0),ld(1))+0.2145*g(ld(0),ld(1))+0.7216*b(ld(0),ld(1))+20':a='st(0,(W*(2*(X+0.5)/W+0*(Y+0.5)/H+-0.5)/(0*(X+0.5)/W+0*(Y+0.5)/H+1)-0.5));st(1,(H*(0*(X+0.5)/W+2*(Y+0.5)/H+-0.5)/(0*(X+0.5)/W+0*(Y+0.5)/H+1)-0.5));if(between(ld(0),-0.5,W-0.5)*between(ld(1),-0.5,H-0.5),alpha(ld(0),ld(1))*1,0)':interpolation=bilinear,format=rgba,tpad=stop_mode=clone:stop_duration=3,trim=duration=3,setpts=PTS-STARTPTS+1/TB[ce2];[cc3]split=3[cc4b0][cc4b1][cc4b2];[ce2]split=3[cc4f0][cc4f1][cc4f2];[cc4b0][cc4f0]blend=all_mode=overlay:shortest=0[cc4rgb];[cc4b1]alphaextract,format=gbrp[cc4ba];[cc4f1]alphaextract[cc4fa];[cc4f2][cc4rgb][cc4ba]maskedmerge[cc4mix];[cc4mix][cc4fa]alphamerge[cc4fg];[cc4b2][cc4fg]overlay=0:0:format=auto:enable='gte(t,1)*lt(t,4)'[cc4];[6:v]format=gbrap,geq=r='st(0,(W*(1.038130561*(X+0.5)/W+-0.145092189*(Y+0.5)/H+0.079894455)/(0.042354997*(X+0.5)/W+0.11855325*(Y+0.5)/H+0.972373159)-0.5));st(1,(H*(0.422059341*(X+0.5)/W+1.181360179*(Y+0.5)/H+-0.275296119)/(0.042354997*(X+0.5)/W+0.11855325*(Y+0.5)/H+0.972373159)-0.5));1.15*r(ld(0),ld(1))+0*g(ld(0),ld(1))+0*b(ld(0),ld(1))+15':g='st(0,(W*(1.038130561*(X+0.5)/W+-0.145092189*(Y+0.5)/H+0.079894455)/(0.042354997*(X+0.5)/W+0.11855325*(Y+0.5)/H+0.972373159)-0.5));st(1,(H*(0.422059341*(X+0.5)/W+1.181360179*(Y+0.5)/H+-0.275296119)/(0.042354997*(X+0.5)/W+0.11855325*(Y+0.5)/H+0.972373159)-0.5));0*r(ld(0),ld(1))+1.02*g(ld(0),ld(1))+0*b(ld(0),ld(1))+5':b='st(0,(W*(1.038130561*(X+0.5)/W+-0.145092189*(Y+0.5)/H+0.079894455)/(0.042354997*(X+0.5)/W+0.11855325*(Y+0.5)/H+0.972373159)-0.5));st(1,(H*(0.422059341*(X+0.5)/W+1.181360179*(Y+0.5)/H+-0.275296119)/(0.042354997*(X+0.5)/W+0.11855325*(Y+0.5)/H+0.972373159)-0.5));0*r(ld(0),ld(1))+0*g(ld(0),ld(1))+0.85*b(ld(0),ld(1))+0':a='st(0,(W*(1.038130561*(X+0.5)/W+-0.145092189*(Y+0.5)/H+0.079894455)/(0.042354997*(X+0.5)/W+0.11855325*(Y+0.5)/H+0.972373159)-0.5));st(1,(H*(0.422059341*(X+0.5)/W+1.181360179*(Y+0.5)/H+-0.275296119)/(0.042354997*(X+0.5)/W+0.11855325*(Y+0.5)/H+0.972373159)-0.5));if(between(ld(0),-0.5,W-0.5)*between(ld(1),-0.5,H-0.5),alpha(ld(0),ld(1))*1,0)':interpolation=bilinear,format=rgba[ct0];[cc4][ct0]overlay=0:0:format=auto:enable='gte(t,0)*lt(t,4.066666667)'[cc5]",
+      "mapas": [
+        "-map",
+        "[cc5]",
+        "-map",
+        "[am]"
+      ],
+      "duracao": 4
+    }
+  }
+}

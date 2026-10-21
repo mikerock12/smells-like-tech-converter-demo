@@ -88,4 +88,42 @@ class EstudioExportadorTest {
         assertEquals(0x80FF0000.toInt(), DesenhoDoTexto.cor("#FF000080"))
         assertEquals(0xFF112233.toInt(), DesenhoDoTexto.cor("#112233"))
     }
+
+    @Test fun perspectivaECamadaTemporizadaNoFfmpegDoAndroid() = runBlocking {
+        assertTrue("FFmpeg do aplicativo disponível", Ffmpeg.disponivel(contexto))
+        val pasta = File(contexto.cacheDir, "camadas-instrumentado").apply { mkdirs() }
+        fun foto(nome: String, cor: Int): File {
+            val bitmap = android.graphics.Bitmap.createBitmap(128, 128, android.graphics.Bitmap.Config.ARGB_8888)
+            bitmap.eraseColor(cor)
+            return File(pasta, nome).also { arquivo ->
+                arquivo.outputStream().use { bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
+                bitmap.recycle()
+            }
+        }
+        try {
+            val base = foto("base.png", android.graphics.Color.BLUE)
+            val extra = foto("extra.png", android.graphics.Color.RED)
+            val projeto = Projeto(largura = 128, altura = 128, fps = 10, saida = "imagem",
+                clipes = listOf(Clipe("base", base.absolutePath, "imagem", duracao = 2.0, ajuste = "caber")),
+                camadas = listOf(Camada("extra", extra.absolutePath, inicio = .5, fim = 1.5,
+                    transformacao = Transformacao(escala = .6, giro = 17.0, giroX = 25.0, giroY = -15.0))))
+            for (instante in listOf(.1, 1.0, 1.8)) {
+                val destino = File(pasta, "quadro.png")
+                Exportador.gerar(contexto, projeto.copy(quadro = instante), destino) {}
+                val imagem = BitmapFactory.decodeFile(destino.absolutePath)
+                try {
+                    assertEquals(128 to 128, imagem.width to imagem.height)
+                    val centro = imagem.getPixel(64, 64)
+                    if (instante == 1.0) assertTrue("camada vermelha no centro", android.graphics.Color.red(centro) > 200)
+                    else assertTrue("camada fora do intervalo", android.graphics.Color.blue(centro) > 200)
+                    assertTrue("base preservada fora da perspectiva", android.graphics.Color.blue(imagem.getPixel(5, 5)) > 200)
+                } finally { imagem.recycle() }
+            }
+            val video = File(pasta, "composto.mp4")
+            Exportador.gerar(contexto, projeto.copy(saida = "video"), video) {}
+            val sondagem = Ffmpeg.sondar(contexto, video)
+            assertTrue(sondagem.temVideo)
+            assertTrue("duração composta", (sondagem.duracaoSegundos ?: 0.0) in 1.9..2.2)
+        } finally { pasta.deleteRecursively() }
+    }
 }

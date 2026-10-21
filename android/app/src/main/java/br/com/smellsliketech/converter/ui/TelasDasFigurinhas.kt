@@ -73,6 +73,8 @@ import br.com.smellsliketech.converter.figurinhas.PosicaoDoTexto
 import br.com.smellsliketech.converter.figurinhas.Regras
 import br.com.smellsliketech.converter.figurinhas.TipoDaOrigem
 import br.com.smellsliketech.converter.figurinhas.WhatsApp
+import br.com.smellsliketech.converter.figurinhas.Mescla
+import kotlin.math.roundToInt
 
 private val CORES = listOf(
     CorAndroid.WHITE, CorAndroid.BLACK, 0xFFFF7A1A.toInt(), 0xFFFFD54A.toInt(), 0xFFE53935.toInt(),
@@ -282,11 +284,15 @@ private fun DetalheDoPacote(modelo: FigurinhasViewModel, pacote: PacoteDeFigurin
     }
 }
 
-private enum class Aba(val rotulo: String) { ENQUADRAR("Enquadrar"), FUNDO("Fundo"), FILTRO("Filtro"), TEXTO("Texto"), CONTORNO("Contorno"), EMOJI("Emoji") }
+private enum class Aba(val rotulo: String) { CAMADAS("Camadas"), ENQUADRAR("Enquadrar"), FUNDO("Fundo"), FILTRO("Filtro"), TEXTO("Texto"), CONTORNO("Contorno"), EMOJI("Emoji") }
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun EditorDeFigurinha(modelo: FigurinhasViewModel) {
+    var catalogoAberto by remember { mutableStateOf(false) }
+    if (catalogoAberto) SeletorDeStickers("figurinhas", { catalogoAberto = false }) {
+        modelo.adicionarMidia(android.net.Uri.fromFile(it), descartarAoAbrir = true)
+    }
     val origem = modelo.origem ?: return
     val edicao = modelo.edicao
     var aba by remember { mutableStateOf(Aba.ENQUADRAR) }
@@ -294,6 +300,10 @@ private fun EditorDeFigurinha(modelo: FigurinhasViewModel) {
     var apagar by remember { mutableStateOf(true) }
     var tamanhoDoPincel by remember { mutableStateOf(0.05f) }
     var salvando by remember { mutableStateOf(false) }
+    var importarComoFundo by remember { mutableStateOf(false) }
+    val adicionarMidia = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) modelo.adicionarMidia(uri, importarComoFundo)
+    }
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -303,7 +313,7 @@ private fun EditorDeFigurinha(modelo: FigurinhasViewModel) {
         Text(origem.nome, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp, maxLines = 1)
 
         // Vídeo e GIF: estática (um quadro) ou animada (trecho de até 10 s).
-        if (origem.tipo != TipoDaOrigem.IMAGEM) {
+        if (modelo.temAnimacao) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 FilterChip(selected = !modelo.animada, onClick = { modelo.animada = false }, label = { Text("Estática (um quadro)") })
                 FilterChip(selected = modelo.animada, onClick = { modelo.animada = true }, label = { Text("Animada (até 10 s)") })
@@ -317,15 +327,25 @@ private fun EditorDeFigurinha(modelo: FigurinhasViewModel) {
                     if (inicioMudou) modelo.carregarBase()
                 }
                 Dica(if (modelo.animada) "A figurinha animada usa o trecho entre Início e Fim (no máximo 10 s)." else "A figurinha estática usa o quadro marcado em Início.")
-            } else {
+            } else if (origem.tipo == TipoDaOrigem.GIF) {
                 Dica(if (modelo.animada) "O GIF vira figurinha animada (os primeiros 10 s)." else "A figurinha estática usa o primeiro quadro do GIF.")
+            }
+            if (modelo.animada) {
+                Rotulado("Duração da composição: ${(modelo.fim - modelo.inicio).toFloat()} s") {
+                    Slider((modelo.fim - modelo.inicio).toFloat().coerceIn(0.2f, 10f),
+                        { modelo.fim = modelo.inicio + it }, valueRange = 0.2f..10f)
+                }
+                Rotulado("Prévia: ${"%.1f".format(modelo.tempoDaPrevia)} s") {
+                    Slider(modelo.tempoDaPrevia.coerceIn(0f, (modelo.fim - modelo.inicio).toFloat().coerceAtLeast(0.2f)),
+                        modelo::mostrarInstante, valueRange = 0f..(modelo.fim - modelo.inicio).toFloat().coerceAtLeast(0.2f))
+                }
             }
         }
 
         // A prévia: arrastar e pinçar enquadram; no modo pincel, o dedo apaga ou devolve.
         Box(
             Modifier.fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(12.dp)).fundoXadrez()
-                .pointerInput(aba, pincel, apagar, tamanhoDoPincel) {
+                .pointerInput(aba, pincel, apagar, tamanhoDoPincel, modelo.camadaSelecionada) {
                     if (aba == Aba.FUNDO && pincel) {
                         detectDragGestures(
                             onDragStart = { ponto -> modelo.pincelarNaPrevia(ponto.x / size.width, ponto.y / size.height, tamanhoDoPincel, apagar) },
@@ -334,13 +354,14 @@ private fun EditorDeFigurinha(modelo: FigurinhasViewModel) {
                             modelo.pincelarNaPrevia(ponto.x / size.width, ponto.y / size.height, tamanhoDoPincel, apagar)
                         }
                     } else {
-                        detectTransformGestures { _, deslocamento, zoom, _ ->
+                        detectTransformGestures { _, deslocamento, zoom, giro ->
                             val atual = modelo.edicao
                             modelo.mudar(
                                 atual.copy(
                                     zoom = (atual.zoom * zoom).coerceIn(0.3f, 6f),
                                     deslocamentoX = (atual.deslocamentoX + deslocamento.x / size.width).coerceIn(-1f, 1f),
                                     deslocamentoY = (atual.deslocamentoY + deslocamento.y / size.height).coerceIn(-1f, 1f),
+                                    giro = ((atual.giro + giro).roundToInt() + 540) % 360 - 180,
                                 ),
                             )
                         }
@@ -357,11 +378,50 @@ private fun EditorDeFigurinha(modelo: FigurinhasViewModel) {
         }
 
         when (aba) {
+            Aba.CAMADAS -> {
+                OutlinedButton(onClick = { catalogoAberto = true }) { Text("Stickers e GIF stickers") }
+                Dica("Selecione uma camada para ajustar posição, giro, filtro ou recorte sem alterar as outras.")
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    OutlinedButton(onClick = { importarComoFundo = false; adicionarMidia.launch(arrayOf("image/*", "video/*")) }) { Text("Adicionar mídia / sticker / GIF") }
+                    OutlinedButton(onClick = { modelo.adicionarTexto(); aba = Aba.TEXTO }) { Text("Adicionar texto") }
+                    OutlinedButton(onClick = { aba = Aba.EMOJI }) { Text("Adicionar emoji") }
+                }
+                FilterChip(selected = modelo.camadaSelecionada == null, onClick = { modelo.selecionarCamada(null) }, label = { Text("Mídia principal") })
+                modelo.camadas.sortedByDescending { it.ordem }.forEach { camada ->
+                    Column {
+                        FilterChip(selected = modelo.camadaSelecionada == camada.id, onClick = { modelo.selecionarCamada(camada.id) },
+                            label = { Text("${if (!camada.visivel) "Oculta · " else ""}${camada.nome}", maxLines = 1) })
+                        FlowRow {
+                            TextButton(onClick = { modelo.moverCamada(camada.id, 1) }) { Text("Para frente") }
+                            TextButton(onClick = { modelo.moverCamada(camada.id, -1) }) { Text("Para trás") }
+                            TextButton(onClick = { modelo.ocultarCamada(camada.id) }) { Text(if (camada.visivel) "Ocultar" else "Mostrar") }
+                            TextButton(onClick = { modelo.excluirCamada(camada.id) }) { Text("Excluir") }
+                        }
+                    }
+                }
+                Rotulado("Opacidade: ${(edicao.opacidade * 100).roundToInt()}%") {
+                    Slider(edicao.opacidade, { modelo.mudar(edicao.copy(opacidade = it)) })
+                }
+                FlowRow {
+                    Mescla.entries.forEach { mescla ->
+                        FilterChip(selected = edicao.mescla == mescla, onClick = { modelo.mudar(edicao.copy(mescla = mescla)) }, label = { Text(mescla.rotulo) })
+                    }
+                }
+            }
             Aba.ENQUADRAR -> {
                 Dica("Arraste para mover e pince para aproximar. Ou use os controles:")
                 Rotulado("Zoom") { Slider(edicao.zoom, { modelo.mudar(edicao.copy(zoom = it)) }, valueRange = 0.3f..4f) }
                 Rotulado("Horizontal") { Slider(edicao.deslocamentoX, { modelo.mudar(edicao.copy(deslocamentoX = it)) }, valueRange = -1f..1f) }
                 Rotulado("Vertical") { Slider(edicao.deslocamentoY, { modelo.mudar(edicao.copy(deslocamentoY = it)) }, valueRange = -1f..1f) }
+                Rotulado("Giro no plano (Z): ${edicao.giro}°") {
+                    Slider(edicao.giro.toFloat().coerceIn(-180f, 180f), { modelo.mudar(edicao.copy(giro = it.roundToInt())) }, valueRange = -180f..180f)
+                }
+                Rotulado("Inclinar para frente / trás (X): ${edicao.inclinacaoX.roundToInt()}°") {
+                    Slider(edicao.inclinacaoX, { modelo.mudar(edicao.copy(inclinacaoX = it)) }, valueRange = -180f..180f)
+                }
+                Rotulado("Inclinar para esquerda / direita (Y): ${edicao.inclinacaoY.roundToInt()}°") {
+                    Slider(edicao.inclinacaoY, { modelo.mudar(edicao.copy(inclinacaoY = it)) }, valueRange = -180f..180f)
+                }
                 Rotulado("Girar e espelhar") {
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         OutlinedButton(onClick = { modelo.mudar(edicao.copy(giro = (edicao.giro + 270) % 360)) }) { Text("↺ Girar à esquerda") }
@@ -378,7 +438,7 @@ private fun EditorDeFigurinha(modelo: FigurinhasViewModel) {
                         )
                     }
                 }
-                TextButton(onClick = { modelo.mudar(edicao.copy(zoom = 1f, deslocamentoX = 0f, deslocamentoY = 0f)) }) { Text("Centralizar") }
+                TextButton(onClick = { modelo.mudar(edicao.copy(zoom = 1f, deslocamentoX = 0f, deslocamentoY = 0f, giro = 0, inclinacaoX = 0f, inclinacaoY = 0f)) }) { Text("Redefinir posição e giro") }
             }
             Aba.FUNDO -> {
                 Linha("Remover o fundo automaticamente", edicao.removerFundo) { modelo.mudar(edicao.copy(removerFundo = it)) }
@@ -395,7 +455,13 @@ private fun EditorDeFigurinha(modelo: FigurinhasViewModel) {
                     }
                 }
                 Text("Cor do fundo", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                SeletorDeCor(listOf(CorAndroid.TRANSPARENT) + CORES, edicao.corDeFundo) { modelo.mudar(edicao.copy(corDeFundo = it)) }
+                SeletorDeCor(listOf(CorAndroid.TRANSPARENT) + CORES, modelo.corDeFundo) { modelo.mudarFundo(it, modelo.corFinalDoFundo) }
+                Linha("Fundo em gradiente", modelo.corFinalDoFundo != null) { modelo.mudarFundo(modelo.corDeFundo, if (it) CORES[2] else null) }
+                modelo.corFinalDoFundo?.let { cor ->
+                    Text("Segunda cor")
+                    SeletorDeCor(CORES, cor) { modelo.mudarFundo(modelo.corDeFundo, it) }
+                }
+                OutlinedButton(onClick = { importarComoFundo = true; adicionarMidia.launch(arrayOf("image/*", "video/*")) }) { Text("Usar mídia como fundo") }
             }
             Aba.FILTRO -> {
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -434,6 +500,10 @@ private fun EditorDeFigurinha(modelo: FigurinhasViewModel) {
                 }
             }
             Aba.EMOJI -> {
+                Dica("Toque para desenhar um emoji como camada.")
+                FlowRow {
+                    EMOJIS.forEach { emoji -> TextButton(onClick = { modelo.adicionarTexto(emoji, emoji = true) }) { Text(emoji, fontSize = 24.sp) } }
+                }
                 Dica("O WhatsApp usa os emojis para sugerir a figurinha. Escolha até ${Regras.EMOJIS_MAX}.")
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     EMOJIS.forEach { emoji ->
@@ -455,7 +525,7 @@ private fun EditorDeFigurinha(modelo: FigurinhasViewModel) {
         }
 
         Button(onClick = { salvando = true }, enabled = modelo.previa != null, modifier = Modifier.fillMaxWidth()) {
-            Text(if (modelo.animada && origem.tipo != TipoDaOrigem.IMAGEM) "Gerar figurinha animada" else "Gerar figurinha")
+            Text(if (modelo.animada && modelo.temAnimacao) "Gerar figurinha animada" else "Gerar figurinha")
         }
     }
 

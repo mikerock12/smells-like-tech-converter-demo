@@ -49,6 +49,7 @@ class EstudioTest {
                     (0 until clipes.length()).map { EntradaDeClipe(clipes.getJSONObject(it).getString("caminho"), clipes.getJSONObject(it).getBoolean("temAudio")) },
                     textos(entradas.getJSONArray("textos")),
                     textos(entradas.getJSONArray("audios")),
+                    entradas.optJSONArray("camadas")?.let(::textos) ?: emptyList(),
                 ),
             )
             assertEquals(nome, textos(receita.getJSONArray("args")), calculada.args)

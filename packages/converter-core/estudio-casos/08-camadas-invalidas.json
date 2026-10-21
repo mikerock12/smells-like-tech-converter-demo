@@ -1,0 +1,88 @@
+{
+  "projeto": {
+    "versao": 2,
+    "destino": "personalizado",
+    "largura": 512,
+    "altura": 512,
+    "fps": 30,
+    "saida": "imagem",
+    "quadro": 0,
+    "clipes": [
+      {
+        "id": "foto",
+        "arquivo": "foto.png",
+        "tipo": "imagem",
+        "duracao": 3,
+        "ajuste": "caber",
+        "transformacao": {
+          "giro": 500
+        }
+      }
+    ],
+    "textos": [],
+    "audios": [],
+    "camadas": [
+      {
+        "id": "invalida",
+        "arquivo": "",
+        "tipo": "audio",
+        "inicio": 2,
+        "fim": 1,
+        "deslocamento": -1,
+        "transformacao": {
+          "mescla": "inexistente"
+        }
+      },
+      {
+        "id": "efeito",
+        "arquivo": "efeito.gif",
+        "tipo": "gif",
+        "inicio": 0,
+        "fim": 3,
+        "transformacao": {
+          "filtro": "inexistente"
+        }
+      }
+    ],
+    "fundo": {
+      "cor": "invalida"
+    }
+  },
+  "entradas": {
+    "clipes": [
+      {
+        "caminho": "foto.png",
+        "temAudio": false
+      }
+    ],
+    "textos": [],
+    "audios": []
+  },
+  "esperado": {
+    "duracao": 3,
+    "segmentos": [
+      {
+        "indice": 0,
+        "id": "foto",
+        "inicio": 0,
+        "fim": 3,
+        "duracao": 3
+      }
+    ],
+    "problemas": [
+      "A camada 1 está sem mídia válida.",
+      "A camada 1 está com o intervalo inválido.",
+      "A camada 1 está com o início da mídia inválido.",
+      "Ajuste inválido da camada: giro.",
+      "Modo de mesclagem desconhecido.",
+      "Filtro desconhecido.",
+      "Cor de fundo inválida."
+    ],
+    "avisos": [],
+    "gif": {
+      "largura": 480,
+      "altura": 480
+    },
+    "receita": null
+  }
+}

@@ -160,6 +160,35 @@ public sealed class StudioEngine(
     {
         Directory.CreateDirectory(workDirectory);
         progress(JobProgress.Step(JobStage.Probing));
+        // Um PNG precisa só do instante escolhido, inclusive ao segmentar um vídeo longo.
+        if (project.Output == "imagem" && project.Clips.Count > 0)
+        {
+            var time = Math.Clamp(project.Frame, 0, Math.Max(0, StudioRules.TotalDuration(project) - 1.0 / project.Fps));
+            var at = StudioRules.ClipAt(project, time)!.Value;
+            var clip = at.Clip;
+            var layersAtFrame = new List<StudioLayer>();
+            foreach (var layer in StudioRules.LayersAt(project, time))
+            {
+                var offset = time - layer.Start + layer.Offset;
+                if (layer.Kind != "imagem")
+                {
+                    var info = await inspector.InspectAsync(Resolve(inputs, layer.File), cancellationToken);
+                    if (info.Duration?.TotalSeconds is > 0 and var duration)
+                        offset = layer.Repeat ? offset % duration : Math.Min(offset, Math.Max(0, duration - 1.0 / project.Fps));
+                }
+                layersAtFrame.Add(layer with { Start = 0, End = .1, Offset = offset, Repeat = false });
+            }
+            project = project with
+            {
+                Frame = 0,
+                Clips = [clip.IsImage ? clip with { Duration = .1 } : clip with { Start = at.TimeInFile, End = at.TimeInFile + .1 }],
+                Layers = layersAtFrame,
+                Texts = project.Texts.Where(t => time >= t.Start && time <= t.End).Select(t => t with { Start = 0, End = .1 }).ToList(),
+                Audios = []
+            };
+        }
+        var visual = project.Output is not ("audio" or "texto");
+        var preparedClips = project.Clips.ToArray();
         var clips = new List<StudioClipInput>();
         for (var i = 0; i < project.Clips.Count; i++)
         {
@@ -167,7 +196,10 @@ public sealed class StudioEngine(
             var path = Resolve(inputs, clip.File);
             if (clip.IsImage)
             {
-                clips.Add(new StudioClipInput(PrepareImage(path, Path.Combine(workDirectory, $"imagem-{i}.png")), false));
+                var png = PrepareImage(path, Path.Combine(workDirectory, $"imagem-{i}.png"));
+                if (visual && clip.Transform?.RemoveBackground == true)
+                    await BackgroundRemover.RemoveImageAsync(png, png, cancellationToken);
+                clips.Add(new StudioClipInput(png, false));
                 continue;
             }
 
@@ -177,6 +209,15 @@ public sealed class StudioEngine(
                 throw new ConversionException("video_stream_not_found", $"“{Path.GetFileName(path)}” não tem imagem de vídeo.");
             }
 
+            if (visual && clip.Transform?.RemoveBackground == true)
+            {
+                var prepared = Path.Combine(workDirectory, $"recorte-clipe-{i}.mkv");
+                await BackgroundVideo.RemoveAsync(optionsAccessor().FfmpegPath, path, prepared,
+                    StudioRules.Even(info.Width ?? project.Width), StudioRules.Even(info.Height ?? project.Height), project.Fps,
+                    clip.Start ?? 0, StudioRules.ClipDuration(clip), cancellationToken);
+                path = prepared;
+                preparedClips[i] = clip with { Start = 0, End = StudioRules.ClipDuration(clip) };
+            }
             clips.Add(new StudioClipInput(path, info.HasAudio));
         }
 
@@ -195,7 +236,48 @@ public sealed class StudioEngine(
             }
         }
 
-        var command = StudioRecipe.ToCommand(optionsAccessor(), project, new StudioInputs(clips, texts, audios), output, quality);
+        var layers = new List<string>();
+        var preparedLayers = project.Layers.ToArray();
+        if (project.Output is not ("audio" or "texto"))
+        {
+            for (var i = 0; i < project.Layers.Count; i++)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var layer = project.Layers[i];
+                if (!layer.Visible) { layers.Add(""); continue; }
+                var path = Resolve(inputs, layer.File);
+                if (layer.Kind == "imagem")
+                {
+                    path = PrepareImage(path, Path.Combine(workDirectory, $"camada-{i}.png"));
+                    if (layer.Transform?.RemoveBackground == true) await BackgroundRemover.RemoveImageAsync(path, path, cancellationToken);
+                }
+                else if (layer.Transform?.RemoveBackground == true)
+                {
+                    var info = await inspector.InspectAsync(path, cancellationToken);
+                    var prepared = Path.Combine(workDirectory, $"recorte-camada-{i}.mkv");
+                    var start = project.Output == "imagem" ? layer.Offset : 0;
+                    var duration = project.Output == "imagem" ? .1 : Math.Min(info.Duration?.TotalSeconds ?? layer.Offset + layer.End - layer.Start, layer.Offset + layer.End - layer.Start);
+                    await BackgroundVideo.RemoveAsync(optionsAccessor().FfmpegPath, path, prepared,
+                        StudioRules.Even(info.Width ?? project.Width), StudioRules.Even(info.Height ?? project.Height), project.Fps, start, duration, cancellationToken);
+                    path = prepared;
+                    preparedLayers[i] = layer with { Kind = "video", Offset = project.Output == "imagem" ? 0 : layer.Offset };
+                }
+                layers.Add(path);
+            }
+        }
+        var preparedProject = project with { Clips = preparedClips, Layers = preparedLayers };
+        var command = StudioRecipe.ToCommand(optionsAccessor(), preparedProject, new StudioInputs(clips, texts, audios, layers), output, quality);
+        // Perspectiva em várias camadas supera o limite de 32 KiB do CreateProcess.
+        var arguments = command.Arguments.ToList();
+        var filterIndex = arguments.IndexOf("-filter_complex");
+        if (filterIndex >= 0)
+        {
+            var filterPath = Path.Combine(workDirectory, "composicao.fffilter");
+            await File.WriteAllTextAsync(filterPath, arguments[filterIndex + 1], new System.Text.UTF8Encoding(false), cancellationToken);
+            arguments[filterIndex] = "-/filter_complex";
+            arguments[filterIndex + 1] = filterPath;
+            command = command with { Arguments = arguments };
+        }
         var total = project.Output == "imagem" ? Math.Max(0.1, project.Frame) : StudioRules.TotalDuration(project);
         progress(JobProgress.Step(JobStage.Encoding));
         log.Write(LogChannel.Ffmpeg, $"{label} · estúdio · {SafeDiagnostics.FromEngine(command.Describe(), workDirectory, string.Empty)}");

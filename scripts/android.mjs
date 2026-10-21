@@ -211,6 +211,12 @@ function garantirNativos() {
 /** Os testes das duas variantes (a licença e o recibo valem nas duas) e a tarefa pedida. */
 function compilar(tarefa) {
   garantirNativos();
+  if (process.platform === "win32") {
+    // O PowerShell lê as credenciais DPAPI fora do repositório e as passa só no ambiente.
+    rodar("pwsh", ["-NoProfile", "-File", `"${join(raiz, "scripts", "android-giphy.ps1")}"`,
+      ":app:testSiteDebugUnitTest", ":app:testPlayDebugUnitTest", tarefa], { cwd: projeto, stdio: "inherit" });
+    return;
+  }
   const gradlew = join(projeto, process.platform === "win32" ? "gradlew.bat" : "gradlew");
   rodar(`"${gradlew}"`, [":app:testSiteDebugUnitTest", ":app:testPlayDebugUnitTest", tarefa, "--console=plain"], { cwd: projeto, stdio: "inherit" });
 }

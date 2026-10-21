@@ -8,8 +8,10 @@
  * build dos outros apps. JS puro: nada de DOM, roda igual no navegador e no `node --test`.
  */
 import dados from "./estudio-presets.json" with { type: "json" };
+import { validarTransformacao } from "./camadas.mjs";
+import { receitaComCamadas } from "./estudio-camadas.mjs";
 
-export const VERSAO_DO_PROJETO = 1;
+export const VERSAO_DO_PROJETO = 2;
 
 /** Destinos prontos (rede · formato), na ordem em que aparecem para escolher. */
 export const PRESETS = Object.freeze(dados.presets.map((preset) => Object.freeze({ ...preset })));
@@ -130,6 +132,17 @@ export function textosNoTempo(projeto, t) {
   return projeto.textos.filter((texto) => t >= texto.inicio && t <= texto.fim);
 }
 
+/** Camadas extras: início/fim na composição, deslocamento no arquivo de origem. */
+export function camadasNoTempo(projeto, t) {
+  return (projeto.camadas ?? []).filter((c) => c.visivel !== false && t >= c.inicio && t < c.fim)
+    .slice().sort((a, b) => (a.ordem ?? 1) - (b.ordem ?? 1));
+}
+
+export function usaCamadas(projeto) {
+  return Boolean(projeto.fundo || projeto.camadas?.length || projeto.clipes.some((c) => c.transformacao)
+    || projeto.textos.some((t) => t.transformacao));
+}
+
 /**
  * Onde a imagem de origem é desenhada no quadro, para preencher ou caber (o desfocado usa
  * o de caber por cima do de preencher). Mesma conta que o `scale` do FFmpeg com
@@ -156,7 +169,7 @@ export function tamanhoDoGif(largura, altura) {
 /** Problemas que impedem exportar, em português, prontos para mostrar. */
 export function problemas(projeto) {
   const lista = [];
-  if (projeto.versao !== VERSAO_DO_PROJETO) lista.push("Projeto de uma versão que este app não conhece.");
+  if (![1, VERSAO_DO_PROJETO].includes(projeto.versao)) lista.push("Projeto de uma versão que este app não conhece.");
   if (!(projeto.largura >= 16 && projeto.altura >= 16 && projeto.largura <= 4096 && projeto.altura <= 4096)) {
     lista.push("O tamanho do quadro precisa ficar entre 16 e 4096 pixels.");
   }
@@ -175,6 +188,19 @@ export function problemas(projeto) {
   projeto.audios.forEach((audio, i) => {
     if (!(audio.fim - audio.inicio >= DURACAO_MINIMA)) lista.push(`O áudio ${i + 1} termina antes de começar.`);
   });
+  const camadas = projeto.camadas ?? [];
+  if (camadas.length > 12) lista.push("Use até 12 camadas adicionais.");
+  camadas.forEach((camada, i) => {
+    if (!["imagem", "video", "gif"].includes(camada.tipo) || !camada.arquivo) lista.push(`A camada ${i + 1} está sem mídia válida.`);
+    if (!Number.isFinite(camada.inicio) || !Number.isFinite(camada.fim) || camada.inicio < 0 || camada.fim <= camada.inicio) lista.push(`A camada ${i + 1} está com o intervalo inválido.`);
+    if (!Number.isFinite(camada.deslocamento ?? 0) || (camada.deslocamento ?? 0) < 0) lista.push(`A camada ${i + 1} está com o início da mídia inválido.`);
+  });
+  for (const item of [...projeto.clipes, ...projeto.textos, ...camadas]) {
+    const erro = validarTransformacao(item.transformacao);
+    if (erro) lista.push(erro);
+  }
+  const corValida = (cor) => /^#[0-9a-f]{6}([0-9a-f]{2})?$/i.test(cor);
+  if (projeto.fundo && (!corValida(projeto.fundo.cor) || (projeto.fundo.corFinal && !corValida(projeto.fundo.corFinal)))) lista.push("Cor de fundo inválida.");
   const total = duracaoTotal(projeto);
   if (projeto.saida === "imagem" && projeto.clipes.length > 0 && !(projeto.quadro >= 0 && projeto.quadro <= total)) {
     lista.push("Escolha um instante dentro do vídeo para a imagem.");
@@ -213,6 +239,7 @@ export function cabeNoNavegador(projeto) {
  * áudio. O GIF já sai com a paleta, no tamanho de `tamanhoDoGif`.
  */
 export function receitaFfmpeg(projeto, entradas) {
+  if (!["audio", "texto"].includes(projeto.saida) && usaCamadas(projeto)) return receitaComCamadas(projeto, entradas);
   const { largura: W, altura: H, fps } = projeto;
   const total = duracaoTotal(projeto);
   const comVideo = projeto.saida !== "audio" && projeto.saida !== "texto";

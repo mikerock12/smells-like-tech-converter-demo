@@ -20,6 +20,8 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.CancellationException
 import java.io.File
 import kotlin.math.roundToInt
 
@@ -37,6 +39,7 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
     private val contexto = aplicacao
     val pacotes = Pacotes(aplicacao)
     private val renderizador = Renderizador(aplicacao)
+    private val compositor = CompositorDeFigurinhas(aplicacao)
 
     var lista by mutableStateOf(pacotes.listar())
         private set
@@ -50,14 +53,40 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
     var animada by mutableStateOf(false)
     var inicio by mutableStateOf(0.0)
     var fim by mutableStateOf(0.0)
-    var edicao by mutableStateOf(Edicao())
+    private var edicaoPrincipal by mutableStateOf(Edicao())
+    var camadas by mutableStateOf<List<CamadaDeFigurinha>>(emptyList())
+        private set
+    var camadaSelecionada by mutableStateOf<String?>(null)
+        private set
+    var corDeFundo by mutableStateOf(android.graphics.Color.TRANSPARENT)
+        private set
+    var corFinalDoFundo by mutableStateOf<Int?>(null)
+        private set
+    var tempoDaPrevia by mutableStateOf(0f)
+        private set
+    private var trabalhoDaPrevia: Job? = null
+    private fun selecionada() = camadas.firstOrNull { it.id == camadaSelecionada }
+    var edicao: Edicao
+        get() = selecionada()?.edicao ?: edicaoPrincipal
+        set(valor) {
+            if (camadaSelecionada == null) edicaoPrincipal = valor
+            else camadas = camadas.map { if (it.id == camadaSelecionada) it.copy(edicao = valor) else it }
+        }
     var emojis by mutableStateOf(listOf(Pacotes.EMOJI_PADRAO))
 
     /** A imagem base do editor (a imagem, ou o quadro de vídeo escolhido) e a máscara do fundo. */
-    var base by mutableStateOf<Bitmap?>(null)
-        private set
-    var mascara by mutableStateOf<Bitmap?>(null)
-        private set
+    private var basePrincipal by mutableStateOf<Bitmap?>(null)
+    private var mascaraPrincipal by mutableStateOf<Bitmap?>(null)
+    private var mascaraManualPrincipal = false
+    var base: Bitmap?
+        get() = selecionada()?.imagem ?: basePrincipal
+        private set(valor) { basePrincipal = valor }
+    var mascara: Bitmap?
+        get() = selecionada()?.mascara ?: if (camadaSelecionada == null) mascaraPrincipal else null
+        private set(valor) {
+            if (camadaSelecionada == null) mascaraPrincipal = valor
+            else camadas = camadas.map { if (it.id == camadaSelecionada) it.copy(mascara = valor) else it }
+        }
     var previa by mutableStateOf<Bitmap?>(null)
         private set
     var ocupado by mutableStateOf<String?>(null)
@@ -81,6 +110,7 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
     }
     private var trabalho: Job? = null
     private var trabalhoDaBase: Job? = null
+    private var versaoDoEditor = 0
 
     fun recarregar() {
         lista = pacotes.listar()
@@ -128,17 +158,22 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
         trabalhoDaBase?.cancel()
         trabalhoDaBase = viewModelScope.launch {
             // Arrastando o início do trecho: espera o dedo parar antes de tirar o quadro.
-            if (base != null) delay(300)
+            if (basePrincipal != null) delay(300)
             ocupado = "Preparando a imagem…"
             try {
                 val imagem = when (atual.tipo) {
                     TipoDaOrigem.IMAGEM -> withContext(Dispatchers.IO) { decodificar(atual.uri) }
                     else -> Producao.quadro(contexto, atual.copia!!, inicio)
                 }
-                base = imagem
-                mascara = null
-                if (edicao.removerFundo) calcularMascara()
+                ensureActive()
+                if (origem !== atual) return@launch
+                basePrincipal = imagem
+                mascaraPrincipal = null
+                mascaraManualPrincipal = false
+                if (edicaoPrincipal.removerFundo) calcularMascara(null)
                 atualizarPrevia()
+            } catch (erro: CancellationException) {
+                throw erro
             } catch (erro: Exception) {
                 aviso = erro.message ?: "Não deu para preparar a imagem."
             } finally {
@@ -162,13 +197,106 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
 
     // ---- Editar ----
 
+    val temAnimacao get() = origem?.tipo?.let { it != TipoDaOrigem.IMAGEM } == true || camadas.any { it.origem?.tipo?.let { tipo -> tipo != TipoDaOrigem.IMAGEM } == true }
+
+    fun selecionarCamada(id: String?) { camadaSelecionada = id }
+
+    fun mudarFundo(cor: Int, final: Int? = null) {
+        corDeFundo = cor
+        corFinalDoFundo = final
+        atualizarPrevia()
+    }
+
+    fun moverCamada(id: String, passo: Int) {
+        // Inclui a mídia principal (ordem zero) na ordenação.
+        val ordem = (camadas.map { it.id to it.ordem } + ("" to 0)).sortedBy { it.second }.map { it.first }.toMutableList()
+        val indice = ordem.indexOf(id)
+        if (indice < 0) return
+        val alvo = (indice + passo).coerceIn(0, ordem.lastIndex)
+        ordem.add(alvo, ordem.removeAt(indice))
+        val principal = ordem.indexOf("")
+        camadas = camadas.map { it.copy(ordem = ordem.indexOf(it.id) - principal) }
+        atualizarPrevia()
+    }
+
+    fun ocultarCamada(id: String) {
+        camadas = camadas.map { if (it.id == id) it.copy(visivel = !it.visivel) else it }
+        atualizarPrevia()
+    }
+
+    fun excluirCamada(id: String) {
+        val removida = camadas.firstOrNull { it.id == id } ?: return
+        camadas = camadas.filterNot { it.id == id }
+        removida.origem?.copia?.delete()
+        if (camadaSelecionada == id) camadaSelecionada = null
+        if (!temAnimacao) animada = false
+        atualizarPrevia()
+    }
+
+    fun adicionarTexto(texto: String = "Seu texto", emoji: Boolean = false) {
+        if (camadas.size >= 12) { aviso = "Use até 12 camadas adicionais por figurinha."; return }
+        val camada = CamadaDeFigurinha(nome = if (emoji) "Emoji $texto" else "Texto",
+            imagem = Bitmap.createBitmap(512, 512, Bitmap.Config.ARGB_8888), texto = true,
+            edicao = Edicao(texto = texto, tamanhoDoTexto = if (emoji) 180f else 64f, posicaoDoTexto = PosicaoDoTexto.MEIO,
+                corDoContornoDoTexto = if (emoji) android.graphics.Color.TRANSPARENT else android.graphics.Color.BLACK),
+            ordem = (camadas.maxOfOrNull { it.ordem } ?: 0) + 1)
+        camadas = camadas + camada
+        camadaSelecionada = camada.id
+        atualizarPrevia()
+    }
+
+    fun adicionarMidia(uri: Uri, comoFundo: Boolean = false, descartarAoAbrir: Boolean = false) {
+        trabalho = viewModelScope.launch {
+            ocupado = "Adicionando a camada…"
+            var copia: File? = null
+            try {
+                require(camadas.size < 12) { "Use até 12 camadas adicionais por figurinha." }
+                val resolvedor = contexto.contentResolver
+                val nome = resolvedor.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use {
+                    if (it.moveToFirst()) it.getString(0) else null
+                } ?: uri.lastPathSegment.orEmpty()
+                val mime = resolvedor.getType(uri).orEmpty()
+                val tipo = when {
+                    mime == "image/gif" || nome.endsWith(".gif", true) -> TipoDaOrigem.GIF
+                    mime.startsWith("video/") -> TipoDaOrigem.VIDEO
+                    mime.startsWith("image/") || nome.endsWith(".png", true) || nome.endsWith(".webp", true) -> TipoDaOrigem.IMAGEM
+                    else -> throw ErroDeConversao("Escolha uma imagem, um GIF ou um vídeo.")
+                }
+                copia = if (tipo == TipoDaOrigem.IMAGEM) null else Ffmpeg.copiar(contexto, Entrada(uri, nome, if (tipo == TipoDaOrigem.VIDEO) Tipo.VIDEO else Tipo.IMAGEM, 0))
+                val imagem = if (copia == null) withContext(Dispatchers.IO) { decodificar(uri) } else Producao.quadro(contexto, copia, 0.0)
+                val camada = CamadaDeFigurinha(nome = nome, origem = Origem(uri, nome, tipo, copia), imagem = imagem,
+                    edicao = Edicao(zoom = if (comoFundo) 1f else 0.5f),
+                    ordem = if (comoFundo) minOf(-1, (camadas.minOfOrNull { it.ordem } ?: 0) - 1) else (camadas.maxOfOrNull { it.ordem } ?: 0) + 1)
+                camadas = camadas + camada
+                camadaSelecionada = camada.id
+                if (tipo != TipoDaOrigem.IMAGEM) {
+                    animada = true
+                    if (fim <= inicio) fim = inicio + 3.0
+                }
+                atualizarPrevia()
+            } catch (erro: CancellationException) { copia?.delete(); throw erro }
+            catch (erro: Exception) { copia?.delete(); aviso = erro.message }
+            finally {
+                if (descartarAoAbrir && uri.scheme == "file") uri.path?.let { File(it).delete() }
+                ocupado = null
+            }
+        }
+    }
+
+    private fun composicao(): List<CamadaDeFigurinha> {
+        val principal = basePrincipal ?: return emptyList()
+        return listOf(CamadaDeFigurinha(id = "principal", nome = origem?.nome.orEmpty(), origem = origem,
+            imagem = principal, mascara = mascaraPrincipal, mascaraManual = mascaraManualPrincipal, edicao = edicaoPrincipal, ordem = 0)) + camadas
+    }
+
     fun mudar(nova: Edicao) {
         val ligouRemocao = nova.removerFundo && !edicao.removerFundo
         edicao = nova
         if (ligouRemocao && mascara == null) {
+            val id = camadaSelecionada
             viewModelScope.launch {
                 ocupado = "Removendo o fundo…"
-                try { calcularMascara() } finally { ocupado = null }
+                try { calcularMascara(id) } finally { ocupado = null }
                 atualizarPrevia()
             }
         } else {
@@ -176,13 +304,25 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
         }
     }
 
-    private suspend fun calcularMascara() {
-        val imagem = base ?: return
+    private suspend fun calcularMascara(id: String?) {
+        val versao = versaoDoEditor
+        val imagem = if (id == null) basePrincipal else camadas.firstOrNull { it.id == id }?.imagem
+        imagem ?: return
         try {
-            mascara = withContext(Dispatchers.Default) { Fundo.mascara(imagem) }
+            val recorte = withContext(Dispatchers.Default) { Fundo.mascara(imagem) }
+            if (versao != versaoDoEditor || (if (id == null) basePrincipal else camadas.firstOrNull { it.id == id }?.imagem) !== imagem) {
+                recorte.recycle()
+                return
+            }
+            if (id == null) { mascaraPrincipal = recorte; mascaraManualPrincipal = false }
+            else camadas = camadas.map { if (it.id == id) it.copy(mascara = recorte, mascaraManual = false) else it }
+        } catch (erro: CancellationException) {
+            throw erro
         } catch (erro: Exception) {
+            if (versao != versaoDoEditor) return
             aviso = erro.message
-            edicao = edicao.copy(removerFundo = false)
+            if (id == null) edicaoPrincipal = edicaoPrincipal.copy(removerFundo = false)
+            else camadas = camadas.map { if (it.id == id) it.copy(edicao = it.edicao.copy(removerFundo = false)) else it }
         }
     }
 
@@ -193,7 +333,8 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
     fun pincelar(x: Float, y: Float, raio: Float, apagar: Boolean) {
         val imagem = base ?: return
         val atual = mascara ?: Fundo.mascaraCheia(imagem.width, imagem.height)
-        val editavel = if (atual.isMutable) atual else atual.copy(Bitmap.Config.ARGB_8888, true)
+        // A prévia pode estar lendo a máscara anterior em outra thread.
+        val editavel = atual.copy(Bitmap.Config.ARGB_8888, true)
         val tela = android.graphics.Canvas(editavel)
         val tinta = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
             color = android.graphics.Color.WHITE
@@ -201,6 +342,8 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
         }
         tela.drawCircle(x * imagem.width, y * imagem.height, raio * maxOf(imagem.width, imagem.height), tinta)
         mascara = editavel
+        if (camadaSelecionada == null) mascaraManualPrincipal = true
+        else camadas = camadas.map { if (it.id == camadaSelecionada) it.copy(mascaraManual = true) else it }
         if (!edicao.removerFundo) edicao = edicao.copy(removerFundo = true)
         atualizarPrevia()
     }
@@ -213,11 +356,38 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
     }
 
     fun atualizarPrevia() {
-        val imagem = base ?: return
-        val estaEdicao = edicao
-        val estaMascara = mascara
-        viewModelScope.launch {
-            previa = withContext(Dispatchers.Default) { renderizador.desenhar(imagem, estaMascara, estaEdicao) }
+        val lista = composicao()
+        if (lista.isEmpty()) return
+        trabalhoDaPrevia?.cancel()
+        trabalhoDaPrevia = viewModelScope.launch {
+            delay(35)
+            val desenho = withContext(Dispatchers.Default) { compositor.desenhar(lista, corDeFundo, corFinalDoFundo) }
+            ensureActive()
+            previa = desenho
+        }
+    }
+
+    fun mostrarInstante(segundos: Float) {
+        tempoDaPrevia = segundos
+        trabalhoDaPrevia?.cancel()
+        val lista = composicao()
+        trabalhoDaPrevia = viewModelScope.launch {
+            delay(150)
+            val temporarios = mutableListOf<Bitmap>()
+            try {
+                val quadros = lista.map { camada ->
+                    val arquivo = camada.origem?.copia
+                    if (arquivo == null) camada else {
+                        val quadro = Producao.quadro(contexto, arquivo, (if (camada.id == "principal") inicio else 0.0) + segundos)
+                        temporarios += quadro
+                        val recorte = if (camada.mascaraManual) camada.mascara else if (camada.edicao.removerFundo) Fundo.mascara(quadro).also { temporarios += it } else null
+                        camada.copy(imagem = quadro, mascara = recorte)
+                    }
+                }
+                previa = withContext(Dispatchers.Default) { compositor.desenhar(quadros, corDeFundo, corFinalDoFundo) }
+            } catch (erro: CancellationException) { throw erro }
+            catch (erro: Exception) { aviso = "Não foi possível mostrar este instante: ${erro.message}" }
+            finally { temporarios.forEach { it.recycle() } }
         }
     }
 
@@ -238,7 +408,7 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
             restante = null
             andamento = Andamento()
             try {
-                val webp = if (animada && atual.tipo != TipoDaOrigem.IMAGEM) gerarAnimada(atual) else gerarEstatica()
+                val webp = if (animada && temAnimacao) gerarAnimadaEmCamadas() else gerarEstatica()
                 val pacote = destino?.let { pacotes.ler(it.id) } ?: pacotes.criar(nomeDoNovo, animada)
                 val atualizado = withContext(Dispatchers.IO) { pacotes.adicionar(pacote, webp, emojis) }
                 WhatsApp.avisarMudanca(contexto)
@@ -258,11 +428,59 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
     }
 
     private suspend fun gerarEstatica(): ByteArray = withContext(Dispatchers.Default) {
-        val imagem = base ?: throw ErroDeConversao("Nada para salvar.")
+        if (basePrincipal == null) throw ErroDeConversao("Nada para salvar.")
         relatar(0.2, "Desenhando a figurinha…")
-        val desenho = renderizador.desenhar(imagem, mascara, edicao)
+        val desenho = compositor.desenhar(composicao(), corDeFundo, corFinalDoFundo)
         relatar(0.6, "Compactando para o WhatsApp (até 100 KB)…")
-        Producao.estatica(desenho)
+        try { Producao.estatica(desenho) } finally { desenho.recycle() }
+    }
+
+    private suspend fun gerarAnimadaEmCamadas(): ByteArray {
+        val lista = composicao().filter { it.visivel }
+        val duracao = (fim - inicio).coerceIn(0.2, 10.0)
+        val taxa = Producao.quadrosPorSegundo(duracao)
+        val extraidos = mutableMapOf<String, Producao.Quadros>()
+        val pasta = File.createTempFile("composicao-", "", contexto.cacheDir).apply { delete(); mkdirs() }
+        try {
+            for ((indice, camada) in lista.withIndex()) {
+                val arquivo = camada.origem?.copia ?: continue
+                val comeco = if (camada.id == "principal") inicio else 0.0
+                extraidos[camada.id] = Producao.quadros(contexto, arquivo, comeco, comeco + duracao,
+                    transparencia = camada.origem.tipo != TipoDaOrigem.VIDEO) {
+                    relatar((indice + it) / lista.size * 0.2, "Preparando as camadas…")
+                }
+            }
+            val crus = Producao.QuadrosCrus(File(pasta, "composicao.argb"), taxa)
+            val total = kotlin.math.ceil(duracao * taxa).toInt()
+            crus.use {
+                repeat(total) { indice ->
+                    kotlinx.coroutines.currentCoroutineContext().ensureActive()
+                    val temporarios = mutableListOf<Bitmap>()
+                    try {
+                        val quadros = lista.map { camada ->
+                            val sequencia = extraidos[camada.id]
+                            if (sequencia == null) camada else {
+                                val posicao = ((indice.toDouble() / taxa * sequencia.porSegundo).toInt() % sequencia.arquivos.size)
+                                val imagem = android.graphics.BitmapFactory.decodeFile(sequencia.arquivos[posicao].absolutePath)
+                                    ?: throw ErroDeConversao("Não deu para abrir um quadro da camada ${camada.nome}.")
+                                temporarios += imagem
+                                val recorte = if (camada.mascaraManual) camada.mascara else if (camada.edicao.removerFundo) Fundo.mascara(imagem).also { temporarios += it } else null
+                                camada.copy(imagem = imagem, mascara = recorte)
+                            }
+                        }
+                        withContext(Dispatchers.Default) {
+                            val desenho = compositor.desenhar(quadros, corDeFundo, corFinalDoFundo)
+                            try { crus.gravar(desenho) } finally { desenho.recycle() }
+                        }
+                    } finally { temporarios.forEach { it.recycle() } }
+                    relatar(0.2 + 0.5 * (indice + 1) / total, "Compondo quadro ${indice + 1} de $total…")
+                }
+            }
+            return Producao.animada(contexto, crus) { relatar(0.7 + it * 0.3, "Compactando para o WhatsApp…") }
+        } finally {
+            extraidos.values.forEach { it.arquivos.firstOrNull()?.parentFile?.deleteRecursively() }
+            pasta.deleteRecursively()
+        }
     }
 
     /**
@@ -316,8 +534,18 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
     }
 
     private fun limparEditor() {
+        versaoDoEditor++
+        trabalhoDaBase?.cancel()
+        trabalhoDaPrevia?.cancel()
+        camadas.forEach { it.origem?.copia?.delete() }
+        camadas = emptyList()
+        camadaSelecionada = null
+        corDeFundo = android.graphics.Color.TRANSPARENT
+        corFinalDoFundo = null
+        tempoDaPrevia = 0f
         base = null
         mascara = null
+        mascaraManualPrincipal = false
         previa = null
         edicao = Edicao()
         emojis = listOf(Pacotes.EMOJI_PADRAO)
@@ -364,5 +592,6 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
 
     override fun onCleared() {
         origem?.copia?.delete()
+        camadas.forEach { it.origem?.copia?.delete() }
     }
 }

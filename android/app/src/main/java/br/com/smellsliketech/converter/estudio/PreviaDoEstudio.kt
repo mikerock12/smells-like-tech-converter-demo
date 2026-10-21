@@ -2,6 +2,7 @@ package br.com.smellsliketech.converter.estudio
 
 import android.content.Context
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.ImageDecoder
@@ -29,6 +30,16 @@ class PreviaDoEstudio(private val contexto: Context) {
 
     /** O quadro do projeto em `t`, com o lado maior em `ladoMaximo` px. */
     suspend fun quadro(projeto: Projeto, t: Double, ladoMaximo: Int = 720): Bitmap = withContext(Dispatchers.Default) {
+        if (projeto.clipes.isNotEmpty() && Estudio.usaCamadas(projeto)) {
+            val escala = minOf(1.0, 480.0 / max(projeto.largura, projeto.altura))
+            val reduzido = projeto.copy(largura = Estudio.par(projeto.largura * escala), altura = Estudio.par(projeto.altura * escala),
+                saida = "imagem", quadro = t.coerceIn(0.0, maxOf(0.0, Estudio.duracaoTotal(projeto) - 1.0 / projeto.fps)))
+            val arquivo = File.createTempFile("camadas-previa-", ".png", contexto.cacheDir)
+            try {
+                Exportador.gerar(contexto, reduzido, arquivo) {}
+                return@withContext BitmapFactory.decodeFile(arquivo.absolutePath) ?: error("Não foi possível abrir a prévia.")
+            } finally { arquivo.delete() }
+        }
         val escala = minOf(1.0, ladoMaximo.toDouble() / max(projeto.largura, projeto.altura))
         val largura = max(2, (projeto.largura * escala).roundToInt())
         val altura = max(2, (projeto.altura * escala).roundToInt())

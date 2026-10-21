@@ -70,8 +70,9 @@ object Producao {
         val duracao = (fim - inicio).coerceIn(0.1, Regras.ANIMADA_MAX_SEGUNDOS)
         val porSegundo = quadrosPorSegundo(duracao)
         val maximo = ceil(duracao * porSegundo).toInt().coerceAtLeast(1)
-        val pasta = File(contexto.cacheDir, "figurinha-quadros").apply { deleteRecursively(); mkdirs() }
+        val pasta = File.createTempFile("figurinha-quadros-", "", contexto.cacheDir).apply { delete(); mkdirs() }
         val extensao = if (transparencia) "png" else "jpg"
+        try {
         Ffmpeg.executar(
             contexto,
             listOf("-hide_banner", "-nostdin", "-v", "error", "-y", "-progress", "pipe:1", "-nostats",
@@ -85,6 +86,10 @@ object Producao {
         val arquivos = pasta.listFiles { f -> f.name.startsWith("f") }.orEmpty().sortedBy { it.name }
             .ifEmpty { throw ErroDeConversao("O trecho escolhido não tem quadros de vídeo.") }
         Quadros(arquivos, porSegundo)
+        } catch (erro: Exception) {
+            pasta.deleteRecursively()
+            throw erro
+        }
     }
 
     /** WebP estático de até 100 KB: baixa a qualidade aos poucos até caber. */

@@ -127,6 +127,44 @@ public sealed class StudioEngineTests : IDisposable
         Assert.Throws<ConversionException>(() => StudioEngine.Resolve(entradas, "video.mp4"));
     }
 
+    [Fact]
+    public async Task RecorteDeVideoPreservaAudioAlfaEDuracao()
+    {
+        if (!Available) return;
+        var input = Path.Combine(root, "entrada-recorte.mp4");
+        var output = Path.Combine(root, "recortado.mkv");
+        await Run("-f", "lavfi", "-i", "testsrc=size=96x80:rate=4:duration=1", "-f", "lavfi", "-i", "sine=frequency=440:duration=1",
+            "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac", "-shortest", input);
+        await BackgroundVideo.RemoveAsync(ffmpeg!, input, output, 96, 80, 4, .25, .5, CancellationToken.None);
+        var info = await Probe(output);
+        Assert.True(info.HasVideo && info.HasAudio);
+        Assert.InRange(info.Duration!.Value.TotalSeconds, .45, .65);
+        var frame = Path.Combine(root, "recortado.png");
+        await Run("-i", output, "-frames:v", "1", frame);
+        using var image = new MagickImage(frame);
+        Assert.True(image.HasAlpha);
+        var rgba = image.ToByteArray(MagickFormat.Rgba);
+        Assert.Contains(rgba.Where((_, i) => i % 4 == 3), a => a < 128);
+        Assert.Contains(rgba.Where((_, i) => i % 4 == 3), a => a > 200);
+    }
+
+    [Fact]
+    public async Task ExportaPerspectivaComCamadaRecortadaNoInstanteEscolhido()
+    {
+        if (!Available) return;
+        var (video, foto, _) = await CreateSamplesAsync();
+        var project = StudioRules.NewProject("personalizado", "imagem", 128, 128) with
+        {
+            Clips = [new StudioClip { Id = "base", File = foto, Kind = "imagem", Duration = 2 }],
+            Layers = [new StudioLayer { Id = "extra", File = video, Kind = "video", Start = .3, End = 2, Offset = .1,
+                Transform = new StudioTransform { RotationX = 15, RotationY = -20, Rotation = 17, Scale = .6, RemoveBackground = true } }],
+            Frame = 1
+        };
+        var result = await ExportAsync(project, [foto, video]);
+        using var image = new MagickImage(Assert.Single(result.OutputFiles));
+        Assert.Equal((128u, 128u), (image.Width, image.Height));
+    }
+
     private static StudioProject Project(string saida, string video, string foto, string musica) =>
         StudioRules.NewProject("personalizado", saida, 540, 960) with
         {

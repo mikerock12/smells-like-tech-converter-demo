@@ -17,6 +17,8 @@ data class Projeto(
     val clipes: List<Clipe> = emptyList(),
     val textos: List<Texto> = emptyList(),
     val audios: List<AudioExtra> = emptyList(),
+    val camadas: List<Camada> = emptyList(),
+    val fundo: FundoDoProjeto? = null,
     /** Instante exportado quando a saída é imagem. */
     val quadro: Double = 0.0,
 ) {
@@ -26,6 +28,8 @@ data class Projeto(
         .put("clipes", JSONArray(clipes.map { it.paraJson() }))
         .put("textos", JSONArray(textos.map { it.paraJson() }))
         .put("audios", JSONArray(audios.map { it.paraJson() }))
+        .put("camadas", JSONArray(camadas.map { it.paraJson() }))
+        .putOpt("fundo", fundo?.paraJson())
         .put("quadro", quadro)
 
     companion object {
@@ -39,6 +43,8 @@ data class Projeto(
             clipes = json.lista("clipes").map(Clipe::deJson),
             textos = json.lista("textos").map(Texto::deJson),
             audios = json.lista("audios").map(AudioExtra::deJson),
+            camadas = json.lista("camadas").map(Camada::deJson),
+            fundo = json.optJSONObject("fundo")?.let(FundoDoProjeto::deJson),
             quadro = json.optDouble("quadro", 0.0),
         )
     }
@@ -56,12 +62,14 @@ data class Clipe(
     val ajuste: String = "caber-desfocado",
     val volume: Double? = null,
     val mudo: Boolean? = null,
+    val transformacao: Transformacao? = null,
 ) {
     val ehImagem get() = tipo == "imagem"
 
     fun paraJson(): JSONObject = JSONObject().put("id", id).put("arquivo", arquivo).put("tipo", tipo)
         .putOpt("inicio", inicio).putOpt("fim", fim).putOpt("duracao", duracao).put("ajuste", ajuste)
         .putOpt("volume", volume).putOpt("mudo", mudo)
+        .putOpt("transformacao", transformacao?.paraJson())
 
     companion object {
         fun deJson(json: JSONObject) = Clipe(
@@ -74,6 +82,7 @@ data class Clipe(
             ajuste = json.optString("ajuste", "caber"),
             volume = json.numero("volume"),
             mudo = if (json.has("mudo") && !json.isNull("mudo")) json.getBoolean("mudo") else null,
+            transformacao = json.optJSONObject("transformacao")?.let(Transformacao::deJson),
         )
     }
 }
@@ -93,10 +102,12 @@ data class Texto(
     val contorno: String? = "#000000",
     val caixa: String? = null,
     val fonte: String = "padrao",
+    val transformacao: Transformacao? = null,
 ) {
     fun paraJson(): JSONObject = JSONObject().put("id", id).put("texto", texto).put("inicio", inicio).put("fim", fim)
         .put("x", x).put("y", y).put("tamanho", tamanho).put("cor", cor)
         .put("contorno", contorno ?: JSONObject.NULL).put("caixa", caixa ?: JSONObject.NULL).put("fonte", fonte)
+        .putOpt("transformacao", transformacao?.paraJson())
 
     companion object {
         fun deJson(json: JSONObject) = Texto(
@@ -111,6 +122,7 @@ data class Texto(
             contorno = json.textoOuNulo("contorno"),
             caixa = json.textoOuNulo("caixa"),
             fonte = json.optString("fonte", "padrao"),
+            transformacao = json.optJSONObject("transformacao")?.let(Transformacao::deJson),
         )
     }
 }

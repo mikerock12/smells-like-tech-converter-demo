@@ -61,7 +61,8 @@ public sealed class StudioTests
                 .Select(c => new StudioClipInput(c.GetProperty("caminho").GetString()!, c.GetProperty("temAudio").GetBoolean()))
                 .ToList(),
             Strings(entries.GetProperty("textos")),
-            Strings(entries.GetProperty("audios")));
+            Strings(entries.GetProperty("audios")),
+            entries.TryGetProperty("camadas", out var layers) ? Strings(layers) : []);
         var command = StudioRecipe.Build(project, inputs);
         Assert.Equal(Strings(recipe.GetProperty("args")), command.Args);
         Assert.Equal(recipe.GetProperty("filtro").GetString(), command.Filter);

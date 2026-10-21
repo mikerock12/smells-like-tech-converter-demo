@@ -88,19 +88,45 @@ object Exportador {
      * Gera o resultado em `destino`: o vídeo, o GIF, o PNG, o MP3, ou o WAV de 16 kHz (para
      * transcrever) quando a saída é texto.
      */
-    suspend fun gerar(contexto: Context, projeto: Projeto, destino: File, aoAvancar: (Int) -> Unit) {
+    suspend fun gerar(contexto: Context, original: Projeto, destino: File, aoAvancar: (Int) -> Unit) {
+        val projeto = if (original.saida == "imagem" && original.clipes.isNotEmpty()) {
+            val tempo = original.quadro.coerceIn(0.0, maxOf(0.0, Estudio.duracaoTotal(original) - 1.0 / original.fps))
+            val (_, clipe, ponto) = Estudio.clipeNoTempo(original, tempo)!!
+            val camadas = Estudio.camadasNoTempo(original, tempo).map { c ->
+                var deslocamento = tempo - c.inicio + c.deslocamento
+                if (c.tipo != "imagem") {
+                    val duracao = Ffmpeg.sondar(contexto, File(c.arquivo)).duracaoSegundos
+                    if (duracao != null && duracao > 0) deslocamento = if (c.repetir) deslocamento % duracao else minOf(deslocamento, maxOf(0.0, duracao - 1.0 / original.fps))
+                }
+                c.copy(inicio = 0.0, fim = .1, deslocamento = deslocamento, repetir = false)
+            }
+            original.copy(quadro = 0.0, clipes = listOf(if (clipe.ehImagem) clipe.copy(duracao = .1) else clipe.copy(inicio = ponto, fim = ponto + .1)),
+                camadas = camadas, textos = Estudio.textosNoTempo(original, tempo).map { it.copy(inicio = 0.0, fim = .1) }, audios = emptyList())
+        } else original
         Estudio.problemas(projeto).takeIf { it.isNotEmpty() }?.let { throw ErroDeConversao(it.joinToString(" ")) }
         val pasta = File(contexto.cacheDir, "estudio-exportar-${System.nanoTime()}").apply { mkdirs() }
         try {
             aoAvancar(0)
+            val visual = projeto.saida !in listOf("audio", "texto")
+            val clipesPreparados = projeto.clipes.toMutableList()
             val clipes = projeto.clipes.mapIndexed { i, clipe ->
                 val arquivo = File(clipe.arquivo)
                 if (!arquivo.isFile) throw ErroDeConversao("Um arquivo do projeto sumiu do celular; adicione-o de novo.")
-                if (clipe.ehImagem) EntradaDeClipe(prepararImagem(arquivo, File(pasta, "imagem-$i.png")).absolutePath, false)
+                if (clipe.ehImagem) {
+                    val png = prepararImagem(arquivo, File(pasta, "imagem-$i.png"))
+                    if (visual && clipe.transformacao?.removerFundo == true) RecorteDeFundo.imagem(png)
+                    EntradaDeClipe(png.absolutePath, false)
+                }
                 else {
                     val sondagem = Ffmpeg.sondar(contexto, arquivo)
                     if (!sondagem.temVideo) throw ErroDeConversao("O clipe ${i + 1} não tem imagem de vídeo.")
-                    EntradaDeClipe(arquivo.absolutePath, sondagem.temAudio)
+                    if (visual && clipe.transformacao?.removerFundo == true) {
+                        val recorte = File(pasta, "recorte-clipe-$i.mkv")
+                        RecorteDeFundo.video(contexto, arquivo, recorte, Estudio.par((sondagem.largura ?: projeto.largura).toDouble()),
+                            Estudio.par((sondagem.altura ?: projeto.altura).toDouble()), projeto.fps, clipe.inicio ?: 0.0, Estudio.duracaoDoClipe(clipe))
+                        clipesPreparados[i] = clipe.copy(inicio = 0.0, fim = Estudio.duracaoDoClipe(clipe))
+                        EntradaDeClipe(recorte.absolutePath, sondagem.temAudio)
+                    } else EntradaDeClipe(arquivo.absolutePath, sondagem.temAudio)
                 }
             }
             val audios = projeto.audios.map { audio ->
@@ -112,7 +138,29 @@ object Exportador {
                     File(pasta, "texto-$j.png").also { png -> salvarPng(desenho.imagem(texto, projeto.largura, projeto.altura), png) }.absolutePath
                 }
             }
-            val receita = Estudio.receita(projeto, EntradasDaReceita(clipes, textos, audios))
+            val camadasPreparadas = projeto.camadas.toMutableList()
+            val camadas = if (!visual) emptyList() else projeto.camadas.mapIndexed { i, camada ->
+                if (!camada.visivel) "" else {
+                    val arquivo = File(camada.arquivo)
+                    if (!arquivo.isFile) throw ErroDeConversao("Uma camada do projeto sumiu do celular; adicione-a de novo.")
+                    if (camada.tipo == "imagem") {
+                        val png = prepararImagem(arquivo, File(pasta, "camada-$i.png"))
+                        if (camada.transformacao?.removerFundo == true) RecorteDeFundo.imagem(png)
+                        png.absolutePath
+                    } else if (camada.transformacao?.removerFundo == true) {
+                        val s = Ffmpeg.sondar(contexto, arquivo)
+                        val recorte = File(pasta, "recorte-camada-$i.mkv")
+                        val inicio = if (projeto.saida == "imagem") camada.deslocamento else 0.0
+                        val duracao = if (projeto.saida == "imagem") .1 else minOf(s.duracaoSegundos ?: (camada.deslocamento + camada.fim - camada.inicio), camada.deslocamento + camada.fim - camada.inicio)
+                        RecorteDeFundo.video(contexto, arquivo, recorte, Estudio.par((s.largura ?: projeto.largura).toDouble()),
+                            Estudio.par((s.altura ?: projeto.altura).toDouble()), projeto.fps, inicio, duracao)
+                        camadasPreparadas[i] = camada.copy(tipo = "video", deslocamento = if (projeto.saida == "imagem") 0.0 else camada.deslocamento)
+                        recorte.absolutePath
+                    } else arquivo.absolutePath
+                }
+            }
+            val preparado = projeto.copy(clipes = clipesPreparados, camadas = camadasPreparadas)
+            val receita = Estudio.receita(preparado, EntradasDaReceita(clipes, textos, audios, camadas))
             when (projeto.saida) {
                 "video" -> video(contexto, projeto, receita, pasta, destino, aoAvancar)
                 else -> {
@@ -123,7 +171,7 @@ object Exportador {
                         else -> listOf("-c:a", "libmp3lame", "-b:a", "192k")
                     }
                     val total = if (projeto.saida == "imagem") max(0.1, projeto.quadro) else receita.duracao
-                    Ffmpeg.executar(contexto, comProgresso(receita) + fim + destino.absolutePath, total, aoAvancar = aoAvancar)
+                    Ffmpeg.executar(contexto, comProgresso(receita, pasta) + fim + destino.absolutePath, total, aoAvancar = aoAvancar)
                 }
             }
             if (destino.length() == 0L) throw ErroDeConversao("O estúdio não produziu nenhum arquivo.")
@@ -139,7 +187,7 @@ object Exportador {
         if (CodificadorDoCelular.aceita(quadros)) {
             val video = File(pasta, "video.mp4")
             val audio = File(pasta, "audio.m4a")
-            val argumentos = inicio() + receita.args + listOf("-filter_complex", receita.filtro) +
+            val argumentos = inicio() + receita.args + filtroEmArquivo(receita, pasta) +
                 listOf("-map", mapaDoVideo, "-r", projeto.fps.toString(), "-fps_mode", "cfr", "-f", "rawvideo", "-pix_fmt", "yuv420p", "pipe:1") +
                 listOf("-map", mapaDoAudio, "-c:a", "aac", "-b:a", "192k", audio.absolutePath)
             val bitrate = Comandos.bitrateDoVideo(quadros.largura, quadros.altura, quadros.porSegundo.toDouble(), 80)
@@ -149,7 +197,7 @@ object Exportador {
         } else {
             Ffmpeg.executar(
                 contexto,
-                comProgresso(receita) + listOf("-c:v", "mpeg4", "-q:v", "3", "-pix_fmt", "yuv420p", "-r", projeto.fps.toString(),
+                comProgresso(receita, pasta) + listOf("-c:v", "mpeg4", "-q:v", "3", "-pix_fmt", "yuv420p", "-r", projeto.fps.toString(),
                     "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart", saida.absolutePath),
                 receita.duracao,
                 aoAvancar = aoAvancar,
@@ -159,8 +207,14 @@ object Exportador {
 
     private fun inicio() = listOf("-hide_banner", "-nostdin", "-v", "error", "-y")
 
-    private fun comProgresso(receita: Receita) =
-        inicio() + listOf("-progress", "pipe:1", "-nostats") + receita.args + listOf("-filter_complex", receita.filtro) + receita.mapas
+    private fun comProgresso(receita: Receita, pasta: File) =
+        inicio() + listOf("-progress", "pipe:1", "-nostats") + receita.args + filtroEmArquivo(receita, pasta) + receita.mapas
+
+    private fun filtroEmArquivo(receita: Receita, pasta: File): List<String> {
+        val arquivo = File(pasta, "composicao.fffilter")
+        arquivo.writeText(receita.filtro, Charsets.UTF_8)
+        return listOf("-/filter_complex", arquivo.absolutePath)
+    }
 
     /** Foto do celular em pé, HEIC ou AVIF: o ImageDecoder endireita; sai um PNG que o FFmpeg lê. */
     private suspend fun prepararImagem(arquivo: File, destino: File): File = withContext(Dispatchers.IO) {

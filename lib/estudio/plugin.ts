@@ -22,6 +22,7 @@ export function pedidoParaOPlugin(
     ...projeto,
     clipes: projeto.clipes.map((clipe) => ({ ...clipe, arquivo: indice(clipe.arquivo) })),
     audios: projeto.audios.map((audio) => ({ ...audio, arquivo: indice(audio.arquivo) })),
+    camadas: projeto.camadas?.map((camada) => ({ ...camada, arquivo: indice(camada.arquivo) })),
   };
   return {
     arquivos: ordem.map((chave) => arquivos.get(chave)!),

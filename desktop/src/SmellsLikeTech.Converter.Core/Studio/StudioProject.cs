@@ -19,6 +19,8 @@ public sealed record StudioProject
     [JsonPropertyName("clipes")] public IReadOnlyList<StudioClip> Clips { get; init; } = [];
     [JsonPropertyName("textos")] public IReadOnlyList<StudioText> Texts { get; init; } = [];
     [JsonPropertyName("audios")] public IReadOnlyList<StudioAudio> Audios { get; init; } = [];
+    [JsonPropertyName("camadas")] public IReadOnlyList<StudioLayer> Layers { get; init; } = [];
+    [JsonPropertyName("fundo")] public StudioBackground? Background { get; init; }
     /// <summary>Instante exportado quando a saida e imagem.</summary>
     [JsonPropertyName("quadro")] public double Frame { get; init; }
 
@@ -39,6 +41,7 @@ public sealed record StudioProject
 /// <summary>Um video ou imagem da faixa principal.</summary>
 public sealed record StudioClip
 {
+    [JsonPropertyName("transformacao")] public StudioTransform? Transform { get; init; }
     [JsonPropertyName("id")] public string Id { get; init; } = "";
     /// <summary>Referencia do arquivo: caminho no aplicativo, nome do envio no plugin.</summary>
     [JsonPropertyName("arquivo")] public string File { get; init; } = "";
@@ -56,6 +59,7 @@ public sealed record StudioClip
 /// <summary>Um texto por cima do video, com tempo e posicao.</summary>
 public sealed record StudioText
 {
+    [JsonPropertyName("transformacao")] public StudioTransform? Transform { get; init; }
     [JsonPropertyName("id")] public string Id { get; init; } = "";
     [JsonPropertyName("texto")] public string Text { get; init; } = "";
     [JsonPropertyName("inicio")] public double Start { get; init; }

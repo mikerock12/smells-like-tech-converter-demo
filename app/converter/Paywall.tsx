@@ -17,20 +17,29 @@ import BotaoDeCompra from "../precos/BotaoDeCompra";
  * A compra leva a origem ("limite:lote") e o caminho de volta, para a página de obrigado
  * trazer a pessoa de novo à conversão que parou.
  */
-export default function Paywall({ bloqueio, ferramenta }: { bloqueio: Bloqueio; ferramenta: Ferramenta }) {
+export default function Paywall({ bloqueio, ferramenta }: { bloqueio: Bloqueio; ferramenta?: Ferramenta }) {
   const mensal = produto("pro-mensal")!;
   const app = produto("app-vitalicio")!;
   const origem = `limite:${bloqueio.contador}`;
-  const soNoPro = ferramenta.plano === "pro" && bloqueio.contador === "pesado";
+  // Sem ferramenta, o aviso é do estúdio.
+  const soNoPro = ferramenta?.plano === "pro" && bloqueio.contador === "pesado";
+  const recurso = bloqueio.recurso ?? (soNoPro ? ferramenta.titulo : null);
 
   return (
     <aside className="paywall" aria-live="polite">
-      <h3 className="paywall__titulo">{soNoPro ? `${ferramenta.titulo} faz parte do Pro.` : "O grátis chegou no volume. A qualidade não muda."}</h3>
+      <h3 className="paywall__titulo">{recurso ? `${recurso} faz parte do Pro.` : "O grátis chegou no volume. A qualidade não muda."}</h3>
       <p className="paywall__motivo">{bloqueio.mensagem}</p>
-      <p>
-        Você já converte no seu computador, sem upload. O Pro {soNoPro ? `libera “${ferramenta.titulo}” e ` : ""}tira o teto: arquivo por
-        vez, duração de vídeo, páginas de PDF, transcrição e OCR.
-      </p>
+      {ferramenta ? (
+        <p>
+          Você já converte no seu computador, sem upload. O Pro {recurso ? `libera “${recurso}” e ` : ""}tira o teto: arquivo por
+          vez, duração de vídeo, páginas de PDF, transcrição e OCR.
+        </p>
+      ) : (
+        <p>
+          Você já monta tudo no seu computador, sem upload e sem marca d&apos;água. O Pro tira o teto do estúdio: exportações por
+          dia, duração do projeto e remoção de fundo também em vídeo.
+        </p>
+      )}
       <p className="paywall__preco">
         <strong>
           {formatarReais(mensal.centavos)} por {mensal.dias} dias.

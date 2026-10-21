@@ -4,6 +4,7 @@ import android.app.Application
 import android.graphics.Bitmap
 import android.net.Uri
 import android.provider.OpenableColumns
+import android.util.AtomicFile
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
@@ -39,6 +40,8 @@ class EstudioViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) {
     private val pasta = File(aplicacao.filesDir, "estudio/atual")
     private val arquivoDoProjeto = File(pasta, "projeto.json")
     private val arquivoDasInfos = File(pasta, "midias.json")
+    private val travaDoSalvamento = Any()
+    private var revisaoDoSalvamento = 0L
     private val montador = PreviaDoEstudio(aplicacao)
 
     val presets: List<Preset> = aplicacao.assets.open("estudio/estudio-presets.json").bufferedReader().use { Preset.lista(it.readText()) }
@@ -54,6 +57,7 @@ class EstudioViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) {
     var clipeAberto by mutableStateOf<String?>(null)
     var textoAberto by mutableStateOf<String?>(null)
     var audioAberto by mutableStateOf<String?>(null)
+    var camadaAberta by mutableStateOf<String?>(null)
 
     var ocupado by mutableStateOf<String?>(null)
         private set
@@ -70,10 +74,11 @@ class EstudioViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) {
 
     init {
         runCatching {
-            if (arquivoDoProjeto.isFile) {
-                projeto = Projeto.deJson(JSONObject(arquivoDoProjeto.readText()))
-                if (arquivoDasInfos.isFile) {
-                    val json = JSONObject(arquivoDasInfos.readText())
+            val textoDoProjeto = lerAtomico(arquivoDoProjeto)
+            if (textoDoProjeto != null) {
+                projeto = Projeto.deJson(JSONObject(textoDoProjeto))
+                lerAtomico(arquivoDasInfos)?.let { texto ->
+                    val json = JSONObject(texto)
                     json.keys().forEach { chave ->
                         val i = json.getJSONObject(chave)
                         infos[chave] = InfoDaMidia(
@@ -115,7 +120,11 @@ class EstudioViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) {
     /** Apaga o projeto e as cópias das mídias e volta ao começo do assistente. */
     fun novoProjeto() {
         trabalho?.cancel()
-        pasta.deleteRecursively()
+        trabalhoDaPrevia?.cancel()
+        synchronized(travaDoSalvamento) {
+            revisaoDoSalvamento++
+            pasta.deleteRecursively()
+        }
         projeto = null
         infos.clear()
         previa = null
@@ -164,6 +173,58 @@ class EstudioViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) {
         projeto = atual.copy(audios = atual.audios + audio)
         audioAberto = audio.id
         salvar()
+    }
+
+    fun adicionarCamada(uri: Uri, descartarAoAbrir: Boolean = false) = executar("Adicionando camada…") {
+        try {
+            val atual = projeto ?: return@executar
+            if (atual.camadas.size >= 12) throw ErroDeConversao("Use até 12 camadas adicionais.")
+            val (arquivo, nome, mime) = copiar(uri)
+            try {
+                val tipo = when {
+                    mime == "image/gif" || nome.endsWith(".gif", true) -> "gif"
+                    mime.startsWith("image/") || nome.substringAfterLast('.').lowercase() in listOf("png", "jpg", "jpeg", "webp", "heic", "heif", "avif", "bmp") -> "imagem"
+                    else -> "video"
+                }
+                val info = if (tipo == "imagem") InfoDaMidia(nome, null, null, null, false) else {
+                    val s = Ffmpeg.sondar(contexto, arquivo)
+                    if (!s.temVideo) throw ErroDeConversao("Escolha uma imagem, um GIF ou um vídeo para a camada.")
+                    InfoDaMidia(nome, s.duracaoSegundos, s.largura, s.altura, s.temAudio)
+                }
+                infos[arquivo.absolutePath] = info
+                val inicio = instante.coerceAtMost(maxOf(0.0, total - .1))
+                val camada = Camada(novoId("l"), arquivo.absolutePath, tipo, inicio, maxOf(inicio + .1, total),
+                    ordem = (atual.camadas.maxOfOrNull { it.ordem } ?: 0) + 1, transformacao = Transformacao(escala = .5))
+                mudar { it.copy(versao = Estudio.VERSAO_DO_PROJETO, camadas = it.camadas + camada) }
+                camadaAberta = camada.id
+            } catch (falha: Throwable) { arquivo.delete(); throw falha }
+        } finally {
+            if (descartarAoAbrir && uri.scheme == "file") {
+                val temporario = File(uri.path ?: "")
+                if (temporario.canonicalPath.startsWith(contexto.cacheDir.canonicalPath + File.separator)) temporario.delete()
+            }
+        }
+    }
+
+    fun mudarCamada(id: String, mudanca: (Camada) -> Camada) = mudar { p -> p.copy(camadas = p.camadas.map { if (it.id == id) mudanca(it) else it }) }
+
+    fun removerCamada(id: String) {
+        val camada = projeto?.camadas?.firstOrNull { it.id == id } ?: return
+        mudar { it.copy(camadas = it.camadas.filterNot { c -> c.id == id }) }
+        if (camadaAberta == id) camadaAberta = null
+        apagarCopia(camada.arquivo)
+    }
+
+    fun moverCamada(id: String, passo: Int) = mudar { p ->
+        val fundo = p.camadas.firstOrNull { it.id == id }?.let { it.ordem < 0 } ?: return@mudar p
+        val lista = p.camadas.filter { (it.ordem < 0) == fundo }.sortedBy { it.ordem }.toMutableList()
+        val de = lista.indexOfFirst { it.id == id }
+        if (de < 0) p else {
+            val para = (de + passo).coerceIn(0, lista.lastIndex)
+            lista.add(para, lista.removeAt(de))
+            val ordenadas = lista.mapIndexed { i, c -> c.copy(ordem = if (fundo) i - lista.size else i + 1) }.associateBy { it.id }
+            p.copy(camadas = p.camadas.map { ordenadas[it.id] ?: it })
+        }
     }
 
     fun mudarClipe(id: String, mudanca: (Clipe) -> Clipe) = mudar { p -> p.copy(clipes = p.clipes.map { if (it.id == id) mudanca(it) else it }) }
@@ -222,7 +283,9 @@ class EstudioViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) {
         trabalhoDaPrevia?.cancel()
         trabalhoDaPrevia = viewModelScope.launch {
             delay(120)
-            previa = runCatching { montador.quadro(atual, instante) }.getOrNull() ?: previa
+            try { previa = montador.quadro(atual, instante) }
+            catch (cancelado: CancellationException) { throw cancelado }
+            catch (falha: Exception) { erro = falha.message ?: "Não foi possível montar a prévia." }
         }
     }
 
@@ -291,26 +354,48 @@ class EstudioViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) {
 
     private fun salvar() {
         val atual = projeto ?: return
-        viewModelScope.launch(Dispatchers.IO) {
-            runCatching {
-                pasta.mkdirs()
-                arquivoDoProjeto.writeText(atual.paraJson().toString())
-                val json = JSONObject()
-                infos.forEach { (chave, info) ->
-                    json.put(chave, JSONObject().put("nome", info.nome).put("duracao", info.duracao ?: JSONObject.NULL)
-                        .put("largura", info.largura ?: JSONObject.NULL).put("altura", info.altura ?: JSONObject.NULL).put("temAudio", info.temAudio))
+        val copiaDasInfos = infos.toMap()
+        val revisao = synchronized(travaDoSalvamento) { ++revisaoDoSalvamento }
+        viewModelScope.launch {
+            try {
+                withContext(Dispatchers.IO) {
+                    synchronized(travaDoSalvamento) {
+                        if (revisao != revisaoDoSalvamento) return@synchronized
+                        pasta.mkdirs()
+                        val json = JSONObject()
+                        copiaDasInfos.forEach { (chave, info) ->
+                            json.put(chave, JSONObject().put("nome", info.nome).put("duracao", info.duracao ?: JSONObject.NULL)
+                                .put("largura", info.largura ?: JSONObject.NULL).put("altura", info.altura ?: JSONObject.NULL).put("temAudio", info.temAudio))
+                        }
+                        gravarAtomico(arquivoDasInfos, json.toString())
+                        gravarAtomico(arquivoDoProjeto, atual.paraJson().toString())
+                    }
                 }
-                arquivoDasInfos.writeText(json.toString())
+            } catch (cancelado: CancellationException) { throw cancelado }
+            catch (_: Exception) {
+                if (synchronized(travaDoSalvamento) { revisao == revisaoDoSalvamento })
+                    erro = "Não foi possível salvar o projeto. Confira o espaço livre do aparelho."
             }
         }
+    }
+
+    /** Lê pelo AtomicFile, que recupera a cópia anterior se o app morreu no meio de uma gravação. */
+    private fun lerAtomico(arquivo: File): String? =
+        try { AtomicFile(arquivo).readFully().toString(Charsets.UTF_8) } catch (_: java.io.FileNotFoundException) { null }
+
+    private fun gravarAtomico(destino: File, texto: String) {
+        val atomico = AtomicFile(destino)
+        val saida = atomico.startWrite()
+        try { saida.write(texto.toByteArray(Charsets.UTF_8)); atomico.finishWrite(saida) }
+        catch (erro: Exception) { atomico.failWrite(saida); throw erro }
     }
 
     /** Copia o arquivo escolhido para a pasta do projeto (o FFmpeg lê arquivo, não Uri). */
     private suspend fun copiar(uri: Uri): Triple<File, String, String> = withContext(Dispatchers.IO) {
         val resolvedor = contexto.contentResolver
-        val nome = resolvedor.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
+        val nome = (if (uri.scheme == "file") File(uri.path ?: "").name else resolvedor.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
             if (cursor.moveToFirst()) cursor.getString(0) else null
-        } ?: "midia"
+        }) ?: "midia"
         val mime = resolvedor.getType(uri) ?: ""
         val extensao = nome.substringAfterLast('.', "bin").filter(Char::isLetterOrDigit).take(8).ifBlank { "bin" }
         val destino = File(File(pasta, "midias").apply { mkdirs() }, "${UUID.randomUUID()}.$extensao")
@@ -321,6 +406,7 @@ class EstudioViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) {
     }
 
     private fun apagarCopia(caminho: String) {
+        if (projeto?.let { p -> p.clipes.any { it.arquivo == caminho } || p.camadas.any { it.arquivo == caminho } || p.audios.any { it.arquivo == caminho } } == true) return
         infos.remove(caminho)
         File(caminho).takeIf { it.parentFile == File(pasta, "midias") }?.delete()
         salvar()

@@ -87,6 +87,7 @@ object Ffmpeg {
         }.apply { isDaemon = true; start() }
 
         val saida: java.io.InputStream get() = processo.inputStream
+        val entrada: java.io.OutputStream get() = processo.outputStream
 
         fun matar() { if (processo.isAlive) processo.destroyForcibly() }
 

@@ -24,18 +24,22 @@ import {
   type Projeto,
   type Texto,
 } from "@/packages/converter-core/estudio.mjs";
+import { conferirEstudio, type BloqueioDoEstudio } from "@/packages/converter-core/estudio-plano.mjs";
 import { limite as limiteDoPlano } from "@/packages/converter-core/precos.mjs";
 
 import { ExportacaoCancelada, exportarNoNavegador, type Exportado } from "@/lib/estudio/exportar";
 import { pedidoParaOPlugin } from "@/lib/estudio/plugin";
 import { PreviaDoEstudio } from "@/lib/estudio/previa";
 import { duracaoDaMidia } from "@/lib/converter/limites";
-import { registrarUso, restanteHoje } from "@/lib/plano/contadores";
+import { registrarUso, restanteHoje, usoDeHoje } from "@/lib/plano/contadores";
 import { usePlano } from "@/lib/plano/usePlano";
 import { usePlugin } from "@/lib/plugin/usePlugin";
+import Paywall from "../converter/Paywall";
+import ControlesDeCamada from "./ControlesDeCamada";
+import PainelDeCamadas from "./PainelDeCamadas";
 
 type Etapa = "destino" | "saida" | "editor";
-type Aba = "clipes" | "textos" | "audio" | "exportar";
+type Aba = "clipes" | "camadas" | "textos" | "audio" | "exportar";
 type Info = { nome: string; duracao: number | null };
 type Resultado = { nome: string; url: string; bytes: number; doPlugin: boolean };
 type Andamento = { etapa: string; fracao: number; restante: number | null; cancelar: () => void };
@@ -64,6 +68,7 @@ export default function Estudio() {
   const [andamento, setAndamento] = useState<Andamento | null>(null);
   const [resultado, setResultado] = useState<Resultado | null>(null);
   const [erro, setErro] = useState<string | null>(null);
+  const [bloqueio, setBloqueio] = useState<BloqueioDoEstudio | null>(null);
   const [personalizado, setPersonalizado] = useState({ largura: "1080", altura: "1080" });
 
   const total = projeto ? duracaoTotal(projeto) : 0;
@@ -130,6 +135,18 @@ export default function Estudio() {
     setAberto(id);
   };
 
+  const adicionarCamada = (arquivo: File) => {
+    if (!projeto || !total) { setErro("Adicione uma imagem ou vídeo na aba Clipes antes."); return; }
+    if ((projeto.camadas?.length ?? 0) >= 12) { setErro("Use até 12 camadas adicionais."); return; }
+    const tipo = arquivo.type === "image/gif" || /\.gif$/i.test(arquivo.name) ? "gif" : arquivo.type.startsWith("video/") ? "video" : "imagem";
+    const chave = novoId("a"), id = novoId("camada");
+    setArquivos(atuais => new Map(atuais).set(chave, arquivo));
+    mudar(p => ({ ...p, versao: 2, camadas: [...(p.camadas ?? []), {
+      id, arquivo: chave, tipo, inicio: Math.min(instante, Math.max(0, total - .1)), fim: total,
+      ordem: (p.camadas?.length ?? 0) + 1, transformacao: { escala: .5 },
+    }] }));
+  };
+
   const mudarClipe = (id: string, m: (c: Clipe) => Clipe) => mudar((p) => ({ ...p, clipes: p.clipes.map((c) => (c.id === id ? m(c) : c)) }));
   const mudarTexto = (id: string, m: (t: Texto) => Texto) => mudar((p) => ({ ...p, textos: p.textos.map((t) => (t.id === id ? m(t) : t)) }));
   const mudarAudio = (id: string, m: (a: AudioExtra) => AudioExtra) => mudar((p) => ({ ...p, audios: p.audios.map((a) => (a.id === id ? m(a) : a)) }));
@@ -171,11 +188,12 @@ export default function Estudio() {
   const exportar = async (forcarNavegador = false) => {
     if (!projeto) return;
     setErro(null);
+    setBloqueio(null);
     setResultado(null);
     const peloPlugin = !forcarNavegador && ligado && (projeto.saida === "texto" || !cabeNoNavegador(projeto));
-    const bloqueio = conferirPlano(projeto, peloPlugin, plano, pro);
-    if (bloqueio) {
-      setErro(bloqueio);
+    const travou = conferirEstudio(projeto, pro ? "pro" : plano, { exportacoesHoje: usoDeHoje("estudio"), transcricaoRestante: restanteHoje(plano, "transcricao") });
+    if (travou) {
+      setBloqueio(travou);
       return;
     }
     let cancelado = false;
@@ -213,11 +231,12 @@ export default function Estudio() {
         });
         if (final.erro) throw new Error(final.erro);
         if (cancelado || final.arquivos.length === 0) throw new ExportacaoCancelada();
-        if (!pro) registrarUso(projeto.saida === "texto" ? "transcricao" : "pesado", projeto.saida === "texto" ? Math.ceil(total / 60) : 1);
+        if (!pro) registrarUso(projeto.saida === "texto" ? "transcricao" : "estudio", projeto.saida === "texto" ? Math.ceil(total / 60) : 1);
         const arquivo = final.arquivos[0];
         setResultado({ nome: arquivo.nome, url: cliente.enderecoDoArquivo(final.id, arquivo.indice), bytes: arquivo.bytes, doPlugin: true });
       } else {
         const pronto: Exportado = await exportarNoNavegador(projeto, arquivos, atualizar, () => cancelado);
+        if (!pro) registrarUso("estudio");
         const url = URL.createObjectURL(new Blob([pronto.bytes], { type: pronto.mime }));
         setResultado({ nome: pronto.nome, url, bytes: pronto.bytes.byteLength, doPlugin: false });
       }
@@ -290,7 +309,7 @@ export default function Estudio() {
 
         <section className="estudio__painel" aria-label="Edição">
           <div className="estudio__abas" role="tablist">
-            {([["clipes", "Clipes"], ["textos", "Textos"], ["audio", "Áudio"], ["exportar", "Exportar"]] as const).map(([id, rotulo]) => (
+            {([["clipes", "Clipes"], ["camadas", "Camadas"], ["textos", "Textos e emoji"], ["audio", "Áudio"], ["exportar", "Exportar"]] as const).map(([id, rotulo]) => (
               <button key={id} type="button" role="tab" aria-selected={aba === id} className={`estudio__aba${aba === id ? " estudio__aba--ativa" : ""}`} onClick={() => setAba(id)}>
                 {rotulo}
               </button>
@@ -337,6 +356,8 @@ export default function Estudio() {
             </div>
           )}
 
+          {aba === "camadas" && <PainelDeCamadas projeto={projeto} nomes={arquivos} mudar={mudar} importar={adicionarCamada} />}
+
           {aba === "audio" && (
             <div className="estudio__lista">
               <EscolherArquivos rotulo="Adicionar música ou áudio" aceita="audio/*" aoEscolher={(lista) => lista[0] && void adicionarMusica(lista[0])} />
@@ -364,9 +385,11 @@ export default function Estudio() {
               mudar={mudar}
               exportar={exportar}
               ocupado={andamento !== null}
+              pro={pro}
             />
           )}
 
+          {bloqueio && <Paywall bloqueio={bloqueio} />}
           {erro && <p className="estudio__erro" role="alert">{erro}</p>}
           {resultado && (
             <div className="estudio__resultado">
@@ -384,27 +407,6 @@ export default function Estudio() {
       {andamento && <DialogoDeAndamento andamento={andamento} />}
     </main>
   );
-}
-
-/** As regras do plano grátis aplicadas ao estúdio, como nas conversões. */
-function conferirPlano(projeto: Projeto, peloPlugin: boolean, plano: "gratis" | "pro", pro: boolean): string | null {
-  if (pro) return null;
-  const total = duracaoTotal(projeto);
-  if (projeto.saida === "texto") {
-    const restante = restanteHoje(plano, "transcricao");
-    if (restante !== null && Math.ceil(total / 60) > restante) {
-      return `Isso dá ${Math.ceil(total / 60)} minutos de transcrição, e no grátis cabem ${restante} por dia. No Pro não há limite.`;
-    }
-    return null;
-  }
-  if (peloPlugin) {
-    const restante = restanteHoje(plano, "pesado");
-    if (restante !== null && restante < 1) return "As conversões pelo plugin do plano grátis de hoje já foram usadas. Amanhã elas voltam, ou sem limite no Pro.";
-    return null;
-  }
-  const teto = limiteDoPlano(plano, "video");
-  if (teto !== null && total > teto * 60) return `No grátis, o vídeo no navegador vai até ${teto} minutos; este projeto tem ${duracaoLegivel(total)}.`;
-  return null;
 }
 
 // ==================== assistente ====================
@@ -490,6 +492,7 @@ function Previa({
 }) {
   const tela = useRef<HTMLCanvasElement>(null);
   const previa = useRef<PreviaDoEstudio | null>(null);
+  const [erroDaPrevia, setErroDaPrevia] = useState<string | null>(null);
   const total = duracaoTotal(projeto);
   const escala = Math.min(1, 720 / Math.max(projeto.largura, projeto.altura));
   const largura = Math.round(projeto.largura * escala);
@@ -506,12 +509,21 @@ function Previa({
   }, []);
 
   useEffect(() => {
-    if (!tocando) void previa.current?.desenhar(projeto, arquivos, instante);
+    let atual = true;
+    if (!tocando) void previa.current?.desenhar(projeto, arquivos, instante)
+      .then(() => { if (atual) setErroDaPrevia(null); })
+      .catch((erro: unknown) => {
+        if (atual && !(erro instanceof DOMException && erro.name === "AbortError"))
+          setErroDaPrevia(erro instanceof Error ? erro.message : "Não foi possível desenhar a prévia.");
+      });
+    return () => { atual = false; };
   }, [projeto, arquivos, instante, tocando, largura, altura]);
 
   useEffect(() => {
     if (!tocando || !previa.current) return;
-    return previa.current.tocar(projeto, arquivos, instante >= total - 0.05 ? 0 : instante, irPara, () => tocar(false));
+    setErroDaPrevia(null);
+    return previa.current.tocar(projeto, arquivos, instante >= total - 0.05 ? 0 : instante, irPara, () => tocar(false),
+      erro => setErroDaPrevia(erro instanceof Error ? erro.message : "Não foi possível reproduzir a prévia."));
     // Recomeça só quando a pessoa aperta tocar; mudar o projeto durante a reprodução para.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tocando]);
@@ -523,6 +535,7 @@ function Previa({
 
   return (
     <section className="estudio__previa" aria-label="Prévia">
+      {erroDaPrevia && <p role="alert">{erroDaPrevia}</p>}
       <div className="estudio__tela" onDragOver={(e) => e.preventDefault()} onDrop={soltar}>
         <canvas ref={tela} width={largura} height={altura} style={{ aspectRatio: `${projeto.largura} / ${projeto.altura}` }} aria-label="Prévia do projeto" />
         {projeto.clipes.length === 0 && <p className="estudio__vazio">Adicione vídeos ou fotos (ou arraste para cá)</p>}
@@ -619,6 +632,7 @@ function CartaoDoClipe({
               ))}
             </div>
           </Controle>
+          <ControlesDeCamada valor={clipe.transformacao} mudar={transformacao => mudar(c => ({ ...c, transformacao }))} />
           {clipe.tipo === "video" && (
             <>
               <label className="estudio__chave">
@@ -668,6 +682,10 @@ function CartaoDoTexto({
           <label className="estudio__campo">Texto
             <textarea rows={2} maxLength={300} value={texto.texto} onChange={(e) => mudar((t) => ({ ...t, texto: e.target.value }))} />
           </label>
+          <div className="estudio__chips">
+            {["😀", "😂", "😍", "😎", "🔥", "❤️", "🎉", "👍"].map(emoji => <button key={emoji} type="button" className="button" onClick={() => mudar(t => ({ ...t, texto: t.texto === "Seu texto aqui" ? emoji : t.texto + emoji }))}>{emoji}</button>)}
+          </div>
+          <ControlesDeCamada valor={texto.transformacao} permitirRecorte={false} mudar={transformacao => mudar(t => ({ ...t, transformacao }))} />
           <Controle rotulo="Fonte">
             <div className="estudio__chips">
               {FONTES.map((fonte) => (
@@ -791,6 +809,7 @@ function PainelDeExportar({
   mudar,
   exportar,
   ocupado,
+  pro,
 }: {
   projeto: Projeto;
   instante: number;
@@ -798,6 +817,7 @@ function PainelDeExportar({
   mudar: (m: (p: Projeto) => Projeto) => void;
   exportar: (forcarNavegador?: boolean) => void;
   ocupado: boolean;
+  pro: boolean;
 }) {
   const erros = problemas(projeto);
   const alertas = avisos(projeto);
@@ -821,6 +841,7 @@ function PainelDeExportar({
         </div>
       )}
       {erros.map((e) => <p key={e} className="estudio__erro">• {e}</p>)}
+      {!pro && !precisaDoPlugin && <CotaDoGratis />}
       {alertas.map((a) => <p key={a} className="estudio__aviso">• {a}</p>)}
       {precisaDoPlugin && !ligado && (
         <p className="estudio__aviso">A transcrição usa o Whisper pelo plugin, no seu computador. <a href="/plugin">Instale o plugin grátis</a> e abra esta página de novo.</p>
@@ -849,6 +870,21 @@ function PainelDeExportar({
 }
 
 // ==================== peças ====================
+
+/** O que ainda cabe hoje no grátis, dito antes de a pessoa esbarrar no limite. */
+function CotaDoGratis() {
+  const porDia = limiteDoPlano("gratis", "estudio") ?? 0;
+  const duracao = limiteDoPlano("gratis", "estudioDuracao") ?? 0;
+  // O editor só existe no navegador (depois de escolher o destino), então o localStorage já
+  // está à mão; cada exportação re-renderiza o painel e relê o contador.
+  const restante = restanteHoje("gratis", "estudio") ?? porDia;
+  return (
+    <p className="estudio__dica">
+      Grátis: {restante} de {porDia} exportações hoje · projetos até {duracaoLegivel(duracao)} ·
+      remoção de fundo em fotos, stickers e GIFs. <a href="/precos?origem=estudio">No Pro, sem limite e com fundo removido também em vídeo.</a>
+    </p>
+  );
+}
 
 function EscolherArquivos({ rotulo, aceita, multiplos = false, aoEscolher }: { rotulo: string; aceita: string; multiplos?: boolean; aoEscolher: (arquivos: File[]) => void }) {
   const campo = useRef<HTMLInputElement>(null);

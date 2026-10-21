@@ -29,6 +29,8 @@ import {
 import { codificarMp3 } from "@/lib/converter/motores/audio-codificar";
 
 import { carregarFontes, desenharQuadro } from "./desenho";
+import { MidiasDasCamadas } from "./midias-das-camadas";
+import { prepararRecortes } from "./recorte";
 
 /**
  * Exporta um projeto do estúdio no próprio navegador: WebCodecs pelo mediabunny para o vídeo,
@@ -58,6 +60,8 @@ export async function exportarNoNavegador(
   if (projeto.saida === "texto") throw new Error("A transcrição do estúdio é feita pelo plugin.");
   await carregarFontes();
   const nome = `estudio-${projeto.destino}-${carimbo()}`;
+  const camadas = new MidiasDasCamadas();
+  try {
 
   switch (projeto.saida) {
     case "imagem": {
@@ -66,7 +70,9 @@ export async function exportarNoNavegador(
       const ctx = contexto(tela);
       const achado = clipeNoTempo(projeto, projeto.quadro);
       const imagem = achado ? await quadroDoClipe(achado.clipe, achado.tempoNoArquivo, arquivos) : null;
-      desenharQuadro(ctx, projeto, projeto.quadro, imagem, achado?.clipe.ajuste ?? null);
+      const recortes = await prepararRecortes(projeto, projeto.quadro, imagem, await camadas.quadros(projeto, arquivos, projeto.quadro));
+      desenharQuadro(ctx, projeto, projeto.quadro, recortes.principal, achado?.clipe.ajuste ?? null, recortes.extras);
+      if (imagem instanceof ImageBitmap) imagem.close();
       const blob = await tela.convertToBlob({ type: "image/png" });
       return { nome: `${nome}.png`, mime: "image/png", bytes: await blob.arrayBuffer() };
     }
@@ -78,15 +84,16 @@ export async function exportarNoNavegador(
       return { nome: `${nome}.mp3`, mime: "audio/mpeg", bytes: mp3 };
     }
     case "gif":
-      return { nome: `${nome}.gif`, mime: "image/gif", bytes: await gif(projeto, arquivos, andamento, cancelado) };
+      return { nome: `${nome}.gif`, mime: "image/gif", bytes: await gif(projeto, arquivos, andamento, cancelado, camadas) };
     default:
-      return { nome: `${nome}.mp4`, mime: "video/mp4", bytes: await video(projeto, arquivos, andamento, cancelado) };
+      return { nome: `${nome}.mp4`, mime: "video/mp4", bytes: await video(projeto, arquivos, andamento, cancelado, camadas) };
   }
+  } finally { camadas.liberar(); }
 }
 
 // ==================== vídeo ====================
 
-async function video(projeto: Projeto, arquivos: ArquivosDoProjeto, andamento: Andamento, cancelado: () => boolean): Promise<ArrayBuffer> {
+async function video(projeto: Projeto, arquivos: ArquivosDoProjeto, andamento: Andamento, cancelado: () => boolean, camadas: MidiasDasCamadas): Promise<ArrayBuffer> {
   const { largura, altura, fps } = projeto;
   const formato = new Mp4OutputFormat({ fastStart: "in-memory" });
   const codec = await getFirstEncodableVideoCodec(["avc", ...formato.getSupportedVideoCodecs().filter((c) => c !== "avc")], { width: largura, height: altura });
@@ -108,7 +115,8 @@ async function video(projeto: Projeto, arquivos: ArquivosDoProjeto, andamento: A
     const total = Math.max(1, Math.round(duracaoTotal(projeto) * fps));
     await percorrerQuadros(projeto, arquivos, async (indice, t, imagem, ajuste) => {
       if (cancelado()) throw new ExportacaoCancelada();
-      desenharQuadro(ctx, projeto, t, imagem, ajuste);
+      const recortes = await prepararRecortes(projeto, t, imagem, await camadas.quadros(projeto, arquivos, t));
+      desenharQuadro(ctx, projeto, t, recortes.principal, ajuste, recortes.extras);
       await fonte.add(indice / fps, 1 / fps);
       andamento("Montando o vídeo", 0.1 + 0.9 * (indice + 1) / total);
     });
@@ -123,7 +131,7 @@ async function video(projeto: Projeto, arquivos: ArquivosDoProjeto, andamento: A
 
 // ==================== GIF ====================
 
-async function gif(projeto: Projeto, arquivos: ArquivosDoProjeto, andamento: Andamento, cancelado: () => boolean): Promise<ArrayBuffer> {
+async function gif(projeto: Projeto, arquivos: ArquivosDoProjeto, andamento: Andamento, cancelado: () => boolean, camadas: MidiasDasCamadas): Promise<ArrayBuffer> {
   const { largura, altura } = tamanhoDoGif(projeto.largura, projeto.altura);
   const tela = new OffscreenCanvas(projeto.largura, projeto.altura);
   const ctx = contexto(tela);
@@ -135,13 +143,18 @@ async function gif(projeto: Projeto, arquivos: ArquivosDoProjeto, andamento: And
   const total = Math.max(1, Math.round(duracaoTotal(projeto) * FPS_DO_GIF));
   await percorrerQuadros(doGif, arquivos, async (indice, t, imagem, ajuste) => {
     if (cancelado()) throw new ExportacaoCancelada();
-    desenharQuadro(ctx, projeto, t, imagem, ajuste);
+    const recortes = await prepararRecortes(projeto, t, imagem, await camadas.quadros(projeto, arquivos, t));
+    desenharQuadro(ctx, projeto, t, recortes.principal, ajuste, recortes.extras);
+    pincel.clearRect(0, 0, largura, altura);
     pincel.drawImage(tela, 0, 0, largura, altura);
     const { data } = pincel.getImageData(0, 0, largura, altura);
-    const paleta = quantize(data, 256);
+    const paleta = quantize(data, 256, { format: "rgba4444", oneBitAlpha: true });
+    const transparente = paleta.findIndex(cor => cor[3] === 0);
     // O GIF guarda o atraso em centésimos: alternar 6 e 7 mantém o total igual ao do vídeo.
     const atraso = (Math.round(((indice + 1) * 100) / FPS_DO_GIF) - Math.round((indice * 100) / FPS_DO_GIF)) * 10;
-    codificador.writeFrame(applyPalette(data, paleta), largura, altura, { palette: paleta, delay: atraso });
+    codificador.writeFrame(applyPalette(data, paleta, "rgba4444"), largura, altura, {
+      palette: paleta, delay: atraso, transparent: transparente >= 0, transparentIndex: transparente, dispose: 2,
+    });
     andamento("Montando o GIF", (indice + 1) / total);
   });
   codificador.finish();

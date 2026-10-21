@@ -12,7 +12,7 @@ namespace SmellsLikeTech.Converter.Core.Studio;
 /// </summary>
 public static class StudioRules
 {
-    public const int ProjectVersion = 1;
+    public const int ProjectVersion = 2;
     public const double DefaultImageDuration = 3;
     public const double MinimumDuration = 0.1;
     public const int GifShortSide = 480;
@@ -134,7 +134,7 @@ public static class StudioRules
     public static IReadOnlyList<string> Problems(StudioProject project)
     {
         var list = new List<string>();
-        if (project.Version != ProjectVersion)
+        if (project.Version is not (1 or ProjectVersion))
         {
             list.Add("Projeto de uma versão que este app não conhece.");
         }
@@ -191,6 +191,18 @@ public static class StudioRules
             }
         }
 
+        if (project.Layers.Count > 12) list.Add("Use até 12 camadas adicionais.");
+        for (var i = 0; i < project.Layers.Count; i++)
+        {
+            var layer = project.Layers[i];
+            if (layer.Kind is not ("imagem" or "video" or "gif") || string.IsNullOrEmpty(layer.File)) list.Add($"A camada {i + 1} está sem mídia válida.");
+            if (!double.IsFinite(layer.Start) || !double.IsFinite(layer.End) || layer.Start < 0 || layer.End <= layer.Start) list.Add($"A camada {i + 1} está com o intervalo inválido.");
+            if (!double.IsFinite(layer.Offset) || layer.Offset < 0) list.Add($"A camada {i + 1} está com o início da mídia inválido.");
+        }
+        foreach (var transform in project.Clips.Select(c => c.Transform).Concat(project.Texts.Select(t => t.Transform)).Concat(project.Layers.Select(l => l.Transform)))
+            if (transform?.Problem() is { } problem) list.Add(problem);
+        static bool ValidColor(string color) => System.Text.RegularExpressions.Regex.IsMatch(color, "^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$");
+        if (project.Background is { } background && (!ValidColor(background.Color) || (background.EndColor is not null && !ValidColor(background.EndColor)))) list.Add("Cor de fundo inválida.");
         var total = TotalDuration(project);
         if (project.Output == "imagem" && project.Clips.Count > 0 && !(project.Frame >= 0 && project.Frame <= total))
         {
@@ -199,6 +211,12 @@ public static class StudioRules
 
         return list;
     }
+
+    public static IReadOnlyList<StudioLayer> LayersAt(StudioProject project, double time) =>
+        project.Layers.Where(l => l.Visible && time >= l.Start && time < l.End).OrderBy(l => l.Order).ToList();
+
+    public static bool UsesLayers(StudioProject project) => project.Background is not null || project.Layers.Count > 0
+        || project.Clips.Any(c => c.Transform is not null) || project.Texts.Any(t => t.Transform is not null);
 
     /// <summary>Avisos que nao impedem exportar.</summary>
     public static IReadOnlyList<string> Warnings(StudioProject project)

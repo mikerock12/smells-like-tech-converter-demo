@@ -115,7 +115,7 @@ public sealed partial class StudioPage : Page
 
     private IReadOnlyList<string> Inputs() => project is null
         ? []
-        : project.Clips.Select(c => c.File).Concat(project.Audios.Select(a => a.File)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        : project.Clips.Select(c => c.File).Concat(project.Audios.Select(a => a.File)).Concat(project.Layers.Select(c => c.File)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
 
     // ==================== assistente ====================
 
@@ -283,6 +283,7 @@ public sealed partial class StudioPage : Page
         }
 
         BuildClips();
+        BuildLayers();
         BuildTexts();
         BuildAudios();
         BuildExport();
@@ -396,6 +397,7 @@ public sealed partial class StudioPage : Page
                 resumo.Text = ClipSummary(Find(clip.Id));
             }));
             corpo.Children.Add(Muted(StudioRules.Fits.First(f => f.Id == clip.Fit).Description));
+            corpo.Children.Add(TransformControls(() => Find(clip.Id).Transform, t => Change(p => WithClip(p, clip.Id, c => c with { Transform = t }))));
             if (!clip.IsImage)
             {
                 var som = new ToggleSwitch { Header = "Som do vídeo", IsOn = clip.Muted != true };
@@ -427,7 +429,7 @@ public sealed partial class StudioPage : Page
             {
                 Texts = [.. p.Texts, new StudioText { Id = id, Text = "Seu texto aqui", Start = inicio, End = Math.Min(Total > 0 ? Total : 3, inicio + 3), Y = 0.15, Size = 0.06, Color = "#FFFFFF", Outline = "#000000", Font = "anton" }]
             });
-            EditorPivot.SelectedIndex = 1;
+            EditorPivot.SelectedIndex = 2;
         };
         TextsPanel.Children.Add(adicionar);
         if (project.Clips.Count == 0)
@@ -489,6 +491,7 @@ public sealed partial class StudioPage : Page
             ChangeAndRefresh(p => WithText(p, texto.Id, t => t with { Y = double.Parse(y, CultureInfo.InvariantCulture), X = 0.5 }))));
         corpo.Children.Add(Slider("Altura: {0}%", texto.Y, 0, 1, 0.01, v => Math.Round(v * 100).ToString(PtBr),
             v => Change(p => WithText(p, texto.Id, t => t with { Y = v })), null));
+        corpo.Children.Add(TransformControls(() => FindText(texto.Id).Transform, t => Change(p => WithText(p, texto.Id, c => c with { Transform = t })), allowRemoval: false));
         if (Total > 0)
         {
             corpo.Children.Add(Slider("Aparece em {0}", Math.Min(texto.Start, Total), 0, Total, 0.1, v => Clock(v),

@@ -25,9 +25,22 @@ object Fundo {
 
     suspend fun mascara(imagem: Bitmap): Bitmap {
         // O modelo trabalha bem até ~1 megapixel; maior só gasta memória.
-        val entrada = reduzir(imagem, 1024)
+        val reduzida = reduzir(imagem, 1024)
+        // O ML Kit continua trabalhando quando a coroutine é cancelada. Sua cópia só pode
+        // ser reciclada quando a tarefa nativa termina, independentemente de quem chamou.
+        val entrada = if (reduzida === imagem) imagem.copy(Bitmap.Config.ARGB_8888, false) else reduzida
+        val largura = entrada.width
+        val altura = entrada.height
         val resultado = suspendCancellableCoroutine { continuacao ->
-            segmentador.process(InputImage.fromBitmap(entrada, 0))
+            val tarefa = try {
+                segmentador.process(InputImage.fromBitmap(entrada, 0))
+            } catch (erro: Throwable) {
+                // Sem tarefa nativa, ninguém mais vai soltar a cópia.
+                entrada.recycle()
+                throw erro
+            }
+            tarefa
+                .addOnCompleteListener { entrada.recycle() }
                 .addOnSuccessListener { continuacao.resume(it) }
                 .addOnFailureListener { erro ->
                     continuacao.resumeWithException(
@@ -42,11 +55,8 @@ object Fundo {
         }
         val confianca = resultado.foregroundConfidenceMask ?: throw Indisponivel("O modelo não devolveu a figura desta imagem.")
         confianca.rewind()
-        val largura = entrada.width
-        val altura = entrada.height
         val pontos = IntArray(largura * altura) { Color.argb((confianca.get().coerceIn(0f, 1f) * 255).roundToInt(), 255, 255, 255) }
         val mascara = Bitmap.createBitmap(pontos, largura, altura, Bitmap.Config.ARGB_8888)
-        if (entrada !== imagem) entrada.recycle()
         return if (mascara.width == imagem.width && mascara.height == imagem.height) mascara
         else Bitmap.createScaledBitmap(mascara, imagem.width, imagem.height, true).also { mascara.recycle() }
     }

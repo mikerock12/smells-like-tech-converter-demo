@@ -18,7 +18,7 @@ const perguntas = [
   {
     pergunta: "O grátis tem marca d'água ou limite de qualidade?",
     resposta:
-      "Nunca. O grátis converte com a mesma qualidade do Pro. Os limites são de volume: 5 arquivos por vez, vídeo até 10 minutos no navegador, PDF até 50 páginas e 5 conversões pesadas por dia pelo plugin. E dá para desligar a internet e continuar convertendo.",
+      "Nunca. O grátis converte com a mesma qualidade do Pro. Os limites são de volume: 5 arquivos por vez, vídeo até 10 minutos no navegador, PDF até 50 páginas e 5 conversões pesadas por dia pelo plugin. No estúdio, 3 exportações por dia, projetos de até 1 minuto e remoção de fundo em fotos, stickers e GIFs. E dá para desligar a internet e continuar convertendo.",
   },
   {
     pergunta: "Por que não tem assinatura automática?",
@@ -79,7 +79,7 @@ export default async function PaginaDePrecos({ searchParams }: { searchParams: P
           <p className="precos__lead">
             Como a conversão acontece no seu computador, não pagamos servidor por arquivo — e não repassamos um custo
             que não existe. Cobramos pelo que economiza o tempo de quem trabalha com mídia todo dia: lote sem limite,
-            transcrição, narração e o programa completo para Windows.
+            estúdio sem contador, transcrição, narração e o programa completo para Windows.
           </p>
           <ul className="precos__selos" aria-label="Formas de pagamento">
             <li>Pix</li>
@@ -108,6 +108,7 @@ export default async function PaginaDePrecos({ searchParams }: { searchParams: P
               <li>Sem marca d&apos;água, sem cadastro, sem anúncio</li>
               <li>5 arquivos por vez · vídeo até 10 min · PDF até 50 páginas</li>
               <li>Plugin gratuito: 5 conversões pesadas por dia</li>
+              <li>Estúdio: 3 exportações por dia, projetos até 1 min</li>
               <li>Transcrição, narração e OCR para experimentar</li>
             </ul>
             <a className="button button--ghost plano__acao" href="/converter">
@@ -127,6 +128,7 @@ export default async function PaginaDePrecos({ searchParams }: { searchParams: P
               <li>Tudo do grátis, sem nenhum limite de volume</li>
               <li>Transcrição e legenda em português, sem contador</li>
               <li>Narração, OCR em lote e PDF → Word</li>
+              <li>Estúdio sem limite: exportações, duração e fundo removido também em vídeo</li>
               <li>Presets salvos e fila prioritária</li>
               <li>Vale no site e no plugin, neste e em qualquer computador</li>
             </ul>

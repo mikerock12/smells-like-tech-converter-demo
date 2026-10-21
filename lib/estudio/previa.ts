@@ -2,6 +2,8 @@ import { clipeNoTempo, duracaoTotal, type Projeto } from "@/packages/converter-c
 
 import { carregarFontes, desenharQuadro } from "./desenho";
 import type { ArquivosDoProjeto } from "./exportar";
+import { MidiasDasCamadas, type ImagemDaCamada } from "./midias-das-camadas";
+import { prepararRecortes } from "./recorte";
 
 /**
  * A prévia do estúdio numa página: um canvas na proporção do projeto, desenhado com o mesmo
@@ -9,6 +11,7 @@ import type { ArquivosDoProjeto } from "./exportar";
  * os vídeos e as músicas tocam de verdade e o canvas acompanha a cada quadro da tela.
  */
 export class PreviaDoEstudio {
+  private readonly camadas = new MidiasDasCamadas();
   private readonly videos = new Map<string, HTMLVideoElement>();
   private readonly fotos = new Map<string, Promise<ImageBitmap>>();
   private readonly musicas = new Map<string, HTMLAudioElement>();
@@ -33,13 +36,17 @@ export class PreviaDoEstudio {
         imagem = comTamanho(video);
       }
     }
+    const extras = await this.camadas.quadros(projeto, arquivos, t);
     if (pedido !== this.pedido) return;
-    this.pintar(projeto, t, imagem, achado?.clipe.ajuste ?? null);
+    const recortes = await prepararRecortes(projeto, t, imagem, extras, () => pedido === this.pedido);
+    if (pedido !== this.pedido) return;
+    this.pintar(projeto, t, recortes.principal, achado?.clipe.ajuste ?? null, recortes.extras);
   }
 
   /** Toca a partir de `de`; `aoAvancar` recebe o instante a cada quadro. Devolve a função de parar. */
-  tocar(projeto: Projeto, arquivos: ArquivosDoProjeto, de: number, aoAvancar: (t: number) => void, aoAcabar: () => void): () => void {
+  tocar(projeto: Projeto, arquivos: ArquivosDoProjeto, de: number, aoAvancar: (t: number) => void, aoAcabar: () => void, aoFalhar: (erro: unknown) => void): () => void {
     this.parar?.();
+    this.pedido++;
     const total = duracaoTotal(projeto);
     const comeco = performance.now() - de * 1000;
     let atual: HTMLVideoElement | null = null;
@@ -52,7 +59,7 @@ export class PreviaDoEstudio {
       return arquivo ? { audio, elemento: this.musica(audio.arquivo, arquivo), tocando: false } : null;
     }).filter((m) => m !== null);
 
-    const passo = () => {
+    const passo = async () => {
       if (!vivo) return;
       const t = (performance.now() - comeco) / 1000;
       if (t >= total) {
@@ -97,9 +104,17 @@ export class PreviaDoEstudio {
           m.tocando = false;
         }
       }
-      this.pintar(projeto, t, imagem, achado?.clipe.ajuste ?? null);
+      let extras: Map<string, ImagemDaCamada>;
+      try { extras = await this.camadas.quadros(projeto, arquivos, t); }
+      catch (erro) { if (vivo) aoFalhar(erro); encerrar(); aoAcabar(); return; }
+      if (!vivo) return;
+      let recortes;
+      try { recortes = await prepararRecortes(projeto, t, imagem, extras, () => vivo); }
+      catch (erro) { if (vivo) aoFalhar(erro); encerrar(); aoAcabar(); return; }
+      if (!vivo) return;
+      this.pintar(projeto, t, recortes.principal, achado?.clipe.ajuste ?? null, recortes.extras);
       aoAvancar(t);
-      quadro = requestAnimationFrame(passo);
+      quadro = requestAnimationFrame(() => { void passo(); });
     };
 
     const encerrar = () => {
@@ -111,13 +126,15 @@ export class PreviaDoEstudio {
     };
     this.parar = encerrar;
     void carregarFontes().then(() => {
-      if (vivo) quadro = requestAnimationFrame(passo);
-    });
+      if (vivo) quadro = requestAnimationFrame(() => { void passo(); });
+    }).catch(erro => { if (vivo) { aoFalhar(erro); encerrar(); aoAcabar(); } });
     return encerrar;
   }
 
   /** Solta os vídeos, as fotos e os endereços temporários. */
   liberar(): void {
+    this.pedido++;
+    this.camadas.liberar();
     this.parar?.();
     for (const video of this.videos.values()) video.removeAttribute("src");
     for (const musica of this.musicas.values()) musica.removeAttribute("src");
@@ -132,13 +149,13 @@ export class PreviaDoEstudio {
 
   private readonly fotosProntas = new Map<string, ImageBitmap>();
 
-  private pintar(projeto: Projeto, t: number, imagem: (CanvasImageSource & { width: number; height: number }) | null, ajuste: Projeto["clipes"][number]["ajuste"] | null) {
+  private pintar(projeto: Projeto, t: number, imagem: (CanvasImageSource & { width: number; height: number }) | null, ajuste: Projeto["clipes"][number]["ajuste"] | null, extras: ReadonlyMap<string, ImagemDaCamada>) {
     const ctx = this.canvas.getContext("2d");
     if (!ctx) return;
     const escala = this.canvas.width / projeto.largura;
     ctx.save();
     ctx.setTransform(escala, 0, 0, this.canvas.height / projeto.altura, 0, 0);
-    desenharQuadro(ctx, projeto, t, imagem, ajuste);
+    desenharQuadro(ctx, projeto, t, imagem, ajuste, extras);
     ctx.restore();
   }
 

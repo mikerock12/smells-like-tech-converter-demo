@@ -3,7 +3,7 @@ import type { FormatId, FormatKind } from "./index.mjs";
 export type TipoDeMidia = FormatKind;
 export type OndeRoda = "navegador" | "plugin";
 export type PlanoDaFerramenta = "gratis" | "pro";
-export type Contador = "lote" | "video" | "pdf" | "pesado" | "transcricao" | "narracao" | "ocr";
+export type Contador = "lote" | "video" | "pdf" | "pesado" | "transcricao" | "narracao" | "ocr" | "estudio" | "estudioDuracao";
 
 export interface Categoria {
   readonly id: "imagem" | "audio" | "video" | "pdf" | "voz";

@@ -85,6 +85,40 @@ class FigurinhasTest {
         assertEquals(255, Color.alpha(figurinha.getPixel(256, 256)))
     }
 
+    @Test fun camadasMantemFiltroMascaraOpacidadeEOrdemIndependentes() {
+        val azul = Bitmap.createBitmap(64, 64, Bitmap.Config.ARGB_8888).apply { eraseColor(Color.BLUE) }
+        val vermelho = Bitmap.createBitmap(64, 64, Bitmap.Config.ARGB_8888).apply { eraseColor(Color.RED) }
+        val mascara = Bitmap.createBitmap(64, 64, Bitmap.Config.ARGB_8888).apply {
+            Canvas(this).drawRect(0f, 0f, 32f, 64f, Paint().apply { color = Color.WHITE })
+        }
+        val inferior = CamadaDeFigurinha(nome = "Azul", imagem = azul, ordem = 0, edicao = Edicao())
+        val superior = CamadaDeFigurinha(nome = "Vermelho", imagem = vermelho, mascara = mascara,
+            edicao = Edicao(removerFundo = true, opacidade = 0.5f, filtro = Filtro.PRETO_E_BRANCO))
+        val compositor = CompositorDeFigurinhas(contexto)
+        val desenho = compositor.desenhar(listOf(inferior, superior))
+        assertEquals(Color.BLUE, desenho.getPixel(400, 256))
+        val misturado = desenho.getPixel(100, 256)
+        assertTrue(Color.blue(misturado) > Color.red(misturado))
+        assertTrue(Color.red(misturado) in 20..80)
+        assertEquals(Color.RED, vermelho.getPixel(10, 10))
+        val invertido = compositor.desenhar(listOf(inferior.copy(ordem = 2), superior))
+        assertEquals(Color.BLUE, invertido.getPixel(100, 256))
+        val oculto = compositor.desenhar(listOf(superior.copy(visivel = false)), Color.GREEN)
+        assertEquals(Color.GREEN, oculto.getPixel(256, 256))
+        listOf(azul, vermelho, mascara, desenho, invertido, oculto).forEach { it.recycle() }
+    }
+
+    @Test fun perspectivaLivreMantemPincelNaSuperficie() {
+        val edicao = Edicao(giro = 37, inclinacaoX = -28f, inclinacaoY = 42f, zoom = 0.7f)
+        val matriz = Perspectiva.matriz(200, 150, 512, 512, edicao)!!
+        val pontos = floatArrayOf(50f, 90f)
+        matriz.mapPoints(pontos)
+        val (x, y, _) = Renderizador(contexto).pontoNaImagem(pontos[0] / 512, pontos[1] / 512, 0.02f, 200, 150, edicao)
+        assertEquals(0.25f, x, 0.001f)
+        assertEquals(0.6f, y, 0.001f)
+        assertTrue(Perspectiva.matriz(200, 150, 512, 512, Edicao(inclinacaoY = 90f)) == null)
+    }
+
     @Test fun pacoteDeTresApareceParaOWhatsAppPeloProvedor() {
         var pacote = pacotes.criar("Teste do provedor", animado = false).also { criados += it }
         listOf(Color.RED, Color.GREEN, Color.BLUE).forEach { cor ->

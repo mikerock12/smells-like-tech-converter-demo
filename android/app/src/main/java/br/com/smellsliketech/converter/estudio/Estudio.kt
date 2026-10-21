@@ -14,7 +14,7 @@ data class FonteDoEstudio(val id: String, val nome: String, val arquivo: String?
 data class Segmento(val indice: Int, val id: String, val inicio: Double, val fim: Double, val duracao: Double)
 
 /** O que só o app sabe: caminho de cada entrada e se o vídeo tem som. */
-data class EntradasDaReceita(val clipes: List<EntradaDeClipe>, val textos: List<String>, val audios: List<String>)
+data class EntradasDaReceita(val clipes: List<EntradaDeClipe>, val textos: List<String>, val audios: List<String>, val camadas: List<String> = emptyList())
 
 data class EntradaDeClipe(val caminho: String, val temAudio: Boolean)
 
@@ -27,7 +27,12 @@ data class Receita(val args: List<String>, val filtro: String, val mapas: List<S
  * packages/converter-core/estudio-casos são conferidos no EstudioTest. Kotlin puro.
  */
 object Estudio {
-    const val VERSAO_DO_PROJETO = 1
+    fun camadasNoTempo(projeto: Projeto, tempo: Double) =
+        projeto.camadas.filter { it.visivel && tempo >= it.inicio && tempo < it.fim }.sortedBy { it.ordem }
+
+    fun usaCamadas(projeto: Projeto) = projeto.fundo != null || projeto.camadas.isNotEmpty() ||
+        projeto.clipes.any { it.transformacao != null } || projeto.textos.any { it.transformacao != null }
+    const val VERSAO_DO_PROJETO = 2
     const val DURACAO_PADRAO_DA_IMAGEM = 3.0
     const val DURACAO_MINIMA = 0.1
     const val LADO_DO_GIF = 480
@@ -123,7 +128,7 @@ object Estudio {
     /** Problemas que impedem exportar, nos mesmos textos do site e do Windows. */
     fun problemas(projeto: Projeto): List<String> {
         val lista = mutableListOf<String>()
-        if (projeto.versao != VERSAO_DO_PROJETO) lista += "Projeto de uma versão que este app não conhece."
+        if (projeto.versao !in listOf(1, VERSAO_DO_PROJETO)) lista += "Projeto de uma versão que este app não conhece."
         if (!(projeto.largura >= 16 && projeto.altura >= 16 && projeto.largura <= 4096 && projeto.altura <= 4096)) {
             lista += "O tamanho do quadro precisa ficar entre 16 e 4096 pixels."
         }
@@ -140,6 +145,18 @@ object Estudio {
         projeto.audios.forEachIndexed { i, audio ->
             if (!(audio.fim - audio.inicio >= DURACAO_MINIMA)) lista += "O áudio ${i + 1} termina antes de começar."
         }
+        if (projeto.camadas.size > 12) lista += "Use até 12 camadas adicionais."
+        projeto.camadas.forEachIndexed { i, camada ->
+            val numero = i + 1
+            if (camada.tipo !in listOf("imagem", "video", "gif") || camada.arquivo.isEmpty()) lista += "A camada $numero está sem mídia válida."
+            if (!camada.inicio.isFinite() || !camada.fim.isFinite() || camada.inicio < 0 || camada.fim <= camada.inicio) lista += "A camada $numero está com o intervalo inválido."
+            if (!camada.deslocamento.isFinite() || camada.deslocamento < 0) lista += "A camada $numero está com o início da mídia inválido."
+        }
+        (projeto.clipes.map { it.transformacao } + projeto.textos.map { it.transformacao } + projeto.camadas.map { it.transformacao }).forEach {
+            it?.problema()?.let { erro -> lista += erro }
+        }
+        fun corValida(cor: String) = cor.matches(Regex("#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?"))
+        projeto.fundo?.let { if (!corValida(it.cor) || (it.corFinal != null && !corValida(it.corFinal))) lista += "Cor de fundo inválida." }
         val total = duracaoTotal(projeto)
         if (projeto.saida == "imagem" && projeto.clipes.isNotEmpty() && !(projeto.quadro >= 0 && projeto.quadro <= total)) {
             lista += "Escolha um instante dentro do vídeo para a imagem."
@@ -163,6 +180,7 @@ object Estudio {
 
     /** A receita do FFmpeg: idêntica, caractere por caractere, à do JS e à do Windows. */
     fun receita(projeto: Projeto, entradas: EntradasDaReceita): Receita {
+        if (projeto.saida !in listOf("audio", "texto") && usaCamadas(projeto)) return ReceitaDeCamadas.montar(projeto, entradas)
         val w = projeto.largura
         val h = projeto.altura
         val fps = projeto.fps

@@ -28,6 +28,8 @@ export interface ItemParaConverter {
 export interface Bloqueio {
   readonly mensagem: string;
   readonly contador: string;
+  /** Quando o recurso inteiro é do Pro (não é questão de volume), o nome dele. */
+  readonly recurso?: string;
 }
 
 /** Duração de um vídeo ou áudio pelo próprio navegador, sem decodificar. */

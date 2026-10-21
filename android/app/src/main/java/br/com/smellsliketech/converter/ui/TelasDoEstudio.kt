@@ -222,7 +222,7 @@ private fun EscolhaDaSaida(atual: String?, escolher: (String) -> Unit) {
 
 // ==================== editor ====================
 
-private enum class AbaDoEstudio(val titulo: String) { CLIPES("Clipes"), TEXTOS("Textos"), AUDIO("Áudio"), EXPORTAR("Exportar") }
+private enum class AbaDoEstudio(val titulo: String) { CLIPES("Clipes"), CAMADAS("Camadas"), TEXTOS("Textos"), AUDIO("Áudio"), EXPORTAR("Exportar") }
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -261,6 +261,14 @@ private fun Editor(modelo: EstudioViewModel, podeExportar: Boolean, abrirLicenca
             AbaDoEstudio.TEXTOS -> {
                 item {
                     Button(onClick = { modelo.adicionarTexto() }, enabled = projeto.clipes.isNotEmpty(), modifier = Modifier.fillMaxWidth()) { Text("Adicionar texto") }
+                    FlowRow {
+                        listOf("😀", "❤️", "🔥", "✨", "🎉", "👍").forEach { emoji ->
+                            TextButton(enabled = projeto.clipes.isNotEmpty(), onClick = {
+                                val id = modelo.adicionarTexto()
+                                modelo.mudarTexto(id) { it.copy(texto = emoji, fonte = "padrao", contorno = null) }
+                            }) { Text(emoji) }
+                        }
+                    }
                     if (projeto.clipes.isEmpty()) Dica("Adicione um vídeo ou foto antes: o texto aparece por cima deles.")
                 }
                 items(projeto.textos, key = { it.id }) { texto -> CartaoDoTexto(modelo, texto) }
@@ -269,6 +277,7 @@ private fun Editor(modelo: EstudioViewModel, podeExportar: Boolean, abrirLicenca
                 item { BotaoDeAudio(modelo) }
                 items(projeto.audios, key = { it.id }) { audio -> CartaoDoAudio(modelo, audio) }
             }
+            AbaDoEstudio.CAMADAS -> item { PainelDeCamadasDoEstudio(modelo) }
             AbaDoEstudio.EXPORTAR -> item { PainelDeExportar(modelo, projeto, podeExportar, abrirLicenca, abrirModelos) }
         }
     }
@@ -348,6 +357,7 @@ private fun CartaoDoClipe(modelo: EstudioViewModel, projeto: Projeto, clipe: Cli
             }
         }
         Text(Estudio.AJUSTES.first { it.id == clipe.ajuste }.descricao, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        ControlesDeTransformacao(clipe.transformacao) { valor -> modelo.mudarClipe(clipe.id) { it.copy(transformacao = valor) } }
         if (!clipe.ehImagem) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("Som do vídeo", fontSize = 13.sp, modifier = Modifier.weight(1f))
@@ -410,6 +420,7 @@ private fun CartaoDoTexto(modelo: EstudioViewModel, texto: Texto) {
         }
         Text("Altura: ${(texto.y * 100).toInt()}%", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Slider(value = texto.y.toFloat(), valueRange = 0f..1f, onValueChange = { v -> modelo.mudarTexto(texto.id) { it.copy(y = Math.round(v * 100) / 100.0) } })
+        ControlesDeTransformacao(texto.transformacao, permitirRecorte = false) { valor -> modelo.mudarTexto(texto.id) { it.copy(transformacao = valor) } }
         if (total > 0) {
             Text("Aparece de ${tempo(texto.inicio)} até ${tempo(texto.fim)}", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             RangeSlider(

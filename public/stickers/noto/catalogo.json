@@ -1,0 +1,130 @@
+[
+  {
+    "codigo": "1f600",
+    "nome": "Sorriso",
+    "termos": "feliz alegria rosto smile happy",
+    "url": "https://fonts.gstatic.com/s/e/notoemoji/latest/1f600/512.gif",
+    "sha256": "1fa8d23983927d7d5cd1e854e589821da5c3d2c11a866128fe3a688a9ee888fb",
+    "bytes": 836130
+  },
+  {
+    "codigo": "1f602",
+    "nome": "Rindo",
+    "termos": "risada rir alegria gargalhada laughing joy",
+    "url": "https://fonts.gstatic.com/s/e/notoemoji/latest/1f602/512.gif",
+    "sha256": "ed0f5e16efdbed5d64db46c41cdbbe6bc9a1d8ca2fd8466553a4230b63c59f14",
+    "bytes": 1176505
+  },
+  {
+    "codigo": "1f60d",
+    "nome": "Apaixonado",
+    "termos": "amor coração love apaixonada",
+    "url": "https://fonts.gstatic.com/s/e/notoemoji/latest/1f60d/512.gif",
+    "sha256": "8b891ba60e3d7cd9c508368094dbc2c8a8cb631190116b555e675c46ab255154",
+    "bytes": 978737
+  },
+  {
+    "codigo": "1f62d",
+    "nome": "Chorando",
+    "termos": "triste lágrimas choro cry sad",
+    "url": "https://fonts.gstatic.com/s/e/notoemoji/latest/1f62d/512.gif",
+    "sha256": "ca8981b48c104a6bc4d66b7d7962f4339b5290fae5b16f519ddabe37ca4fff7b",
+    "bytes": 1243939
+  },
+  {
+    "codigo": "1f60e",
+    "nome": "Óculos escuros",
+    "termos": "legal sol verão cool sunglasses",
+    "url": "https://fonts.gstatic.com/s/e/notoemoji/latest/1f60e/512.gif",
+    "sha256": "9bc24379d9d52a3a863f7a7bd53bef063cd8651fd90e3a035fcb710897c75ad5",
+    "bytes": 1037279
+  },
+  {
+    "codigo": "1f914",
+    "nome": "Pensando",
+    "termos": "dúvida pensar pergunta thinking",
+    "url": "https://fonts.gstatic.com/s/e/notoemoji/latest/1f914/512.gif",
+    "sha256": "cc4b16879b5f7264a37d7000783776b817b2f8f9e8084672c01d0849ab1bd27c",
+    "bytes": 1388932
+  },
+  {
+    "codigo": "1f525",
+    "nome": "Fogo",
+    "termos": "chama quente fire efeito",
+    "url": "https://fonts.gstatic.com/s/e/notoemoji/latest/1f525/512.gif",
+    "sha256": "d8785d856b415fed27d3fafde40cc34bfb2ef9f2bffeecc9cbe7b3428e0f7e3e",
+    "bytes": 475239
+  },
+  {
+    "codigo": "2728",
+    "nome": "Brilhos",
+    "termos": "estrela brilho magia sparkles efeito",
+    "url": "https://fonts.gstatic.com/s/e/notoemoji/latest/2728/512.gif",
+    "sha256": "e598e4b90f9f6206ab6316defd43ef3305c14ebbb03840b09dca8f8685888261",
+    "bytes": 158633
+  },
+  {
+    "codigo": "1f389",
+    "nome": "Festa",
+    "termos": "parabéns aniversário comemorar festa party efeito",
+    "url": "https://fonts.gstatic.com/s/e/notoemoji/latest/1f389/512.gif",
+    "sha256": "86879c45175f3901a8676d9b0bb5132c7a98b20a9f40487c21e4c896ce196616",
+    "bytes": 395755
+  },
+  {
+    "codigo": "1f38a",
+    "nome": "Confetes",
+    "termos": "festa celebração confetti efeito",
+    "url": "https://fonts.gstatic.com/s/e/notoemoji/latest/1f38a/512.gif",
+    "sha256": "ddcf24dbe0fca0e1484169be4e398eaa02214d55b1ae1786eccdbbfb6e677f64",
+    "bytes": 302605
+  },
+  {
+    "codigo": "2764",
+    "nome": "Coração",
+    "termos": "amor coração love heart vermelho",
+    "url": "https://fonts.gstatic.com/s/e/notoemoji/latest/2764/512.gif",
+    "sha256": "8558abf3f723b996ade7518dd405cf564e9cd17000161717cfa143c42d94323c",
+    "bytes": 248803
+  },
+  {
+    "codigo": "1f48b",
+    "nome": "Beijo",
+    "termos": "amor beijar kiss lábios",
+    "url": "https://fonts.gstatic.com/s/e/notoemoji/latest/1f48b/512.gif",
+    "sha256": "33a58ed903ddb64930c2793b764c8027424213927e3eb4a707bd1b41a8065375",
+    "bytes": 149343
+  },
+  {
+    "codigo": "1f44d",
+    "nome": "Positivo",
+    "termos": "sim bom gostei like ok legal",
+    "url": "https://fonts.gstatic.com/s/e/notoemoji/latest/1f44d/512.gif",
+    "sha256": "6f9e0ded0161c86e3d7ab1f42c8d0ad4c609bbce86d0c04092127f94b373134b",
+    "bytes": 194821
+  },
+  {
+    "codigo": "1f44f",
+    "nome": "Palmas",
+    "termos": "aplauso parabéns clap",
+    "url": "https://fonts.gstatic.com/s/e/notoemoji/latest/1f44f/512.gif",
+    "sha256": "36a2cd7143f1028f746c470889a1ba6d8b71f073b97f5dbdd1130ee2b000b867",
+    "bytes": 194400
+  },
+  {
+    "codigo": "1f680",
+    "nome": "Foguete",
+    "termos": "espaço subir rocket lançamento",
+    "url": "https://fonts.gstatic.com/s/e/notoemoji/latest/1f680/512.gif",
+    "sha256": "d644d67d81484688452b5d4bc1f79e98333a33b4fe4c03283839dd9008f19a5f",
+    "bytes": 262339
+  },
+  {
+    "codigo": "1f4a5",
+    "nome": "Explosão",
+    "termos": "impacto explosão boom efeito",
+    "url": "https://fonts.gstatic.com/s/e/notoemoji/latest/1f4a5/512.gif",
+    "sha256": "3f188e9b06241c51c74523e1f8e9ffe9f3e133822d58926021031fc8d7cd36bb",
+    "bytes": 413941
+  }
+]
