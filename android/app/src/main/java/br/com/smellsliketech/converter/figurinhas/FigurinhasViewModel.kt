@@ -94,6 +94,34 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
         }
     var emojis by mutableStateOf(listOf(Pacotes.EMOJI_PADRAO))
 
+    /** A figurinha do pacote reaberta no editor (pacote, arquivo): salvar troca essa em vez de acrescentar. */
+    var editando by mutableStateOf<Pair<String, String>?>(null)
+        private set
+
+    /** As guias do enquadramento enquanto o dedo mexe (ou logo depois de um ajuste pelos controles). */
+    var guias by mutableStateOf<List<Guias.Guia>>(emptyList())
+        private set
+    var mostrandoGuias by mutableStateOf(false)
+        private set
+    /** Girando, o giro encaixou no reto (0°, 90°, 180°). */
+    var giroReto by mutableStateOf(false)
+        private set
+    private var trabalhoDasGuias: Job? = null
+
+    /** A figurinha de verdade, gerada pelo botão de prévia: a mesma que o Salvar gravaria. */
+    class PreviaFinal(
+        val arquivo: File,
+        val segundos: Double,
+        val bytes: Int,
+        val quadrosPorSegundo: Int,
+        val animada: Boolean,
+        val encurtada: Boolean,
+        internal val assinatura: Any,
+    )
+    var previaFinal by mutableStateOf<PreviaFinal?>(null)
+        private set
+    var exibindoPreviaFinal by mutableStateOf(false)
+
     /** A imagem base do editor (a imagem, ou o quadro de vídeo escolhido) e a máscara do fundo. */
     private var basePrincipal by mutableStateOf<Bitmap?>(null)
     private var mascaraPrincipal by mutableStateOf<Bitmap?>(null)
@@ -456,15 +484,32 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
             andamento = Andamento()
             try {
                 var encurtada: Double? = null
-                val webp = if (animada && temAnimacao) gerarAnimadaEmCamadas().also { if (it.encurtada) encurtada = it.segundos }.webp
-                else gerarEstatica()
-                val pacote = destino?.let { pacotes.ler(it.id) } ?: pacotes.criar(nomeDoNovo, animada)
-                val atualizado = withContext(Dispatchers.IO) { pacotes.adicionar(pacote, webp, emojis) }
+                val pronta = previaFinal?.takeIf { it.assinatura == assinatura() }
+                val webp = when {
+                    pronta != null -> withContext(Dispatchers.IO) { pronta.arquivo.readBytes() }.also { if (pronta.encurtada) encurtada = pronta.segundos }
+                    animada && temAnimacao -> gerarAnimadaEmCamadas().also { if (it.encurtada) encurtada = it.segundos }.webp
+                    else -> gerarEstatica()
+                }
+                val alvo = editando
+                val (atualizado, arquivo) = if (alvo != null) {
+                    val pacote = pacotes.ler(alvo.first) ?: throw ErroDeConversao("O pacote desta figurinha não existe mais.")
+                    val figurinha = pacote.figurinhas.firstOrNull { it.arquivo == alvo.second } ?: throw ErroDeConversao("A figurinha saiu do pacote.")
+                    if (pacote.animado != (animada && temAnimacao)) throw ErroDeConversao(
+                        if (pacote.animado) "Este pacote é de figurinhas animadas: deixe a figurinha animada." else "Este pacote é de figurinhas estáticas: deixe a figurinha estática.")
+                    withContext(Dispatchers.IO) { pacotes.substituir(pacote, figurinha, webp, emojis) } to figurinha.arquivo
+                } else {
+                    val pacote = destino?.let { pacotes.ler(it.id) } ?: pacotes.criar(nomeDoNovo, animada)
+                    val novo = withContext(Dispatchers.IO) { pacotes.adicionar(pacote, webp, emojis) }
+                    novo to novo.figurinhas.last().arquivo
+                }
+                relatar(0.99, "Guardando para editar depois…")
+                runCatching { guardarProjeto(atualizado, arquivo) }.onFailure { android.util.Log.w("Figurinhas", "projeto não guardado", it) }
                 WhatsApp.avisarMudanca(contexto)
                 recarregar()
                 pacoteAberto = atualizado
                 fecharEditor()
-                aviso = (if (atualizado.prontoParaWhatsApp) "Figurinha salva em “${atualizado.nome}”."
+                aviso = (if (alvo != null) "Figurinha atualizada em “${atualizado.nome}”."
+                else if (atualizado.prontoParaWhatsApp) "Figurinha salva em “${atualizado.nome}”."
                 else "Figurinha salva. Faltam ${atualizado.faltam} para o WhatsApp aceitar o pacote (mínimo ${Regras.MINIMO}).") +
                     (encurtada?.let {
                         " Para manter $quadrosPorSegundo quadros/s, ela ficou com ${"%.1f".format(it)} s: o vídeo tem movimento demais para os 500 KB do WhatsApp."
@@ -595,6 +640,7 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
         limparEditor()
         origem?.copia?.delete()
         origem = null
+        editando = null
     }
 
     private fun limparEditor() {
@@ -602,6 +648,11 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
         trabalhoDaBase?.cancel()
         trabalhoDaPrevia?.cancel()
         trechos.keys.toList().forEach(::esquecerTrecho)
+        previaFinal?.arquivo?.delete()
+        previaFinal = null
+        exibindoPreviaFinal = false
+        guias = emptyList()
+        mostrandoGuias = false
         camadas.forEach { it.origem?.copia?.delete() }
         camadas = emptyList()
         camadaSelecionada = null
@@ -614,6 +665,228 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
         previa = null
         edicao = Edicao()
         emojis = listOf(Pacotes.EMOJI_PADRAO)
+    }
+
+    // ---- Guias do enquadramento ----
+
+    /** O tamanho da imagem de uma camada como o renderizador a vê (texto é um quadro de 512). */
+    private fun medidas(camada: CamadaDeFigurinha): Pair<Int, Int> =
+        if (camada.texto) Regras.LADO to Regras.LADO else camada.imagem.width to camada.imagem.height
+
+    private fun referencias(): List<Guias.Caixa> {
+        val atual = camadaSelecionada ?: "principal"
+        return composicao().filter { it.visivel && !it.texto && it.id != atual }
+            .mapNotNull { camada -> medidas(camada).let { (w, h) -> Guias.caixa(w, h, camada.edicao) } }
+    }
+
+    private fun medidasDaSelecionada(): Pair<Int, Int>? {
+        val camada = composicao().firstOrNull { it.id == (camadaSelecionada ?: "principal") } ?: return null
+        return medidas(camada)
+    }
+
+    fun iniciarGesto() {
+        trabalhoDasGuias?.cancel()
+        mostrandoGuias = true
+    }
+
+    /** O dedo propôs `bruta`: encaixa nas guias próximas e aplica. `girando`: o gesto já girou a imagem. */
+    fun moverPorGesto(bruta: Edicao, girando: Boolean = false) {
+        val (w, h) = medidasDaSelecionada() ?: return mudar(bruta)
+        val alinhamento = Guias.alinhar(bruta, w, h, referencias())
+        guias = alinhamento.guias
+        giroReto = alinhamento.reta && girando
+        mudar(alinhamento.edicao)
+    }
+
+    fun terminarGesto() = esconderGuiasDepois(700)
+
+    /** Mudança pelos controles (deslizantes, botões): sem encaixe, mas as guias mostram onde está. */
+    fun ajustar(nova: Edicao) {
+        val girou = nova.giro != edicao.giro
+        mudar(nova)
+        val (w, h) = medidasDaSelecionada() ?: return
+        guias = Guias.caixa(w, h, nova)?.let { Guias.guiasDe(it, referencias()) }.orEmpty()
+        giroReto = girou && nova.giro % 90 == 0
+        mostrandoGuias = true
+        esconderGuiasDepois(1200)
+    }
+
+    private fun esconderGuiasDepois(ms: Long) {
+        trabalhoDasGuias?.cancel()
+        trabalhoDasGuias = viewModelScope.launch {
+            delay(ms)
+            mostrandoGuias = false
+            guias = emptyList()
+        }
+    }
+
+    /** Preencher: a imagem cobre a figurinha 1×1 inteira, centralizada e reta. Depois dá para ajustar. */
+    fun preencher() {
+        val camada = composicao().firstOrNull { it.id == (camadaSelecionada ?: "principal") } ?: return
+        if (camada.texto) return
+        val (w, h) = medidas(camada)
+        val atual = camada.edicao
+        ajustar(atual.copy(zoom = Guias.zoomParaPreencher(w, h, atual), deslocamentoX = 0f, deslocamentoY = 0f,
+            giro = if (atual.giro % 90 == 0) atual.giro else 0, inclinacaoX = 0f, inclinacaoY = 0f))
+    }
+
+    // ---- Prévia final ----
+
+    /** Tudo o que muda a figurinha gerada: se nada mudou desde a prévia final, o Salvar a reaproveita. */
+    private fun assinatura(): Any = listOf(composicao(), corDeFundo, corFinalDoFundo, inicio, fim, animada && temAnimacao, quadrosPorSegundo)
+
+    /** Gera a figurinha exatamente como o Salvar faria e mostra (animada, com duração e tamanho). */
+    fun verComoFica() {
+        if (origem == null) return
+        trabalho?.cancel()
+        trabalho = viewModelScope.launch {
+            ocupado = "Montando a figurinha…"
+            progresso = 0
+            restante = null
+            andamento = Andamento()
+            try {
+                val assinada = assinatura()
+                val animadaAgora = animada && temAnimacao
+                val gerada = if (animadaAgora) gerarAnimadaEmCamadas() else Producao.Animada(gerarEstatica(), 0.0, false)
+                val arquivo = File.createTempFile("previa-final-", ".webp", contexto.cacheDir)
+                withContext(Dispatchers.IO) { arquivo.writeBytes(gerada.webp) }
+                previaFinal?.arquivo?.delete()
+                previaFinal = PreviaFinal(arquivo, gerada.segundos, gerada.webp.size, quadrosPorSegundo, animadaAgora, gerada.encurtada, assinada)
+                exibindoPreviaFinal = true
+            } catch (erro: CancellationException) {
+                throw erro
+            } catch (erro: Exception) {
+                aviso = erro.message ?: "Não deu para montar a prévia."
+            } finally {
+                ocupado = null
+                progresso = null
+                restante = null
+            }
+        }
+    }
+
+    // ---- Editar de novo uma figurinha do pacote ----
+
+    fun podeEditar(pacote: PacoteDeFigurinhas, figurinha: Figurinha): Boolean =
+        File(pacotes.pastaDoProjeto(pacote, figurinha.arquivo), Projetos.ARQUIVO).isFile
+
+    /** Reabre no editor uma figurinha salva com projeto. As mídias vão para cópias de trabalho no cache. */
+    fun editar(pacote: PacoteDeFigurinhas, figurinha: Figurinha) {
+        trabalho?.cancel()
+        trabalho = viewModelScope.launch {
+            ocupado = "Abrindo a figurinha…"
+            val copias = mutableListOf<File>()
+            try {
+                val pasta = pacotes.pastaDoProjeto(pacote, figurinha.arquivo)
+                val projeto = withContext(Dispatchers.IO) { Projetos.ler(pasta) }
+                    ?: throw ErroDeConversao("Esta figurinha foi criada antes de o app guardar a edição: só as novas podem ser editadas de novo.")
+                suspend fun copiaDeTrabalho(nome: String): File = withContext(Dispatchers.IO) {
+                    File(pasta, nome).copyTo(File.createTempFile("edicao-", "." + nome.substringAfterLast('.'), contexto.cacheDir), overwrite = true)
+                }.also { copias += it }
+                suspend fun imagem(nome: String): android.graphics.Bitmap = withContext(Dispatchers.IO) {
+                    android.graphics.BitmapFactory.decodeFile(File(pasta, nome).absolutePath)
+                } ?: throw ErroDeConversao("Não deu para abrir a imagem guardada da figurinha.")
+                suspend fun abrirCamada(salva: CamadaSalva, segundos: Double): Pair<Origem?, android.graphics.Bitmap> = when {
+                    salva.texto -> null to android.graphics.Bitmap.createBitmap(Regras.LADO, Regras.LADO, android.graphics.Bitmap.Config.ARGB_8888)
+                    salva.tipo == TipoDaOrigem.IMAGEM -> Origem(Uri.fromFile(File(pasta, salva.arquivo!!)), salva.nome, TipoDaOrigem.IMAGEM, null) to imagem(salva.arquivo)
+                    else -> {
+                        val copia = copiaDeTrabalho(salva.arquivo!!)
+                        Origem(Uri.fromFile(copia), salva.nome, salva.tipo ?: TipoDaOrigem.VIDEO, copia) to Producao.quadro(contexto, copia, segundos)
+                    }
+                }
+
+                fecharEditor()
+                val (origemPrincipal, basePrincipalNova) = abrirCamada(projeto.principal, projeto.inicio)
+                val restauradas = projeto.camadas.map { salva ->
+                    val (origemDaCamada, imagemDaCamada) = abrirCamada(salva, 0.0)
+                    CamadaDeFigurinha(id = salva.id, nome = salva.nome, origem = origemDaCamada, imagem = imagemDaCamada,
+                        mascara = salva.mascara?.let { imagem(it) }, mascaraManual = salva.mascara != null,
+                        edicao = salva.edicao, visivel = salva.visivel, ordem = salva.ordem, texto = salva.texto)
+                }
+                origem = origemPrincipal
+                animada = projeto.animada
+                quadrosPorSegundo = projeto.quadrosPorSegundo
+                inicio = projeto.inicio
+                fim = projeto.fim
+                corDeFundo = projeto.corDeFundo
+                corFinalDoFundo = projeto.corFinalDoFundo
+                emojis = projeto.emojis.ifEmpty { listOf(Pacotes.EMOJI_PADRAO) }
+                edicaoPrincipal = projeto.principal.edicao
+                basePrincipal = basePrincipalNova
+                mascaraPrincipal = projeto.principal.mascara?.let { imagem(it) }
+                mascaraManualPrincipal = projeto.principal.mascara != null
+                camadas = restauradas
+                editando = pacote.id to figurinha.arquivo
+                copias.clear() // agora pertencem ao editor, que as apaga ao fechar
+                if (edicaoPrincipal.removerFundo && mascaraPrincipal == null) calcularMascara(null)
+                restauradas.filter { it.edicao.removerFundo && it.mascara == null }.forEach { calcularMascara(it.id) }
+                atualizarPrevia()
+            } catch (erro: CancellationException) {
+                throw erro
+            } catch (erro: Exception) {
+                aviso = erro.message ?: "Não deu para abrir a figurinha."
+            } finally {
+                copias.forEach { it.delete() }
+                ocupado = null
+            }
+        }
+    }
+
+    /**
+     * Guarda o projeto da figurinha recém-salva, para editar de novo depois: imagens em PNG,
+     * GIF como veio e vídeo como trecho leve (só a parte usada). Grava numa pasta temporária e
+     * troca no fim, para um projeto antigo nunca ficar pela metade.
+     */
+    private suspend fun guardarProjeto(pacote: PacoteDeFigurinhas, arquivo: String) {
+        val destino = pacotes.pastaDoProjeto(pacote, arquivo)
+        val temporaria = File(destino.parentFile, destino.name + ".novo")
+        withContext(Dispatchers.IO) { temporaria.deleteRecursively(); temporaria.mkdirs() }
+        val duracao = (fim - inicio).coerceIn(0.2, Regras.ANIMADA_MAX_SEGUNDOS)
+        val animadaAgora = animada && temAnimacao
+        var inicioGuardado = inicio
+        var fimGuardado = fim
+
+        suspend fun png(bitmap: android.graphics.Bitmap, nome: String): String = withContext(Dispatchers.IO) {
+            File(temporaria, nome).outputStream().use { bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
+            nome
+        }
+        suspend fun midia(camada: CamadaDeFigurinha, prefixo: String, comeco: Double): String? {
+            val origemDaCamada = camada.origem
+            return when {
+                camada.texto -> null
+                origemDaCamada == null || origemDaCamada.tipo == TipoDaOrigem.IMAGEM -> png(camada.imagem, "$prefixo.png")
+                origemDaCamada.tipo == TipoDaOrigem.GIF -> withContext(Dispatchers.IO) {
+                    origemDaCamada.copia!!.copyTo(File(temporaria, "$prefixo.gif"), overwrite = true); "$prefixo.gif"
+                }
+                else -> {
+                    Producao.trechoParaOProjeto(contexto, origemDaCamada.copia!!, comeco, if (animadaAgora) duracao else 0.5, File(temporaria, "$prefixo.mp4"))
+                    "$prefixo.mp4"
+                }
+            }
+        }
+
+        val lista = composicao()
+        val principal = lista.first { it.id == "principal" }
+        val arquivoPrincipal = midia(principal, "principal", inicio)
+        if (principal.origem?.tipo == TipoDaOrigem.VIDEO) { inicioGuardado = 0.0; fimGuardado = if (animadaAgora) duracao else 0.5 }
+        val salvas = lista.filter { it.id != "principal" }.mapIndexed { indice, camada ->
+            CamadaSalva(camada.id, camada.nome, camada.origem?.tipo ?: if (camada.texto) null else TipoDaOrigem.IMAGEM,
+                midia(camada, "camada-$indice", 0.0),
+                camada.mascara?.takeIf { camada.mascaraManual }?.let { png(it, "camada-$indice-mascara.png") },
+                camada.edicao, camada.visivel, camada.ordem, camada.texto)
+        }
+        val projeto = ProjetoSalvo(
+            animada = animadaAgora, quadrosPorSegundo = quadrosPorSegundo, inicio = inicioGuardado, fim = fimGuardado,
+            corDeFundo = corDeFundo, corFinalDoFundo = corFinalDoFundo, emojis = emojis,
+            principal = CamadaSalva("principal", principal.nome, principal.origem?.tipo ?: TipoDaOrigem.IMAGEM, arquivoPrincipal,
+                principal.mascara?.takeIf { principal.mascaraManual }?.let { png(it, "principal-mascara.png") }, principal.edicao),
+            camadas = salvas,
+        )
+        withContext(Dispatchers.IO) {
+            Projetos.gravar(temporaria, projeto)
+            destino.deleteRecursively()
+            check(temporaria.renameTo(destino)) { "Não deu para guardar o projeto da figurinha." }
+        }
     }
 
     // ---- Pacotes ----

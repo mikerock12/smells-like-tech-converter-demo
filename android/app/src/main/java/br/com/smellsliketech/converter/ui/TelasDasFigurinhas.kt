@@ -6,7 +6,11 @@ import android.graphics.Color as CorAndroid
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
@@ -14,7 +18,12 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.calculatePan
+import androidx.compose.foundation.gestures.calculateRotation
+import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -45,6 +54,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -57,17 +67,23 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.positionChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import br.com.smellsliketech.converter.conversao.Opcoes
 import br.com.smellsliketech.converter.conversao.textoDoAndamento
 import br.com.smellsliketech.converter.figurinhas.Edicao
+import br.com.smellsliketech.converter.figurinhas.Figurinha
 import br.com.smellsliketech.converter.figurinhas.FigurinhasViewModel
 import br.com.smellsliketech.converter.figurinhas.Filtro
 import br.com.smellsliketech.converter.figurinhas.Fonte
+import br.com.smellsliketech.converter.figurinhas.Guias
 import br.com.smellsliketech.converter.figurinhas.PacoteDeFigurinhas
 import br.com.smellsliketech.converter.figurinhas.PosicaoDoTexto
 import br.com.smellsliketech.converter.figurinhas.Regras
@@ -103,7 +119,9 @@ fun TelaDasFigurinhas(modelo: FigurinhasViewModel, podeCriar: Boolean, abrirLice
                 }
                 modelo.pacoteAberto != null -> {
                     BackHandler { modelo.pacoteAberto = null }
-                    DetalheDoPacote(modelo, modelo.pacoteAberto!!, novaFigurinha)
+                    DetalheDoPacote(modelo, modelo.pacoteAberto!!, novaFigurinha) { pacote, figurinha ->
+                        if (podeCriar) modelo.editar(pacote, figurinha) else abrirLicenca()
+                    }
                 }
                 else -> {
                     BackHandler { voltar() }
@@ -197,7 +215,12 @@ private fun MiniaturaDoPacote(modelo: FigurinhasViewModel, pacote: PacoteDeFigur
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun DetalheDoPacote(modelo: FigurinhasViewModel, pacote: PacoteDeFigurinhas, novaFigurinha: () -> Unit) {
+private fun DetalheDoPacote(
+    modelo: FigurinhasViewModel,
+    pacote: PacoteDeFigurinhas,
+    novaFigurinha: () -> Unit,
+    editar: (PacoteDeFigurinhas, Figurinha) -> Unit,
+) {
     val contexto = LocalContext.current
     var renomeando by remember { mutableStateOf(false) }
     var excluindo by remember { mutableStateOf(false) }
@@ -225,8 +248,15 @@ private fun DetalheDoPacote(modelo: FigurinhasViewModel, pacote: PacoteDeFigurin
                 val imagem = remember(pacote.id, figurinha.arquivo) {
                     BitmapFactory.decodeFile(modelo.pacotes.arquivo(pacote, figurinha.arquivo).absolutePath)
                 }
-                Box(Modifier.size(96.dp).clip(RoundedCornerShape(8.dp)).fundoXadrez()) {
-                    if (imagem != null) Image(imagem.asImageBitmap(), contentDescription = figurinha.emojis.joinToString(" "), modifier = Modifier.fillMaxSize())
+                val editavel = remember(pacote.id, pacote.versao, figurinha.arquivo) { modelo.podeEditar(pacote, figurinha) }
+                Box(Modifier.size(96.dp).clip(RoundedCornerShape(8.dp)).fundoXadrez().clickable { editar(pacote, figurinha) }) {
+                    if (imagem != null) Image(imagem.asImageBitmap(), contentDescription = "Editar figurinha ${figurinha.emojis.joinToString(" ")}", modifier = Modifier.fillMaxSize())
+                    if (editavel) {
+                        Text(
+                            "✎", color = Color.White, fontSize = 13.sp,
+                            modifier = Modifier.align(Alignment.BottomStart).padding(3.dp).clip(CircleShape).background(Color(0x99000000)).padding(horizontal = 6.dp),
+                        )
+                    }
                     Text(
                         "×", color = Color.White, fontSize = 16.sp,
                         modifier = Modifier.align(Alignment.TopEnd).padding(2.dp).clip(CircleShape).background(Color(0x99000000))
@@ -257,6 +287,7 @@ private fun DetalheDoPacote(modelo: FigurinhasViewModel, pacote: PacoteDeFigurin
                 Text(if (jaEsta) "Já está no $nome (atualizado sozinho)" else "Adicionar ao $nome")
             }
         }
+        if (pacote.figurinhas.isNotEmpty()) Dica("Toque numa figurinha para editar de novo.")
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedButton(onClick = novaFigurinha, enabled = !pacote.cheio) { Text("Nova figurinha") }
             OutlinedButton(onClick = { renomeando = true }) { Text("Renomear") }
@@ -307,7 +338,7 @@ private fun EditorDeFigurinha(modelo: FigurinhasViewModel) {
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("Nova figurinha", fontSize = 20.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+            Text(if (modelo.editando != null) "Editar figurinha" else "Nova figurinha", fontSize = 20.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
             TextButton(onClick = modelo::fecharEditor) { Text("Cancelar") }
         }
         Text(origem.nome, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp, maxLines = 1)
@@ -315,8 +346,9 @@ private fun EditorDeFigurinha(modelo: FigurinhasViewModel) {
         // Vídeo e GIF: estática (um quadro) ou animada (trecho de até 10 s).
         if (modelo.temAnimacao) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                FilterChip(selected = !modelo.animada, onClick = { modelo.animada = false }, label = { Text("Estática (um quadro)") })
-                FilterChip(selected = modelo.animada, onClick = { modelo.animada = true }, label = { Text("Animada (até 10 s)") })
+                // Reeditando, o tipo segue o do pacote (o WhatsApp não mistura estática e animada).
+                FilterChip(selected = !modelo.animada, onClick = { modelo.animada = false }, enabled = modelo.editando == null, label = { Text("Estática (um quadro)") })
+                FilterChip(selected = modelo.animada, onClick = { modelo.animada = true }, enabled = modelo.editando == null, label = { Text("Animada (até 10 s)") })
             }
             if (origem.tipo == TipoDaOrigem.VIDEO) {
                 val opcoes = Opcoes(formato = "mp4", inicioSegundos = modelo.inicio, fimSegundos = modelo.fim)
@@ -362,16 +394,32 @@ private fun EditorDeFigurinha(modelo: FigurinhasViewModel) {
                             modelo.pincelarNaPrevia(ponto.x / size.width, ponto.y / size.height, tamanhoDoPincel, apagar)
                         }
                     } else {
-                        detectTransformGestures { _, deslocamento, zoom, giro ->
-                            val atual = modelo.edicao
-                            modelo.mudar(
-                                atual.copy(
-                                    zoom = (atual.zoom * zoom).coerceIn(0.3f, 6f),
-                                    deslocamentoX = (atual.deslocamentoX + deslocamento.x / size.width).coerceIn(-1f, 1f),
-                                    deslocamentoY = (atual.deslocamentoY + deslocamento.y / size.height).coerceIn(-1f, 1f),
-                                    giro = ((atual.giro + giro).roundToInt() + 540) % 360 - 180,
-                                ),
-                            )
+                        // O dedo mexe numa edição "bruta"; o que aparece é ela encaixada nas guias
+                        // próximas. Assim dá para sair de uma guia continuando o movimento.
+                        awaitEachGesture {
+                            awaitFirstDown(requireUnconsumed = false)
+                            var bruta = modelo.edicao
+                            var giro = bruta.giro.toFloat()
+                            val giroInicial = giro
+                            modelo.iniciarGesto()
+                            do {
+                                val evento = awaitPointerEvent()
+                                val zoom = evento.calculateZoom()
+                                val deslocamento = evento.calculatePan()
+                                val rotacao = evento.calculateRotation()
+                                if (zoom != 1f || deslocamento != Offset.Zero || rotacao != 0f) {
+                                    giro += rotacao
+                                    bruta = bruta.copy(
+                                        zoom = (bruta.zoom * zoom).coerceIn(0.3f, 6f),
+                                        deslocamentoX = (bruta.deslocamentoX + deslocamento.x / size.width).coerceIn(-1f, 1f),
+                                        deslocamentoY = (bruta.deslocamentoY + deslocamento.y / size.height).coerceIn(-1f, 1f),
+                                        giro = (giro.roundToInt() + 540).mod(360) - 180,
+                                    )
+                                    modelo.moverPorGesto(bruta, girando = kotlin.math.abs(giro - giroInicial) > 1f)
+                                    evento.changes.forEach { if (it.positionChanged()) it.consume() }
+                                }
+                            } while (evento.changes.any { it.pressed })
+                            modelo.terminarGesto()
                         }
                     }
                 },
@@ -379,6 +427,10 @@ private fun EditorDeFigurinha(modelo: FigurinhasViewModel) {
         ) {
             modelo.previa?.let { Image(it.asImageBitmap(), contentDescription = "Prévia da figurinha", modifier = Modifier.fillMaxSize()) }
                 ?: Text("Preparando…", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            GuiasDoEnquadramento(modelo)
+        }
+        OutlinedButton(onClick = modelo::verComoFica, enabled = modelo.previa != null, modifier = Modifier.fillMaxWidth()) {
+            Text(if (modelo.animada && modelo.temAnimacao) "▶ Ver como vai ficar (animada, do jeito que salva)" else "▶ Ver como vai ficar")
         }
 
         FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -417,12 +469,17 @@ private fun EditorDeFigurinha(modelo: FigurinhasViewModel) {
                 }
             }
             Aba.ENQUADRAR -> {
-                Dica("Arraste para mover e pince para aproximar. Ou use os controles:")
-                Rotulado("Zoom") { Slider(edicao.zoom, { modelo.mudar(edicao.copy(zoom = it)) }, valueRange = 0.3f..4f) }
-                Rotulado("Horizontal") { Slider(edicao.deslocamentoX, { modelo.mudar(edicao.copy(deslocamentoX = it)) }, valueRange = -1f..1f) }
-                Rotulado("Vertical") { Slider(edicao.deslocamentoY, { modelo.mudar(edicao.copy(deslocamentoY = it)) }, valueRange = -1f..1f) }
+                Dica("Arraste para mover e pince para aproximar. As guias piscam quando a imagem fica no centro, encosta na borda ou se alinha com a camada de trás.")
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(onClick = modelo::preencher) { Text("Preencher (1×1)") }
+                    OutlinedButton(onClick = { modelo.ajustar(edicao.copy(zoom = 1f, deslocamentoX = 0f, deslocamentoY = 0f)) }) { Text("Caber inteira") }
+                    OutlinedButton(onClick = { modelo.ajustar(edicao.copy(deslocamentoX = 0f, deslocamentoY = 0f)) }) { Text("Centralizar") }
+                }
+                Rotulado("Zoom") { Slider(edicao.zoom.coerceIn(0.3f, 6f), { modelo.ajustar(edicao.copy(zoom = it)) }, valueRange = 0.3f..6f) }
+                Rotulado("Horizontal") { Slider(edicao.deslocamentoX, { modelo.ajustar(edicao.copy(deslocamentoX = it)) }, valueRange = -1f..1f) }
+                Rotulado("Vertical") { Slider(edicao.deslocamentoY, { modelo.ajustar(edicao.copy(deslocamentoY = it)) }, valueRange = -1f..1f) }
                 Rotulado("Giro no plano (Z): ${edicao.giro}°") {
-                    Slider(edicao.giro.toFloat().coerceIn(-180f, 180f), { modelo.mudar(edicao.copy(giro = it.roundToInt())) }, valueRange = -180f..180f)
+                    Slider(edicao.giro.toFloat().coerceIn(-180f, 180f), { modelo.ajustar(edicao.copy(giro = it.roundToInt())) }, valueRange = -180f..180f)
                 }
                 Rotulado("Inclinar para frente / trás (X): ${edicao.inclinacaoX.roundToInt()}°") {
                     Slider(edicao.inclinacaoX, { modelo.mudar(edicao.copy(inclinacaoX = it)) }, valueRange = -180f..180f)
@@ -446,7 +503,7 @@ private fun EditorDeFigurinha(modelo: FigurinhasViewModel) {
                         )
                     }
                 }
-                TextButton(onClick = { modelo.mudar(edicao.copy(zoom = 1f, deslocamentoX = 0f, deslocamentoY = 0f, giro = 0, inclinacaoX = 0f, inclinacaoY = 0f)) }) { Text("Redefinir posição e giro") }
+                TextButton(onClick = { modelo.ajustar(edicao.copy(zoom = 1f, deslocamentoX = 0f, deslocamentoY = 0f, giro = 0, inclinacaoX = 0f, inclinacaoY = 0f)) }) { Text("Redefinir posição e giro") }
             }
             Aba.FUNDO -> {
                 Linha("Remover o fundo automaticamente", edicao.removerFundo) { modelo.mudar(edicao.copy(removerFundo = it)) }
@@ -532,12 +589,111 @@ private fun EditorDeFigurinha(modelo: FigurinhasViewModel) {
             }
         }
 
-        Button(onClick = { salvando = true }, enabled = modelo.previa != null, modifier = Modifier.fillMaxWidth()) {
-            Text(if (modelo.animada && modelo.temAnimacao) "Gerar figurinha animada" else "Gerar figurinha")
+        Button(onClick = { if (modelo.editando != null) modelo.salvar(null, "") else salvando = true }, enabled = modelo.previa != null, modifier = Modifier.fillMaxWidth()) {
+            Text(
+                when {
+                    modelo.editando != null -> "Salvar alterações"
+                    modelo.animada && modelo.temAnimacao -> "Gerar figurinha animada"
+                    else -> "Gerar figurinha"
+                },
+            )
         }
     }
 
     if (salvando) EscolherPacote(modelo) { salvando = false }
+    if (modelo.exibindoPreviaFinal) PreviaFinal(modelo) {
+        modelo.exibindoPreviaFinal = false
+        if (modelo.editando != null) modelo.salvar(null, "") else salvando = true
+    }
+}
+
+/**
+ * As guias por cima da prévia: a cruz do centro, fraca, enquanto o dedo mexe; e, piscando, cada
+ * linha em que a imagem encaixou (centro, borda, outra camada). Vibra de leve ao encaixar.
+ */
+@Composable
+private fun GuiasDoEnquadramento(modelo: FigurinhasViewModel) {
+    if (!modelo.mostrandoGuias) return
+    val vibrar = LocalHapticFeedback.current
+    val quantas = modelo.guias.size + if (modelo.giroReto) 1 else 0
+    LaunchedEffect(quantas) { if (quantas > 0) vibrar.performHapticFeedback(HapticFeedbackType.TextHandleMove) }
+    val pisca by rememberInfiniteTransition(label = "guias").animateFloat(
+        initialValue = 1f, targetValue = 0.35f,
+        animationSpec = infiniteRepeatable(tween(260), RepeatMode.Reverse), label = "pisca",
+    )
+    val guias = modelo.guias
+    Canvas(Modifier.fillMaxSize()) {
+        val fraca = Color.White.copy(alpha = 0.22f)
+        drawLine(fraca, Offset(size.width / 2, 0f), Offset(size.width / 2, size.height), strokeWidth = 1.dp.toPx())
+        drawLine(fraca, Offset(0f, size.height / 2), Offset(size.width, size.height / 2), strokeWidth = 1.dp.toPx())
+        guias.forEach { guia ->
+            val cor = when (guia.tipo) {
+                Guias.Tipo.CENTRO -> Cores.laranja
+                Guias.Tipo.BORDA -> Color(0xFF4FC3F7)
+                Guias.Tipo.CAMADA -> Color(0xFFE040FB)
+            }.copy(alpha = pisca)
+            // A borda fica colada no canto arredondado: mais grossa para aparecer.
+            val largura = (if (guia.tipo == Guias.Tipo.BORDA) 5.dp else 2.dp).toPx()
+            if (guia.vertical) {
+                val x = (guia.posicao * size.width).coerceIn(largura / 2, size.width - largura / 2)
+                drawLine(cor, Offset(x, 0f), Offset(x, size.height), strokeWidth = largura)
+            } else {
+                val y = (guia.posicao * size.height).coerceIn(largura / 2, size.height - largura / 2)
+                drawLine(cor, Offset(0f, y), Offset(size.width, y), strokeWidth = largura)
+            }
+        }
+    }
+    if (modelo.giroReto) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+            Text(
+                "Reta ✓", color = Color.White.copy(alpha = pisca), fontSize = 12.sp,
+                modifier = Modifier.padding(6.dp).clip(RoundedCornerShape(10.dp)).background(Color(0x99000000)).padding(horizontal = 8.dp, vertical = 2.dp),
+            )
+        }
+    }
+}
+
+/**
+ * A figurinha de verdade, gerada pelo mesmo caminho do Salvar, tocando em loop: o que se vê aqui
+ * é exatamente o que vai para o pacote (duração, quadros por segundo, enquadramento, tamanho).
+ */
+@Composable
+private fun PreviaFinal(modelo: FigurinhasViewModel, salvar: () -> Unit) {
+    val previa = modelo.previaFinal ?: return
+    AlertDialog(
+        onDismissRequest = { modelo.exibindoPreviaFinal = false },
+        title = { Text("Assim vai ficar") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Box(Modifier.fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(12.dp)).fundoXadrez()) {
+                    AndroidView(
+                        factory = { contexto -> android.widget.ImageView(contexto).apply { scaleType = android.widget.ImageView.ScaleType.FIT_CENTER } },
+                        update = { vista ->
+                            val desenho = android.graphics.ImageDecoder.decodeDrawable(android.graphics.ImageDecoder.createSource(previa.arquivo))
+                            vista.setImageDrawable(desenho)
+                            (desenho as? android.graphics.drawable.AnimatedImageDrawable)?.apply { repeatCount = android.graphics.drawable.AnimatedImageDrawable.REPEAT_INFINITE; start() }
+                        },
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                }
+                val kb = (previa.bytes + 1023) / 1024
+                Text(
+                    if (previa.animada) "${"%.1f".format(previa.segundos)} s · ${previa.quadrosPorSegundo} quadros/s · $kb KB de ${Regras.ANIMADA_MAX_BYTES / 1024} KB"
+                    else "Estática · $kb KB de ${Regras.ESTATICA_MAX_BYTES / 1024} KB",
+                    fontSize = 13.sp,
+                )
+                if (previa.encurtada) {
+                    Text(
+                        "O vídeo tem movimento demais para os 500 KB do WhatsApp: para manter ${previa.quadrosPorSegundo} quadros/s, ela ficou com " +
+                            "${"%.1f".format(previa.segundos)} s. Com menos quadros por segundo ou um trecho mais calmo, ela fica mais longa.",
+                        fontSize = 12.sp, color = Cores.amarelo,
+                    )
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = salvar) { Text(if (modelo.editando != null) "Salvar alterações" else "Salvar no pacote") } },
+        dismissButton = { TextButton(onClick = { modelo.exibindoPreviaFinal = false }) { Text("Ajustar mais") } },
+    )
 }
 
 /** Para qual pacote vai a figurinha: um que já existe (do mesmo tipo e com espaço) ou um novo. */

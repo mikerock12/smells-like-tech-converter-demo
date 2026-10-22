@@ -1,5 +1,5 @@
 {
-  "commit": "6f028864962b7364c4ae33695efa0ff98699e3ca",
+  "commit": "f0c7809c805d85be11fdb1412083b6d5b47b666e",
   "repository": "https://github.com/mikerock12/smells-like-tech-converter-demo",
   "originals": [
     {
@@ -34,7 +34,7 @@
     },
     {
       "path": "android/app/build.gradle.kts",
-      "sha256": "240cb4bf9d9e7ad6240168f069bf292cafe92fa1ecfcf1e538b8b33d91b9fa84",
+      "sha256": "1a00d6e5663af5caebad9a9cf69f4529140f410fc9d38ea45356c30ab1ec6d47",
       "bytes": 7858
     },
     {
@@ -83,6 +83,11 @@
       "bytes": 7497
     },
     {
+      "path": "android/app/src/androidTest/java/br/com/smellsliketech/converter/figurinhas/EditarDeNovoTest.kt",
+      "sha256": "135460138f381642dbcc785d4188c272914987b6cd9c42dbebf9e4cf3eb333c6",
+      "bytes": 6836
+    },
+    {
       "path": "android/app/src/androidTest/java/br/com/smellsliketech/converter/figurinhas/FigurinhaDeVideoTest.kt",
       "sha256": "f2fd72b3c3a16d19d7d0617e8451a03726c893c2c7290a5f9463c263bd062732",
       "bytes": 6417
@@ -96,6 +101,11 @@
       "path": "android/app/src/androidTest/java/br/com/smellsliketech/converter/figurinhas/FigurinhasTest.kt",
       "sha256": "960788d7867b78b3fc48efe724bc46353ca90aa145a9d91d93581ca7fc752a88",
       "bytes": 14045
+    },
+    {
+      "path": "android/app/src/androidTest/java/br/com/smellsliketech/converter/figurinhas/GuiasTest.kt",
+      "sha256": "eb485c195680af2dc8e582a8c9daa584b05a181985445a0f69bf0b057529b98b",
+      "bytes": 3603
     },
     {
       "path": "android/app/src/main/AndroidManifest.xml",
@@ -504,8 +514,8 @@
     },
     {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/figurinhas/FigurinhasViewModel.kt",
-      "sha256": "99b96073ef250716fd5f3aee1def25a8343d137139fc6777ff812057e562413e",
-      "bytes": 31187
+      "sha256": "47c6267e16812bdb5e938e414ebda51613dbcb55c84d8725462e884ea8d291e0",
+      "bytes": 45988
     },
     {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/figurinhas/Fundo.kt",
@@ -513,19 +523,29 @@
       "bytes": 4057
     },
     {
+      "path": "android/app/src/main/java/br/com/smellsliketech/converter/figurinhas/Guias.kt",
+      "sha256": "8374d0f045f021e13dc1234359b8a577cad8ea7a40668ee0bf9f06f902ba8729",
+      "bytes": 5923
+    },
+    {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/figurinhas/Pacotes.kt",
-      "sha256": "d4847c05823f57d711ff0886e98e91757641b79ab537f7b9b241704bc660c2c9",
-      "bytes": 10126
+      "sha256": "5b3291b473b2ecbcb332897276d4692079cc3e249e1f38160f89200c8e6e8f85",
+      "bytes": 11926
     },
     {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/figurinhas/Perspectiva.kt",
-      "sha256": "836f678e4ef39bc1a1d1cfc802e372a7b1dd91a1aecc56fe053f838c2e4b7cb1",
-      "bytes": 1789
+      "sha256": "06f59fc329d382fdf2ccf85e13451d7c835385627ce7aa4d0e675de79b911790",
+      "bytes": 2465
     },
     {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/figurinhas/Producao.kt",
-      "sha256": "ee525748d831a5e02f4b4364cce3f10f718ad4d6bf915b8a453b19c93a906481",
-      "bytes": 16697
+      "sha256": "3fa5e698fb380c8b4a192fa6b521de4b09a1d5ad9fea992c27719944d605ccc0",
+      "bytes": 17628
+    },
+    {
+      "path": "android/app/src/main/java/br/com/smellsliketech/converter/figurinhas/Projetos.kt",
+      "sha256": "b63a9ffebf3106fa89f911766ff4d4b8ab88f5dc15b631329e7997353a40a37c",
+      "bytes": 7924
     },
     {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/figurinhas/ProvedorDeFigurinhas.kt",
@@ -599,8 +619,8 @@
     },
     {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/ui/TelasDasFigurinhas.kt",
-      "sha256": "c6235461d6dcfc4a8c169685257927ce80f358f2fd1c137c42eb5de2c481aa09",
-      "bytes": 36483
+      "sha256": "3ec922770280d09d605b959043f7bdb86c9e17d45f154840a1af2b730ebe4f99",
+      "bytes": 45915
     },
     {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/ui/TelasDoEstudio.kt",

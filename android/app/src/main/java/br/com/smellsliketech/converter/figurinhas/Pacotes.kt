@@ -127,8 +127,33 @@ class Pacotes(private val contexto: Context) {
         return atualizado
     }
 
+    /**
+     * Troca a imagem (e os emojis) de uma figurinha que já está no pacote, depois de editada de
+     * novo. O nome do arquivo e a posição continuam; a versão sobe para o WhatsApp buscar de novo.
+     */
+    fun substituir(pacote: PacoteDeFigurinhas, figurinha: Figurinha, webp: ByteArray, emojis: List<String>): PacoteDeFigurinhas {
+        require(figurinha in pacote.figurinhas) { "A figurinha não está mais no pacote." }
+        val limite = if (pacote.animado) Regras.ANIMADA_MAX_BYTES else Regras.ESTATICA_MAX_BYTES
+        require(webp.size <= limite) { "A figurinha passou de ${limite / 1024} KB." }
+        val pronta = if (pacote.animado) WebpAnimado.normalizar(webp) else webp
+        val destino = File(pasta(pacote.id), figurinha.arquivo)
+        val temporario = File(pasta(pacote.id), "${figurinha.arquivo}.tmp")
+        temporario.writeBytes(pronta)
+        if (!temporario.renameTo(destino)) { destino.delete(); check(temporario.renameTo(destino)) { "Não deu para trocar a figurinha. Tente de novo." } }
+        val nova = Figurinha(figurinha.arquivo, emojis.filter { it.isNotBlank() }.take(Regras.EMOJIS_MAX).ifEmpty { listOf(EMOJI_PADRAO) })
+        val atualizado = pacote.copy(figurinhas = pacote.figurinhas.map { if (it == figurinha) nova else it }, versao = pacote.versao + 1)
+        gravar(atualizado)
+        if (atualizado.figurinhas.firstOrNull()?.arquivo == figurinha.arquivo) gerarBandeja(atualizado)
+        return atualizado
+    }
+
+    /** Onde fica o projeto de uma figurinha (para reabrir no editor), ao lado do pacote. */
+    fun pastaDoProjeto(pacote: PacoteDeFigurinhas, arquivo: String): File =
+        File(pasta(pacote.id), "projetos/" + arquivo.substringBeforeLast('.'))
+
     fun remover(pacote: PacoteDeFigurinhas, figurinha: Figurinha): PacoteDeFigurinhas {
         File(pasta(pacote.id), figurinha.arquivo).delete()
+        pastaDoProjeto(pacote, figurinha.arquivo).deleteRecursively()
         val atualizado = pacote.copy(figurinhas = pacote.figurinhas - figurinha, versao = pacote.versao + 1)
         gravar(atualizado)
         gerarBandeja(atualizado)

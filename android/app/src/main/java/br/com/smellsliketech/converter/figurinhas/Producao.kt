@@ -100,6 +100,22 @@ object Producao {
         }
     }
 
+    /**
+     * O trecho do vídeo guardado no projeto da figurinha (para reabrir no editor): até 10 s, no
+     * máximo 1024 px (o que o editor usa), sem som, em MPEG-4 (codificador do próprio FFmpeg,
+     * LGPL). Bem menor que o vídeo original, e abre igual no editor.
+     */
+    suspend fun trechoParaOProjeto(contexto: Context, arquivo: File, inicio: Double, duracao: Double, destino: File) = withContext(Dispatchers.IO) {
+        Ffmpeg.executar(
+            contexto,
+            listOf("-hide_banner", "-nostdin", "-v", "error", "-y",
+                "-ss", numero(inicio), "-t", numero(duracao.coerceIn(0.1, Regras.ANIMADA_MAX_SEGUNDOS)), "-i", arquivo.absolutePath,
+                "-map", "0:v:0", "-an", "-sn", "-vf", "$ESCALA:force_divisible_by=2:flags=area,format=yuv420p",
+                "-c:v", "mpeg4", "-q:v", "3", "-g", "15", "-f", "mp4", destino.absolutePath),
+            duracao = null,
+        )
+    }
+
     /** Quadros por segundo do vídeo, pelo próprio Android (rápido, sem FFmpeg); null se não souber. */
     private fun quadrosPorSegundoDoVideo(arquivo: File): Float? = runCatching {
         val extrator = MediaExtractor()

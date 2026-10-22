@@ -7,6 +7,18 @@ import kotlin.math.sin
 /** Mesma projeção de packages/converter-core/camadas.mjs. */
 object Perspectiva {
     fun matriz(largura: Int, altura: Int, quadroW: Int, quadroH: Int, edicao: Edicao): Matrix? {
+        val destino = cantos(largura, altura, quadroW, quadroH, edicao) ?: return null
+        val origem = floatArrayOf(0f, 0f, largura.toFloat(), 0f, largura.toFloat(), altura.toFloat(), 0f, altura.toFloat())
+        return Matrix().takeIf { it.setPolyToPoly(origem, 0, destino, 0, 4) }
+    }
+
+    /**
+     * Onde os quatro cantos da imagem (largura × altura) caem no quadro, já com zoom, giro,
+     * inclinação e espelho: x0,y0 (topo esquerdo), x1,y1, x2,y2, x3,y3, no sentido do relógio.
+     * Nulo quando a imagem fica de lado (área quase zero). Só matemática: as guias usam fora do
+     * Android também.
+     */
+    fun cantos(largura: Int, altura: Int, quadroW: Int, quadroH: Int, edicao: Edicao): FloatArray? {
         val escala = minOf(quadroW.toDouble() / largura, quadroH.toDouble() / altura) * edicao.zoom
         val camera = maxOf(quadroW, quadroH) * 3.0
         val a = Math.toRadians(edicao.giro.toDouble())
@@ -27,6 +39,6 @@ object Perspectiva {
         }
         val area = (destino[2] - destino[0]) * (destino[7] - destino[1]) - (destino[6] - destino[0]) * (destino[3] - destino[1])
         if (kotlin.math.abs(area) < 0.001f) return null
-        return Matrix().takeIf { it.setPolyToPoly(origem, 0, destino, 0, 4) }
+        return destino
     }
 }
