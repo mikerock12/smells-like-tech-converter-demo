@@ -1,5 +1,5 @@
 {
-  "commit": "57d69214c080dcf66487ad5c349381e17798a10e",
+  "commit": "3d0d9a95e132119e389aaa50b2053c2f1f057163",
   "repository": "https://github.com/mikerock12/smells-like-tech-converter-demo",
   "originals": [
     {
@@ -2864,12 +2864,12 @@
     },
     {
       "path": "public/baixar/app.json",
-      "sha256": "99269695c0a18a2c508488ebcea4999268ac8c04035d4af8072feea568d052c4",
+      "sha256": "33857925726a790347666e79f89d51dab65167671b1c2b2ded13f6478da6c988",
       "bytes": 210
     },
     {
       "path": "public/baixar/plugin.json",
-      "sha256": "2cc8e4573585a9d26b647fa09f47bb354b884626fd1ac0b8e0a5832e91b0d8cb",
+      "sha256": "a8b97eb2996e91d753877083ad32a083504a09d7ca001d18fc16a60672104363",
       "bytes": 207
     },
     {
