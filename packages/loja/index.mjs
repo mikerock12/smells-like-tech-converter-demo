@@ -28,11 +28,19 @@ export function referenciaValida(texto) {
   return /^SLT-[A-Z2-9]{4}-[A-Z2-9]{4}$/.test(String(texto ?? ""));
 }
 
-/** E-mail bom o bastante para receber uma chave. Não é validação de RFC. */
+/**
+ * E-mail bom o bastante para receber uma chave. Não é validação de RFC, de propósito:
+ * só letras, números e `. _ % + -` antes do @, e um domínio comum depois. O e-mail vai
+ * para o banco, para o painel, para o Mercado Pago e para o Resend; nenhum caractere de
+ * marcação ou de aspas (`< > " ' ;` e companhia) chega a nenhum deles, mesmo que um dia
+ * alguém mostre o e-mail sem escapar.
+ */
 export function emailValido(texto) {
   const email = String(texto ?? "").trim();
-  return email.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email);
+  return email.length <= 254 && EMAIL.test(email);
 }
+
+const EMAIL = /^[a-z0-9._%+-]{1,64}@(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,24}$/i;
 
 /**
  * De onde veio uma compra ou uma visita: "limite:lote", "precos", "qr", "google".
