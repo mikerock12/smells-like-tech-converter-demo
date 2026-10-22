@@ -17,6 +17,11 @@ import br.com.smellsliketech.converter.conversao.Tipo
 import br.com.smellsliketech.converter.conversao.ffmpeg.Ffmpeg
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -125,10 +130,10 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
             ocupado = "Abrindo o arquivo…"
             try {
                 val resolvedor = contexto.contentResolver
-                val mime = resolvedor.getType(uri).orEmpty()
                 val nome = resolvedor.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
                     if (cursor.moveToFirst()) cursor.getString(0) else null
-                } ?: "arquivo"
+                } ?: uri.lastPathSegment ?: "arquivo"
+                val mime = tipoMime(uri, nome)
                 val tipo = when {
                     mime == "image/gif" || nome.endsWith(".gif", true) -> TipoDaOrigem.GIF
                     mime.startsWith("video/") -> TipoDaOrigem.VIDEO
@@ -245,6 +250,12 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
         atualizarPrevia()
     }
 
+    /** O tipo pelo provedor; num `file://` (stickers do catálogo, testes), pela extensão. */
+    private fun tipoMime(uri: Uri, nome: String): String =
+        contexto.contentResolver.getType(uri)
+            ?: android.webkit.MimeTypeMap.getSingleton().getMimeTypeFromExtension(nome.substringAfterLast('.', "").lowercase())
+            ?: ""
+
     fun adicionarMidia(uri: Uri, comoFundo: Boolean = false, descartarAoAbrir: Boolean = false) {
         trabalho = viewModelScope.launch {
             ocupado = "Adicionando a camada…"
@@ -255,7 +266,7 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
                 val nome = resolvedor.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use {
                     if (it.moveToFirst()) it.getString(0) else null
                 } ?: uri.lastPathSegment.orEmpty()
-                val mime = resolvedor.getType(uri).orEmpty()
+                val mime = tipoMime(uri, nome)
                 val tipo = when {
                     mime == "image/gif" || nome.endsWith(".gif", true) -> TipoDaOrigem.GIF
                     mime.startsWith("video/") -> TipoDaOrigem.VIDEO
@@ -355,17 +366,34 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
         pincelar(ix, iy, ir, apagar)
     }
 
+    /**
+     * Redesenha a prévia acompanhando o dedo. Enquanto um desenho está em curso, os gestos só
+     * marcam que há mudança; ao terminar, o próximo já sai com o estado mais recente. Assim a
+     * imagem se move em tempo real (um quadro por desenho) sem acumular trabalho. Cancelar e
+     * esperar a cada evento, como antes, deixava a prévia parada até o dedo soltar.
+     */
     fun atualizarPrevia() {
-        val lista = composicao()
-        if (lista.isEmpty()) return
+        previaPendente = true
+        if (trabalhoDaPrevia?.isActive == true && desenhandoPrevia) return
         trabalhoDaPrevia?.cancel()
         trabalhoDaPrevia = viewModelScope.launch {
-            delay(35)
-            val desenho = withContext(Dispatchers.Default) { compositor.desenhar(lista, corDeFundo, corFinalDoFundo) }
-            ensureActive()
-            previa = desenho
+            desenhandoPrevia = true
+            try {
+                while (previaPendente) {
+                    previaPendente = false
+                    val lista = composicao()
+                    if (lista.isEmpty()) break
+                    val desenho = withContext(Dispatchers.Default) { compositor.desenhar(lista, corDeFundo, corFinalDoFundo) }
+                    ensureActive()
+                    previa = desenho
+                }
+            } finally {
+                desenhandoPrevia = false
+            }
         }
     }
+    private var previaPendente = false
+    private var desenhandoPrevia = false
 
     fun mostrarInstante(segundos: Float) {
         tempoDaPrevia = segundos
@@ -376,9 +404,10 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
             val temporarios = mutableListOf<Bitmap>()
             try {
                 val quadros = lista.map { camada ->
-                    val arquivo = camada.origem?.copia
-                    if (arquivo == null) camada else {
-                        val quadro = Producao.quadro(contexto, arquivo, (if (camada.id == "principal") inicio else 0.0) + segundos)
+                    val trecho = trechoDe(camada)
+                    if (trecho == null) camada else {
+                        val sequencia = quadrosDoTrecho(trecho) { ocupado = CONVERTENDO_PARA_A_PREVIA }
+                        val quadro = withContext(Dispatchers.IO) { lerQuadro(sequencia, (segundos * sequencia.porSegundo).toInt(), camada) }
                         temporarios += quadro
                         val recorte = if (camada.mascaraManual) camada.mascara else if (camada.edicao.removerFundo) Fundo.mascara(quadro).also { temporarios += it } else null
                         camada.copy(imagem = quadro, mascara = recorte)
@@ -387,7 +416,10 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
                 previa = withContext(Dispatchers.Default) { compositor.desenhar(quadros, corDeFundo, corFinalDoFundo) }
             } catch (erro: CancellationException) { throw erro }
             catch (erro: Exception) { aviso = "Não foi possível mostrar este instante: ${erro.message}" }
-            finally { temporarios.forEach { it.recycle() } }
+            finally {
+                if (ocupado == CONVERTENDO_PARA_A_PREVIA) ocupado = null
+                temporarios.forEach { it.recycle() }
+            }
         }
     }
 
@@ -442,46 +474,94 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
         val extraidos = mutableMapOf<String, Producao.Quadros>()
         val pasta = File.createTempFile("composicao-", "", contexto.cacheDir).apply { delete(); mkdirs() }
         try {
+            // 1. O vídeo de cada camada vira uma versão leve (uma vez por trecho; a prévia do
+            //    instante pode já ter feito isso).
             for ((indice, camada) in lista.withIndex()) {
-                val arquivo = camada.origem?.copia ?: continue
-                val comeco = if (camada.id == "principal") inicio else 0.0
-                extraidos[camada.id] = Producao.quadros(contexto, arquivo, comeco, comeco + duracao,
-                    transparencia = camada.origem.tipo != TipoDaOrigem.VIDEO) {
-                    relatar((indice + it) / lista.size * 0.2, "Preparando as camadas…")
+                val trecho = trechoDe(camada) ?: continue
+                extraidos[camada.id] = quadrosDoTrecho(trecho) {
+                    relatar((indice + it) / lista.size * 0.2, "Convertendo o vídeo para uma versão leve…")
                 }
             }
+            // 2. A composição, vários quadros de uma vez (um por núcleo, até 4): cada quadro é
+            //    independente e desenhar é a parte mais longa.
             val crus = Producao.QuadrosCrus(File(pasta, "composicao.argb"), taxa)
             val total = kotlin.math.ceil(duracao * taxa).toInt()
+            val paralelos = Runtime.getRuntime().availableProcessors().coerceIn(1, 4)
             crus.use {
-                repeat(total) { indice ->
-                    kotlinx.coroutines.currentCoroutineContext().ensureActive()
-                    val temporarios = mutableListOf<Bitmap>()
-                    try {
-                        val quadros = lista.map { camada ->
-                            val sequencia = extraidos[camada.id]
-                            if (sequencia == null) camada else {
-                                val posicao = ((indice.toDouble() / taxa * sequencia.porSegundo).toInt() % sequencia.arquivos.size)
-                                val imagem = android.graphics.BitmapFactory.decodeFile(sequencia.arquivos[posicao].absolutePath)
-                                    ?: throw ErroDeConversao("Não deu para abrir um quadro da camada ${camada.nome}.")
-                                temporarios += imagem
-                                val recorte = if (camada.mascaraManual) camada.mascara else if (camada.edicao.removerFundo) Fundo.mascara(imagem).also { temporarios += it } else null
-                                camada.copy(imagem = imagem, mascara = recorte)
-                            }
-                        }
-                        withContext(Dispatchers.Default) {
-                            val desenho = compositor.desenhar(quadros, corDeFundo, corFinalDoFundo)
-                            try { crus.gravar(desenho) } finally { desenho.recycle() }
-                        }
-                    } finally { temporarios.forEach { it.recycle() } }
-                    relatar(0.2 + 0.5 * (indice + 1) / total, "Compondo quadro ${indice + 1} de $total…")
+                var feitos = 0
+                (0 until total).chunked(paralelos).forEach { lote ->
+                    val prontos = coroutineScope {
+                        lote.map { indice -> async(Dispatchers.Default) { comporQuadro(lista, extraidos, indice, taxa) } }.awaitAll()
+                    }
+                    withContext(Dispatchers.IO) { prontos.forEach { desenho -> try { crus.gravar(desenho) } finally { desenho.recycle() } } }
+                    feitos += lote.size
+                    relatar(0.2 + 0.5 * feitos / total, "Compondo quadro $feitos de $total…")
                 }
             }
             return Producao.animada(contexto, crus) { relatar(0.7 + it * 0.3, "Compactando para o WhatsApp…") }
         } finally {
-            extraidos.values.forEach { it.arquivos.firstOrNull()?.parentFile?.deleteRecursively() }
             pasta.deleteRecursively()
         }
     }
+
+    private suspend fun comporQuadro(lista: List<CamadaDeFigurinha>, extraidos: Map<String, Producao.Quadros>, indice: Int, taxa: Int): Bitmap {
+        val temporarios = mutableListOf<Bitmap>()
+        try {
+            val quadros = lista.map { camada ->
+                val sequencia = extraidos[camada.id]
+                if (sequencia == null) camada else {
+                    val imagem = lerQuadro(sequencia, (indice.toDouble() / taxa * sequencia.porSegundo).toInt(), camada)
+                    temporarios += imagem
+                    val recorte = if (camada.mascaraManual) camada.mascara
+                    else if (camada.edicao.removerFundo) Fundo.mascara(imagem).also { temporarios += it } else null
+                    camada.copy(imagem = imagem, mascara = recorte)
+                }
+            }
+            return compositor.desenhar(quadros, corDeFundo, corFinalDoFundo)
+        } finally {
+            temporarios.forEach { it.recycle() }
+        }
+    }
+
+    // ---- A versão leve de cada trecho de vídeo ----
+
+    /** O trecho que uma camada de vídeo ou GIF usa: arquivo, começo, duração e lado dos quadros. */
+    private data class Trecho(val arquivo: File, val comeco: Double, val duracao: Double, val lado: Int, val transparencia: Boolean)
+
+    private fun trechoDe(camada: CamadaDeFigurinha): Trecho? {
+        val origem = camada.origem ?: return null
+        val arquivo = origem.copia ?: return null
+        return Trecho(arquivo, if (camada.id == "principal") inicio else 0.0, (fim - inicio).coerceIn(0.2, 10.0),
+            Producao.ladoDosQuadros(camada.edicao.zoom), origem.tipo != TipoDaOrigem.VIDEO)
+    }
+
+    private val trechos = mutableMapOf<Trecho, Producao.Quadros>()
+    private val travaDosTrechos = Mutex()
+
+    /**
+     * A versão leve do trecho: convertida uma vez e reaproveitada pela prévia do instante e
+     * pela figurinha. Um trecho igual com lado maior (zoom maior) também serve.
+     */
+    private suspend fun quadrosDoTrecho(trecho: Trecho, aoAvancar: (Double) -> Unit): Producao.Quadros =
+        travaDosTrechos.withLock {
+            trechos.entries.firstOrNull { (t, q) -> t.copy(lado = trecho.lado) == trecho && t.lado >= trecho.lado && q.arquivos.all { it.isFile } }
+                ?.let { return@withLock it.value }
+            // Outro trecho do mesmo arquivo não volta a ser usado: sai do cache.
+            trechos.keys.filter { it.arquivo == trecho.arquivo }.forEach(::esquecerTrecho)
+            aoAvancar(0.0)
+            val quadros = Producao.quadros(contexto, trecho.arquivo, trecho.comeco, trecho.comeco + trecho.duracao,
+                trecho.transparencia, trecho.lado, aoAvancar)
+            trechos[trecho] = quadros
+            quadros
+        }
+
+    private fun esquecerTrecho(trecho: Trecho) {
+        trechos.remove(trecho)?.arquivos?.firstOrNull()?.parentFile?.deleteRecursively()
+    }
+
+    private fun lerQuadro(sequencia: Producao.Quadros, posicao: Int, camada: CamadaDeFigurinha): Bitmap =
+        android.graphics.BitmapFactory.decodeFile(sequencia.arquivos[posicao.coerceAtLeast(0) % sequencia.arquivos.size].absolutePath)
+            ?: throw ErroDeConversao("Não deu para abrir um quadro da camada ${camada.nome}.")
 
     /**
      * A figurinha animada em três etapas, com peso pelo custo de cada uma: tirar os quadros
@@ -537,6 +617,7 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
         versaoDoEditor++
         trabalhoDaBase?.cancel()
         trabalhoDaPrevia?.cancel()
+        trechos.keys.toList().forEach(::esquecerTrecho)
         camadas.forEach { it.origem?.copia?.delete() }
         camadas = emptyList()
         camadaSelecionada = null
@@ -593,5 +674,10 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
     override fun onCleared() {
         origem?.copia?.delete()
         camadas.forEach { it.origem?.copia?.delete() }
+        trechos.keys.toList().forEach(::esquecerTrecho)
+    }
+
+    private companion object {
+        const val CONVERTENDO_PARA_A_PREVIA = "Convertendo o trecho para uma versão leve…"
     }
 }

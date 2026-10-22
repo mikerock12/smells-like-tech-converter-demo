@@ -3,6 +3,8 @@ package br.com.smellsliketech.converter.figurinhas
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.media.MediaExtractor
+import android.media.MediaFormat
 import android.os.Build
 import br.com.smellsliketech.converter.conversao.ErroDeConversao
 import br.com.smellsliketech.converter.conversao.ffmpeg.Ffmpeg
@@ -55,9 +57,18 @@ object Producao {
     }
 
     /**
-     * Os quadros do trecho (até 10 s), numa pasta temporária. Vídeo sai em JPEG (rápido de ler);
-     * GIF em PNG, para manter a transparência. O número de quadros tem teto explícito: alguns
-     * vídeos não respeitam só o `-t`.
+     * Lado maior dos quadros tirados do vídeo para o zoom da camada: 512 no zoom 1 (a figura
+     * inteira cabe na figurinha) e mais só quando o zoom pede, até 1024.
+     */
+    fun ladoDosQuadros(zoom: Float): Int = (ceil(Regras.LADO * zoom.coerceIn(1f, 2f) / 64.0).toInt() * 64)
+
+    /**
+     * Converte o trecho (até 10 s) para uma versão leve, uma vez só, e guarda numa pasta
+     * temporária: quadros na taxa da figurinha, no lado de [ladoDosQuadros], reduzidos com
+     * média de área (some o granulado do vídeo da câmera) e em JPEG mais leve. O vídeo HD
+     * (1080p/4K, 60 quadros/s, HEVC de 10 bits) é decodificado só nesta passada; a prévia de
+     * cada instante e a figurinha saem desses quadros. GIF sai em PNG, para manter a
+     * transparência. O número de quadros tem teto explícito: alguns vídeos não respeitam só o `-t`.
      */
     suspend fun quadros(
         contexto: Context,
@@ -65,6 +76,7 @@ object Producao {
         inicio: Double,
         fim: Double,
         transparencia: Boolean,
+        lado: Int = 1024,
         aoAvancar: (Double) -> Unit,
     ): Quadros = withContext(Dispatchers.IO) {
         val duracao = (fim - inicio).coerceIn(0.1, Regras.ANIMADA_MAX_SEGUNDOS)
@@ -72,13 +84,20 @@ object Producao {
         val maximo = ceil(duracao * porSegundo).toInt().coerceAtLeast(1)
         val pasta = File.createTempFile("figurinha-quadros-", "", contexto.cacheDir).apply { delete(); mkdirs() }
         val extensao = if (transparencia) "png" else "jpg"
+        // A figurinha usa 10 a 15 quadros/s; com o vídeo a 30 ou 60, o decodificador pode pular
+        // os quadros que nenhum outro referencia (metade do trabalho no HEVC de 60 quadros/s).
+        // Abaixo do dobro da taxa da figurinha, faltariam quadros: decodifica todos.
+        val pularNaoReferenciados = (quadrosPorSegundoDoVideo(arquivo) ?: 0f) >= porSegundo * 2
         try {
         Ffmpeg.executar(
             contexto,
             listOf("-hide_banner", "-nostdin", "-v", "error", "-y", "-progress", "pipe:1", "-nostats",
-                "-ss", numero(inicio), "-t", numero(duracao), "-i", arquivo.absolutePath,
-                "-vf", "fps=$porSegundo,$ESCALA", "-frames:v", maximo.toString()) +
-                (if (transparencia) emptyList() else listOf("-q:v", "3")) +
+                "-ss", numero(inicio), "-t", numero(duracao)) +
+                (if (pularNaoReferenciados) listOf("-skip_frame", "noref") else emptyList()) +
+                listOf("-i", arquivo.absolutePath, "-map", "0:v:0", "-an", "-sn",
+                "-vf", "fps=$porSegundo,scale=w='min($lado,iw)':h='min($lado,ih)':force_original_aspect_ratio=decrease:flags=area",
+                "-frames:v", maximo.toString()) +
+                (if (transparencia) emptyList() else listOf("-q:v", "5")) +
                 listOf("-start_number", "0", File(pasta, "f%04d.$extensao").absolutePath),
             duracao = duracao,
             aoAvancar = { aoAvancar(it / 100.0) },
@@ -91,6 +110,22 @@ object Producao {
             throw erro
         }
     }
+
+    /** Quadros por segundo do vídeo, pelo próprio Android (rápido, sem FFmpeg); null se não souber. */
+    private fun quadrosPorSegundoDoVideo(arquivo: File): Float? = runCatching {
+        val extrator = MediaExtractor()
+        try {
+            extrator.setDataSource(arquivo.absolutePath)
+            (0 until extrator.trackCount).asSequence().map(extrator::getTrackFormat)
+                .firstOrNull { it.getString(MediaFormat.KEY_MIME).orEmpty().startsWith("video/") }
+                ?.takeIf { it.containsKey(MediaFormat.KEY_FRAME_RATE) }
+                ?.let { formato ->
+                    runCatching { formato.getInteger(MediaFormat.KEY_FRAME_RATE).toFloat() }.getOrElse { formato.getFloat(MediaFormat.KEY_FRAME_RATE) }
+                }
+        } finally {
+            extrator.release()
+        }
+    }.getOrNull()
 
     /** WebP estático de até 100 KB: baixa a qualidade aos poucos até caber. */
     fun estatica(figurinha: Bitmap): ByteArray {

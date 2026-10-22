@@ -1,5 +1,5 @@
 {
-  "commit": "3cb53a65965c008d0918ace89f479af0b35e38ab",
+  "commit": "5315f2dda5adc09e3ccfa81bdace07358b911350",
   "repository": "https://github.com/mikerock12/smells-like-tech-converter-demo",
   "originals": [
     {
@@ -34,7 +34,7 @@
     },
     {
       "path": "android/app/build.gradle.kts",
-      "sha256": "8ee2d2a13a215a1050fe053f4263419d31382e079e677cb952c855f0270e1648",
+      "sha256": "9ad43e8fc5e66e2678876ea3b1c4b78937c036cfa4d1ed82a31dcdb98c6ef94b",
       "bytes": 7858
     },
     {
@@ -81,6 +81,11 @@
       "path": "android/app/src/androidTest/java/br/com/smellsliketech/converter/estudio/EstudioExportadorTest.kt",
       "sha256": "e2ba9c779134e79e3d277b635051faf5d99423a8591b6ed687b62edb505f8fa2",
       "bytes": 7497
+    },
+    {
+      "path": "android/app/src/androidTest/java/br/com/smellsliketech/converter/figurinhas/FigurinhaDeVideoTest.kt",
+      "sha256": "ddccfab9fba62b679f90527657013e9af6d2c923226e7dc78140d8582f5ec587",
+      "bytes": 5142
     },
     {
       "path": "android/app/src/androidTest/java/br/com/smellsliketech/converter/figurinhas/FigurinhaDesempenhoTest.kt",
@@ -499,8 +504,8 @@
     },
     {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/figurinhas/FigurinhasViewModel.kt",
-      "sha256": "74f026943ccb38e14b98c014c39ea24a500da6321a050c8077adb9ae25586b29",
-      "bytes": 28017
+      "sha256": "c345e9cca03e71163212e282a21149d9ae765c5e9c0dcecf1efd754f94e893a7",
+      "bytes": 32171
     },
     {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/figurinhas/Fundo.kt",
@@ -519,8 +524,8 @@
     },
     {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/figurinhas/Producao.kt",
-      "sha256": "ae51ecd6d6c6495fd02a237396221816f1494571d12f040f6a0fff6514208583",
-      "bytes": 14665
+      "sha256": "b7fb40b734953710db351462c97f9e35cec5a37e05bd26de88062da9af0664ae",
+      "bytes": 16850
     },
     {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/figurinhas/ProvedorDeFigurinhas.kt",
