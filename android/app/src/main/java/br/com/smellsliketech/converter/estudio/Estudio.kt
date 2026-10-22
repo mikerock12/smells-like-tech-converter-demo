@@ -32,7 +32,7 @@ object Estudio {
 
     fun usaCamadas(projeto: Projeto) = projeto.fundo != null || projeto.camadas.isNotEmpty() ||
         projeto.clipes.any { it.transformacao != null } || projeto.textos.any { it.transformacao != null }
-    const val VERSAO_DO_PROJETO = 2
+    const val VERSAO_DO_PROJETO = 3
     const val DURACAO_PADRAO_DA_IMAGEM = 3.0
     const val DURACAO_MINIMA = 0.1
     const val LADO_DO_GIF = 480
@@ -82,19 +82,37 @@ object Estudio {
         )
     }
 
+    fun velocidadeDoClipe(c: Clipe) = if(c.ehImagem || !c.velocidade.isFinite() || c.velocidade<.25 || c.velocidade>4) 1.0 else c.velocidade
+    fun duracaoDaOrigem(c: Clipe) = max(DURACAO_MINIMA,(c.fim ?: 0.0)-(c.inicio ?: 0.0))
+    fun duracaoDaTransicao(p: Projeto,i: Int): Double {
+        val c=p.clipes.getOrNull(i) ?: return 0.0
+        val seguinte=p.clipes.getOrNull(i+1) ?: return 0.0
+        val t=c.transicao ?: return 0.0
+        return if(t.tipo=="corte") 0.0 else arredondar(max(0.0,min(t.duracao,min(duracaoDoClipe(c)/2,duracaoDoClipe(seguinte)/2))))
+    }
+    fun temTransicoes(p: Projeto) = p.clipes.indices.any { duracaoDaTransicao(p,it)>0 }
+    fun filtroDeVelocidade(c: Clipe) = if(velocidadeDoClipe(c)==1.0) "" else "setpts=(PTS-STARTPTS)/${numero(velocidadeDoClipe(c))},"
+    fun filtroDeTempoAudio(c: Clipe): String {
+        var v=velocidadeDoClipe(c); if(v==1.0) return ""
+        val lista=mutableListOf<String>()
+        while(v>2) {lista+="atempo=2";v/=2}
+        while(v<.5) {lista+="atempo=0.5";v*=2}
+        lista+="atempo=${numero(v)}"; return lista.joinToString(",")+","
+    }
     fun duracaoDoClipe(clipe: Clipe): Double =
         if (clipe.ehImagem) max(DURACAO_MINIMA, clipe.duracao ?: DURACAO_PADRAO_DA_IMAGEM)
-        else max(DURACAO_MINIMA, (clipe.fim ?: 0.0) - (clipe.inicio ?: 0.0))
+        else duracaoDaOrigem(clipe)/velocidadeDoClipe(clipe)
 
     fun segmentos(projeto: Projeto): List<Segmento> {
         var agora = 0.0
         return projeto.clipes.mapIndexed { indice, clipe ->
+            if(indice>0) agora-=duracaoDaTransicao(projeto,indice-1)
             val duracao = duracaoDoClipe(clipe)
             Segmento(indice, clipe.id, arredondar(agora), arredondar(agora + duracao), arredondar(duracao)).also { agora += duracao }
         }
     }
 
-    fun duracaoTotal(projeto: Projeto): Double = arredondar(projeto.clipes.fold(0.0) { soma, clipe -> soma + duracaoDoClipe(clipe) })
+    fun duracaoTotal(projeto: Projeto): Double = segmentos(projeto).lastOrNull()?.fim ?: 0.0
 
     /** O clipe visível no instante `t` e o ponto dele no arquivo. */
     fun clipeNoTempo(projeto: Projeto, t: Double): Triple<Int, Clipe, Double>? {
@@ -104,10 +122,10 @@ object Estudio {
         val segmento = lista.firstOrNull { alvo < it.fim } ?: lista.last()
         val clipe = projeto.clipes[segmento.indice]
         val dentro = min(alvo - segmento.inicio, segmento.duracao)
-        return Triple(segmento.indice, clipe, arredondar(if (clipe.ehImagem) 0.0 else (clipe.inicio ?: 0.0) + dentro))
+        return Triple(segmento.indice, clipe, arredondar(if (clipe.ehImagem) 0.0 else (clipe.inicio ?: 0.0) + dentro * velocidadeDoClipe(clipe)))
     }
 
-    fun textosNoTempo(projeto: Projeto, t: Double) = projeto.textos.filter { t >= it.inicio && t <= it.fim }
+    fun textosNoTempo(projeto: Projeto, t: Double) = projeto.textos.filter { t >= it.inicio && (if(it.id.startsWith("legenda-")) t < it.fim else t <= it.fim) }
 
     /** Onde a origem é desenhada para preencher ou caber (pares, como o scale do FFmpeg): x, y, largura, altura. */
     fun retanguloDoAjuste(ajuste: String, larguraDaOrigem: Double, alturaDaOrigem: Double, largura: Int, altura: Int): List<Double> {
@@ -128,7 +146,7 @@ object Estudio {
     /** Problemas que impedem exportar, nos mesmos textos do site e do Windows. */
     fun problemas(projeto: Projeto): List<String> {
         val lista = mutableListOf<String>()
-        if (projeto.versao !in listOf(1, VERSAO_DO_PROJETO)) lista += "Projeto de uma versão que este app não conhece."
+        if (projeto.versao !in listOf(1, 2, VERSAO_DO_PROJETO)) lista += "Projeto de uma versão que este app não conhece."
         if (!(projeto.largura >= 16 && projeto.altura >= 16 && projeto.largura <= 4096 && projeto.altura <= 4096)) {
             lista += "O tamanho do quadro precisa ficar entre 16 e 4096 pixels."
         }
@@ -136,6 +154,8 @@ object Estudio {
         if (projeto.clipes.isEmpty()) lista += "Adicione pelo menos um vídeo ou imagem."
         projeto.clipes.forEachIndexed { i, clipe ->
             if (clipe.tipo == "video" && !((clipe.fim ?: 0.0) - (clipe.inicio ?: 0.0) >= DURACAO_MINIMA)) lista += "O clipe ${i + 1} termina antes de começar."
+            if (!clipe.velocidade.isFinite() || clipe.velocidade<.25 || clipe.velocidade>4) lista += "A velocidade do clipe ${i+1} precisa ficar entre 0,25× e 4×."
+            clipe.transicao?.let { t -> if(t.tipo !in listOf("corte","fade","dissolver","deslizar","zoom") || !t.duracao.isFinite() || t.duracao<.1 || t.duracao>5) lista += "A transição do clipe ${i+1} é inválida (use de 0,1 a 5 segundos)." }
             if (AJUSTES.none { it.id == clipe.ajuste }) lista += "O clipe ${i + 1} está sem enquadramento."
         }
         projeto.textos.forEachIndexed { i, texto ->
@@ -180,7 +200,7 @@ object Estudio {
 
     /** A receita do FFmpeg: idêntica, caractere por caractere, à do JS e à do Windows. */
     fun receita(projeto: Projeto, entradas: EntradasDaReceita): Receita {
-        if (projeto.saida !in listOf("audio", "texto") && usaCamadas(projeto)) return ReceitaDeCamadas.montar(projeto, entradas)
+        if (projeto.saida !in listOf("audio", "texto") && (usaCamadas(projeto) || temTransicoes(projeto))) return ReceitaDeCamadas.montar(projeto, entradas)
         val w = projeto.largura
         val h = projeto.altura
         val fps = projeto.fps
@@ -195,13 +215,13 @@ object Estudio {
             val caminho = entradas.clipes[i].caminho
             val duracao = duracaoDoClipe(clipe)
             if (clipe.ehImagem) args += listOf("-loop", "1", "-framerate", fps.toString(), "-t", numero(duracao), "-i", caminho)
-            else args += listOf("-ss", numero(clipe.inicio ?: 0.0), "-t", numero(duracao), "-i", caminho)
+            else args += listOf("-ss", numero(clipe.inicio ?: 0.0), "-t", numero(duracaoDaOrigem(clipe)), "-i", caminho)
             val n = indiceDaEntrada++
-            if (comVideo) filtros += filtroDoClipe(clipe.ajuste, n, i, w, h, fps)
+            if (comVideo) filtros += filtroDoClipe(clipe.ajuste, n, i, w, h, fps).replace("[$n:v]", "[$n:v]${filtroDeVelocidade(clipe)}")
             if (comAudio) {
                 val temAudio = clipe.tipo == "video" && entradas.clipes[i].temAudio && clipe.mudo != true && (clipe.volume ?: 1.0) > 0
                 filtros += if (temAudio) {
-                    "[$n:a]aresample=48000,aformat=channel_layouts=stereo,volume=${numero(clipe.volume ?: 1.0)},apad=whole_dur=${numero(duracao)},atrim=duration=${numero(duracao)},asetpts=PTS-STARTPTS[a$i]"
+                    "[$n:a]${filtroDeTempoAudio(clipe)}aresample=48000,aformat=channel_layouts=stereo,volume=${numero(clipe.volume ?: 1.0)},apad=whole_dur=${numero(duracao)},atrim=duration=${numero(duracao)},asetpts=PTS-STARTPTS[a$i]"
                 } else {
                     "anullsrc=r=48000:cl=stereo,atrim=duration=${numero(duracao)},asetpts=PTS-STARTPTS[a$i]"
                 }
@@ -209,7 +229,15 @@ object Estudio {
         }
 
         val pares = projeto.clipes.indices.joinToString("") { i -> (if (comVideo) "[v$i]" else "") + (if (comAudio) "[a$i]" else "") }
-        filtros += "${pares}concat=n=${projeto.clipes.size}:v=${if (comVideo) 1 else 0}:a=${if (comAudio) 1 else 0}${if (comVideo) "[vb]" else ""}${if (comAudio) "[ab]" else ""}"
+        if(temTransicoes(projeto) && !comVideo) {
+            var anterior="a0"
+            for(i in 1 until projeto.clipes.size) {
+                val d=duracaoDaTransicao(projeto,i-1); val proximo="ax$i"
+                filtros+=if(d>0) "[$anterior][a$i]acrossfade=d=${numero(d)}:c1=tri:c2=tri[$proximo]" else "[$anterior][a$i]concat=n=2:v=0:a=1[$proximo]"
+                anterior=proximo
+            }
+            filtros+="[$anterior]anull[ab]"
+        } else filtros += "${pares}concat=n=${projeto.clipes.size}:v=${if (comVideo) 1 else 0}:a=${if (comAudio) 1 else 0}${if (comVideo) "[vb]" else ""}${if (comAudio) "[ab]" else ""}"
 
         var video = "vb"
         if (comVideo) {
@@ -217,7 +245,7 @@ object Estudio {
                 args += listOf("-loop", "1", "-framerate", fps.toString(), "-t", numero(total), "-i", entradas.textos[j])
                 val n = indiceDaEntrada++
                 val proximo = "vt$j"
-                filtros += "[$video][$n:v]overlay=0:0:enable='between(t,${numero(texto.inicio)},${numero(texto.fim)})'[$proximo]"
+                filtros += "[$video][$n:v]overlay=0:0:enable='${if(texto.id.startsWith("legenda-")) "gte(t,${numero(texto.inicio)})*lt(t,${numero(texto.fim)})" else "between(t,${numero(texto.inicio)},${numero(texto.fim)})"}'[$proximo]"
                 video = proximo
             }
             if (projeto.saida == "gif") {

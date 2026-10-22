@@ -17,7 +17,10 @@ export type Saida = { id: IdDaSaida; titulo: string; descricao: string; extensao
 export type Ajuste = { id: IdDoAjuste; titulo: string; descricao: string };
 export type Fonte = { id: string; nome: string; arquivo: string | null };
 
+export type Transicao = { tipo: "corte" | "fade" | "dissolver" | "deslizar" | "zoom"; duracao: number };
 export type Clipe = {
+  velocidade?: number;
+  transicao?: Transicao;
   transformacao?: Partial<Transformacao>;
   id: string;
   /** Referência do arquivo no app (nome, caminho ou chave da sessão). */
@@ -106,6 +109,12 @@ export type EntradasDaReceita = {
 
 export type ReceitaFfmpeg = { args: string[]; filtro: string; mapas: string[]; duracao: number };
 
+export declare const TRANSICOES: readonly {id: Transicao["tipo"]; titulo: string}[];
+export declare function duracaoDaTransicao(p: Projeto, i: number): number;
+export declare function temTransicoes(p: Projeto): boolean;
+export declare function velocidadeDoClipe(c: Clipe): number;
+export declare function duracaoDaOrigem(c: Clipe): number;
+export declare function transicaoNoTempo(p: Projeto, t: number): {indice: number; clipe: Clipe; tipo: Transicao["tipo"]; progresso: number; tempoNoArquivo: number} | null;
 export declare const VERSAO_DO_PROJETO: number;
 export declare const PRESETS: readonly Preset[];
 export declare const NOTA_DOS_PRESETS: string;

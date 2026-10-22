@@ -24,9 +24,17 @@ public sealed record StudioCommand(IReadOnlyList<string> Args, string Filter, IR
 /// </summary>
 public static class StudioRecipe
 {
+    public static string SpeedFilter(StudioClip c) => StudioRules.ClipSpeed(c)==1?"":$"setpts=(PTS-STARTPTS)/{N(StudioRules.ClipSpeed(c))},";
+    public static string TempoFilter(StudioClip c) {
+        var v=StudioRules.ClipSpeed(c); if(v==1) return "";
+        var list=new List<string>();
+        while(v>2) {list.Add("atempo=2");v/=2;}
+        while(v<.5) {list.Add("atempo=0.5");v*=2;}
+        list.Add($"atempo={N(v)}"); return string.Join(",",list)+",";
+    }
     public static StudioCommand Build(StudioProject project, StudioInputs inputs)
     {
-        if (project.Output is not ("audio" or "texto") && StudioRules.UsesLayers(project))
+        if (project.Output is not ("audio" or "texto") && (StudioRules.UsesLayers(project) || StudioRules.HasTransitions(project)))
             return StudioLayerRecipe.Build(project, inputs);
         int w = project.Width, h = project.Height, fps = project.Fps;
         var total = StudioRules.TotalDuration(project);
@@ -47,27 +55,35 @@ public static class StudioRecipe
             }
             else
             {
-                args.AddRange(["-ss", N(clip.Start ?? 0), "-t", N(duration), "-i", path]);
+                args.AddRange(["-ss", N(clip.Start ?? 0), "-t", N(StudioRules.SourceDuration(clip)), "-i", path]);
             }
 
             var n = inputIndex++;
             if (withVideo)
             {
-                filters.Add(ClipFilter(clip.Fit, n, i, w, h, fps));
+                filters.Add(ClipFilter(clip.Fit, n, i, w, h, fps).Replace($"[{n}:v]", $"[{n}:v]{SpeedFilter(clip)}"));
             }
 
             if (withAudio)
             {
                 var hasAudio = clip.Kind == "video" && inputs.Clips[i].HasAudio && clip.Muted != true && (clip.Volume ?? 1) > 0;
                 filters.Add(hasAudio
-                    ? $"[{n}:a]aresample=48000,aformat=channel_layouts=stereo,volume={N(clip.Volume ?? 1)},apad=whole_dur={N(duration)},atrim=duration={N(duration)},asetpts=PTS-STARTPTS[a{i}]"
+                    ? $"[{n}:a]{TempoFilter(clip)}aresample=48000,aformat=channel_layouts=stereo,volume={N(clip.Volume ?? 1)},apad=whole_dur={N(duration)},atrim=duration={N(duration)},asetpts=PTS-STARTPTS[a{i}]"
                     : $"anullsrc=r=48000:cl=stereo,atrim=duration={N(duration)},asetpts=PTS-STARTPTS[a{i}]");
             }
         }
 
         var pairs = string.Concat(Enumerable.Range(0, project.Clips.Count)
             .Select(i => (withVideo ? $"[v{i}]" : "") + (withAudio ? $"[a{i}]" : "")));
-        filters.Add($"{pairs}concat=n={project.Clips.Count}:v={(withVideo ? 1 : 0)}:a={(withAudio ? 1 : 0)}{(withVideo ? "[vb]" : "")}{(withAudio ? "[ab]" : "")}");
+        if(StudioRules.HasTransitions(project) && !withVideo) {
+            var previous="a0";
+            for(var i=1;i<project.Clips.Count;i++) {
+                var d=StudioRules.TransitionDuration(project,i-1); var next=$"ax{i}";
+                filters.Add(d>0?$"[{previous}][a{i}]acrossfade=d={N(d)}:c1=tri:c2=tri[{next}]":$"[{previous}][a{i}]concat=n=2:v=0:a=1[{next}]");
+                previous=next;
+            }
+            filters.Add($"[{previous}]anull[ab]");
+        } else filters.Add($"{pairs}concat=n={project.Clips.Count}:v={(withVideo ? 1 : 0)}:a={(withAudio ? 1 : 0)}{(withVideo ? "[vb]" : "")}{(withAudio ? "[ab]" : "")}");
 
         var video = "vb";
         if (withVideo)
@@ -78,7 +94,7 @@ public static class StudioRecipe
                 args.AddRange(["-loop", "1", "-framerate", fps.ToString(CultureInfo.InvariantCulture), "-t", N(total), "-i", inputs.Texts[j]]);
                 var n = inputIndex++;
                 var next = $"vt{j}";
-                filters.Add($"[{video}][{n}:v]overlay=0:0:enable='between(t,{N(text.Start)},{N(text.End)})'[{next}]");
+                filters.Add($"[{video}][{n}:v]overlay=0:0:enable='{(text.Id.StartsWith("legenda-")?$"gte(t,{N(text.Start)})*lt(t,{N(text.End)})":$"between(t,{N(text.Start)},{N(text.End)})")}'[{next}]");
                 video = next;
             }
 

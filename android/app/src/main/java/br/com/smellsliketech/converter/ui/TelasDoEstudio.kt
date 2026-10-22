@@ -260,6 +260,7 @@ private fun Editor(modelo: EstudioViewModel, podeExportar: Boolean, abrirLicenca
             }
             AbaDoEstudio.TEXTOS -> {
                 item {
+                    ControlesDeLegendas(modelo,podeExportar,abrirLicenca,abrirModelos)
                     Button(onClick = { modelo.adicionarTexto() }, enabled = projeto.clipes.isNotEmpty(), modifier = Modifier.fillMaxWidth()) { Text("Adicionar texto") }
                     FlowRow {
                         listOf("😀", "❤️", "🔥", "✨", "🎉", "👍").forEach { emoji ->
@@ -357,6 +358,23 @@ private fun CartaoDoClipe(modelo: EstudioViewModel, projeto: Projeto, clipe: Cli
             }
         }
         Text(Estudio.AJUSTES.first { it.id == clipe.ajuste }.descricao, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        if(!clipe.ehImagem) {
+            Text("Velocidade: ${String.format(Locale.ROOT,"%.2f",clipe.velocidade)}×",fontSize=12.sp)
+            Slider(value=clipe.velocidade.toFloat(),valueRange=.25f..4f,onValueChange={v->modelo.mudarClipe(clipe.id) {it.copy(velocidade=Math.round(v*20)/20.0)}})
+        }
+        if(projeto.clipes.lastOrNull()?.id!=clipe.id) {
+            Text("Transição para o próximo clipe",fontSize=12.sp)
+            FlowRow(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+                listOf("corte" to "Corte seco","fade" to "Fade pelo preto","dissolver" to "Dissolver","deslizar" to "Deslizar","zoom" to "Zoom").forEach {(id,titulo)->
+                    FilterChip(selected=(clipe.transicao?.tipo?:"corte")==id,onClick={modelo.mudarClipe(clipe.id) {it.copy(transicao=br.com.smellsliketech.converter.estudio.Transicao(id,it.transicao?.duracao?:.5))}},label={Text(titulo,fontSize=12.sp)})
+                }
+            }
+            clipe.transicao?.takeIf {it.tipo!="corte"}?.let {t->
+                Text("Duração da transição: ${t.duracao} s",fontSize=12.sp)
+                Slider(value=t.duracao.toFloat(),valueRange=.1f..5f,onValueChange={v->modelo.mudarClipe(clipe.id) {it.copy(transicao=t.copy(duracao=Math.round(v*10)/10.0))}})
+                Dica("Limitada à metade dos clipes vizinhos. O áudio acompanha a transição.")
+            }
+        }
         ControlesDeTransformacao(clipe.transformacao) { valor -> modelo.mudarClipe(clipe.id) { it.copy(transformacao = valor) } }
         if (!clipe.ehImagem) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -528,6 +546,25 @@ private fun PainelDeExportar(modelo: EstudioViewModel, projeto: Projeto, podeExp
             Text(resultado.nome, fontSize = 14.sp)
             BarraDeCompartilhar(resultado)
         }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun ControlesDeLegendas(modelo: EstudioViewModel,podeExportar: Boolean,abrirLicenca: ()->Unit,abrirModelos: ()->Unit) {
+    val contexto=LocalContext.current
+    val instalados=ModeloWhisper.entries.filter {ModelosWhisper.instalado(contexto,it)}
+    var escolhido by rememberSaveable {mutableStateOf("small")}
+    val atual=instalados.firstOrNull {it.id==escolhido}?:instalados.firstOrNull()
+    Dica("Legendas automáticas do áudio final. Após alterar cortes, velocidade ou transições, gere novamente. Revise textos e estilo antes de exportar.")
+    if(instalados.isEmpty()) OutlinedButton(onClick=abrirModelos) {Text("Baixar modelo para legendar")}
+    else FlowRow(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+        instalados.forEach {m->FilterChip(selected=atual?.id==m.id,onClick={escolhido=m.id},label={Text(m.rotulo,fontSize=12.sp)})}
+    }
+    OutlinedButton(enabled=atual!=null && modelo.projeto?.clipes?.isNotEmpty()==true,onClick={if(podeExportar) modelo.gerarLegendas(atual!!.id) else abrirLicenca()}) {Text("Gerar legendas automáticas")}
+    Text("Estilo de todas as legendas",fontSize=12.sp)
+    FlowRow {
+        listOf("Branca","Amarela","Com caixa").forEachIndexed {i,titulo->TextButton(onClick={modelo.mudarProjeto {p->p.copy(textos=p.textos.map {t->if(t.id.startsWith("legenda-")) t.copy(cor=if(i==1) "#FFD54A" else "#FFFFFF",contorno="#000000",caixa=if(i==2) "#000000B3" else null) else t})}}) {Text(titulo)}}
     }
 }
 

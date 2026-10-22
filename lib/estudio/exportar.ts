@@ -17,15 +17,19 @@ import { GIFEncoder, applyPalette, quantize } from "gifenc";
 import {
   FPS_DO_GIF,
   clipeNoTempo,
-  duracaoDoClipe,
   duracaoTotal,
   problemas,
   segmentos,
+  transicaoNoTempo,
+  velocidadeDoClipe,
+  duracaoDaOrigem,
+  duracaoDaTransicao,
   tamanhoDoGif,
   type Clipe,
   type Projeto,
 } from "@/packages/converter-core/estudio.mjs";
 
+import { mudarTempo } from "@/packages/converter-core/audio-tempo.mjs";
 import { codificarMp3 } from "@/lib/converter/motores/audio-codificar";
 
 import { carregarFontes, desenharQuadro } from "./desenho";
@@ -70,9 +74,11 @@ export async function exportarNoNavegador(
       const ctx = contexto(tela);
       const achado = clipeNoTempo(projeto, projeto.quadro);
       const imagem = achado ? await quadroDoClipe(achado.clipe, achado.tempoNoArquivo, arquivos) : null;
-      const recortes = await prepararRecortes(projeto, projeto.quadro, imagem, await camadas.quadros(projeto, arquivos, projeto.quadro));
+      const midias=await midiasComTransicao(projeto,arquivos,projeto.quadro,camadas);
+      const recortes = await prepararRecortes(projeto, projeto.quadro, imagem, midias);
       desenharQuadro(ctx, projeto, projeto.quadro, recortes.principal, achado?.clipe.ajuste ?? null, recortes.extras);
       if (imagem instanceof ImageBitmap) imagem.close();
+      const seguinte=midias.get("__transicao"); if(seguinte instanceof ImageBitmap) seguinte.close();
       const blob = await tela.convertToBlob({ type: "image/png" });
       return { nome: `${nome}.png`, mime: "image/png", bytes: await blob.arrayBuffer() };
     }
@@ -113,9 +119,9 @@ async function video(projeto: Projeto, arquivos: ArquivosDoProjeto, andamento: A
   try {
     if (som && mistura) await som.add(mistura);
     const total = Math.max(1, Math.round(duracaoTotal(projeto) * fps));
-    await percorrerQuadros(projeto, arquivos, async (indice, t, imagem, ajuste) => {
+    await percorrerQuadros(projeto, arquivos, async (indice, t, imagem, ajuste, seguinte) => {
       if (cancelado()) throw new ExportacaoCancelada();
-      const recortes = await prepararRecortes(projeto, t, imagem, await camadas.quadros(projeto, arquivos, t));
+      const recortes = await prepararRecortes(projeto, t, imagem, await midiasComTransicao(projeto,arquivos,t,camadas,seguinte));
       desenharQuadro(ctx, projeto, t, recortes.principal, ajuste, recortes.extras);
       await fonte.add(indice / fps, 1 / fps);
       andamento("Montando o vídeo", 0.1 + 0.9 * (indice + 1) / total);
@@ -141,9 +147,9 @@ async function gif(projeto: Projeto, arquivos: ArquivosDoProjeto, andamento: And
   const codificador = GIFEncoder();
   const doGif = { ...projeto, fps: FPS_DO_GIF };
   const total = Math.max(1, Math.round(duracaoTotal(projeto) * FPS_DO_GIF));
-  await percorrerQuadros(doGif, arquivos, async (indice, t, imagem, ajuste) => {
+  await percorrerQuadros(doGif, arquivos, async (indice, t, imagem, ajuste, seguinte) => {
     if (cancelado()) throw new ExportacaoCancelada();
-    const recortes = await prepararRecortes(projeto, t, imagem, await camadas.quadros(projeto, arquivos, t));
+    const recortes = await prepararRecortes(projeto, t, imagem, await midiasComTransicao(projeto,arquivos,t,camadas,seguinte));
     desenharQuadro(ctx, projeto, t, recortes.principal, ajuste, recortes.extras);
     pincel.clearRect(0, 0, largura, altura);
     pincel.drawImage(tela, 0, 0, largura, altura);
@@ -164,56 +170,39 @@ async function gif(projeto: Projeto, arquivos: ArquivosDoProjeto, andamento: And
 // ==================== quadros ====================
 
 type Imagem = CanvasImageSource & { readonly width: number; readonly height: number };
-type AoQuadro = (indice: number, t: number, imagem: Imagem | null, ajuste: Clipe["ajuste"]) => Promise<void>;
+type AoQuadro = (indice: number, t: number, imagem: Imagem | null, ajuste: Clipe["ajuste"], seguinte?: Imagem|null) => Promise<void>;
 
 /**
  * Chama `aoQuadro` para cada quadro da saída, em ordem, com a imagem do clipe naquele
  * instante. Fotos são abertas uma vez (já endireitadas pelo navegador); vídeos são lidos em
  * sequência do início ao fim do trecho.
  */
+async function midiasComTransicao(p: Projeto, arquivos: ArquivosDoProjeto,t: number,camadas: MidiasDasCamadas,seguinte?: Imagem|null) {
+  const midias=await camadas.quadros(p,arquivos,t), transicao=transicaoNoTempo(p,t);
+  if(transicao) { const fonte=seguinte ?? await quadroDoClipe(transicao.clipe,transicao.tempoNoArquivo,arquivos); if(fonte) midias.set("__transicao",fonte); }
+  return midias;
+}
 async function percorrerQuadros(projeto: Projeto, arquivos: ArquivosDoProjeto, aoQuadro: AoQuadro): Promise<void> {
-  const { fps } = projeto;
-  for (const segmento of segmentos(projeto)) {
-    const clipe = projeto.clipes[segmento.indice];
-    const primeiro = Math.round(segmento.inicio * fps);
-    const ultimo = Math.round(segmento.fim * fps);
-    if (ultimo <= primeiro) continue;
-    const arquivo = arquivoDe(arquivos, clipe.arquivo);
-
-    if (clipe.tipo === "imagem") {
-      const foto = await createImageBitmap(arquivo, { imageOrientation: "from-image" });
-      try {
-        for (let i = primeiro; i < ultimo; i += 1) await aoQuadro(i, i / fps, foto, clipe.ajuste);
-      } finally {
-        foto.close();
-      }
-      continue;
+  const fotos=new Map<string,ImageBitmap>(), entradas=new Map<string,Input>(), sinks=new Map<string,CanvasSink>();
+  const obter=async(c: Clipe,t: number): Promise<Imagem|null> => {
+    if(c.tipo==="imagem") {
+      let foto=fotos.get(c.id);if(!foto) {foto=await createImageBitmap(arquivoDe(arquivos,c.arquivo));fotos.set(c.id,foto);}return foto;
     }
-
-    const entrada = new Input({ formats: ALL_FORMATS, source: new BlobSource(arquivo) });
-    try {
-      const faixa = await entrada.getPrimaryVideoTrack();
-      if (!faixa || !(await faixa.canDecode())) throw new Error(`Este navegador não lê o vídeo “${arquivo.name}”. Use o plugin.`);
-      const inicio = clipe.inicio ?? 0;
-      const fim = inicio + duracaoDoClipe(clipe);
-      const sink = new CanvasSink(faixa, { poolSize: 2 });
-      let i = primeiro;
-      let ultimoQuadro: Imagem | null = null;
-      for await (const embrulho of sink.canvases(inicio, fim)) {
-        ultimoQuadro = embrulho.canvas as Imagem;
-        // Um quadro do arquivo cobre os quadros da saída até o fim da sua duração.
-        while (i < ultimo && inicio + (i - primeiro) / fps < embrulho.timestamp + embrulho.duration) {
-          await aoQuadro(i, i / fps, ultimoQuadro, clipe.ajuste);
-          i += 1;
-        }
-        if (i >= ultimo) break;
-      }
-      // O arquivo acabou antes do trecho: o último quadro fica na tela até o fim do clipe.
-      for (; i < ultimo; i += 1) await aoQuadro(i, i / fps, ultimoQuadro, clipe.ajuste);
-    } finally {
-      entrada.dispose();
+    let sink=sinks.get(c.id);
+    if(!sink) {
+      const entrada=new Input({formats:ALL_FORMATS,source:new BlobSource(arquivoDe(arquivos,c.arquivo))});entradas.set(c.id,entrada);
+      const faixa=await entrada.getPrimaryVideoTrack();if(!faixa || !await faixa.canDecode()) throw new Error("Este navegador não lê um dos vídeos. Use o plugin.");
+      sink=new CanvasSink(faixa,{poolSize:2});sinks.set(c.id,sink);
     }
-  }
+    return (await sink.getCanvas(t))?.canvas as Imagem ?? null;
+  };
+  try {
+    const total=Math.max(1,Math.round(duracaoTotal(projeto)*projeto.fps));
+    for(let i=0;i<total;i++) {
+      const t=i/projeto.fps, a=clipeNoTempo(projeto,t), b=transicaoNoTempo(projeto,t);
+      await aoQuadro(i,t,a?await obter(a.clipe,a.tempoNoArquivo):null,a?.clipe.ajuste??"caber",b?await obter(b.clipe,b.tempoNoArquivo):null);
+    }
+  } finally { for(const f of fotos.values()) f.close();for(const e of entradas.values()) e.dispose(); }
 }
 
 /** Um quadro de um clipe num ponto do arquivo (para a imagem e para a prévia). */
@@ -266,11 +255,23 @@ export async function misturarAudio(projeto: Projeto, arquivos: ArquivosDoProjet
     const buffer = await decodificar(arquivoDe(arquivos, clipe.arquivo));
     if (!buffer) continue;
     const fonte = mesa.createBufferSource();
-    fonte.buffer = buffer;
+    const velocidade=velocidadeDoClipe(clipe);
+    if(velocidade!==1) {
+      const inicio=Math.round((clipe.inicio??0)*buffer.sampleRate),fim=Math.min(buffer.length,inicio+Math.round(duracaoDaOrigem(clipe)*buffer.sampleRate));
+      const canais=Array.from({length:buffer.numberOfChannels},(_,i)=>buffer.getChannelData(i).slice(inicio,fim));
+      const ajustados=mudarTempo(canais,buffer.sampleRate,velocidade);
+      const novo=new AudioBuffer({numberOfChannels:ajustados.length,length:ajustados[0].length,sampleRate:buffer.sampleRate});
+      ajustados.forEach((canal,i)=>novo.copyToChannel(new Float32Array(canal),i));fonte.buffer=novo;
+    } else fonte.buffer = buffer;
     const ganho = mesa.createGain();
     ganho.gain.value = clipe.volume ?? 1;
     fonte.connect(ganho).connect(mesa.destination);
-    fonte.start(segmento.inicio, clipe.inicio ?? 0, segmento.duracao);
+    fonte.playbackRate.value=1;
+    const entrada=duracaoDaTransicao(projeto,n-1), saida=duracaoDaTransicao(projeto,n), volume=clipe.volume??1;
+    ganho.gain.setValueAtTime(entrada>0?0:volume,segmento.inicio);
+    if(entrada>0) ganho.gain.linearRampToValueAtTime(volume,segmento.inicio+entrada);
+    if(saida>0) {ganho.gain.setValueAtTime(volume,segmento.fim-saida);ganho.gain.linearRampToValueAtTime(0,segmento.fim);}
+    fonte.start(segmento.inicio, velocidade===1?clipe.inicio??0:0, segmento.duracao);
   }
 
   for (const [n, musica] of projeto.audios.entries()) {

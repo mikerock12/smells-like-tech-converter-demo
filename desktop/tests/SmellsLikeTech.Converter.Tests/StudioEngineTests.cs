@@ -182,6 +182,25 @@ public sealed class StudioEngineTests : IDisposable
             Frame = 1
         };
 
+    [Theory]
+    [InlineData("fade")]
+    [InlineData("dissolver")]
+    [InlineData("deslizar")]
+    [InlineData("zoom")]
+    public async Task VelocidadeTransicaoELegendaMantemTempoFinal(string transition)
+    {
+        if(!Available) return;
+        var(video,foto,_)=await CreateSamplesAsync();
+        var p=StudioRules.NewProject("personalizado","video",128,128) with {Fps=10,
+            Clips=[new StudioClip {Id="a",File=video,Start=0,End=2,Speed=2,Fit="caber",Transition=new(transition,.4)},
+                   new StudioClip {Id="b",File=foto,Kind="imagem",Duration=1,Fit="caber"}],
+            Texts=StudioCaptions.ParseSrt("1\n00:00:00,200 --> 00:00:01,200\nTeste",1.6)};
+        var result=await ExportAsync(p,[video,foto]);
+        var info=await Probe(result.OutputFiles[0]);
+        Assert.True(info.HasAudio && info.HasVideo);
+        Assert.InRange(info.Duration!.Value.TotalSeconds,1.5,1.8);
+    }
+
     private async Task<EngineResult> ExportAsync(StudioProject project, IReadOnlyList<string> inputs)
     {
         var engineOptions = FfmpegOptions.Resolve(ffmpeg!, ffprobe!, [], HardwareAcceleration.Cpu);

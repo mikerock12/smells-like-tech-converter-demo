@@ -4,6 +4,8 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, ty
 
 import {
   AJUSTES,
+  TRANSICOES,
+  type Transicao,
   FONTES,
   NOTA_DOS_PRESETS,
   PRESETS,
@@ -28,6 +30,7 @@ import { conferirEstudio, type BloqueioDoEstudio } from "@/packages/converter-co
 import { limite as limiteDoPlano } from "@/packages/converter-core/precos.mjs";
 
 import { ExportacaoCancelada, exportarNoNavegador, type Exportado } from "@/lib/estudio/exportar";
+import { textosDaLegenda } from "@/packages/converter-core/estudio-legendas.mjs";
 import { pedidoParaOPlugin } from "@/lib/estudio/plugin";
 import { PreviaDoEstudio } from "@/lib/estudio/previa";
 import { duracaoDaMidia } from "@/lib/converter/limites";
@@ -184,6 +187,35 @@ export default function Estudio() {
 
   const { plano, pro } = usePlano();
   const { cliente, ligado } = usePlugin();
+  const [modeloLegendas,setModeloLegendas]=useState("base");
+  const gerarLegendas=async()=>{
+    if(!projeto || !ligado) return;
+    const original=projeto;
+    const trava=conferirEstudio({...projeto,saida:"texto"},pro?"pro":plano,{exportacoesHoje:usoDeHoje("estudio"),transcricaoRestante:restanteHoje(plano,"transcricao")});
+    if(trava) {setBloqueio(trava);return;}
+    let cancelado=false;let id="";
+    setErro(null);setTocando(false);
+    const cancelar=()=>{cancelado=true;if(id) void cliente.cancelar(id);};
+    setAndamento({etapa:"Gerando legendas",fracao:0,restante:null,cancelar});
+    try {
+      const pedido=pedidoParaOPlugin({...projeto,saida:"texto"},arquivos,modeloLegendas);
+      pedido.opcoes.TranscriptionFormat="srt";
+      const trabalho=await cliente.converterArquivos(pedido.arquivos,pedido.opcoes,"legendas");id=trabalho.id;
+      if(cancelado) await cliente.cancelar(id);
+      const final=await new Promise<typeof trabalho>(resolve=>{const parar=cliente.acompanhar(id,atual=>{
+        setAndamento({etapa:"Gerando legendas",fracao:atual.progresso??0,restante:null,cancelar});
+        if(atual.encerrado) {parar();resolve(atual);}
+      });});
+      if(cancelado) throw new ExportacaoCancelada();if(final.erro) throw new Error(final.erro);
+      if(!final.arquivos.length || !final.arquivos[0].nome.toLowerCase().endsWith(".srt")) throw new Error("Atualize o plugin para gerar legendas temporizadas.");
+      const resposta=await fetch(cliente.enderecoDoArquivo(final.id,final.arquivos[0].indice));
+      if(!resposta.ok) throw new Error("Não foi possível ler as legendas do plugin.");
+      const textos=textosDaLegenda(await resposta.text(),duracaoTotal(original));
+      mudar(p=>p===original?({...p,textos:[...p.textos.filter(t=>!t.id.startsWith("legenda-")),...textos]}):p);
+      if(!pro) registrarUso("transcricao",Math.ceil(duracaoTotal(original)/60));
+    } catch(e) {if(!(e instanceof ExportacaoCancelada)) setErro(e instanceof Error?e.message:String(e));}
+    finally {setAndamento(null);}
+  };
 
   const exportar = async (forcarNavegador = false) => {
     if (!projeto) return;
@@ -341,6 +373,11 @@ export default function Estudio() {
             <div className="estudio__lista">
               <button type="button" className="button button--primary estudio__largo" onClick={adicionarTexto} disabled={projeto.clipes.length === 0}>Adicionar texto</button>
               {projeto.clipes.length === 0 && <p className="estudio__dica">Adicione um vídeo ou foto antes: o texto aparece por cima deles.</p>}
+              <p className="estudio__dica">Gere a legenda do áudio final. Após mudar cortes, velocidade ou transições, gere novamente; revise os textos antes de exportar.</p>
+              <label className="estudio__campo">Modelo para legendar<select value={modeloLegendas} onChange={e=>setModeloLegendas(e.target.value)}>{["tiny","base","small","medium"].map(m=><option key={m} value={m}>{m}</option>)}</select></label>
+              <button type="button" className="button" disabled={!ligado || !!andamento || !projeto.clipes.length} onClick={()=>void gerarLegendas()}>Gerar legendas automáticas</button>
+              {!ligado && <p>As legendas automáticas usam o Whisper do plugin para Windows. Conecte o plugin para gerar.</p>}
+              <label className="estudio__campo">Estilo de todas as legendas<select defaultValue="" onChange={e=>{const estilo=e.target.value;mudar(p=>({...p,textos:p.textos.map(t=>t.id.startsWith("legenda-")?{...t,cor:estilo==="amarela"?"#FFD54A":"#FFFFFF",contorno:"#000000",caixa:estilo==="caixa"?"#000000B3":null}:t)}));}}><option value="" disabled>Escolher estilo</option><option value="branca">Branca com contorno</option><option value="amarela">Amarela com contorno</option><option value="caixa">Branca com caixa</option></select></label>
               {projeto.textos.map((texto) => (
                 <CartaoDoTexto
                   key={texto.id}
@@ -632,6 +669,9 @@ function CartaoDoClipe({
               ))}
             </div>
           </Controle>
+          {clipe.tipo==="video" && <Controle rotulo={`Velocidade: ${(clipe.velocidade??1).toFixed(2)}×`}><input type="range" min={.25} max={4} step={.05} value={clipe.velocidade??1} onChange={e=>mudar(c=>({...c,velocidade:Number(e.target.value)}))}/></Controle>}
+          <label className="estudio__campo">Transição para o próximo clipe<select value={clipe.transicao?.tipo??"corte"} onChange={e=>mudar(c=>({...c,transicao:{tipo:e.target.value as Transicao["tipo"],duracao:c.transicao?.duracao??.5}}))}>{TRANSICOES.map(t=><option key={t.id} value={t.id}>{t.titulo}</option>)}</select></label>
+          {clipe.transicao && clipe.transicao.tipo!=="corte" && <Controle rotulo={`Duração da transição: ${clipe.transicao.duracao.toFixed(1)} s`}><input type="range" min={.1} max={5} step={.1} value={clipe.transicao.duracao} onChange={e=>mudar(c=>({...c,transicao:{tipo:c.transicao!.tipo,duracao:Number(e.target.value)}}))}/><small>Limitada à metade dos clipes vizinhos. O último clipe termina sem transição.</small></Controle>}
           <ControlesDeCamada valor={clipe.transformacao} mudar={transformacao => mudar(c => ({ ...c, transformacao }))} />
           {clipe.tipo === "video" && (
             <>

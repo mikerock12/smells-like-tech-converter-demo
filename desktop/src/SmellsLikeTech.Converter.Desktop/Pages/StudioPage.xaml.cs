@@ -320,6 +320,7 @@ public sealed partial class StudioPage : Page
         corpo.Children.Add(cabeca);
         if (openId == clip.Id)
         {
+            FinishingControls(corpo,clip,index);
             if (clip.IsImage)
             {
                 corpo.Children.Add(Slider($"Na tela por {{0}} s", clip.Duration ?? 3, 0.5, 15, 0.5, v => v.ToString("0.#", PtBr),
@@ -418,6 +419,7 @@ public sealed partial class StudioPage : Page
     private void BuildTexts()
     {
         TextsPanel.Children.Clear();
+        TextsPanel.Children.Add(CaptionControls());
         var adicionar = Action("Adicionar texto");
         adicionar.IsEnabled = project!.Clips.Count > 0;
         adicionar.Click += (_, _) =>

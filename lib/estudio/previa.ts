@@ -1,4 +1,4 @@
-import { clipeNoTempo, duracaoTotal, type Projeto } from "@/packages/converter-core/estudio.mjs";
+import { clipeNoTempo, duracaoTotal, transicaoNoTempo, velocidadeDoClipe, segmentos, duracaoDaTransicao, type Projeto } from "@/packages/converter-core/estudio.mjs";
 
 import { carregarFontes, desenharQuadro } from "./desenho";
 import type { ArquivosDoProjeto } from "./exportar";
@@ -31,12 +31,18 @@ export class PreviaDoEstudio {
       const arquivo = arquivos.get(achado.clipe.arquivo);
       if (arquivo && achado.clipe.tipo === "imagem") imagem = await this.foto(achado.clipe.arquivo, arquivo);
       else if (arquivo) {
-        const video = this.video(achado.clipe.arquivo, arquivo);
+        const video = this.video(achado.clipe.id, arquivo);
         await buscar(video, achado.tempoNoArquivo);
         imagem = comTamanho(video);
       }
     }
     const extras = await this.camadas.quadros(projeto, arquivos, t);
+    const b=transicaoNoTempo(projeto,t);
+    if(b) {
+      const arquivo=arquivos.get(b.clipe.arquivo);
+      if(arquivo && b.clipe.tipo==="imagem") extras.set("__transicao",await this.foto(b.clipe.arquivo,arquivo));
+      else if(arquivo) {const video=this.video(b.clipe.id,arquivo);await buscar(video,b.tempoNoArquivo);extras.set("__transicao",comTamanho(video));}
+    }
     if (pedido !== this.pedido) return;
     const recortes = await prepararRecortes(projeto, t, imagem, extras, () => pedido === this.pedido);
     if (pedido !== this.pedido) return;
@@ -49,89 +55,44 @@ export class PreviaDoEstudio {
     this.pedido++;
     const total = duracaoTotal(projeto);
     const comeco = performance.now() - de * 1000;
-    let atual: HTMLVideoElement | null = null;
-    let indiceAtual = -1;
-    let quadro = 0;
-    let vivo = true;
-
-    const musicas = projeto.audios.map((audio) => {
-      const arquivo = arquivos.get(audio.arquivo);
-      return arquivo ? { audio, elemento: this.musica(audio.arquivo, arquivo), tocando: false } : null;
-    }).filter((m) => m !== null);
-
-    const passo = async () => {
-      if (!vivo) return;
-      const t = (performance.now() - comeco) / 1000;
-      if (t >= total) {
-        encerrar();
-        aoAvancar(total);
-        aoAcabar();
-        return;
-      }
-      const achado = clipeNoTempo(projeto, t);
-      let imagem: (CanvasImageSource & { width: number; height: number }) | null = null;
-      if (achado) {
-        const arquivo = arquivos.get(achado.clipe.arquivo);
-        if (achado.indice !== indiceAtual) {
-          atual?.pause();
-          atual = null;
-          indiceAtual = achado.indice;
-          if (arquivo && achado.clipe.tipo === "video") {
-            atual = this.video(achado.clipe.arquivo, arquivo);
-            atual.currentTime = achado.tempoNoArquivo;
-            atual.muted = achado.clipe.mudo === true;
-            atual.volume = Math.min(1, achado.clipe.volume ?? 1);
-            void atual.play().catch(() => {});
-          }
+    let vivo=true, quadro=0;
+    const lista=segmentos(projeto);
+    const encerrar=()=>{vivo=false;cancelAnimationFrame(quadro);for(const v of this.videos.values()) v.pause();for(const a of this.musicas.values()) a.pause();};
+    const passo=async()=>{
+      if(!vivo) return;
+      const t=(performance.now()-comeco)/1000;
+      if(t>=total) {encerrar();aoAvancar(total);aoAcabar();return;}
+      try {
+        const ativos=new Set<string>();
+        for(const s of lista) {
+          if(t<s.inicio || t>=s.fim) continue;
+          const c=projeto.clipes[s.indice], arquivo=arquivos.get(c.arquivo);
+          if(c.tipo!=="video" || !arquivo) continue;
+          const v=this.video(c.id,arquivo);ativos.add(c.id);
+          const ponto=(c.inicio??0)+(t-s.inicio)*velocidadeDoClipe(c);
+          if(v.paused || Math.abs(v.currentTime-ponto)>.25) v.currentTime=ponto;
+          v.playbackRate=velocidadeDoClipe(c);v.preservesPitch=true;v.muted=c.mudo===true;
+          const de=duracaoDaTransicao(projeto,s.indice-1), ate=duracaoDaTransicao(projeto,s.indice);
+          const fator=Math.min(1,de>0?(t-s.inicio)/de:1,ate>0?(s.fim-t)/ate:1);
+          v.volume=Math.min(1,Math.max(0,(c.volume??1)*fator));if(v.paused) await v.play();
         }
-        if (achado.clipe.tipo === "imagem") {
-          const pronta = this.fotosProntas.get(achado.clipe.arquivo);
-          if (pronta) imagem = pronta;
-          else if (arquivo) void this.foto(achado.clipe.arquivo, arquivo);
-        } else if (atual) imagem = comTamanho(atual);
-      }
-      for (const m of musicas) {
-        const { audio, elemento } = m;
-        const entrada = audio.entrada ?? 0;
-        const dentro = t >= entrada && t < entrada + (audio.fim - audio.inicio);
-        if (dentro && !m.tocando) {
-          elemento.currentTime = audio.inicio + (t - entrada);
-          elemento.volume = Math.min(1, audio.volume ?? 1);
-          void elemento.play().catch(() => {});
-          m.tocando = true;
-        } else if (!dentro && m.tocando) {
-          elemento.pause();
-          m.tocando = false;
+        for(const [id,v] of this.videos) if(!ativos.has(id)) v.pause();
+        for(const a of projeto.audios) {
+          const arquivo=arquivos.get(a.arquivo);if(!arquivo) continue;
+          const v=this.musica(a.arquivo,arquivo), entrada=a.entrada??0,duracao=a.fim-a.inicio,dentro=t>=entrada&&t<entrada+duracao;
+          if(dentro) {
+            if(v.paused) v.currentTime=a.inicio+t-entrada;
+            const fator=Math.min(1,(a.fadeEntrada??0)>0?(t-entrada)/a.fadeEntrada!:1,(a.fadeSaida??0)>0?(entrada+duracao-t)/a.fadeSaida!:1);
+            v.volume=Math.min(1,Math.max(0,(a.volume??1)*fator));if(v.paused) await v.play();
+          } else v.pause();
         }
-      }
-      let extras: Map<string, ImagemDaCamada>;
-      try { extras = await this.camadas.quadros(projeto, arquivos, t); }
-      catch (erro) { if (vivo) aoFalhar(erro); encerrar(); aoAcabar(); return; }
-      if (!vivo) return;
-      let recortes;
-      try { recortes = await prepararRecortes(projeto, t, imagem, extras, () => vivo); }
-      catch (erro) { if (vivo) aoFalhar(erro); encerrar(); aoAcabar(); return; }
-      if (!vivo) return;
-      this.pintar(projeto, t, recortes.principal, achado?.clipe.ajuste ?? null, recortes.extras);
-      aoAvancar(t);
-      quadro = requestAnimationFrame(() => { void passo(); });
+        await this.desenhar(projeto,arquivos,t);
+        if(!vivo) return;aoAvancar(t);quadro=requestAnimationFrame(()=>void passo());
+      } catch(erro) {encerrar();aoFalhar(erro);aoAcabar();}
     };
-
-    const encerrar = () => {
-      vivo = false;
-      cancelAnimationFrame(quadro);
-      atual?.pause();
-      for (const m of musicas) m.elemento.pause();
-      if (this.parar === encerrar) this.parar = null;
-    };
-    this.parar = encerrar;
-    void carregarFontes().then(() => {
-      if (vivo) quadro = requestAnimationFrame(() => { void passo(); });
-    }).catch(erro => { if (vivo) { aoFalhar(erro); encerrar(); aoAcabar(); } });
-    return encerrar;
+    quadro=requestAnimationFrame(()=>void passo());this.parar=encerrar;return encerrar;
   }
 
-  /** Solta os vídeos, as fotos e os endereços temporários. */
   liberar(): void {
     this.pedido++;
     this.camadas.liberar();
@@ -202,6 +163,7 @@ export class PreviaDoEstudio {
 
 /** Leva o vídeo a um instante e espera o quadro chegar (com limite, para não travar a prévia). */
 function buscar(video: HTMLVideoElement, segundos: number): Promise<void> {
+  if(video.readyState>=2 && Math.abs(video.currentTime-segundos)<.06) return Promise.resolve();
   return new Promise((resolva) => {
     const pronto = () => {
       clearTimeout(limite);

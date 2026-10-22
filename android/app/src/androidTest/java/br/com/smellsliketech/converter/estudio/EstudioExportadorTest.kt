@@ -89,6 +89,52 @@ class EstudioExportadorTest {
         assertEquals(0xFF112233.toInt(), DesenhoDoTexto.cor("#112233"))
     }
 
+    @Test fun legendasDoAudioFinalComWhisper() = runBlocking {
+        val voz=trazer("etapa2-voz.mp4")
+        val baixado=trazer("ggml-tiny.bin")
+        assumeTrue("Fala sintética e modelo oficial enviados por adb",voz.length()>1000 && baixado.length()==77_691_713L)
+        val modelo=br.com.smellsliketech.converter.conversao.ModelosWhisper.arquivo(contexto,br.com.smellsliketech.converter.conversao.ModeloWhisper.TINY)
+        val criado=!modelo.exists()
+        if(criado) baixado.copyTo(modelo)
+        val destino=File(contexto.cacheDir,"legenda-real.mp4")
+        try {
+            val duracao=Ffmpeg.sondar(contexto,voz).duracaoSegundos!!
+            val projeto=Projeto(largura=128,altura=128,fps=10,clipes=listOf(Clipe("voz",voz.absolutePath,inicio=0.0,fim=duracao,velocidade=1.25,ajuste="caber")))
+            val textos=Exportador.legendas(contexto,projeto,"tiny") {}
+            assertTrue("Whisper encontrou fala",textos.isNotEmpty())
+            assertTrue("Tempos no áudio final",textos.all {it.inicio>=0 && it.fim<=Estudio.duracaoTotal(projeto) && it.fim>it.inicio})
+            Exportador.gerar(contexto,projeto.copy(textos=textos),destino) {}
+            val info=Ffmpeg.sondar(contexto,destino)
+            assertTrue(info.temVideo && info.temAudio)
+            assertEquals(Estudio.duracaoTotal(projeto),info.duracaoSegundos!!,.25)
+        } finally {destino.delete();voz.delete();baixado.delete();if(criado) modelo.delete()}
+    }
+
+    @Test fun transicoesELegendasNoFfmpegDoAndroid() = runBlocking {
+        val pasta=File(contexto.cacheDir,"etapa2-instrumentado").apply {mkdirs()}
+        fun foto(nome: String,cor: Int): File {
+            val b=android.graphics.Bitmap.createBitmap(128,128,android.graphics.Bitmap.Config.ARGB_8888);b.eraseColor(cor)
+            return File(pasta,nome).also {f->f.outputStream().use {b.compress(android.graphics.Bitmap.CompressFormat.PNG,100,it)};b.recycle()}
+        }
+        try {
+            val a=foto("a.png",android.graphics.Color.RED);val b=foto("b.png",android.graphics.Color.BLUE)
+            for(tipo in listOf("fade","dissolver","deslizar","zoom")) {
+                val projeto=Projeto(largura=128,altura=128,fps=10,saida="imagem",quadro=1.5,
+                    clipes=listOf(Clipe("a",a.absolutePath,"imagem",duracao=2.0,ajuste="caber",transicao=Transicao(tipo,1.0)),Clipe("b",b.absolutePath,"imagem",duracao=2.0,ajuste="caber")),
+                    textos=listOf(Texto("legenda-0","Teste",1.1,2.0,y=.85,tamanho=.1)))
+                val destino=File(pasta,"$tipo.png");Exportador.gerar(contexto,projeto,destino) {}
+                val imagem=BitmapFactory.decodeFile(destino.absolutePath)
+                try {
+                    assertEquals(128 to 128,imagem.width to imagem.height)
+                    val centro=imagem.getPixel(64,64)
+                    if(tipo=="fade") assertTrue("fade passa pelo preto",android.graphics.Color.red(centro)<20 && android.graphics.Color.blue(centro)<20)
+                    if(tipo=="dissolver") assertTrue("mistura os dois clipes",android.graphics.Color.red(centro)>90 && android.graphics.Color.blue(centro)>90)
+                    assertTrue("legenda desenhada",(95..120).any {y->(20..108).any {x->val pixel=imagem.getPixel(x,y);android.graphics.Color.red(pixel)>200 && android.graphics.Color.green(pixel)>200 && android.graphics.Color.blue(pixel)>200}})
+                } finally {imagem.recycle()}
+            }
+        } finally {pasta.deleteRecursively()}
+    }
+
     @Test fun perspectivaECamadaTemporizadaNoFfmpegDoAndroid() = runBlocking {
         assertTrue("FFmpeg do aplicativo disponível", Ffmpeg.disponivel(contexto))
         val pasta = File(contexto.cacheDir, "camadas-instrumentado").apply { mkdirs() }

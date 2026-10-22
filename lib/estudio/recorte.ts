@@ -1,5 +1,5 @@
 import type { InferenceSession } from "onnxruntime-web";
-import { camadasNoTempo, clipeNoTempo, type Projeto } from "@/packages/converter-core/estudio.mjs";
+import { camadasNoTempo, clipeNoTempo, transicaoNoTempo, type Projeto } from "@/packages/converter-core/estudio.mjs";
 import type { ImagemDaCamada } from "./midias-das-camadas";
 
 let sessao: Promise<InferenceSession> | null = null;
@@ -74,6 +74,8 @@ export async function prepararRecortes(projeto: Projeto, t: number, imagem: Imag
   if (!atual()) throw new DOMException("Prévia substituída.", "AbortError");
   const principal = imagem && clipeNoTempo(projeto, t)?.clipe.transformacao?.removerFundo ? await recortar(imagem, atual) : imagem;
   const extras = new Map(midias);
+  const seguinte=midias.get("__transicao");
+  if(seguinte && transicaoNoTempo(projeto,t)?.clipe.transformacao?.removerFundo) extras.set("__transicao",await recortar(seguinte,atual));
   for (const camada of camadasNoTempo(projeto, t)) {
     if (!atual()) throw new DOMException("Prévia substituída.", "AbortError");
     const fonte = midias.get(camada.id);

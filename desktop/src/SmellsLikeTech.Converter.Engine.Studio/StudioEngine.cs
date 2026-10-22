@@ -76,7 +76,7 @@ public sealed class StudioEngine(
             {
                 Model = options.TranscriptionModel,
                 Language = options.TranscriptionLanguage,
-                OutputFormat = "txt"
+                OutputFormat = options.TranscriptionFormat
             },
             InputPath = output,
             OutputDirectory = job.OutputDirectory,
@@ -85,6 +85,18 @@ public sealed class StudioEngine(
         var progress = new MappedProgress(context.Progress, 0.25, 1.0);
         var result = await transcriber.ExecuteAsync(new EngineContext(transcription, context.Workspace, progress), cancellationToken);
         return result with { Note = $"{options.Summary()} · {result.Note}" };
+    }
+
+    public async Task<IReadOnlyList<StudioText>> GenerateCaptionsAsync(StudioProject project, IReadOnlyList<string> inputs,
+        string temporaryRoot, string model, IProgress<JobProgress> progress, CancellationToken token) {
+        using var workspace=SmellsLikeTech.Converter.Infrastructure.Storage.JobWorkspace.Create(temporaryRoot,Guid.NewGuid());
+        try {
+            var job=new ConversionJob {InputPath=inputs[0],ExtraInputPaths=inputs.Skip(1).ToList(),
+                OutputDirectory=workspace.OutputDirectory,OutputBaseName="legendas",
+                Options=new StudioExportOptions {Project=project with {Output="texto"},TranscriptionModel=model,TranscriptionFormat="srt"}};
+            var result=await ExecuteAsync(new EngineContext(job,workspace,progress),token);
+            return StudioCaptions.ParseSrt(await File.ReadAllTextAsync(result.OutputFiles[0],token),StudioRules.TotalDuration(project));
+        } finally { workspace.TryDelete(); }
     }
 
     /// <summary>Repassa o progresso de uma etapa dentro de uma faixa da barra, na mesma thread.</summary>
@@ -161,7 +173,7 @@ public sealed class StudioEngine(
         Directory.CreateDirectory(workDirectory);
         progress(JobProgress.Step(JobStage.Probing));
         // Um PNG precisa só do instante escolhido, inclusive ao segmentar um vídeo longo.
-        if (project.Output == "imagem" && project.Clips.Count > 0)
+        if (project.Output == "imagem" && project.Clips.Count > 0 && !StudioRules.HasTransitions(project))
         {
             var time = Math.Clamp(project.Frame, 0, Math.Max(0, StudioRules.TotalDuration(project) - 1.0 / project.Fps));
             var at = StudioRules.ClipAt(project, time)!.Value;
@@ -181,9 +193,9 @@ public sealed class StudioEngine(
             project = project with
             {
                 Frame = 0,
-                Clips = [clip.IsImage ? clip with { Duration = .1 } : clip with { Start = at.TimeInFile, End = at.TimeInFile + .1 }],
+                Clips = [clip.IsImage ? clip with { Duration = .1, Transition = null } : clip with { Start = at.TimeInFile, End = at.TimeInFile + .1, Speed = 1, Transition = null }],
                 Layers = layersAtFrame,
-                Texts = project.Texts.Where(t => time >= t.Start && time <= t.End).Select(t => t with { Start = 0, End = .1 }).ToList(),
+                Texts = project.Texts.Where(t => time >= t.Start && (t.Id.StartsWith("legenda-") ? time < t.End : time <= t.End)).Select(t => t with { Start = 0, End = .1 }).ToList(),
                 Audios = []
             };
         }
@@ -214,9 +226,9 @@ public sealed class StudioEngine(
                 var prepared = Path.Combine(workDirectory, $"recorte-clipe-{i}.mkv");
                 await BackgroundVideo.RemoveAsync(optionsAccessor().FfmpegPath, path, prepared,
                     StudioRules.Even(info.Width ?? project.Width), StudioRules.Even(info.Height ?? project.Height), project.Fps,
-                    clip.Start ?? 0, StudioRules.ClipDuration(clip), cancellationToken);
+                    clip.Start ?? 0, StudioRules.SourceDuration(clip), cancellationToken);
                 path = prepared;
-                preparedClips[i] = clip with { Start = 0, End = StudioRules.ClipDuration(clip) };
+                preparedClips[i] = clip with { Start = 0, End = StudioRules.SourceDuration(clip) };
             }
             clips.Add(new StudioClipInput(path, info.HasAudio));
         }

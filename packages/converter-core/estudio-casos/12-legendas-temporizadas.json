@@ -1,0 +1,116 @@
+{
+  "projeto": {
+    "versao": 3,
+    "destino": "personalizado",
+    "largura": 128,
+    "altura": 128,
+    "fps": 10,
+    "saida": "video",
+    "quadro": 0,
+    "clipes": [
+      {
+        "id": "a",
+        "arquivo": "video.mp4",
+        "tipo": "video",
+        "inicio": 0,
+        "fim": 4,
+        "velocidade": 2,
+        "ajuste": "caber"
+      }
+    ],
+    "textos": [
+      {
+        "id": "legenda-0",
+        "texto": "Primeiro",
+        "inicio": 0.25,
+        "fim": 1,
+        "x": 0.5,
+        "y": 0.85,
+        "tamanho": 0.055,
+        "cor": "#FFFFFF",
+        "contorno": "#000000",
+        "caixa": null,
+        "fonte": "anton"
+      },
+      {
+        "id": "legenda-1",
+        "texto": "Segundo",
+        "inicio": 1,
+        "fim": 2,
+        "x": 0.5,
+        "y": 0.85,
+        "tamanho": 0.055,
+        "cor": "#FFFFFF",
+        "contorno": "#000000",
+        "caixa": null,
+        "fonte": "anton"
+      }
+    ],
+    "audios": []
+  },
+  "entradas": {
+    "clipes": [
+      {
+        "caminho": "video.mp4",
+        "temAudio": true
+      }
+    ],
+    "textos": [
+      "primeiro.png",
+      "segundo.png"
+    ],
+    "audios": []
+  },
+  "esperado": {
+    "duracao": 2,
+    "segmentos": [
+      {
+        "indice": 0,
+        "id": "a",
+        "inicio": 0,
+        "fim": 2,
+        "duracao": 2
+      }
+    ],
+    "problemas": [],
+    "avisos": [],
+    "gif": {
+      "largura": 128,
+      "altura": 128
+    },
+    "receita": {
+      "args": [
+        "-ss",
+        "0",
+        "-t",
+        "4",
+        "-i",
+        "video.mp4",
+        "-loop",
+        "1",
+        "-framerate",
+        "10",
+        "-t",
+        "2",
+        "-i",
+        "primeiro.png",
+        "-loop",
+        "1",
+        "-framerate",
+        "10",
+        "-t",
+        "2",
+        "-i",
+        "segundo.png"
+      ],
+      "filtro": "[0:v]setpts=(PTS-STARTPTS)/2,fps=10,scale=128:128:force_original_aspect_ratio=decrease:force_divisible_by=2,pad=128:128:(ow-iw)/2:(oh-ih)/2:color=black,setsar=1,format=yuv420p,setpts=PTS-STARTPTS[v0];[0:a]atempo=2,aresample=48000,aformat=channel_layouts=stereo,volume=1,apad=whole_dur=2,atrim=duration=2,asetpts=PTS-STARTPTS[a0];[v0][a0]concat=n=1:v=1:a=1[vb][ab];[vb][1:v]overlay=0:0:enable='gte(t,0.25)*lt(t,1)'[vt0];[vt0][2:v]overlay=0:0:enable='gte(t,1)*lt(t,2)'[vt1]",
+      "mapas": [
+        "-map",
+        "[vt1]",
+        "-map",
+        "[ab]"
+      ],
+      "duracao": 2
+    }
+  }
+}

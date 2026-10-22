@@ -1,0 +1,193 @@
+{
+  "nome": "Velocidade e transições — audio",
+  "projeto": {
+    "versao": 3,
+    "destino": "personalizado",
+    "largura": 128,
+    "altura": 128,
+    "fps": 10,
+    "saida": "audio",
+    "quadro": 0,
+    "clipes": [
+      {
+        "id": "c0",
+        "arquivo": "v0.mp4",
+        "tipo": "video",
+        "inicio": 1,
+        "fim": 5,
+        "velocidade": 2,
+        "ajuste": "caber",
+        "transicao": {
+          "tipo": "dissolver",
+          "duracao": 0.5
+        }
+      },
+      {
+        "id": "c1",
+        "arquivo": "v1.mp4",
+        "tipo": "video",
+        "inicio": 1,
+        "fim": 5,
+        "velocidade": 0.5,
+        "ajuste": "caber",
+        "transicao": {
+          "tipo": "fade",
+          "duracao": 0.5
+        }
+      },
+      {
+        "id": "c2",
+        "arquivo": "v2.mp4",
+        "tipo": "video",
+        "inicio": 1,
+        "fim": 5,
+        "velocidade": 1,
+        "ajuste": "caber",
+        "transicao": {
+          "tipo": "deslizar",
+          "duracao": 0.5
+        }
+      },
+      {
+        "id": "c3",
+        "arquivo": "v3.mp4",
+        "tipo": "video",
+        "inicio": 1,
+        "fim": 5,
+        "velocidade": 4,
+        "ajuste": "caber",
+        "transicao": {
+          "tipo": "zoom",
+          "duracao": 0.5
+        }
+      },
+      {
+        "id": "c4",
+        "arquivo": "v4.mp4",
+        "tipo": "video",
+        "inicio": 1,
+        "fim": 5,
+        "velocidade": 1,
+        "ajuste": "caber",
+        "transicao": {
+          "tipo": "corte",
+          "duracao": 0.5
+        }
+      }
+    ],
+    "textos": [],
+    "audios": []
+  },
+  "entradas": {
+    "clipes": [
+      {
+        "caminho": "v0.mp4",
+        "temAudio": true
+      },
+      {
+        "caminho": "v1.mp4",
+        "temAudio": true
+      },
+      {
+        "caminho": "v2.mp4",
+        "temAudio": true
+      },
+      {
+        "caminho": "v3.mp4",
+        "temAudio": true
+      },
+      {
+        "caminho": "v4.mp4",
+        "temAudio": true
+      }
+    ],
+    "textos": [],
+    "audios": []
+  },
+  "esperado": {
+    "duracao": 17,
+    "segmentos": [
+      {
+        "indice": 0,
+        "id": "c0",
+        "inicio": 0,
+        "fim": 2,
+        "duracao": 2
+      },
+      {
+        "indice": 1,
+        "id": "c1",
+        "inicio": 1.5,
+        "fim": 9.5,
+        "duracao": 8
+      },
+      {
+        "indice": 2,
+        "id": "c2",
+        "inicio": 9,
+        "fim": 13,
+        "duracao": 4
+      },
+      {
+        "indice": 3,
+        "id": "c3",
+        "inicio": 12.5,
+        "fim": 13.5,
+        "duracao": 1
+      },
+      {
+        "indice": 4,
+        "id": "c4",
+        "inicio": 13,
+        "fim": 17,
+        "duracao": 4
+      }
+    ],
+    "problemas": [],
+    "avisos": [],
+    "gif": {
+      "largura": 128,
+      "altura": 128
+    },
+    "receita": {
+      "args": [
+        "-ss",
+        "1",
+        "-t",
+        "4",
+        "-i",
+        "v0.mp4",
+        "-ss",
+        "1",
+        "-t",
+        "4",
+        "-i",
+        "v1.mp4",
+        "-ss",
+        "1",
+        "-t",
+        "4",
+        "-i",
+        "v2.mp4",
+        "-ss",
+        "1",
+        "-t",
+        "4",
+        "-i",
+        "v3.mp4",
+        "-ss",
+        "1",
+        "-t",
+        "4",
+        "-i",
+        "v4.mp4"
+      ],
+      "filtro": "[0:a]atempo=2,aresample=48000,aformat=channel_layouts=stereo,volume=1,apad=whole_dur=2,atrim=duration=2,asetpts=PTS-STARTPTS[a0];[1:a]atempo=0.5,aresample=48000,aformat=channel_layouts=stereo,volume=1,apad=whole_dur=8,atrim=duration=8,asetpts=PTS-STARTPTS[a1];[2:a]aresample=48000,aformat=channel_layouts=stereo,volume=1,apad=whole_dur=4,atrim=duration=4,asetpts=PTS-STARTPTS[a2];[3:a]atempo=2,atempo=2,aresample=48000,aformat=channel_layouts=stereo,volume=1,apad=whole_dur=1,atrim=duration=1,asetpts=PTS-STARTPTS[a3];[4:a]aresample=48000,aformat=channel_layouts=stereo,volume=1,apad=whole_dur=4,atrim=duration=4,asetpts=PTS-STARTPTS[a4];[a0][a1]acrossfade=d=0.5:c1=tri:c2=tri[ax1];[ax1][a2]acrossfade=d=0.5:c1=tri:c2=tri[ax2];[ax2][a3]acrossfade=d=0.5:c1=tri:c2=tri[ax3];[ax3][a4]acrossfade=d=0.5:c1=tri:c2=tri[ax4];[ax4]anull[ab]",
+      "mapas": [
+        "-map",
+        "[ab]"
+      ],
+      "duracao": 17
+    }
+  }
+}

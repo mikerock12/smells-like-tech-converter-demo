@@ -35,6 +35,21 @@ import kotlin.math.roundToInt
 object Exportador {
     private const val LADO_MAXIMO_DA_IMAGEM = 4096
 
+    suspend fun legendas(contexto: Context, projeto: Projeto, modelo: String, aoAvancar: (Int)->Unit): List<Texto> {
+        val wav=File.createTempFile("estudio-legendas-", ".wav", contexto.cacheDir)
+        try {
+            gerar(contexto,projeto.copy(saida="texto"),wav) {aoAvancar(it/4)}
+            val transcricao=Midia.transcrever(contexto,Entrada(Uri.fromFile(wav),"estudio.wav",Tipo.AUDIO,wav.length()),
+                Opcoes("srt",modelo=modelo,idioma="pt"),aoAvancar={aoAvancar(25+it*3/4)})
+            val total=Estudio.duracaoTotal(projeto)
+            if(transcricao.trechos.size>1000) throw ErroDeConversao("Use até 1000 trechos de legenda por projeto.")
+            return transcricao.trechos.mapIndexedNotNull {i,t ->
+                val inicio=maxOf(0.0,t.inicioMs/1000.0);val fim=minOf(total,t.fimMs/1000.0)
+                if(fim<=inicio || t.texto.isBlank()) null else Texto("legenda-$i",t.texto,inicio,fim,y=.85,tamanho=.055,fonte="anton")
+            }.also {if(it.isEmpty()) throw ErroDeConversao("O Whisper não encontrou fala para legendar.")}
+        } finally {wav.delete()}
+    }
+
     suspend fun exportar(
         contexto: Context,
         projeto: Projeto,
@@ -89,7 +104,7 @@ object Exportador {
      * transcrever) quando a saída é texto.
      */
     suspend fun gerar(contexto: Context, original: Projeto, destino: File, aoAvancar: (Int) -> Unit) {
-        val projeto = if (original.saida == "imagem" && original.clipes.isNotEmpty()) {
+        val projeto = if (original.saida == "imagem" && original.clipes.isNotEmpty() && !Estudio.temTransicoes(original)) {
             val tempo = original.quadro.coerceIn(0.0, maxOf(0.0, Estudio.duracaoTotal(original) - 1.0 / original.fps))
             val (_, clipe, ponto) = Estudio.clipeNoTempo(original, tempo)!!
             val camadas = Estudio.camadasNoTempo(original, tempo).map { c ->
@@ -100,7 +115,7 @@ object Exportador {
                 }
                 c.copy(inicio = 0.0, fim = .1, deslocamento = deslocamento, repetir = false)
             }
-            original.copy(quadro = 0.0, clipes = listOf(if (clipe.ehImagem) clipe.copy(duracao = .1) else clipe.copy(inicio = ponto, fim = ponto + .1)),
+            original.copy(quadro = 0.0, clipes = listOf(if (clipe.ehImagem) clipe.copy(duracao = .1, transicao = null) else clipe.copy(inicio = ponto, fim = ponto + .1, velocidade = 1.0, transicao = null)),
                 camadas = camadas, textos = Estudio.textosNoTempo(original, tempo).map { it.copy(inicio = 0.0, fim = .1) }, audios = emptyList())
         } else original
         Estudio.problemas(projeto).takeIf { it.isNotEmpty() }?.let { throw ErroDeConversao(it.joinToString(" ")) }
@@ -123,8 +138,8 @@ object Exportador {
                     if (visual && clipe.transformacao?.removerFundo == true) {
                         val recorte = File(pasta, "recorte-clipe-$i.mkv")
                         RecorteDeFundo.video(contexto, arquivo, recorte, Estudio.par((sondagem.largura ?: projeto.largura).toDouble()),
-                            Estudio.par((sondagem.altura ?: projeto.altura).toDouble()), projeto.fps, clipe.inicio ?: 0.0, Estudio.duracaoDoClipe(clipe))
-                        clipesPreparados[i] = clipe.copy(inicio = 0.0, fim = Estudio.duracaoDoClipe(clipe))
+                            Estudio.par((sondagem.altura ?: projeto.altura).toDouble()), projeto.fps, clipe.inicio ?: 0.0, Estudio.duracaoDaOrigem(clipe))
+                        clipesPreparados[i] = clipe.copy(inicio = 0.0, fim = Estudio.duracaoDaOrigem(clipe))
                         EntradaDeClipe(recorte.absolutePath, sondagem.temAudio)
                     } else EntradaDeClipe(arquivo.absolutePath, sondagem.temAudio)
                 }

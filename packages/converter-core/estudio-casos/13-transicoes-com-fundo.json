@@ -1,0 +1,229 @@
+{
+  "nome": "Transições com fundo em camada e mesclagem",
+  "projeto": {
+    "versao": 3,
+    "destino": "personalizado",
+    "largura": 128,
+    "altura": 128,
+    "fps": 10,
+    "saida": "video",
+    "quadro": 0,
+    "clipes": [
+      {
+        "id": "c0",
+        "arquivo": "v0.mp4",
+        "tipo": "video",
+        "inicio": 1,
+        "fim": 5,
+        "velocidade": 2,
+        "ajuste": "caber",
+        "transicao": {
+          "tipo": "dissolver",
+          "duracao": 0.5
+        },
+        "transformacao": {
+          "mescla": "multiplicar"
+        }
+      },
+      {
+        "id": "c1",
+        "arquivo": "v1.mp4",
+        "tipo": "video",
+        "inicio": 1,
+        "fim": 5,
+        "velocidade": 0.5,
+        "ajuste": "caber",
+        "transicao": {
+          "tipo": "fade",
+          "duracao": 0.5
+        }
+      },
+      {
+        "id": "c2",
+        "arquivo": "v2.mp4",
+        "tipo": "video",
+        "inicio": 1,
+        "fim": 5,
+        "velocidade": 1,
+        "ajuste": "caber",
+        "transicao": {
+          "tipo": "deslizar",
+          "duracao": 0.5
+        }
+      },
+      {
+        "id": "c3",
+        "arquivo": "v3.mp4",
+        "tipo": "video",
+        "inicio": 1,
+        "fim": 5,
+        "velocidade": 4,
+        "ajuste": "caber",
+        "transicao": {
+          "tipo": "zoom",
+          "duracao": 0.5
+        }
+      },
+      {
+        "id": "c4",
+        "arquivo": "v4.mp4",
+        "tipo": "video",
+        "inicio": 1,
+        "fim": 5,
+        "velocidade": 1,
+        "ajuste": "caber",
+        "transicao": {
+          "tipo": "corte",
+          "duracao": 0.5
+        }
+      }
+    ],
+    "textos": [],
+    "audios": [],
+    "camadas": [
+      {
+        "id": "fundo",
+        "arquivo": "fundo.gif",
+        "tipo": "gif",
+        "inicio": 0.25,
+        "fim": 8,
+        "ordem": -1,
+        "repetir": false,
+        "deslocamento": 0.1
+      }
+    ]
+  },
+  "entradas": {
+    "clipes": [
+      {
+        "caminho": "v0.mp4",
+        "temAudio": true
+      },
+      {
+        "caminho": "v1.mp4",
+        "temAudio": true
+      },
+      {
+        "caminho": "v2.mp4",
+        "temAudio": true
+      },
+      {
+        "caminho": "v3.mp4",
+        "temAudio": true
+      },
+      {
+        "caminho": "v4.mp4",
+        "temAudio": true
+      }
+    ],
+    "textos": [],
+    "audios": [],
+    "camadas": [
+      "fundo.gif"
+    ]
+  },
+  "esperado": {
+    "duracao": 17,
+    "segmentos": [
+      {
+        "indice": 0,
+        "id": "c0",
+        "inicio": 0,
+        "fim": 2,
+        "duracao": 2
+      },
+      {
+        "indice": 1,
+        "id": "c1",
+        "inicio": 1.5,
+        "fim": 9.5,
+        "duracao": 8
+      },
+      {
+        "indice": 2,
+        "id": "c2",
+        "inicio": 9,
+        "fim": 13,
+        "duracao": 4
+      },
+      {
+        "indice": 3,
+        "id": "c3",
+        "inicio": 12.5,
+        "fim": 13.5,
+        "duracao": 1
+      },
+      {
+        "indice": 4,
+        "id": "c4",
+        "inicio": 13,
+        "fim": 17,
+        "duracao": 4
+      }
+    ],
+    "problemas": [],
+    "avisos": [],
+    "gif": {
+      "largura": 128,
+      "altura": 128
+    },
+    "receita": {
+      "args": [
+        "-ss",
+        "1",
+        "-t",
+        "4",
+        "-i",
+        "v0.mp4",
+        "-ss",
+        "1",
+        "-t",
+        "4",
+        "-i",
+        "v1.mp4",
+        "-ss",
+        "1",
+        "-t",
+        "4",
+        "-i",
+        "v2.mp4",
+        "-ss",
+        "1",
+        "-t",
+        "4",
+        "-i",
+        "v3.mp4",
+        "-ss",
+        "1",
+        "-t",
+        "4",
+        "-i",
+        "v4.mp4",
+        "-ignore_loop",
+        "1",
+        "-ss",
+        "0.1",
+        "-t",
+        "1.75",
+        "-i",
+        "fundo.gif",
+        "-ignore_loop",
+        "1",
+        "-ss",
+        "0.1",
+        "-t",
+        "7.75",
+        "-i",
+        "fundo.gif"
+      ],
+      "filtro": "[0:a]atempo=2,aresample=48000,aformat=channel_layouts=stereo,volume=1,apad=whole_dur=2,atrim=duration=2,asetpts=PTS-STARTPTS[a0];[1:a]atempo=0.5,aresample=48000,aformat=channel_layouts=stereo,volume=1,apad=whole_dur=8,atrim=duration=8,asetpts=PTS-STARTPTS[a1];[2:a]aresample=48000,aformat=channel_layouts=stereo,volume=1,apad=whole_dur=4,atrim=duration=4,asetpts=PTS-STARTPTS[a2];[3:a]atempo=2,atempo=2,aresample=48000,aformat=channel_layouts=stereo,volume=1,apad=whole_dur=1,atrim=duration=1,asetpts=PTS-STARTPTS[a3];[4:a]aresample=48000,aformat=channel_layouts=stereo,volume=1,apad=whole_dur=4,atrim=duration=4,asetpts=PTS-STARTPTS[a4];[a0][a1]acrossfade=d=0.5:c1=tri:c2=tri[ax1];[ax1][a2]acrossfade=d=0.5:c1=tri:c2=tri[ax2];[ax2][a3]acrossfade=d=0.5:c1=tri:c2=tri[ax3];[ax3][a4]acrossfade=d=0.5:c1=tri:c2=tri[ax4];[ax4]anull[ab];[0:v]setpts=(PTS-STARTPTS)/2,fps=10,format=rgba,scale=128:128:force_original_aspect_ratio=decrease:force_divisible_by=2,pad=128:128:(ow-iw)/2:(oh-ih)/2:color=black@0,setsar=1,format=gbrap,geq=r='st(0,(W*(1*(X+0.5)/W+0*(Y+0.5)/H+0)/(0*(X+0.5)/W+0*(Y+0.5)/H+1)-0.5));st(1,(H*(0*(X+0.5)/W+1*(Y+0.5)/H+0)/(0*(X+0.5)/W+0*(Y+0.5)/H+1)-0.5));1*r(ld(0),ld(1))+0*g(ld(0),ld(1))+0*b(ld(0),ld(1))+0':g='st(0,(W*(1*(X+0.5)/W+0*(Y+0.5)/H+0)/(0*(X+0.5)/W+0*(Y+0.5)/H+1)-0.5));st(1,(H*(0*(X+0.5)/W+1*(Y+0.5)/H+0)/(0*(X+0.5)/W+0*(Y+0.5)/H+1)-0.5));0*r(ld(0),ld(1))+1*g(ld(0),ld(1))+0*b(ld(0),ld(1))+0':b='st(0,(W*(1*(X+0.5)/W+0*(Y+0.5)/H+0)/(0*(X+0.5)/W+0*(Y+0.5)/H+1)-0.5));st(1,(H*(0*(X+0.5)/W+1*(Y+0.5)/H+0)/(0*(X+0.5)/W+0*(Y+0.5)/H+1)-0.5));0*r(ld(0),ld(1))+0*g(ld(0),ld(1))+1*b(ld(0),ld(1))+0':a='st(0,(W*(1*(X+0.5)/W+0*(Y+0.5)/H+0)/(0*(X+0.5)/W+0*(Y+0.5)/H+1)-0.5));st(1,(H*(0*(X+0.5)/W+1*(Y+0.5)/H+0)/(0*(X+0.5)/W+0*(Y+0.5)/H+1)-0.5));if(between(ld(0),-0.5,W-0.5)*between(ld(1),-0.5,H-0.5),alpha(ld(0),ld(1))*1,0)':interpolation=bilinear,format=rgba,setpts=PTS-STARTPTS,format=gbrap,settb=AVTB[cp0];color=c=black:s=128x128:r=10:d=2,format=rgba,geq=r='0+(0)*clip(((X+0.5)*W+(Y+0.5)*H)/(W*W+H*H),0,1)':g='0+(0)*clip(((X+0.5)*W+(Y+0.5)*H)/(W*W+H*H),0,1)':b='0+(0)*clip(((X+0.5)*W+(Y+0.5)*H)/(W*W+H*H),0,1)':a='255+(0)*clip(((X+0.5)*W+(Y+0.5)*H)/(W*W+H*H),0,1)',format=rgba[cbglocal0];[5:v]fps=10,tpad=stop_mode=clone:stop_duration=1.75,trim=start=0:duration=1.75,setpts=PTS-STARTPTS,format=rgba,scale=128:128:force_original_aspect_ratio=decrease:force_divisible_by=2,pad=128:128:(ow-iw)/2:(oh-ih)/2:color=black@0,setsar=1,format=gbrap,geq=r='st(0,(W*(1*(X+0.5)/W+0*(Y+0.5)/H+0)/(0*(X+0.5)/W+0*(Y+0.5)/H+1)-0.5));st(1,(H*(0*(X+0.5)/W+1*(Y+0.5)/H+0)/(0*(X+0.5)/W+0*(Y+0.5)/H+1)-0.5));1*r(ld(0),ld(1))+0*g(ld(0),ld(1))+0*b(ld(0),ld(1))+0':g='st(0,(W*(1*(X+0.5)/W+0*(Y+0.5)/H+0)/(0*(X+0.5)/W+0*(Y+0.5)/H+1)-0.5));st(1,(H*(0*(X+0.5)/W+1*(Y+0.5)/H+0)/(0*(X+0.5)/W+0*(Y+0.5)/H+1)-0.5));0*r(ld(0),ld(1))+1*g(ld(0),ld(1))+0*b(ld(0),ld(1))+0':b='st(0,(W*(1*(X+0.5)/W+0*(Y+0.5)/H+0)/(0*(X+0.5)/W+0*(Y+0.5)/H+1)-0.5));st(1,(H*(0*(X+0.5)/W+1*(Y+0.5)/H+0)/(0*(X+0.5)/W+0*(Y+0.5)/H+1)-0.5));0*r(ld(0),ld(1))+0*g(ld(0),ld(1))+1*b(ld(0),ld(1))+0':a='st(0,(W*(1*(X+0.5)/W+0*(Y+0.5)/H+0)/(0*(X+0.5)/W+0*(Y+0.5)/H+1)-0.5));st(1,(H*(0*(X+0.5)/W+1*(Y+0.5)/H+0)/(0*(X+0.5)/W+0*(Y+0.5)/H+1)-0.5));if(between(ld(0),-0.5,W-0.5)*between(ld(1),-0.5,H-0.5),alpha(ld(0),ld(1))*1,0)':interpolation=bilinear,format=rgba,setpts=PTS-STARTPTS+0.25/TB[cbl0_0];[cbglocal0][cbl0_0]overlay=0:0:format=auto:enable='gte(t,0.25)*lt(t,2)'[cblbase0_0];[cblbase0_0]split=3[cq0b0][cq0b1][cq0b2];[cp0]split=3[cq0f0][cq0f1][cq0f2];[cq0b0][cq0f0]blend=all_mode=multiply:shortest=0[cq0rgb];[cq0b1]alphaextract,format=gbrp[cq0ba];[cq0f1]alphaextract[cq0fa];[cq0f2][cq0rgb][cq0ba]maskedmerge[cq0mix];[cq0mix][cq0fa]alphamerge[cq0fg];[cq0b2][cq0fg]overlay=0:0:format=auto:enable='gte(t,0)*lt(t,2)'[cq0];[cq0]format=gbrap,settb=AVTB[cqf0];[1:v]setpts=(PTS-STARTPTS)/0.5,fps=10,format=rgba,scale=128:128:force_original_aspect_ratio=decrease:force_divisible_by=2,pad=128:128:(ow-iw)/2:(oh-ih)/2:color=black@0,setsar=1,format=gbrap,geq=r='st(0,(W*(1*(X+0.5)/W+0*(Y+0.5)/H+0)/(0*(X+0.5)/W+0*(Y+0.5)/H+1)-0.5));st(1,(H*(0*(X+0.5)/W+1*(Y+0.5)/H+0)/(0*(X+0.5)/W+0*(Y+0.5)/H+1)-0.5));1*r(ld(0),ld(1))+0*g(ld(0),ld(1))+0*b(ld(0),ld(1))+0':g='st(0,(W*(1*(X+0.5)/W+0*(Y+0.5)/H+0)/(0*(X+0.5)/W+0*(Y+0.5)/H+1)-0.5));st(1,(H*(0*(X+0.5)/W+1*(Y+0.5)/H+0)/(0*(X+0.5)/W+0*(Y+0.5)/H+1)-0.5));0*r(ld(0),ld(1))+1*g(ld(0),ld(1))+0*b(ld(0),ld(1))+0':b='st(0,(W*(1*(X+0.5)/W+0*(Y+0.5)/H+0)/(0*(X+0.5)/W+0*(Y+0.5)/H+1)-0.5));st(1,(H*(0*(X+0.5)/W+1*(Y+0.5)/H+0)/(0*(X+0.5)/W+0*(Y+0.5)/H+1)-0.5));0*r(ld(0),ld(1))+0*g(ld(0),ld(1))+1*b(ld(0),ld(1))+0':a='st(0,(W*(1*(X+0.5)/W+0*(Y+0.5)/H+0)/(0*(X+0.5)/W+0*(Y+0.5)/H+1)-0.5));st(1,(H*(0*(X+0.5)/W+1*(Y+0.5)/H+0)/(0*(X+0.5)/W+0*(Y+0.5)/H+1)-0.5));if(between(ld(0),-0.5,W-0.5)*between(ld(1),-0.5,H-0.5),alpha(ld(0),ld(1))*1,0)':interpolation=bilinear,format=rgba,setpts=PTS-STARTPTS,format=gbrap,settb=AVTB[cp1];color=c=black:s=128x128:r=10:d=8,format=rgba,geq=r='0+(0)*clip(((X+0.5)*W+(Y+0.5)*H)/(W*W+H*H),0,1)':g='0+(0)*clip(((X+0.5)*W+(Y+0.5)*H)/(W*W+H*H),0,1)':b='0+(0)*clip(((X+0.5)*W+(Y+0.5)*H)/(W*W+H*H),0,1)':a='255+(0)*clip(((X+0.5)*W+(Y+0.5)*H)/(W*W+H*H),0,1)',format=rgba[cbglocal1];[6:v]fps=10,tpad=stop_mode=clone:stop_duration=7.75,trim=start=1.25:duration=6.5,setpts=PTS-STARTPTS,format=rgba,scale=128:128:force_original_aspect_ratio=decrease:force_divisible_by=2,pad=128:128:(ow-iw)/2:(oh-ih)/2:color=black@0,setsar=1,format=gbrap,geq=r='st(0,(W*(1*(X+0.5)/W+0*(Y+0.5)/H+0)/(0*(X+0.5)/W+0*(Y+0.5)/H+1)-0.5));st(1,(H*(0*(X+0.5)/W+1*(Y+0.5)/H+0)/(0*(X+0.5)/W+0*(Y+0.5)/H+1)-0.5));1*r(ld(0),ld(1))+0*g(ld(0),ld(1))+0*b(ld(0),ld(1))+0':g='st(0,(W*(1*(X+0.5)/W+0*(Y+0.5)/H+0)/(0*(X+0.5)/W+0*(Y+0.5)/H+1)-0.5));st(1,(H*(0*(X+0.5)/W+1*(Y+0.5)/H+0)/(0*(X+0.5)/W+0*(Y+0.5)/H+1)-0.5));0*r(ld(0),ld(1))+1*g(ld(0),ld(1))+0*b(ld(0),ld(1))+0':b='st(0,(W*(1*(X+0.5)/W+0*(Y+0.5)/H+0)/(0*(X+0.5)/W+0*(Y+0.5)/H+1)-0.5));st(1,(H*(0*(X+0.5)/W+1*(Y+0.5)/H+0)/(0*(X+0.5)/W+0*(Y+0.5)/H+1)-0.5));0*r(ld(0),ld(1))+0*g(ld(0),ld(1))+1*b(ld(0),ld(1))+0':a='st(0,(W*(1*(X+0.5)/W+0*(Y+0.5)/H+0)/(0*(X+0.5)/W+0*(Y+0.5)/H+1)-0.5));st(1,(H*(0*(X+0.5)/W+1*(Y+0.5)/H+0)/(0*(X+0.5)/W+0*(Y+0.5)/H+1)-0.5));if(between(ld(0),-0.5,W-0.5)*between(ld(1),-0.5,H-0.5),alpha(ld(0),ld(1))*1,0)':interpolation=bilinear,format=rgba,setpts=PTS-STARTPTS+0/TB[cbl1_0];[cbglocal1][cbl1_0]overlay=0:0:format=auto:enable='gte(t,0)*lt(t,6.5)'[cblbase1_0];[cblbase1_0][cp1]overlay=0:0:format=auto:enable='gte(t,0)*lt(t,8)'[cq1];[cq1]format=gbrap,settb=AVTB[cqf1];[2:v]fps=10,format=rgba,scale=128:128:force_original_aspect_ratio=decrease:force_divisible_by=2,pad=128:128:(ow-iw)/2:(oh-ih)/2:color=black@0,setsar=1,format=gbrap,geq=r='st(0,(W*(1*(X+0.5)/W+0*(Y+0.5)/H+0)/(0*(X+0.5)/W+0*(Y+0.5)/H+1)-0.5));st(1,(H*(0*(X+0.5)/W+1*(Y+0.5)/H+0)/(0*(X+0.5)/W+0*(Y+0.5)/H+1)-0.5));1*r(ld(0),ld(1))+0*g(ld(0),ld(1))+0*b(ld(0),ld(1))+0':g='st(0,(W*(1*(X+0.5)/W+0*(Y+0.5)/H+0)/(0*(X+0.5)/W+0*(Y+0.5)/H+1)-0.5));st(1,(H*(0*(X+0.5)/W+1*(Y+0.5)/H+0)/(0*(X+0.5)/W+0*(Y+0.5)/H+1)-0.5));0*r(ld(0),ld(1))+1*g(ld(0),ld(1))+0*b(ld(0),ld(1))+0':b='st(0,(W*(1*(X+0.5)/W+0*(Y+0.5)/H+0)/(0*(X+0.5)/W+0*(Y+0.5)/H+1)-0.5));st(1,(H*(0*(X+0.5)/W+1*(Y+0.5)/H+0)/(0*(X+0.5)/W+0*(Y+0.5)/H+1)-0.5));0*r(ld(0),ld(1))+0*g(ld(0),ld(1))+1*b(ld(0),ld(1))+0':a='st(0,(W*(1*(X+0.5)/W+0*(Y+0.5)/H+0)/(0*(X+0.5)/W+0*(Y+0.5)/H+1)-0.5));st(1,(H*(0*(X+0.5)/W+1*(Y+0.5)/H+0)/(0*(X+0.5)/W+0*(Y+0.5)/H+1)-0.5));if(between(ld(0),-0.5,W-0.5)*between(ld(1),-0.5,H-0.5),alpha(ld(0),ld(1))*1,0)':interpolation=bilinear,format=rgba,setpts=PTS-STARTPTS,format=gbrap,settb=AVTB[cp2];color=c=black:s=128x128:r=10:d=4,format=rgba,geq=r='0+(0)*clip(((X+0.5)*W+(Y+0.5)*H)/(W*W+H*H),0,1)':g='0+(0)*clip(((X+0.5)*W+(Y+0.5)*H)/(W*W+H*H),0,1)':b='0+(0)*clip(((X+0.5)*W+(Y+0.5)*H)/(W*W+H*H),0,1)':a='255+(0)*clip(((X+0.5)*W+(Y+0.5)*H)/(W*W+H*H),0,1)',format=rgba[cbglocal2];[cbglocal2][cp2]overlay=0:0:format=auto:enable='gte(t,0)*lt(t,4)'[cq2];[cq2]format=gbrap,settb=AVTB[cqf2];[3:v]setpts=(PTS-STARTPTS)/4,fps=10,format=rgba,scale=128:128:force_original_aspect_ratio=decrease:force_divisible_by=2,pad=128:128:(ow-iw)/2:(oh-ih)/2:color=black@0,setsar=1,format=gbrap,geq=r='st(0,(W*(1*(X+0.5)/W+0*(Y+0.5)/H+0)/(0*(X+0.5)/W+0*(Y+0.5)/H+1)-0.5));st(1,(H*(0*(X+0.5)/W+1*(Y+0.5)/H+0)/(0*(X+0.5)/W+0*(Y+0.5)/H+1)-0.5));1*r(ld(0),ld(1))+0*g(ld(0),ld(1))+0*b(ld(0),ld(1))+0':g='st(0,(W*(1*(X+0.5)/W+0*(Y+0.5)/H+0)/(0*(X+0.5)/W+0*(Y+0.5)/H+1)-0.5));st(1,(H*(0*(X+0.5)/W+1*(Y+0.5)/H+0)/(0*(X+0.5)/W+0*(Y+0.5)/H+1)-0.5));0*r(ld(0),ld(1))+1*g(ld(0),ld(1))+0*b(ld(0),ld(1))+0':b='st(0,(W*(1*(X+0.5)/W+0*(Y+0.5)/H+0)/(0*(X+0.5)/W+0*(Y+0.5)/H+1)-0.5));st(1,(H*(0*(X+0.5)/W+1*(Y+0.5)/H+0)/(0*(X+0.5)/W+0*(Y+0.5)/H+1)-0.5));0*r(ld(0),ld(1))+0*g(ld(0),ld(1))+1*b(ld(0),ld(1))+0':a='st(0,(W*(1*(X+0.5)/W+0*(Y+0.5)/H+0)/(0*(X+0.5)/W+0*(Y+0.5)/H+1)-0.5));st(1,(H*(0*(X+0.5)/W+1*(Y+0.5)/H+0)/(0*(X+0.5)/W+0*(Y+0.5)/H+1)-0.5));if(between(ld(0),-0.5,W-0.5)*between(ld(1),-0.5,H-0.5),alpha(ld(0),ld(1))*1,0)':interpolation=bilinear,format=rgba,setpts=PTS-STARTPTS,format=gbrap,settb=AVTB[cp3];color=c=black:s=128x128:r=10:d=1,format=rgba,geq=r='0+(0)*clip(((X+0.5)*W+(Y+0.5)*H)/(W*W+H*H),0,1)':g='0+(0)*clip(((X+0.5)*W+(Y+0.5)*H)/(W*W+H*H),0,1)':b='0+(0)*clip(((X+0.5)*W+(Y+0.5)*H)/(W*W+H*H),0,1)':a='255+(0)*clip(((X+0.5)*W+(Y+0.5)*H)/(W*W+H*H),0,1)',format=rgba[cbglocal3];[cbglocal3][cp3]overlay=0:0:format=auto:enable='gte(t,0)*lt(t,1)'[cq3];[cq3]format=gbrap,settb=AVTB[cqf3];[4:v]fps=10,format=rgba,scale=128:128:force_original_aspect_ratio=decrease:force_divisible_by=2,pad=128:128:(ow-iw)/2:(oh-ih)/2:color=black@0,setsar=1,format=gbrap,geq=r='st(0,(W*(1*(X+0.5)/W+0*(Y+0.5)/H+0)/(0*(X+0.5)/W+0*(Y+0.5)/H+1)-0.5));st(1,(H*(0*(X+0.5)/W+1*(Y+0.5)/H+0)/(0*(X+0.5)/W+0*(Y+0.5)/H+1)-0.5));1*r(ld(0),ld(1))+0*g(ld(0),ld(1))+0*b(ld(0),ld(1))+0':g='st(0,(W*(1*(X+0.5)/W+0*(Y+0.5)/H+0)/(0*(X+0.5)/W+0*(Y+0.5)/H+1)-0.5));st(1,(H*(0*(X+0.5)/W+1*(Y+0.5)/H+0)/(0*(X+0.5)/W+0*(Y+0.5)/H+1)-0.5));0*r(ld(0),ld(1))+1*g(ld(0),ld(1))+0*b(ld(0),ld(1))+0':b='st(0,(W*(1*(X+0.5)/W+0*(Y+0.5)/H+0)/(0*(X+0.5)/W+0*(Y+0.5)/H+1)-0.5));st(1,(H*(0*(X+0.5)/W+1*(Y+0.5)/H+0)/(0*(X+0.5)/W+0*(Y+0.5)/H+1)-0.5));0*r(ld(0),ld(1))+0*g(ld(0),ld(1))+1*b(ld(0),ld(1))+0':a='st(0,(W*(1*(X+0.5)/W+0*(Y+0.5)/H+0)/(0*(X+0.5)/W+0*(Y+0.5)/H+1)-0.5));st(1,(H*(0*(X+0.5)/W+1*(Y+0.5)/H+0)/(0*(X+0.5)/W+0*(Y+0.5)/H+1)-0.5));if(between(ld(0),-0.5,W-0.5)*between(ld(1),-0.5,H-0.5),alpha(ld(0),ld(1))*1,0)':interpolation=bilinear,format=rgba,setpts=PTS-STARTPTS,format=gbrap,settb=AVTB[cp4];color=c=black:s=128x128:r=10:d=4,format=rgba,geq=r='0+(0)*clip(((X+0.5)*W+(Y+0.5)*H)/(W*W+H*H),0,1)':g='0+(0)*clip(((X+0.5)*W+(Y+0.5)*H)/(W*W+H*H),0,1)':b='0+(0)*clip(((X+0.5)*W+(Y+0.5)*H)/(W*W+H*H),0,1)':a='255+(0)*clip(((X+0.5)*W+(Y+0.5)*H)/(W*W+H*H),0,1)',format=rgba[cbglocal4];[cbglocal4][cp4]overlay=0:0:format=auto:enable='gte(t,0)*lt(t,4)'[cq4];[cq4]format=gbrap,settb=AVTB[cqf4];[cqf0][cqf1]xfade=transition=fade:duration=0.5:offset=1.5[cx1];[cx1][cqf2]xfade=transition=custom:expr='if(eq(PLANE,3),255,if(gte(P,0.5),A*(2*P-1),B*(1-2*P)))':duration=0.5:offset=9[cx2];[cx2][cqf3]xfade=transition=slideleft:duration=0.5:offset=12.5[cx3];[cx3][cqf4]xfade=transition=zoomin:duration=0.5:offset=13[cx4]",
+      "mapas": [
+        "-map",
+        "[cx4]",
+        "-map",
+        "[ab]"
+      ],
+      "duracao": 17
+    }
+  }
+}

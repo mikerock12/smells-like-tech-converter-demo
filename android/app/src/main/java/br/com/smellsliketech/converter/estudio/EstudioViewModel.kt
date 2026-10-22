@@ -296,6 +296,13 @@ class EstudioViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) {
 
     // ==================== exportar ====================
 
+    fun gerarLegendas(modeloWhisper: String) = executar("Gerando legendas automáticas…") {
+        val atual=projeto ?: return@executar
+        val textos=Exportador.legendas(contexto,atual,modeloWhisper) {relatar(it)}
+        if(projeto!==atual) throw ErroDeConversao("O projeto mudou. Gere as legendas novamente.")
+        mudar {p->p.copy(textos=p.textos.filterNot {it.id.startsWith("legenda-")}+textos)}
+    }
+
     fun exportar(modeloWhisper: String) = executar("Exportando…") {
         val atual = projeto ?: return@executar
         resultado = null

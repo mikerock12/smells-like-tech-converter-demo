@@ -51,6 +51,10 @@ data class Projeto(
 }
 
 /** Um vídeo ou imagem da faixa principal. `inicio`/`fim` contam no arquivo. */
+data class Transicao(val tipo: String = "corte", val duracao: Double = .5) {
+    fun paraJson() = JSONObject().put("tipo", tipo).put("duracao", duracao)
+}
+
 data class Clipe(
     val id: String,
     /** Referência do arquivo: o caminho da cópia local, no Android. */
@@ -62,6 +66,8 @@ data class Clipe(
     val ajuste: String = "caber-desfocado",
     val volume: Double? = null,
     val mudo: Boolean? = null,
+    val velocidade: Double = 1.0,
+    val transicao: Transicao? = null,
     val transformacao: Transformacao? = null,
 ) {
     val ehImagem get() = tipo == "imagem"
@@ -69,6 +75,7 @@ data class Clipe(
     fun paraJson(): JSONObject = JSONObject().put("id", id).put("arquivo", arquivo).put("tipo", tipo)
         .putOpt("inicio", inicio).putOpt("fim", fim).putOpt("duracao", duracao).put("ajuste", ajuste)
         .putOpt("volume", volume).putOpt("mudo", mudo)
+        .put("velocidade", velocidade).putOpt("transicao", transicao?.paraJson())
         .putOpt("transformacao", transformacao?.paraJson())
 
     companion object {
@@ -81,6 +88,8 @@ data class Clipe(
             duracao = json.numero("duracao"),
             ajuste = json.optString("ajuste", "caber"),
             volume = json.numero("volume"),
+            velocidade = json.optDouble("velocidade", 1.0),
+            transicao = json.optJSONObject("transicao")?.let { Transicao(it.optString("tipo", "corte"), it.optDouble("duracao", .5)) },
             mudo = if (json.has("mudo") && !json.isNull("mudo")) json.getBoolean("mudo") else null,
             transformacao = json.optJSONObject("transformacao")?.let(Transformacao::deJson),
         )

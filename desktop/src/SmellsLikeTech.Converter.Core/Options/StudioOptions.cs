@@ -12,7 +12,7 @@ public sealed record StudioExportOptions : JobOptions
 {
     public override string Operation => OperationIds.StudioExport;
 
-    public override string OutputExtension => StudioRules.FindOutput(Project.Output)?.Extension ?? "mp4";
+    public override string OutputExtension => Project.Output=="texto" ? TranscriptionFormat : StudioRules.FindOutput(Project.Output)?.Extension ?? "mp4";
 
     public required StudioProject Project { get; init; }
 
@@ -21,6 +21,8 @@ public sealed record StudioExportOptions : JobOptions
 
     /// <summary>Modelo Whisper da saida "texto".</summary>
     public string TranscriptionModel { get; init; } = "base";
+
+    public string TranscriptionFormat { get; init; } = "txt";
 
     public string TranscriptionLanguage { get; init; } = "auto";
 
@@ -32,9 +34,9 @@ public sealed record StudioExportOptions : JobOptions
             throw new ConversionException("invalid_project", string.Join(" ", problems));
         }
 
-        if (Project.Clips.Count > 100 || Project.Texts.Count > 100 || Project.Audios.Count > 20)
+        if (Project.Clips.Count > 100 || Project.Texts.Count > 1100 || Project.Audios.Count > 20)
         {
-            throw new ConversionException("project_too_large", "O projeto passou do limite de 100 clipes, 100 textos e 20 áudios.");
+            throw new ConversionException("project_too_large", "O projeto passou do limite de 100 clipes, 1100 textos e 20 áudios.");
         }
 
         if (Quality is < 0 or > 100)
@@ -44,7 +46,7 @@ public sealed record StudioExportOptions : JobOptions
 
         if (Project.Output == "texto")
         {
-            new TranscribeOptions { Model = TranscriptionModel, Language = TranscriptionLanguage }.Validate();
+            new TranscribeOptions { Model = TranscriptionModel, Language = TranscriptionLanguage, OutputFormat = TranscriptionFormat }.Validate();
         }
     }
 

@@ -39,8 +39,14 @@ public sealed record StudioProject
 }
 
 /// <summary>Um video ou imagem da faixa principal.</summary>
+public sealed record StudioTransition(
+    [property: JsonPropertyName("tipo")] string Kind = "corte",
+    [property: JsonPropertyName("duracao")] double Duration = .5);
+
 public sealed record StudioClip
 {
+    [JsonPropertyName("velocidade")] public double Speed { get; init; } = 1;
+    [JsonPropertyName("transicao")] public StudioTransition? Transition { get; init; }
     [JsonPropertyName("transformacao")] public StudioTransform? Transform { get; init; }
     [JsonPropertyName("id")] public string Id { get; init; } = "";
     /// <summary>Referencia do arquivo: caminho no aplicativo, nome do envio no plugin.</summary>

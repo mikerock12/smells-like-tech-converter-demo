@@ -5,6 +5,7 @@ import {
   textosNoTempo,
   camadasNoTempo,
   clipeNoTempo,
+  transicaoNoTempo,
   type IdDoAjuste,
   type Projeto,
   type Texto,
@@ -146,14 +147,47 @@ export function desenharQuadro(ctx: Contexto2D, projeto: Projeto, t: number, ima
     if (fonte) desenharCamada(ctx, fonte, largura, altura, camada.transformacao);
   };
   camadas.filter(c => (c.ordem ?? 1) < 0).forEach(desenharExtra);
-  if (imagem && ajuste) {
-    const transformacao = clipeNoTempo(projeto, t)?.clipe.transformacao;
-    if (transformacao) {
-      const textura = new OffscreenCanvas(largura, altura);
-      const pincel = textura.getContext("2d")!;
-      enquadrar(pincel, imagem, ajuste, largura, altura);
-      desenharCamada(ctx, textura, largura, altura, transformacao);
-    } else enquadrar(ctx, imagem, ajuste, largura, altura);
+  const primeiro = clipeNoTempo(projeto,t)?.clipe;
+  const transicao = transicaoNoTempo(projeto,t);
+  const textura = (fonte: Imagem | null, clipe: Projeto["clipes"][number] | undefined) => {
+    const tela=new OffscreenCanvas(largura,altura), c=tela.getContext("2d")!;
+    c.drawImage(ctx.canvas,0,0,largura,altura);
+    if(fonte && clipe) {
+      const enquadrada=new OffscreenCanvas(largura,altura);
+      enquadrar(enquadrada.getContext("2d")!,fonte,clipe.ajuste,largura,altura);
+      desenharCamada(c,enquadrada,largura,altura,clipe.transformacao);
+    }
+    return tela;
+  };
+  if(transicao) {
+    const a=textura(imagem,primeiro), b=textura(midias.get("__transicao")??null,transicao.clipe);
+    const p=transicao.progresso, tela=new OffscreenCanvas(largura,altura), c=tela.getContext("2d")!;
+    if(transicao.tipo==="deslizar") {
+      c.drawImage(a,-p*largura,0);c.drawImage(b,(1-p)*largura,0);
+    } else if(transicao.tipo==="fade") {
+      c.fillStyle="#000";c.fillRect(0,0,largura,altura);
+      c.globalAlpha=Math.abs(1-2*p);c.drawImage(p<.5?a:b,0,0);
+    } else if(transicao.tipo==="zoom") {
+      // Mesma curva smoothstep do xfade/zoomin: aproxima o plano e revela o seguinte.
+      const smooth=(x:number)=>{const v=Math.max(0,Math.min(1,x));return v*v*(3-2*v);};
+      const z=smooth(1-2*p), alfa=smooth(2*(1-p));
+      const w=Math.max(1,largura*z), h=Math.max(1,altura*z);
+      c.imageSmoothingEnabled=false;c.globalAlpha=alfa;
+      c.drawImage(a,(largura-w)/2,(altura-h)/2,w,h,0,0,largura,altura);
+      c.globalCompositeOperation="lighter";c.globalAlpha=1-alfa;c.drawImage(b,0,0);
+    } else {
+      c.globalAlpha=1-p;
+      c.drawImage(a,0,0);
+      c.globalCompositeOperation="lighter";c.globalAlpha=p;c.drawImage(b,0,0);
+    }
+    ctx.clearRect(0,0,largura,altura);ctx.drawImage(tela,0,0);
+  } else if(imagem && ajuste && primeiro) {
+    if(primeiro.transformacao) {
+      const tela=new OffscreenCanvas(largura,altura);
+      enquadrar(tela.getContext("2d")!,imagem,ajuste,largura,altura);
+      desenharCamada(ctx,tela,largura,altura,primeiro.transformacao);
+    }
+    else enquadrar(ctx,imagem,ajuste,largura,altura);
   }
   camadas.filter(c => (c.ordem ?? 1) >= 0).forEach(desenharExtra);
   for (const texto of textosNoTempo(projeto, t)) {

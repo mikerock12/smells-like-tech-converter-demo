@@ -30,7 +30,7 @@ class PreviaDoEstudio(private val contexto: Context) {
 
     /** O quadro do projeto em `t`, com o lado maior em `ladoMaximo` px. */
     suspend fun quadro(projeto: Projeto, t: Double, ladoMaximo: Int = 720): Bitmap = withContext(Dispatchers.Default) {
-        if (projeto.clipes.isNotEmpty() && Estudio.usaCamadas(projeto)) {
+        if (projeto.clipes.isNotEmpty() && (Estudio.usaCamadas(projeto) || Estudio.temTransicoes(projeto))) {
             val escala = minOf(1.0, 480.0 / max(projeto.largura, projeto.altura))
             val reduzido = projeto.copy(largura = Estudio.par(projeto.largura * escala), altura = Estudio.par(projeto.altura * escala),
                 saida = "imagem", quadro = t.coerceIn(0.0, maxOf(0.0, Estudio.duracaoTotal(projeto) - 1.0 / projeto.fps)))

@@ -12,7 +12,7 @@ namespace SmellsLikeTech.Converter.Core.Studio;
 /// </summary>
 public static class StudioRules
 {
-    public const int ProjectVersion = 2;
+    public const int ProjectVersion = 3;
     public const double DefaultImageDuration = 3;
     public const double MinimumDuration = 0.1;
     public const int GifShortSide = 480;
@@ -70,9 +70,16 @@ public static class StudioRules
         };
     }
 
+    public static double SourceDuration(StudioClip clip) => Math.Max(MinimumDuration, (clip.End ?? 0) - (clip.Start ?? 0));
+    public static double ClipSpeed(StudioClip clip) => clip.IsImage || !double.IsFinite(clip.Speed) || clip.Speed<.25 || clip.Speed>4 ? 1 : clip.Speed;
+    public static double TransitionDuration(StudioProject p,int i) {
+        if(i<0 || i+1>=p.Clips.Count || p.Clips[i].Transition is not {} t || t.Kind=="corte") return 0;
+        return Round(Math.Max(0,Math.Min(t.Duration,Math.Min(ClipDuration(p.Clips[i])/2,ClipDuration(p.Clips[i+1])/2))));
+    }
+    public static bool HasTransitions(StudioProject p) => p.Clips.Select((_,i)=>TransitionDuration(p,i)).Any(d=>d>0);
     public static double ClipDuration(StudioClip clip) => clip.IsImage
         ? Math.Max(MinimumDuration, clip.Duration ?? DefaultImageDuration)
-        : Math.Max(MinimumDuration, (clip.End ?? 0) - (clip.Start ?? 0));
+        : SourceDuration(clip) / ClipSpeed(clip);
 
     public static IReadOnlyList<StudioSegment> Segments(StudioProject project)
     {
@@ -80,6 +87,7 @@ public static class StudioRules
         var now = 0.0;
         for (var i = 0; i < project.Clips.Count; i++)
         {
+            if(i>0) now-=TransitionDuration(project,i-1);
             var duration = ClipDuration(project.Clips[i]);
             list.Add(new StudioSegment(i, project.Clips[i].Id, Round(now), Round(now + duration), Round(duration)));
             now += duration;
@@ -89,7 +97,7 @@ public static class StudioRules
     }
 
     public static double TotalDuration(StudioProject project) =>
-        Round(project.Clips.Aggregate(0.0, (sum, clip) => sum + ClipDuration(clip)));
+        Segments(project).LastOrDefault()?.End ?? 0;
 
     /// <summary>Clipe visivel no instante <paramref name="time"/> e o ponto dele no arquivo.</summary>
     public static (int Index, StudioClip Clip, double TimeInFile)? ClipAt(StudioProject project, double time)
@@ -104,7 +112,7 @@ public static class StudioRules
         var segment = segments.FirstOrDefault(s => target < s.End) ?? segments[^1];
         var clip = project.Clips[segment.Index];
         var inside = Math.Min(target - segment.Start, segment.Duration);
-        return (segment.Index, clip, Round(clip.IsImage ? 0 : (clip.Start ?? 0) + inside));
+        return (segment.Index, clip, Round(clip.IsImage ? 0 : (clip.Start ?? 0) + inside * ClipSpeed(clip)));
     }
 
     /// <summary>Retangulo onde a origem e desenhada para preencher ou caber (pares, como o scale do FFmpeg).</summary>
@@ -134,7 +142,7 @@ public static class StudioRules
     public static IReadOnlyList<string> Problems(StudioProject project)
     {
         var list = new List<string>();
-        if (project.Version is not (1 or ProjectVersion))
+        if (project.Version is not (1 or 2 or ProjectVersion))
         {
             list.Add("Projeto de uma versão que este app não conhece.");
         }
@@ -162,6 +170,8 @@ public static class StudioRules
                 list.Add($"O clipe {i + 1} termina antes de começar.");
             }
 
+            if (!double.IsFinite(clip.Speed) || clip.Speed<.25 || clip.Speed>4) list.Add($"A velocidade do clipe {i+1} precisa ficar entre 0,25× e 4×.");
+            if (clip.Transition is {} t && (t.Kind is not ("corte" or "fade" or "dissolver" or "deslizar" or "zoom") || !double.IsFinite(t.Duration) || t.Duration<.1 || t.Duration>5)) list.Add($"A transição do clipe {i+1} é inválida (use de 0,1 a 5 segundos).");
             if (!Fits.Any(f => f.Id == clip.Fit))
             {
                 list.Add($"O clipe {i + 1} está sem enquadramento.");

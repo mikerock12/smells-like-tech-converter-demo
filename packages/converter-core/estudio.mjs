@@ -11,7 +11,28 @@ import dados from "./estudio-presets.json" with { type: "json" };
 import { validarTransformacao } from "./camadas.mjs";
 import { receitaComCamadas } from "./estudio-camadas.mjs";
 
-export const VERSAO_DO_PROJETO = 2;
+export const VERSAO_DO_PROJETO = 3;
+export const TRANSICOES = Object.freeze([
+  {id:"corte",titulo:"Corte seco"}, {id:"fade",titulo:"Fade pelo preto"},
+  {id:"dissolver",titulo:"Dissolver"}, {id:"deslizar",titulo:"Deslizar"}, {id:"zoom",titulo:"Zoom"},
+]);
+export function velocidadeDoClipe(c) { const v=c.velocidade??1; return c.tipo === "imagem" || !Number.isFinite(v) || v<.25 || v>4 ? 1 : v; }
+export function duracaoDaOrigem(c) { return Math.max(DURACAO_MINIMA, (c.fim ?? 0) - (c.inicio ?? 0)); }
+/** Saída do clipe; limita a metade dos vizinhos para não haver três imagens simultâneas. */
+export function duracaoDaTransicao(p,i) {
+  const c=p.clipes[i], seguinte=p.clipes[i+1];
+  if (!c?.transicao || !seguinte || c.transicao.tipo === "corte") return 0;
+  return arredondar(Math.max(0, Math.min(c.transicao.duracao ?? .5, duracaoDoClipe(c)/2, duracaoDoClipe(seguinte)/2)));
+}
+export function temTransicoes(p) { return p.clipes.some((_,i)=>duracaoDaTransicao(p,i)>0); }
+export function filtroDeVelocidade(c) { const v=velocidadeDoClipe(c); return v===1?"":`setpts=(PTS-STARTPTS)/${numero(v)},`; }
+export function filtroDeTempoAudio(c) {
+  let v=velocidadeDoClipe(c); const lista=[];
+  if (v===1) return "";
+  while(v>2) {lista.push("atempo=2");v/=2;}
+  while(v<.5) {lista.push("atempo=0.5");v*=2;}
+  lista.push(`atempo=${numero(v)}`); return lista.join(",")+",";
+}
 
 /** Destinos prontos (rede · formato), na ordem em que aparecem para escolher. */
 export const PRESETS = Object.freeze(dados.presets.map((preset) => Object.freeze({ ...preset })));
@@ -94,13 +115,14 @@ export function novoProjeto(destino, saida = "video", tamanho = null) {
 /** Quanto um clipe ocupa na linha do tempo. */
 export function duracaoDoClipe(clipe) {
   if (clipe.tipo === "imagem") return Math.max(DURACAO_MINIMA, clipe.duracao ?? DURACAO_PADRAO_DA_IMAGEM);
-  return Math.max(DURACAO_MINIMA, (clipe.fim ?? 0) - (clipe.inicio ?? 0));
+  return duracaoDaOrigem(clipe) / velocidadeDoClipe(clipe);
 }
 
 /** A faixa principal em ordem, com o começo e o fim de cada clipe na linha do tempo. */
 export function segmentos(projeto) {
   let agora = 0;
   return projeto.clipes.map((clipe, indice) => {
+    if (indice > 0) agora -= duracaoDaTransicao(projeto, indice - 1);
     const duracao = duracaoDoClipe(clipe);
     const segmento = { indice, id: clipe.id, inicio: arredondar(agora), fim: arredondar(agora + duracao), duracao: arredondar(duracao) };
     agora += duracao;
@@ -109,7 +131,7 @@ export function segmentos(projeto) {
 }
 
 export function duracaoTotal(projeto) {
-  return arredondar(projeto.clipes.reduce((soma, clipe) => soma + duracaoDoClipe(clipe), 0));
+  return segmentos(projeto).at(-1)?.fim ?? 0;
 }
 
 /** Qual clipe aparece no instante `t` da linha do tempo e em que ponto do arquivo dele. */
@@ -123,13 +145,23 @@ export function clipeNoTempo(projeto, t) {
   return {
     indice: segmento.indice,
     clipe,
-    tempoNoArquivo: arredondar(clipe.tipo === "imagem" ? 0 : (clipe.inicio ?? 0) + dentro),
+    tempoNoArquivo: arredondar(clipe.tipo === "imagem" ? 0 : (clipe.inicio ?? 0) + dentro * velocidadeDoClipe(clipe)),
   };
+}
+
+export function transicaoNoTempo(p,t) {
+  const lista=segmentos(p);
+  for(let i=1;i<lista.length;i++) {
+    const d=duracaoDaTransicao(p,i-1), s=lista[i], c=p.clipes[i];
+    if(d>0 && t>=s.inicio && t<lista[i-1].fim) return {indice:i,clipe:c,tipo:p.clipes[i-1].transicao.tipo,
+      progresso:Math.min(1,(t-s.inicio)/d),tempoNoArquivo:c.tipo==="imagem"?0:(c.inicio??0)+(t-s.inicio)*velocidadeDoClipe(c)};
+  }
+  return null;
 }
 
 /** Os textos visíveis no instante `t`. */
 export function textosNoTempo(projeto, t) {
-  return projeto.textos.filter((texto) => t >= texto.inicio && t <= texto.fim);
+  return projeto.textos.filter((texto) => t >= texto.inicio && (texto.id.startsWith("legenda-") ? t < texto.fim : t <= texto.fim));
 }
 
 /** Camadas extras: início/fim na composição, deslocamento no arquivo de origem. */
@@ -169,7 +201,7 @@ export function tamanhoDoGif(largura, altura) {
 /** Problemas que impedem exportar, em português, prontos para mostrar. */
 export function problemas(projeto) {
   const lista = [];
-  if (![1, VERSAO_DO_PROJETO].includes(projeto.versao)) lista.push("Projeto de uma versão que este app não conhece.");
+  if (![1, 2, VERSAO_DO_PROJETO].includes(projeto.versao)) lista.push("Projeto de uma versão que este app não conhece.");
   if (!(projeto.largura >= 16 && projeto.altura >= 16 && projeto.largura <= 4096 && projeto.altura <= 4096)) {
     lista.push("O tamanho do quadro precisa ficar entre 16 e 4096 pixels.");
   }
@@ -179,6 +211,8 @@ export function problemas(projeto) {
     if (clipe.tipo === "video" && !((clipe.fim ?? 0) - (clipe.inicio ?? 0) >= DURACAO_MINIMA)) {
       lista.push(`O clipe ${i + 1} termina antes de começar.`);
     }
+    if (!Number.isFinite(clipe.velocidade ?? 1) || (clipe.velocidade ?? 1)<.25 || (clipe.velocidade ?? 1)>4) lista.push(`A velocidade do clipe ${i+1} precisa ficar entre 0,25× e 4×.`);
+    if (clipe.transicao && (!TRANSICOES.some(t=>t.id===clipe.transicao.tipo) || !Number.isFinite(clipe.transicao.duracao) || clipe.transicao.duracao<.1 || clipe.transicao.duracao>5)) lista.push(`A transição do clipe ${i+1} é inválida (use de 0,1 a 5 segundos).`);
     if (!AJUSTES.some((a) => a.id === clipe.ajuste)) lista.push(`O clipe ${i + 1} está sem enquadramento.`);
   });
   projeto.textos.forEach((texto, i) => {
@@ -239,7 +273,7 @@ export function cabeNoNavegador(projeto) {
  * áudio. O GIF já sai com a paleta, no tamanho de `tamanhoDoGif`.
  */
 export function receitaFfmpeg(projeto, entradas) {
-  if (!["audio", "texto"].includes(projeto.saida) && usaCamadas(projeto)) return receitaComCamadas(projeto, entradas);
+  if (!["audio", "texto"].includes(projeto.saida) && (usaCamadas(projeto) || temTransicoes(projeto))) return receitaComCamadas(projeto, entradas);
   const { largura: W, altura: H, fps } = projeto;
   const total = duracaoTotal(projeto);
   const comVideo = projeto.saida !== "audio" && projeto.saida !== "texto";
@@ -252,19 +286,27 @@ export function receitaFfmpeg(projeto, entradas) {
     const caminho = entradas.clipes[i].caminho;
     const duracao = duracaoDoClipe(clipe);
     if (clipe.tipo === "imagem") args.push("-loop", "1", "-framerate", String(fps), "-t", numero(duracao), "-i", caminho);
-    else args.push("-ss", numero(clipe.inicio ?? 0), "-t", numero(duracao), "-i", caminho);
+    else args.push("-ss", numero(clipe.inicio ?? 0), "-t", numero(duracaoDaOrigem(clipe)), "-i", caminho);
     const n = indiceDaEntrada++;
-    if (comVideo) filtros.push(filtroDoClipe(clipe.ajuste, n, i, W, H, fps));
+    if (comVideo) filtros.push(filtroDoClipe(clipe.ajuste, n, i, W, H, fps).replace(`[${n}:v]`, `[${n}:v]${filtroDeVelocidade(clipe)}`));
     if (comAudio) {
       const temAudio = clipe.tipo === "video" && entradas.clipes[i].temAudio && !clipe.mudo && (clipe.volume ?? 1) > 0;
       filtros.push(temAudio
-        ? `[${n}:a]aresample=48000,aformat=channel_layouts=stereo,volume=${numero(clipe.volume ?? 1)},apad=whole_dur=${numero(duracao)},atrim=duration=${numero(duracao)},asetpts=PTS-STARTPTS[a${i}]`
+        ? `[${n}:a]${filtroDeTempoAudio(clipe)}aresample=48000,aformat=channel_layouts=stereo,volume=${numero(clipe.volume ?? 1)},apad=whole_dur=${numero(duracao)},atrim=duration=${numero(duracao)},asetpts=PTS-STARTPTS[a${i}]`
         : `anullsrc=r=48000:cl=stereo,atrim=duration=${numero(duracao)},asetpts=PTS-STARTPTS[a${i}]`);
     }
   });
 
   const pares = projeto.clipes.map((_, i) => `${comVideo ? `[v${i}]` : ""}${comAudio ? `[a${i}]` : ""}`).join("");
-  filtros.push(`${pares}concat=n=${projeto.clipes.length}:v=${comVideo ? 1 : 0}:a=${comAudio ? 1 : 0}${comVideo ? "[vb]" : ""}${comAudio ? "[ab]" : ""}`);
+  if (temTransicoes(projeto) && !comVideo) {
+    let anterior="a0";
+    for(let i=1;i<projeto.clipes.length;i++) {
+      const d=duracaoDaTransicao(projeto,i-1), proximo=`ax${i}`;
+      filtros.push(d>0?`[${anterior}][a${i}]acrossfade=d=${numero(d)}:c1=tri:c2=tri[${proximo}]`:`[${anterior}][a${i}]concat=n=2:v=0:a=1[${proximo}]`);
+      anterior=proximo;
+    }
+    filtros.push(`[${anterior}]anull[ab]`);
+  } else filtros.push(`${pares}concat=n=${projeto.clipes.length}:v=${comVideo ? 1 : 0}:a=${comAudio ? 1 : 0}${comVideo ? "[vb]" : ""}${comAudio ? "[ab]" : ""}`);
 
   let video = "vb";
   if (comVideo) {
@@ -272,7 +314,7 @@ export function receitaFfmpeg(projeto, entradas) {
       args.push("-loop", "1", "-framerate", String(fps), "-t", numero(total), "-i", entradas.textos[j]);
       const n = indiceDaEntrada++;
       const proximo = `vt${j}`;
-      filtros.push(`[${video}][${n}:v]overlay=0:0:enable='between(t,${numero(texto.inicio)},${numero(texto.fim)})'[${proximo}]`);
+      filtros.push(`[${video}][${n}:v]overlay=0:0:enable='${texto.id.startsWith("legenda-")?`gte(t,${numero(texto.inicio)})*lt(t,${numero(texto.fim)})`:`between(t,${numero(texto.inicio)},${numero(texto.fim)})`}'[${proximo}]`);
       video = proximo;
     });
     if (projeto.saida === "gif") {
