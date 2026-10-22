@@ -331,6 +331,14 @@ private fun EditorDeFigurinha(modelo: FigurinhasViewModel) {
                 Dica(if (modelo.animada) "O GIF vira figurinha animada (os primeiros 10 s)." else "A figurinha estática usa o primeiro quadro do GIF.")
             }
             if (modelo.animada) {
+                Rotulado("Quadros por segundo") {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Regras.QUADROS_POR_SEGUNDO.forEach { valor ->
+                            FilterChip(selected = modelo.quadrosPorSegundo == valor, onClick = { modelo.mudarQuadrosPorSegundo(valor) }, label = { Text("$valor") })
+                        }
+                    }
+                }
+                Dica("Toda figurinha anima nessa velocidade, sem pular quadros. Se o vídeo tiver movimento demais para os 500 KB do WhatsApp, ela fica mais curta. Mais quadros: mais suave e mais curta.")
                 Rotulado("Duração da composição: ${(modelo.fim - modelo.inicio).toFloat()} s") {
                     Slider((modelo.fim - modelo.inicio).toFloat().coerceIn(0.2f, 10f),
                         { modelo.fim = modelo.inicio + it }, valueRange = 0.2f..10f)

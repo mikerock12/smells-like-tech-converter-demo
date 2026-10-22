@@ -25,9 +25,11 @@ class FigurinhaDeVideoTest {
         val pasta = File(contexto.filesDir, "videos-de-teste")
         val videos = pasta.listFiles { f -> f.extension == "mp4" }.orEmpty().sortedBy { it.name }
         assumeTrue("sem vídeos em $pasta", videos.isNotEmpty())
-        for (video in videos) for (segundos in listOf(3.0, 10.0)) {
+        val falhas = mutableListOf<String>()
+        for (video in videos) for (porSegundo in Regras.QUADROS_POR_SEGUNDO) {
+            val segundos = 10.0
             lateinit var modelo: FigurinhasViewModel
-            instrumentacao.runOnMainSync { modelo = FigurinhasViewModel(contexto.applicationContext as Application) }
+            instrumentacao.runOnMainSync { modelo = FigurinhasViewModel(contexto.applicationContext as Application); modelo.mudarQuadrosPorSegundo(porSegundo) }
             val comeco = System.currentTimeMillis()
             instrumentacao.runOnMainSync { modelo.abrir(Uri.fromFile(video)) }
             esperar { modelo.ocupado == null && (modelo.previa != null || modelo.aviso != null) }
@@ -51,10 +53,21 @@ class FigurinhaDeVideoTest {
             val webp = Pacotes(contexto).arquivo(pacote!!, pacote.figurinhas.last().arquivo).readBytes()
             val info = WebpAnimado.ler(webp)
             val duracoes = info.quadros.map { it.duracaoMs }
-            Log.i("FigurinhaDeVideo", "${video.name} ${segundos}s: abrir ${aberto0 - comeco} ms, instantes $instantes ms, gerar ${pronto - aberto} ms, " +
+            Log.i("FigurinhaDeVideo", "${video.name} ${porSegundo}/s: abrir ${aberto0 - comeco} ms, instantes $instantes ms, gerar ${pronto - aberto} ms, " +
                 "${webp.size / 1024} KB, ${info.quadros.size} quadros, ${info.duracaoMs} ms, duracoes=${duracoes.distinct()}")
             Pacotes(contexto).excluir(pacote)
+            // Mesma fluidez sempre: todo quadro dura 1/porSegundo (o normalizador alterna 66/67 ms)
+            // e nenhum é pulado. Só quando o próprio vídeo repete um quadro (a câmera perdeu um) o
+            // libwebp junta os dois iguais num só, com o dobro do tempo: a imagem é a mesma.
+            val esperado = 1000.0 / porSegundo
+            val foraDoRitmo = duracoes.filter { d -> kotlin.math.abs(d - esperado * kotlin.math.round(d / esperado)) > 1.0 || d < esperado - 1.0 }
+            val repetidos = duracoes.count { it > esperado + 1.0 }
+            if (foraDoRitmo.isNotEmpty() || repetidos > duracoes.size / 20) falhas += "${video.name} ${porSegundo}/s: duracoes=${duracoes.distinct()}"
+            if (webp.size > Regras.ANIMADA_MAX_BYTES) falhas += "${video.name} ${porSegundo}/s: ${webp.size} bytes"
         }
+        assertTrue(falhas.joinToString("; "), falhas.isEmpty())
+        // A escolha fica guardada; volta ao padrão para não afetar o uso normal.
+        instrumentacao.runOnMainSync { FigurinhasViewModel(contexto.applicationContext as Application).mudarQuadrosPorSegundo(Regras.QUADROS_POR_SEGUNDO_PADRAO) }
     }
 
     /**

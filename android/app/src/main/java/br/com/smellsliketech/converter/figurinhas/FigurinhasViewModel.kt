@@ -56,6 +56,21 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
         private set
     /** Animada (trecho) ou estática (um quadro); imagem parada é sempre estática. */
     var animada by mutableStateOf(false)
+
+    private val preferencias = aplicacao.getSharedPreferences("figurinhas", android.content.Context.MODE_PRIVATE)
+
+    /** Quadros por segundo da animada (10, 12 ou 15), iguais em toda figurinha; a escolha fica guardada. */
+    var quadrosPorSegundo by mutableStateOf(
+        preferencias.getInt("quadrosPorSegundo", Regras.QUADROS_POR_SEGUNDO_PADRAO).takeIf { it in Regras.QUADROS_POR_SEGUNDO }
+            ?: Regras.QUADROS_POR_SEGUNDO_PADRAO,
+    )
+        private set
+
+    fun mudarQuadrosPorSegundo(valor: Int) {
+        if (valor !in Regras.QUADROS_POR_SEGUNDO) return
+        quadrosPorSegundo = valor
+        preferencias.edit().putInt("quadrosPorSegundo", valor).apply()
+    }
     var inicio by mutableStateOf(0.0)
     var fim by mutableStateOf(0.0)
     private var edicaoPrincipal by mutableStateOf(Edicao())
@@ -440,15 +455,20 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
             restante = null
             andamento = Andamento()
             try {
-                val webp = if (animada && temAnimacao) gerarAnimadaEmCamadas() else gerarEstatica()
+                var encurtada: Double? = null
+                val webp = if (animada && temAnimacao) gerarAnimadaEmCamadas().also { if (it.encurtada) encurtada = it.segundos }.webp
+                else gerarEstatica()
                 val pacote = destino?.let { pacotes.ler(it.id) } ?: pacotes.criar(nomeDoNovo, animada)
                 val atualizado = withContext(Dispatchers.IO) { pacotes.adicionar(pacote, webp, emojis) }
                 WhatsApp.avisarMudanca(contexto)
                 recarregar()
                 pacoteAberto = atualizado
                 fecharEditor()
-                aviso = if (atualizado.prontoParaWhatsApp) "Figurinha salva em “${atualizado.nome}”."
-                else "Figurinha salva. Faltam ${atualizado.faltam} para o WhatsApp aceitar o pacote (mínimo ${Regras.MINIMO})."
+                aviso = (if (atualizado.prontoParaWhatsApp) "Figurinha salva em “${atualizado.nome}”."
+                else "Figurinha salva. Faltam ${atualizado.faltam} para o WhatsApp aceitar o pacote (mínimo ${Regras.MINIMO}).") +
+                    (encurtada?.let {
+                        " Para manter $quadrosPorSegundo quadros/s, ela ficou com ${"%.1f".format(it)} s: o vídeo tem movimento demais para os 500 KB do WhatsApp."
+                    } ?: "")
             } catch (erro: Exception) {
                 aviso = erro.message ?: "Não deu para gerar a figurinha."
             } finally {
@@ -467,10 +487,10 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
         try { Producao.estatica(desenho) } finally { desenho.recycle() }
     }
 
-    private suspend fun gerarAnimadaEmCamadas(): ByteArray {
+    private suspend fun gerarAnimadaEmCamadas(): Producao.Animada {
         val lista = composicao().filter { it.visivel }
         val duracao = (fim - inicio).coerceIn(0.2, 10.0)
-        val taxa = Producao.quadrosPorSegundo(duracao)
+        val taxa = quadrosPorSegundo
         val extraidos = mutableMapOf<String, Producao.Quadros>()
         val pasta = File.createTempFile("composicao-", "", contexto.cacheDir).apply { delete(); mkdirs() }
         try {
@@ -526,13 +546,13 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
     // ---- A versão leve de cada trecho de vídeo ----
 
     /** O trecho que uma camada de vídeo ou GIF usa: arquivo, começo, duração e lado dos quadros. */
-    private data class Trecho(val arquivo: File, val comeco: Double, val duracao: Double, val lado: Int, val transparencia: Boolean)
+    private data class Trecho(val arquivo: File, val comeco: Double, val duracao: Double, val lado: Int, val transparencia: Boolean, val porSegundo: Int)
 
     private fun trechoDe(camada: CamadaDeFigurinha): Trecho? {
         val origem = camada.origem ?: return null
         val arquivo = origem.copia ?: return null
         return Trecho(arquivo, if (camada.id == "principal") inicio else 0.0, (fim - inicio).coerceIn(0.2, 10.0),
-            Producao.ladoDosQuadros(camada.edicao.zoom), origem.tipo != TipoDaOrigem.VIDEO)
+            Producao.ladoDosQuadros(camada.edicao.zoom), origem.tipo != TipoDaOrigem.VIDEO, quadrosPorSegundo)
     }
 
     private val trechos = mutableMapOf<Trecho, Producao.Quadros>()
@@ -550,7 +570,7 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
             trechos.keys.filter { it.arquivo == trecho.arquivo }.forEach(::esquecerTrecho)
             aoAvancar(0.0)
             val quadros = Producao.quadros(contexto, trecho.arquivo, trecho.comeco, trecho.comeco + trecho.duracao,
-                trecho.transparencia, trecho.lado, aoAvancar)
+                trecho.transparencia, trecho.lado, trecho.porSegundo, aoAvancar)
             trechos[trecho] = quadros
             quadros
         }
@@ -562,42 +582,6 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
     private fun lerQuadro(sequencia: Producao.Quadros, posicao: Int, camada: CamadaDeFigurinha): Bitmap =
         android.graphics.BitmapFactory.decodeFile(sequencia.arquivos[posicao.coerceAtLeast(0) % sequencia.arquivos.size].absolutePath)
             ?: throw ErroDeConversao("Não deu para abrir um quadro da camada ${camada.nome}.")
-
-    /**
-     * A figurinha animada em três etapas, com peso pelo custo de cada uma: tirar os quadros
-     * (12%), desenhar (43%, ou 60% removendo o fundo, que é o mais caro) e compactar (o resto).
-     */
-    private suspend fun gerarAnimada(atual: Origem): ByteArray {
-        val arquivo = atual.copia ?: throw ErroDeConversao("Nada para salvar.")
-        val pesoDaExtracao = 0.12
-        val pesoDoDesenho = if (edicao.removerFundo) 0.60 else 0.43
-        val inicioDaCompactacao = pesoDaExtracao + pesoDoDesenho
-        relatar(0.0, "Tirando os quadros do vídeo…")
-        val quadros = Producao.quadros(
-            contexto, arquivo, inicio, fim.coerceAtLeast(inicio + 0.1),
-            transparencia = atual.tipo == TipoDaOrigem.GIF,
-        ) { relatar(it * pesoDaExtracao, "Tirando os quadros do vídeo…") }
-        val pasta = quadros.arquivos.first().parentFile!!
-        try {
-            val crus = Producao.QuadrosCrus(File(pasta, "desenhados.argb"), quadros.porSegundo)
-            crus.use {
-                val total = quadros.arquivos.size
-                Producao.desenharTodos(quadros, crus, desenho = { imagem ->
-                    // Remoção de fundo quadro a quadro: a figura se move no vídeo.
-                    val mascaraDoQuadro = if (edicao.removerFundo) runCatching { Fundo.mascara(imagem) }.getOrNull() else null
-                    try { renderizador.desenhar(imagem, mascaraDoQuadro, edicao) } finally { mascaraDoQuadro?.recycle() }
-                }) { feitos ->
-                    val etapa = if (edicao.removerFundo) "Removendo o fundo e desenhando ($feitos de $total)…" else "Desenhando os quadros ($feitos de $total)…"
-                    relatar(pesoDaExtracao + pesoDoDesenho * feitos / total, etapa)
-                }
-            }
-            return Producao.animada(contexto, crus) { fracao ->
-                relatar(inicioDaCompactacao + (1 - inicioDaCompactacao) * fracao, "Compactando para o WhatsApp (até 500 KB)…")
-            }
-        } finally {
-            pasta.deleteRecursively()
-        }
-    }
 
     fun cancelar() {
         restante = null

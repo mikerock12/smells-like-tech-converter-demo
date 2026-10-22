@@ -185,7 +185,7 @@ class FigurinhasTest {
             }
         }
         val avancos = mutableListOf<Double>()
-        val webp = Producao.animada(contexto, crus) { avancos += it }
+        val webp = Producao.animada(contexto, crus) { avancos += it }.webp
         assertTrue("o andamento nunca volta", avancos.zipWithNext().all { (antes, depois) -> depois >= antes })
         pasta.deleteRecursively()
         assertTrue("${webp.size} bytes", webp.size in 1..Regras.ANIMADA_MAX_BYTES)

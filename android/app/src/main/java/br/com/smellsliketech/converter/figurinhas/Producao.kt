@@ -19,7 +19,6 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.util.Locale
 import kotlin.math.ceil
-import kotlin.math.max
 import kotlin.math.min
 
 /**
@@ -27,16 +26,6 @@ import kotlin.math.min
  * a edição e codifica em WebP dentro dos limites do WhatsApp (100 KB estática, 500 KB animada).
  */
 object Producao {
-    /**
-     * Quadros por segundo da figurinha animada: mais suave nos trechos curtos, mais leve nos
-     * longos (10 s a 10 quadros/s = 100 quadros), para caber nos 500 KB sem várias tentativas.
-     */
-    fun quadrosPorSegundo(duracao: Double): Int = when {
-        duracao <= 3.0 -> 15
-        duracao <= 6.0 -> 12
-        else -> 10
-    }
-
     /** Os quadros extraídos de um trecho e a taxa em que foram tirados. */
     class Quadros(val arquivos: List<File>, val porSegundo: Int)
 
@@ -77,17 +66,17 @@ object Producao {
         fim: Double,
         transparencia: Boolean,
         lado: Int = 1024,
+        porSegundo: Int = Regras.QUADROS_POR_SEGUNDO_PADRAO,
         aoAvancar: (Double) -> Unit,
     ): Quadros = withContext(Dispatchers.IO) {
         val duracao = (fim - inicio).coerceIn(0.1, Regras.ANIMADA_MAX_SEGUNDOS)
-        val porSegundo = quadrosPorSegundo(duracao)
         val maximo = ceil(duracao * porSegundo).toInt().coerceAtLeast(1)
         val pasta = File.createTempFile("figurinha-quadros-", "", contexto.cacheDir).apply { delete(); mkdirs() }
         val extensao = if (transparencia) "png" else "jpg"
         // A figurinha usa 10 a 15 quadros/s; com o vídeo a 30 ou 60, o decodificador pode pular
         // os quadros que nenhum outro referencia (metade do trabalho no HEVC de 60 quadros/s).
-        // Abaixo do dobro da taxa da figurinha, faltariam quadros: decodifica todos.
-        val pularNaoReferenciados = (quadrosPorSegundoDoVideo(arquivo) ?: 0f) >= porSegundo * 2
+        // Com folga de 2,5x: abaixo disso poderiam faltar quadros e a animação repetiria alguns.
+        val pularNaoReferenciados = (quadrosPorSegundoDoVideo(arquivo) ?: 0f) >= porSegundo * 2.5f
         try {
         Ffmpeg.executar(
             contexto,
@@ -198,58 +187,69 @@ object Producao {
      */
     private val FATOR_DA_QUALIDADE = listOf(85 to 1.35, 75 to 1.0, 65 to 0.8, 55 to 0.68, 45 to 0.58, 35 to 0.5, 25 to 0.43, 15 to 0.36)
 
+    /** A figurinha animada pronta e quantos segundos ela ficou (menos que o trecho se encurtou). */
+    class Animada(val webp: ByteArray, val segundos: Double, val encurtada: Boolean)
+
     /**
-     * WebP animado de até 500 KB. Primeiro um ensaio com um pedaço do meio (até 24 quadros) na
-     * qualidade 75 estima o tamanho do todo; daí sai a qualidade (e, se preciso, quantos
-     * quadros pular) para caber de primeira. Se ainda passar, a próxima tentativa é calculada
-     * pela sobra, no máximo mais duas vezes. `aoAvancar` vai de 0 a 1 o tempo todo.
+     * WebP animado de até 500 KB, sempre na taxa de quadros dos `crus`: nenhum quadro é pulado,
+     * para todas as figurinhas terem a mesma fluidez. Um ensaio com um pedaço do meio (até 24
+     * quadros) na qualidade 75 estima o todo; daí sai a maior qualidade que cabe, até
+     * [Regras.QUALIDADE_MINIMA_ANIMADA]. Se nem ela couber (vídeo com muito movimento: cada
+     * quadro vira quase uma foto inteira), a figurinha encurta a partir do começo do trecho.
+     * Até três passadas, cada uma corrigida pelo tamanho real. `aoAvancar` vai de 0 a 1.
      */
     suspend fun animada(
         contexto: Context,
         crus: QuadrosCrus,
         aoTentar: (String) -> Unit = {},
         aoAvancar: (Double) -> Unit = {},
-    ): ByteArray = withContext(Dispatchers.IO) {
+    ): Animada = withContext(Dispatchers.IO) {
         val total = crus.quantidade
         require(total > 0) { "Nenhum quadro para compactar." }
         val saida = File(contexto.cacheDir, "figurinha-animada.webp")
-        val alvo = Regras.ANIMADA_MAX_BYTES * 0.9
+        val alvo = Regras.ANIMADA_MAX_BYTES * 0.92
+        val minima = Regras.QUALIDADE_MINIMA_ANIMADA
         try {
-            // 1. Ensaio (10% da etapa).
+            // 1. Ensaio (10% da etapa): bytes por quadro na qualidade 75.
             val amostra = min(total, 24)
             val inicioDaAmostra = (total - amostra) / 2
             val tamanhoDaAmostra = codificar(
-                contexto, crus, saida, qualidade = 75, pular = 1,
+                contexto, crus, saida, qualidade = 75,
                 filtroExtra = "trim=start_frame=$inicioDaAmostra:end_frame=${inicioDaAmostra + amostra},setpts=PTS-STARTPTS",
                 quadrosNaSaida = amostra,
             ) { aoAvancar(it * 0.1) }
             aoTentar("ensaio $amostra quadros q=75 ${tamanhoDaAmostra / 1024}KB")
-            var previsto = tamanhoDaAmostra.toDouble() * total / amostra
+            var porQuadroNa75 = tamanhoDaAmostra.toDouble() / amostra
 
-            // 2. Qualidade e quantos quadros pular para caber na primeira passada.
-            var (qualidade, pular) = escolher(previsto, alvo)
+            // 2. A maior qualidade que cabe com todos os quadros; senão, a mínima com menos quadros.
+            fun plano(alvoDaVez: Double): Pair<Int, Int> {
+                FATOR_DA_QUALIDADE.firstOrNull { it.first >= minima && porQuadroNa75 * it.second * total <= alvoDaVez }
+                    ?.let { return it.first to total }
+                val cabem = (alvoDaVez / (porQuadroNa75 * fator(minima))).toInt()
+                return minima to cabem.coerceIn(2, total)
+            }
+            var (qualidade, quadros) = plano(alvo)
             var feito = 0.1
             repeat(3) { tentativa ->
-                val quadros = ceil(total / pular.toDouble()).toInt()
                 val parte = if (tentativa == 0) 0.9 else (1 - feito)
                 val inicioDaParte = feito
-                val tamanho = codificar(contexto, crus, saida, qualidade, pular, null, quadros) { aoAvancar(inicioDaParte + it * parte * 0.95) }
-                aoTentar("q=$qualidade pular=$pular ${tamanho / 1024}KB")
+                val corte = if (quadros < total) "trim=end_frame=$quadros" else null
+                val tamanho = codificar(contexto, crus, saida, qualidade, corte, quadros) { aoAvancar(inicioDaParte + it * parte * 0.95) }
+                aoTentar("q=$qualidade quadros=$quadros/$total ${tamanho / 1024}KB")
                 if (tamanho in 1..Regras.ANIMADA_MAX_BYTES.toLong()) {
                     val gerada = saida.readBytes()
                     if (!temImagem(gerada)) throw ErroDeConversao("A figurinha ficou vazia: a imagem saiu do quadro. Toque em Centralizar e tente de novo.")
-                    val duracaoMs = (total * 1000L / crus.porSegundo).coerceIn(16, WebpAnimado.DURACAO_MAX_MS.toLong()).toInt()
+                    val duracaoMs = (quadros * 1000L / crus.porSegundo).coerceIn(16, WebpAnimado.DURACAO_MAX_MS.toLong()).toInt()
                     val webp = WebpAnimado.normalizar(gerada, duracaoMs)
                     aoAvancar(1.0)
-                    return@withContext webp
+                    return@withContext Animada(webp, quadros.toDouble() / crus.porSegundo, quadros < total)
                 }
                 feito = inicioDaParte + parte * 0.95
-                // Passou: corrige a previsão pelo que saiu de verdade e escolhe de novo, mais justo.
-                previsto = tamanho.toDouble() * pular / fator(qualidade)
-                val proxima = escolher(previsto, alvo * 0.9)
-                qualidade = min(proxima.first, qualidade - 10).coerceAtLeast(15)
-                pular = max(proxima.second, pular)
-                if (tentativa == 1) pular = max(pular + 1, pular * 2)
+                // Passou: corrige a estimativa pelo que saiu de verdade e planeja de novo, mais justo.
+                porQuadroNa75 = tamanho.toDouble() / quadros / fator(qualidade)
+                val proximo = plano(alvo * 0.9)
+                qualidade = min(proximo.first, qualidade)
+                quadros = min(proximo.second, if (qualidade == minima && quadros > 2) quadros - 1 else quadros)
             }
             throw ErroDeConversao("A figurinha animada não coube nos 500 KB do WhatsApp. Escolha um trecho mais curto.")
         } finally {
@@ -293,31 +293,18 @@ object Producao {
 
     private fun fator(qualidade: Int): Double = FATOR_DA_QUALIDADE.firstOrNull { it.first <= qualidade }?.second ?: 0.36
 
-    /** A maior qualidade que cabe; se nem a menor cabe, pula quadros na proporção que falta. */
-    private fun escolher(previstoNa75: Double, alvo: Double): Pair<Int, Int> {
-        FATOR_DA_QUALIDADE.firstOrNull { previstoNa75 * it.second <= alvo }?.let { return it.first to 1 }
-        val pular = ceil(previstoNa75 * 0.43 / alvo).toInt().coerceIn(2, 6)
-        val porQuadro = previstoNa75 / pular
-        val qualidade = FATOR_DA_QUALIDADE.firstOrNull { porQuadro * it.second <= alvo }?.first ?: 15
-        return qualidade to pular
-    }
-
     /** Uma passada do libwebp_anim; devolve o tamanho do arquivo. */
     private suspend fun codificar(
         contexto: Context,
         crus: QuadrosCrus,
         saida: File,
         qualidade: Int,
-        pular: Int,
         filtroExtra: String?,
         quadrosNaSaida: Int,
         aoAvancar: (Double) -> Unit,
     ): Long {
-        val porSegundo = crus.porSegundo.toDouble() / pular
-        val filtros = buildList {
-            filtroExtra?.let(::add)
-            if (pular > 1) add("select='not(mod(n\\,$pular))',setpts=N/(${numero(porSegundo)}*TB)")
-        }
+        val porSegundo = crus.porSegundo.toDouble()
+        val filtros = listOfNotNull(filtroExtra)
         Ffmpeg.executar(
             contexto,
             listOf("-hide_banner", "-nostdin", "-v", "error", "-y", "-progress", "pipe:1", "-nostats",

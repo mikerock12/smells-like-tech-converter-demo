@@ -24,6 +24,15 @@ object Regras {
     const val ESTATICA_MAX_BYTES = 100 * 1024
     const val ANIMADA_MAX_BYTES = 500 * 1024
     const val ANIMADA_MAX_SEGUNDOS = 10.0
+    /**
+     * Quadros por segundo da figurinha animada, escolhidos pela pessoa e sempre respeitados:
+     * nenhum quadro é pulado. Quando o vídeo tem movimento demais para os 500 KB, a figurinha
+     * fica mais curta, não mais travada.
+     */
+    val QUADROS_POR_SEGUNDO = listOf(10, 12, 15)
+    const val QUADROS_POR_SEGUNDO_PADRAO = 10
+    /** Abaixo disso a imagem fica quadriculada demais: daí em diante, encurta. */
+    const val QUALIDADE_MINIMA_ANIMADA = 25
     const val BANDEJA_LADO = 96
     const val BANDEJA_MAX_BYTES = 50 * 1024
     const val EMOJIS_MAX = 3

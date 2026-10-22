@@ -49,7 +49,7 @@ class FigurinhaDesempenhoTest {
         val desenho = agora()
         val porQuadroEmParalelo = (desenho - extracao - porQuadroEmSerie * serie.arquivos.size) / resto.arquivos.size
         val tentativas = mutableListOf<String>()
-        val webp = Producao.animada(contexto, crus, aoTentar = { tentativa -> tentativas += tentativa })
+        val webp = Producao.animada(contexto, crus, aoTentar = { tentativa -> tentativas += tentativa }).webp
         val compactacao = agora()
         Log.i(
             "FigurinhaDesempenho",
@@ -78,7 +78,7 @@ class FigurinhaDesempenhoTest {
         val crus = Producao.QuadrosCrus(File(pasta, "desenhados.argb"), quadros.porSegundo)
         val renderizador = Renderizador(contexto)
         crus.use { Producao.desenharTodos(quadros, crus, desenho = { renderizador.desenhar(it, null, Edicao()) }) { } }
-        val webp = Producao.animada(contexto, crus)
+        val webp = Producao.animada(contexto, crus).webp
         pasta.deleteRecursively()
         video.delete()
         Log.i("FigurinhaDesempenho", "parado: ${webp.size} bytes, ${quadros.arquivos.size} quadros, ${Producao.descrever(webp)}")
