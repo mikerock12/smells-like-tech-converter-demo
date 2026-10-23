@@ -85,6 +85,14 @@ public static class StudioRecipe
             filters.Add($"[{previous}]anull[ab]");
         } else filters.Add($"{pairs}concat=n={project.Clips.Count}:v={(withVideo ? 1 : 0)}:a={(withAudio ? 1 : 0)}{(withVideo ? "[vb]" : "")}{(withAudio ? "[ab]" : "")}");
 
+        if(withAudio && total>(StudioRules.Segments(project).LastOrDefault()?.End??0)) {
+            var last=filters[^1];filters[^1]=last.Replace("[ab]","[abase]");
+            filters.Add($"[abase]apad=whole_dur={N(total)},atrim=duration={N(total)}[ab]");
+        }
+        if(withVideo && total>(StudioRules.Segments(project).LastOrDefault()?.End??0)) {
+            for(var i=0;i<filters.Count;i++) filters[i]=filters[i].Replace("[vb]","[vbase]");
+            filters.Add($"[vbase]tpad=stop_mode=clone:stop_duration={N(total-(StudioRules.Segments(project).LastOrDefault()?.End??0))},trim=duration={N(total)}[vb]");
+        }
         var video = "vb";
         if (withVideo)
         {
@@ -94,7 +102,7 @@ public static class StudioRecipe
                 args.AddRange(["-loop", "1", "-framerate", fps.ToString(CultureInfo.InvariantCulture), "-t", N(total), "-i", inputs.Texts[j]]);
                 var n = inputIndex++;
                 var next = $"vt{j}";
-                filters.Add($"[{video}][{n}:v]overlay=0:0:enable='{(text.Id.StartsWith("legenda-")?$"gte(t,{N(text.Start)})*lt(t,{N(text.End)})":$"between(t,{N(text.Start)},{N(text.End)})")}'[{next}]");
+                filters.Add($"[{video}][{n}:v]overlay=0:0:enable='{((text.Id.StartsWith("legenda-") || text.Id.StartsWith("contagem-"))?$"gte(t,{N(text.Start)})*lt(t,{N(text.End)})":$"between(t,{N(text.Start)},{N(text.End)})")}'[{next}]");
                 video = next;
             }
 

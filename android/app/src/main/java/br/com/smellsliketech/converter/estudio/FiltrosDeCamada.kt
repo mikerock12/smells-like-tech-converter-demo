@@ -56,15 +56,31 @@ object FiltrosDeCamada {
         val c=1+t.contraste; val d=128*(1-c)+t.brilho*100
         return compor(doubleArrayOf(c,0.0,0.0,d,0.0,c,0.0,d,0.0,0.0,c,d),m)
     }
-    fun transformacao(valor: Transformacao?,w: Int,h: Int): String {
+    fun transformacao(valor: Transformacao?,w: Int,h: Int,deslocamento: Double = 0.0): String {
         val t=valor?:Transformacao()
         val m=inversa(projecao(t,w,h))?:return "format=rgba,colorchannelmixer=aa=0"
-        fun termo(j: Int)="(${d(m[j])}*(X+0.5)/W+${d(m[j+1])}*(Y+0.5)/H+${d(m[j+2])})"
-        val x="(W*${termo(0)}/${termo(6)}-0.5)"; val y="(H*${termo(3)}/${termo(6)}-0.5)"
+        var u="(X+0.5)/W";var v="(Y+0.5)/H";var prefixo=""
+        if(t.quadrosChave.isNotEmpty()) {
+            val tempo=if(deslocamento!=0.0) "(T+${d(deslocamento)})" else "T"
+            val ax=Animacao.expressao(t,"x",tempo);val ay=Animacao.expressao(t,"y",tempo);val az=Animacao.expressao(t,"escala",tempo)
+            prefixo="st(2,$ax);st(3,$ay);st(4,${d(t.escala)}/($az));st(5,($u-ld(2))*ld(4)+${d(t.x)});st(6,($v-ld(3))*ld(4)+${d(t.y)});"
+            u="ld(5)";v="ld(6)"
+        }
+        fun termo(j: Int)="(${d(m[j])}*$u+${d(m[j+1])}*$v+${d(m[j+2])})"
+        val animada=t.quadrosChave.isNotEmpty();val divisor=if(animada) "ld(7)" else termo(6)
+        if(animada) prefixo+="st(7,${termo(6)});"
+        val x="(W*${termo(0)}/$divisor-0.5)"; val y="(H*${termo(3)}/$divisor-0.5)"
         val cor=matrizDeCor(t); val canais=listOf("r","g","b")
-        val posicao="st(0,$x);st(1,$y);"
-        val rgb=canais.mapIndexed { i,c -> "$c='$posicao${canais.mapIndexed { j,fonte -> "${d(cor[i*4+j])}*$fonte(ld(0),ld(1))" }.joinToString("+")}+${d(cor[i*4+3])}'" }
-        return "format=gbrap,geq=${rgb.joinToString(":")}:a='${posicao}if(between(ld(0),-0.5,W-0.5)*between(ld(1),-0.5,H-0.5),alpha(ld(0),ld(1))*${d(t.opacidade)},0)':interpolation=bilinear,format=rgba"
+        val posicao="${prefixo}st(0,$x);st(1,$y);"
+        val rgb=canais.mapIndexed { i,c -> "$c='$posicao${canais.mapIndexedNotNull { j,fonte -> if(!animada||cor[i*4+j]!=0.0) "${d(cor[i*4+j])}*$fonte(ld(0),ld(1))" else null }.ifEmpty {listOf("0")}.joinToString("+")}+${d(cor[i*4+3])}'" }
+        val mascara=when(t.mascara) {
+            "circulo"->"lte(pow((ld(0)+0.5-W/2)/(min(W,H)/2),2)+pow((ld(1)+0.5-H/2)/(min(W,H)/2),2),1)"
+            "oval"->"lte(pow((ld(0)+0.5-W/2)/(W/2),2)+pow((ld(1)+0.5-H/2)/(H/2),2),1)"
+            "arredondada"->"lte(pow(max(abs(ld(0)+0.5-W/2)-(W/2-min(W,H)*0.15),0),2)+pow(max(abs(ld(1)+0.5-H/2)-(H/2-min(W,H)*0.15),0),2),pow(min(W,H)*0.15,2))"
+            else->"1"
+        }
+        val alfa=if(t.mascara!="nenhuma") "*$mascara" else ""
+        return "format=gbrap,geq=${rgb.joinToString(":")}:a='${posicao}if(between(ld(0),-0.5,W-0.5)*between(ld(1),-0.5,H-0.5),alpha(ld(0),ld(1))*${d(t.opacidade)}$alfa,0)':interpolation=bilinear,format=rgba"
     }
     fun sobrepor(fundo: String,frente: String,saida: String,mescla: String?,inicio: Double,fim: Double): String {
         val ativo="gte(t,${d(inicio)})*lt(t,${d(fim)})"

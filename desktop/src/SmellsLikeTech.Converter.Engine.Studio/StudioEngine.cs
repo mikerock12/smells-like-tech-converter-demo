@@ -173,7 +173,10 @@ public sealed class StudioEngine(
         Directory.CreateDirectory(workDirectory);
         progress(JobProgress.Step(JobStage.Probing));
         // Um PNG precisa só do instante escolhido, inclusive ao segmentar um vídeo longo.
-        if (project.Output == "imagem" && project.Clips.Count > 0 && !StudioRules.HasTransitions(project))
+        var singleFrame = project.Output == "imagem" && project.Clips.Count > 0 && !StudioRules.HasTransitions(project) &&
+            StudioRules.TotalDuration(project)<=(StudioRules.Segments(project).LastOrDefault()?.End??0) &&
+            !project.Clips.Any(c=>c.Transform?.Keyframes.Count>0) && !project.Layers.Any(c=>c.Transform?.Keyframes.Count>0) && !project.Texts.Any(c=>c.Transform?.Keyframes.Count>0);
+        if (singleFrame)
         {
             var time = Math.Clamp(project.Frame, 0, Math.Max(0, StudioRules.TotalDuration(project) - 1.0 / project.Fps));
             var at = StudioRules.ClipAt(project, time)!.Value;
@@ -195,7 +198,7 @@ public sealed class StudioEngine(
                 Frame = 0,
                 Clips = [clip.IsImage ? clip with { Duration = .1, Transition = null } : clip with { Start = at.TimeInFile, End = at.TimeInFile + .1, Speed = 1, Transition = null }],
                 Layers = layersAtFrame,
-                Texts = project.Texts.Where(t => time >= t.Start && (t.Id.StartsWith("legenda-") ? time < t.End : time <= t.End)).Select(t => t with { Start = 0, End = .1 }).ToList(),
+                Texts = project.Texts.Where(t => time >= t.Start && ((t.Id.StartsWith("legenda-") || t.Id.StartsWith("contagem-")) ? time < t.End : time <= t.End)).Select(t => t with { Start = 0, End = .1 }).ToList(),
                 Audios = []
             };
         }
@@ -267,12 +270,12 @@ public sealed class StudioEngine(
                 {
                     var info = await inspector.InspectAsync(path, cancellationToken);
                     var prepared = Path.Combine(workDirectory, $"recorte-camada-{i}.mkv");
-                    var start = project.Output == "imagem" ? layer.Offset : 0;
-                    var duration = project.Output == "imagem" ? .1 : Math.Min(info.Duration?.TotalSeconds ?? layer.Offset + layer.End - layer.Start, layer.Offset + layer.End - layer.Start);
+                    var start = singleFrame ? layer.Offset : 0;
+                    var duration = singleFrame ? .1 : Math.Min(info.Duration?.TotalSeconds ?? layer.Offset + layer.End - layer.Start, layer.Offset + layer.End - layer.Start);
                     await BackgroundVideo.RemoveAsync(optionsAccessor().FfmpegPath, path, prepared,
                         StudioRules.Even(info.Width ?? project.Width), StudioRules.Even(info.Height ?? project.Height), project.Fps, start, duration, cancellationToken);
                     path = prepared;
-                    preparedLayers[i] = layer with { Kind = "video", Offset = project.Output == "imagem" ? 0 : layer.Offset };
+                    preparedLayers[i] = layer with { Kind = "video", Offset = singleFrame ? 0 : layer.Offset };
                 }
                 layers.Add(path);
             }

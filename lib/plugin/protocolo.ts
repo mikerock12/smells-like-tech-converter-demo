@@ -28,6 +28,8 @@ export type Apresentacao = {
   papel: string;
   versao: string;
   protocolo: number;
+  /** Capacidade opcional desde o plugin 0.8.0; protocolo de transporte permanece 1. */
+  versaoDoEstudio?: number;
   maquina: Maquina;
   operacoes: Operacao[];
   pastaDeSaida: string;

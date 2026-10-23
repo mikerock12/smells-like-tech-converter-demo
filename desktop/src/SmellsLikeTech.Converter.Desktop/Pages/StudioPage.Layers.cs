@@ -9,12 +9,12 @@ namespace SmellsLikeTech.Converter.Desktop.Pages;
 
 public sealed partial class StudioPage
 {
-    private static FrameworkElement TransformControls(Func<StudioTransform?> read, Action<StudioTransform> change, bool allowRemoval=true)
+    private static FrameworkElement TransformControls(Func<StudioTransform?> read, Action<StudioTransform> change, bool allowRemoval=true,double duration=3)
     {
         var body=new StackPanel {Spacing=8};
         var t=read()??new StudioTransform();
         void Control(string title,double value,double min,double max,double step,Func<StudioTransform,double,StudioTransform> update) =>
-            body.Children.Add(Slider(title,value,min,max,step,v=>v.ToString("0.#",PtBr),v=>change(update(read()??new StudioTransform(),v)),null));
+            body.Children.Add(Slider(title,value,min,max,step,v=>v.ToString("0.#",PtBr),v=>{var before=read()??new StudioTransform();change(StudioAnimation.ChangeBase(before,update(before,v)));},null));
         Control("Giro no plano (Z): {0}°",t.Rotation,-360,360,.1,(v,n)=>v with {Rotation=n});
         Control("Inclinar para frente/trás (X): {0}°",t.RotationX,-180,180,.1,(v,n)=>v with {RotationX=n});
         Control("Inclinar para esquerda/direita (Y): {0}°",t.RotationY,-180,180,.1,(v,n)=>v with {RotationY=n});
@@ -38,6 +38,7 @@ public sealed partial class StudioPage
             remove.Toggled+=(_,_)=>change((read()??new StudioTransform()) with {RemoveBackground=remove.IsOn});body.Children.Add(remove);
             body.Children.Add(Muted("Processado no dispositivo. Vídeos são recortados quadro a quadro e podem demorar."));
         }
+        body.Children.Add(AnimationControls(read,change,duration));
         return new Expander {Header="Transformar e filtrar",Content=body,HorizontalAlignment=HorizontalAlignment.Stretch,HorizontalContentAlignment=HorizontalAlignment.Stretch};
     }
 
@@ -47,6 +48,7 @@ public sealed partial class StudioPage
     private void BuildLayers()
     {
         LayersPanel.Children.Clear();
+        LayersPanel.Children.Add(TimelineControls());
         var add=Action("Adicionar mídia por cima"); add.IsEnabled=project!.Clips.Count>0&&project.Layers.Count<12;
         add.Click+=async(_,_)=>{ foreach(var path in FileDialogs.PickStudioMedia(App.MainWindow)) await AddLayerAsync(path); };
         LayersPanel.Children.Add(add);
@@ -68,6 +70,15 @@ public sealed partial class StudioPage
         if(openId!=layer.Id) return Panel(body);
         var back=Action(layer.Order<0?"Trazer para frente do clipe":"Usar como fundo");
         back.Click+=(_,_)=>ChangeAndRefresh(p=>WithLayer(p,layer.Id,c=>c with {Order=c.Order<0?1:-1})); body.Children.Add(back);
+        var from=new NumberBox {Header="Entrada livre (s)",Minimum=0,Maximum=86400,SmallChange=.1,Value=layer.Start};
+        var to=new NumberBox {Header="Saída livre (s)",Minimum=.1,Maximum=86400,SmallChange=.1,Value=layer.End};
+        body.Children.Add(from);body.Children.Add(to);
+        var apply=Action("Aplicar intervalo livre");apply.Click+=(_,_)=>{
+            if(!double.IsFinite(from.Value)||!double.IsFinite(to.Value)||to.Value<=from.Value) {ShowStatus("Use entrada e saída válidas.",InfoBarSeverity.Warning);return;}
+            ChangeAndRefresh(p=>WithLayer(p,layer.Id,c=>c with {Start=from.Value,End=to.Value}));
+        };body.Children.Add(apply);
+        var split=Action("Dividir faixa no cursor");split.Click+=(_,_)=>{try {var updated=StudioCreation.SplitLayer(project!,layer.Id,TimeSlider.Value,NewId("l"));ChangeAndRefresh(_=>updated);}catch(Exception e){ShowStatus(e.Message,InfoBarSeverity.Warning);}};body.Children.Add(split);
+        body.Children.Add(Muted("Faixas podem prolongar a composição. O último quadro principal permanece."));
         body.Children.Add(Slider("Aparece em {0}",layer.Start,0,Math.Max(0,Total-.1),.1,Clock,
             n=>Change(p=>WithLayer(p,layer.Id,c=>c with {Start=n,End=Math.Max(c.End,n+.1)})),null));
         body.Children.Add(Slider("Termina em {0}",layer.End,.1,Total,.1,Clock,
@@ -79,7 +90,7 @@ public sealed partial class StudioPage
             if(duration>.1) body.Children.Add(Slider("Início no arquivo: {0}",layer.Offset,0,duration.Value-.1,.1,Clock,
                 n=>Change(p=>WithLayer(p,layer.Id,c=>c with {Offset=n})),null));
         }
-        body.Children.Add(TransformControls(()=>FindLayer(layer.Id).Transform,t=>Change(p=>WithLayer(p,layer.Id,c=>c with {Transform=t}))));
+        body.Children.Add(TransformControls(()=>FindLayer(layer.Id).Transform,t=>Change(p=>WithLayer(p,layer.Id,c=>c with {Transform=t})),duration:layer.End-layer.Start));
         return Panel(body);
     }
 

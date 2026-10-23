@@ -1,4 +1,8 @@
+export type QuadroChave = { tempo: number; x: number; y: number; escala: number; curva?: "linear" | "suave" };
 export type Transformacao = {
+  mascara?: "nenhuma" | "circulo" | "oval" | "arredondada";
+  quadrosChave?: QuadroChave[];
+  tempoDaAnimacao?: number;
   x: number; y: number; escala: number; giro: number; giroX: number; giroY: number;
   espelharX: boolean; espelharY: boolean; opacidade: number; mescla: string;
   filtro: string; brilho: number; contraste: number; saturacao: number; removerFundo: boolean;

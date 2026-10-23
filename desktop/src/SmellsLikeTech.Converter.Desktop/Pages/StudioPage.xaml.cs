@@ -294,6 +294,7 @@ public sealed partial class StudioPage : Page
     {
         ReleasePlayer();
         ClipsPanel.Children.Clear();
+        ClipsPanel.Children.Add(CreationControls());
         var adicionar = Action("Adicionar vídeos ou fotos");
         adicionar.Click += async (_, _) => await AddMediaAsync();
         ClipsPanel.Children.Add(adicionar);
@@ -398,7 +399,7 @@ public sealed partial class StudioPage : Page
                 resumo.Text = ClipSummary(Find(clip.Id));
             }));
             corpo.Children.Add(Muted(StudioRules.Fits.First(f => f.Id == clip.Fit).Description));
-            corpo.Children.Add(TransformControls(() => Find(clip.Id).Transform, t => Change(p => WithClip(p, clip.Id, c => c with { Transform = t }))));
+            corpo.Children.Add(TransformControls(() => Find(clip.Id).Transform, t => Change(p => WithClip(p, clip.Id, c => c with { Transform = t })),duration:StudioRules.ClipDuration(clip)));
             if (!clip.IsImage)
             {
                 var som = new ToggleSwitch { Header = "Som do vídeo", IsOn = clip.Muted != true };
@@ -493,7 +494,7 @@ public sealed partial class StudioPage : Page
             ChangeAndRefresh(p => WithText(p, texto.Id, t => t with { Y = double.Parse(y, CultureInfo.InvariantCulture), X = 0.5 }))));
         corpo.Children.Add(Slider("Altura: {0}%", texto.Y, 0, 1, 0.01, v => Math.Round(v * 100).ToString(PtBr),
             v => Change(p => WithText(p, texto.Id, t => t with { Y = v })), null));
-        corpo.Children.Add(TransformControls(() => FindText(texto.Id).Transform, t => Change(p => WithText(p, texto.Id, c => c with { Transform = t })), allowRemoval: false));
+        corpo.Children.Add(TransformControls(() => FindText(texto.Id).Transform, t => Change(p => WithText(p, texto.Id, c => c with { Transform = t })), allowRemoval: false,duration:texto.End-texto.Start));
         if (Total > 0)
         {
             corpo.Children.Add(Slider("Aparece em {0}", Math.Min(texto.Start, Total), 0, Total, 0.1, v => Clock(v),
@@ -516,6 +517,7 @@ public sealed partial class StudioPage : Page
     private void BuildAudios()
     {
         AudiosPanel.Children.Clear();
+        AudiosPanel.Children.Add(NarrationControls());
         var adicionar = Action("Adicionar música ou áudio");
         adicionar.Click += async (_, _) => await AddAudioAsync();
         AudiosPanel.Children.Add(adicionar);

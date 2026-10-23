@@ -29,11 +29,13 @@ public sealed class StudioEngineTests : IDisposable
     private bool Available => ffmpeg is not null && ffprobe is not null;
 
     [Theory]
-    [InlineData("video")]
-    [InlineData("gif")]
-    [InlineData("imagem")]
-    [InlineData("audio")]
-    public async Task ExportaCadaSaida(string saida)
+    [InlineData("video",3,5)]
+    [InlineData("gif",3,5)]
+    [InlineData("imagem",3,5)]
+    [InlineData("audio",3,5)]
+    [InlineData("video",4,11)]
+    [InlineData("audio",4,11)]
+    public async Task ExportaCadaSaida(string saida,int version,double seconds)
     {
         if (!Available)
         {
@@ -41,7 +43,7 @@ public sealed class StudioEngineTests : IDisposable
         }
 
         var (video, foto, musica) = await CreateSamplesAsync();
-        var project = Project(saida, video, foto, musica);
+        var project = Project(saida, video, foto, musica) with {Version=version};
         var result = await ExportAsync(project, [video, foto, musica]);
         var output = Assert.Single(result.OutputFiles);
         Assert.True(new FileInfo(output).Length > 500);
@@ -60,7 +62,7 @@ public sealed class StudioEngineTests : IDisposable
                 Assert.True(info.HasVideo && info.HasAudio);
                 Assert.Equal(540, info.VideoStreams[0].Width);
                 Assert.Equal(960, info.VideoStreams[0].Height);
-                Assert.InRange(info.Duration!.Value.TotalSeconds, 4.8, 5.3);
+                Assert.InRange(info.Duration!.Value.TotalSeconds, seconds-.2, seconds+.3);
                 break;
             case "gif":
                 Assert.True(info.HasVideo);
@@ -68,7 +70,7 @@ public sealed class StudioEngineTests : IDisposable
                 break;
             case "audio":
                 Assert.False(info.HasVideo);
-                Assert.InRange(info.Duration!.Value.TotalSeconds, 4.8, 5.3);
+                Assert.InRange(info.Duration!.Value.TotalSeconds, seconds-.2, seconds+.3);
                 break;
         }
     }
@@ -163,6 +165,25 @@ public sealed class StudioEngineTests : IDisposable
         var result = await ExportAsync(project, [foto, video]);
         using var image = new MagickImage(Assert.Single(result.OutputFiles));
         Assert.Equal((128u, 128u), (image.Width, image.Height));
+    }
+
+    [Fact]
+    public async Task AnimacaoMascaraEExtensaoDeFaixaExportamNoInstanteEscolhido()
+    {
+        if(!Available) return;
+        var black=Path.Combine(root,"black.png");var white=Path.Combine(root,"white.png");
+        using(var b=new MagickImage(MagickColors.Black,64,64)) b.Write(black);
+        using(var b=new MagickImage(MagickColors.White,64,64)) b.Write(white);
+        var t=new StudioTransform {Scale=.5,Mask="circulo",Keyframes=[new(0,.25,.5,.5),new(1.5,.75,.5,.5)]};
+        var p=StudioRules.NewProject("personalizado","imagem",64,64) with {Fps=10,
+            Clips=[new StudioClip {Id="c",File=black,Kind="imagem",Duration=.2,Fit="caber"}],
+            Layers=[new StudioLayer {Id="l",File=white,Start=0,End=1.5,Transform=t}]};
+        foreach(var time in new[]{0.0,1.4}) {
+            var result=await ExportAsync(p with {Frame=time},[black,white]);using var image=new MagickImage(Assert.Single(result.OutputFiles));using var pixels=image.GetPixels();
+            Assert.True(pixels.GetPixel(time==0?16:46,32)!.GetChannel(0)>230);
+            Assert.True(pixels.GetPixel(time==0?46:8,32)!.GetChannel(0)<20);
+            Assert.True(pixels.GetPixel(time==0?0:30,16)!.GetChannel(0)<20);
+        }
     }
 
     private static StudioProject Project(string saida, string video, string foto, string musica) =>

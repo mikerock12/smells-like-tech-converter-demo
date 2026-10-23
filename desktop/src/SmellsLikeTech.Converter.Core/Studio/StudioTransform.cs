@@ -20,6 +20,10 @@ public sealed record StudioTransform
     [JsonPropertyName("saturacao")] public double Saturation { get; init; }
     [JsonPropertyName("removerFundo")] public bool RemoveBackground { get; init; }
 
+    [JsonPropertyName("tempoDaAnimacao")] public double AnimationTime { get; init; }
+    [JsonPropertyName("mascara")] public string Mask { get; init; } = "nenhuma";
+    [JsonPropertyName("quadrosChave")] public IReadOnlyList<StudioKeyframe> Keyframes { get; init; } = [];
+
     public string? Problem()
     {
         (string Name, double Value, double Min, double Max)[] limits =
@@ -33,7 +37,7 @@ public sealed record StudioTransform
             if (!double.IsFinite(value) || value < min || value > max) return $"Ajuste inválido da camada: {name}.";
         if (Blend is not ("normal" or "multiplicar" or "clarear" or "sobrepor")) return "Modo de mesclagem desconhecido.";
         if (Filter is not ("original" or "vivido" or "pb" or "sepia" or "vintage" or "frio" or "quente" or "negativo")) return "Filtro desconhecido.";
-        return null;
+        return StudioAnimation.Problem(this);
     }
 }
 

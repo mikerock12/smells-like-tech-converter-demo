@@ -63,17 +63,32 @@ public static class StudioLayerFilters
         return Compose([c,0,0,d,0,c,0,d,0,0,c,d],m);
     }
 
-    public static string Transform(StudioTransform? value,int w,int h)
+    public static string Transform(StudioTransform? value,int w,int h,double offset=0)
     {
         var t=value??new StudioTransform();
         var m=Inverse(Projection(t,w,h));
         if (m is null) return "format=rgba,colorchannelmixer=aa=0";
-        string Term(int j) => $"({D(m[j])}*(X+0.5)/W+{D(m[j+1])}*(Y+0.5)/H+{D(m[j+2])})";
-        var x=$"(W*{Term(0)}/{Term(6)}-0.5)"; var y=$"(H*{Term(3)}/{Term(6)}-0.5)";
+        var u="(X+0.5)/W";var v="(Y+0.5)/H";var prefix="";
+        if(t.Keyframes.Count>0) {
+            var time=offset!=0?$"(T+{D(offset)})":"T";
+            var ax=StudioAnimation.Expression(t,"x",time);var ay=StudioAnimation.Expression(t,"y",time);var az=StudioAnimation.Expression(t,"escala",time);
+            prefix=$"st(2,{ax});st(3,{ay});st(4,{D(t.Scale)}/({az}));st(5,({u}-ld(2))*ld(4)+{D(t.X)});st(6,({v}-ld(3))*ld(4)+{D(t.Y)});";
+            u="ld(5)";v="ld(6)";
+        }
+        string Term(int j) => $"({D(m[j])}*{u}+{D(m[j+1])}*{v}+{D(m[j+2])})";
+        var animated=t.Keyframes.Count>0;var divisor=animated?"ld(7)":Term(6);
+        if(animated) prefix+=$"st(7,{Term(6)});";
+        var x=$"(W*{Term(0)}/{divisor}-0.5)"; var y=$"(H*{Term(3)}/{divisor}-0.5)";
         var color=ColorMatrix(t); string[] channels=["r","g","b"];
-        var position=$"st(0,{x});st(1,{y});";
-        var rgb=channels.Select((c,i) => $"{c}='{position}{string.Join("+",channels.Select((source,j) => $"{D(color[i*4+j])}*{source}(ld(0),ld(1))"))}+{D(color[i*4+3])}'");
-        return $"format=gbrap,geq={string.Join(":",rgb)}:a='{position}if(between(ld(0),-0.5,W-0.5)*between(ld(1),-0.5,H-0.5),alpha(ld(0),ld(1))*{D(t.Opacity)},0)':interpolation=bilinear,format=rgba";
+        var position=$"{prefix}st(0,{x});st(1,{y});";
+        var rgb=channels.Select((c,i) => $"{c}='{position}{string.Join("+",channels.Select((source,j) => !animated||color[i*4+j]!=0?$"{D(color[i*4+j])}*{source}(ld(0),ld(1))":"").Where(s=>s.Length>0).DefaultIfEmpty("0"))}+{D(color[i*4+3])}'");
+        var mask=t.Mask switch {
+            "circulo"=>"lte(pow((ld(0)+0.5-W/2)/(min(W,H)/2),2)+pow((ld(1)+0.5-H/2)/(min(W,H)/2),2),1)",
+            "oval"=>"lte(pow((ld(0)+0.5-W/2)/(W/2),2)+pow((ld(1)+0.5-H/2)/(H/2),2),1)",
+            "arredondada"=>"lte(pow(max(abs(ld(0)+0.5-W/2)-(W/2-min(W,H)*0.15),0),2)+pow(max(abs(ld(1)+0.5-H/2)-(H/2-min(W,H)*0.15),0),2),pow(min(W,H)*0.15,2))",
+            _=>"1"};
+        var alpha=t.Mask!="nenhuma"?$"*{mask}":"";
+        return $"format=gbrap,geq={string.Join(":",rgb)}:a='{position}if(between(ld(0),-0.5,W-0.5)*between(ld(1),-0.5,H-0.5),alpha(ld(0),ld(1))*{D(t.Opacity)}{alpha},0)':interpolation=bilinear,format=rgba";
     }
 
     public static string Overlay(string background,string foreground,string output,string? blend,double start,double end)

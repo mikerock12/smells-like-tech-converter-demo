@@ -6,6 +6,7 @@ import {
   camadasNoTempo,
   clipeNoTempo,
   transicaoNoTempo,
+  segmentos,
   type IdDoAjuste,
   type Projeto,
   type Texto,
@@ -144,18 +145,20 @@ export function desenharQuadro(ctx: Contexto2D, projeto: Projeto, t: number, ima
   const camadas = camadasNoTempo(projeto, t);
   const desenharExtra = (camada: typeof camadas[number]) => {
     const fonte = midias.get(camada.id);
-    if (fonte) desenharCamada(ctx, fonte, largura, altura, camada.transformacao);
+    if (fonte) desenharCamada(ctx, fonte, largura, altura, camada.transformacao, t - camada.inicio);
   };
   camadas.filter(c => (c.ordem ?? 1) < 0).forEach(desenharExtra);
   const primeiro = clipeNoTempo(projeto,t)?.clipe;
   const transicao = transicaoNoTempo(projeto,t);
+  const lista = segmentos(projeto);
+  const tempoDoClipe = (id: string) => t - (lista.find(s => s.id === id)?.inicio ?? 0);
   const textura = (fonte: Imagem | null, clipe: Projeto["clipes"][number] | undefined) => {
     const tela=new OffscreenCanvas(largura,altura), c=tela.getContext("2d")!;
     c.drawImage(ctx.canvas,0,0,largura,altura);
     if(fonte && clipe) {
       const enquadrada=new OffscreenCanvas(largura,altura);
       enquadrar(enquadrada.getContext("2d")!,fonte,clipe.ajuste,largura,altura);
-      desenharCamada(c,enquadrada,largura,altura,clipe.transformacao);
+      desenharCamada(c,enquadrada,largura,altura,clipe.transformacao, tempoDoClipe(clipe.id));
     }
     return tela;
   };
@@ -185,7 +188,7 @@ export function desenharQuadro(ctx: Contexto2D, projeto: Projeto, t: number, ima
     if(primeiro.transformacao) {
       const tela=new OffscreenCanvas(largura,altura);
       enquadrar(tela.getContext("2d")!,imagem,ajuste,largura,altura);
-      desenharCamada(ctx,tela,largura,altura,primeiro.transformacao);
+      desenharCamada(ctx,tela,largura,altura,primeiro.transformacao, tempoDoClipe(primeiro.id));
     }
     else enquadrar(ctx,imagem,ajuste,largura,altura);
   }
@@ -194,7 +197,7 @@ export function desenharQuadro(ctx: Contexto2D, projeto: Projeto, t: number, ima
     if (texto.transformacao) {
       const textura = new OffscreenCanvas(largura, altura);
       desenharTexto(textura.getContext("2d")!, texto, largura, altura);
-      desenharCamada(ctx, textura, largura, altura, texto.transformacao);
+      desenharCamada(ctx, textura, largura, altura, texto.transformacao, t - texto.inicio);
     } else desenharTexto(ctx, texto, largura, altura);
   }
 }

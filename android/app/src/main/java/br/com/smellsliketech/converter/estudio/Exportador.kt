@@ -104,7 +104,12 @@ object Exportador {
      * transcrever) quando a saída é texto.
      */
     suspend fun gerar(contexto: Context, original: Projeto, destino: File, aoAvancar: (Int) -> Unit) {
-        val projeto = if (original.saida == "imagem" && original.clipes.isNotEmpty() && !Estudio.temTransicoes(original)) {
+        val quadroIsolado = original.saida == "imagem" && original.clipes.isNotEmpty() && !Estudio.temTransicoes(original) &&
+            Estudio.duracaoTotal(original)<=(Estudio.segmentos(original).lastOrNull()?.fim?:0.0) &&
+            original.clipes.none { it.transformacao?.quadrosChave?.isNotEmpty() == true } &&
+            original.camadas.none { it.transformacao?.quadrosChave?.isNotEmpty() == true } &&
+            original.textos.none { it.transformacao?.quadrosChave?.isNotEmpty() == true }
+        val projeto = if (quadroIsolado) {
             val tempo = original.quadro.coerceIn(0.0, maxOf(0.0, Estudio.duracaoTotal(original) - 1.0 / original.fps))
             val (_, clipe, ponto) = Estudio.clipeNoTempo(original, tempo)!!
             val camadas = Estudio.camadasNoTempo(original, tempo).map { c ->
@@ -165,11 +170,11 @@ object Exportador {
                     } else if (camada.transformacao?.removerFundo == true) {
                         val s = Ffmpeg.sondar(contexto, arquivo)
                         val recorte = File(pasta, "recorte-camada-$i.mkv")
-                        val inicio = if (projeto.saida == "imagem") camada.deslocamento else 0.0
-                        val duracao = if (projeto.saida == "imagem") .1 else minOf(s.duracaoSegundos ?: (camada.deslocamento + camada.fim - camada.inicio), camada.deslocamento + camada.fim - camada.inicio)
+                        val inicio = if (quadroIsolado) camada.deslocamento else 0.0
+                        val duracao = if (quadroIsolado) .1 else minOf(s.duracaoSegundos ?: (camada.deslocamento + camada.fim - camada.inicio), camada.deslocamento + camada.fim - camada.inicio)
                         RecorteDeFundo.video(contexto, arquivo, recorte, Estudio.par((s.largura ?: projeto.largura).toDouble()),
                             Estudio.par((s.altura ?: projeto.altura).toDouble()), projeto.fps, inicio, duracao)
-                        camadasPreparadas[i] = camada.copy(tipo = "video", deslocamento = if (projeto.saida == "imagem") 0.0 else camada.deslocamento)
+                        camadasPreparadas[i] = camada.copy(tipo = "video", deslocamento = if (quadroIsolado) 0.0 else camada.deslocamento)
                         recorte.absolutePath
                     } else arquivo.absolutePath
                 }

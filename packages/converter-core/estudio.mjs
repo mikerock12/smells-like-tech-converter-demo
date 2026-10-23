@@ -11,7 +11,7 @@ import dados from "./estudio-presets.json" with { type: "json" };
 import { validarTransformacao } from "./camadas.mjs";
 import { receitaComCamadas } from "./estudio-camadas.mjs";
 
-export const VERSAO_DO_PROJETO = 3;
+export const VERSAO_DO_PROJETO = 4;
 export const TRANSICOES = Object.freeze([
   {id:"corte",titulo:"Corte seco"}, {id:"fade",titulo:"Fade pelo preto"},
   {id:"dissolver",titulo:"Dissolver"}, {id:"deslizar",titulo:"Deslizar"}, {id:"zoom",titulo:"Zoom"},
@@ -131,7 +131,8 @@ export function segmentos(projeto) {
 }
 
 export function duracaoTotal(projeto) {
-  return segmentos(projeto).at(-1)?.fim ?? 0;
+  if (projeto.versao < 4) return segmentos(projeto).at(-1)?.fim ?? 0;
+  return arredondar(Math.max(segmentos(projeto).at(-1)?.fim ?? 0, ...(projeto.camadas ?? []).filter(c=>c.visivel!==false).map(c=>c.fim), ...projeto.audios.map(a=>(a.entrada??0)+a.fim-a.inicio)));
 }
 
 /** Qual clipe aparece no instante `t` da linha do tempo e em que ponto do arquivo dele. */
@@ -141,7 +142,7 @@ export function clipeNoTempo(projeto, t) {
   const alvo = Math.min(Math.max(0, t), duracaoTotal(projeto));
   const segmento = lista.find((s) => alvo < s.fim) ?? lista[lista.length - 1];
   const clipe = projeto.clipes[segmento.indice];
-  const dentro = Math.min(alvo - segmento.inicio, segmento.duracao);
+  const dentro = Math.min(alvo - segmento.inicio, projeto.versao>=4 && alvo>=segmento.fim ? Math.max(0,(Math.ceil(segmento.duracao*projeto.fps)-1)/projeto.fps) : segmento.duracao);
   return {
     indice: segmento.indice,
     clipe,
@@ -161,7 +162,7 @@ export function transicaoNoTempo(p,t) {
 
 /** Os textos visíveis no instante `t`. */
 export function textosNoTempo(projeto, t) {
-  return projeto.textos.filter((texto) => t >= texto.inicio && (texto.id.startsWith("legenda-") ? t < texto.fim : t <= texto.fim));
+  return projeto.textos.filter((texto) => t >= texto.inicio && ((texto.id.startsWith("legenda-") || texto.id.startsWith("contagem-")) ? t < texto.fim : t <= texto.fim));
 }
 
 /** Camadas extras: início/fim na composição, deslocamento no arquivo de origem. */
@@ -201,7 +202,7 @@ export function tamanhoDoGif(largura, altura) {
 /** Problemas que impedem exportar, em português, prontos para mostrar. */
 export function problemas(projeto) {
   const lista = [];
-  if (![1, 2, VERSAO_DO_PROJETO].includes(projeto.versao)) lista.push("Projeto de uma versão que este app não conhece.");
+  if (![1, 2, 3, VERSAO_DO_PROJETO].includes(projeto.versao)) lista.push("Projeto de uma versão que este app não conhece.");
   if (!(projeto.largura >= 16 && projeto.altura >= 16 && projeto.largura <= 4096 && projeto.altura <= 4096)) {
     lista.push("O tamanho do quadro precisa ficar entre 16 e 4096 pixels.");
   }
@@ -236,6 +237,12 @@ export function problemas(projeto) {
   const corValida = (cor) => /^#[0-9a-f]{6}([0-9a-f]{2})?$/i.test(cor);
   if (projeto.fundo && (!corValida(projeto.fundo.cor) || (projeto.fundo.corFinal && !corValida(projeto.fundo.corFinal)))) lista.push("Cor de fundo inválida.");
   const total = duracaoTotal(projeto);
+  if(projeto.versao>=4) {
+    if(!Number.isInteger(projeto.fps)||projeto.fps<1||projeto.fps>60) lista.push("Use uma taxa de 1 a 60 quadros por segundo.");
+    if(!Number.isFinite(total)||total<0||total>86400) lista.push("A composição deve ter duração finita de até 24 horas.");
+    if(projeto.clipes.length>100||projeto.textos.length>1100||projeto.audios.length>20) lista.push("Use até 100 clipes, 1100 textos e 20 áudios.");
+    if(projeto.audios.some(a=>!Number.isFinite(a.entrada??0)||(a.entrada??0)<0||!Number.isFinite(a.inicio)||a.inicio<0||!Number.isFinite(a.fim))) lista.push("O intervalo de um áudio é inválido.");
+  }
   if (projeto.saida === "imagem" && projeto.clipes.length > 0 && !(projeto.quadro >= 0 && projeto.quadro <= total)) {
     lista.push("Escolha um instante dentro do vídeo para a imagem.");
   }
@@ -308,13 +315,22 @@ export function receitaFfmpeg(projeto, entradas) {
     filtros.push(`[${anterior}]anull[ab]`);
   } else filtros.push(`${pares}concat=n=${projeto.clipes.length}:v=${comVideo ? 1 : 0}:a=${comAudio ? 1 : 0}${comVideo ? "[vb]" : ""}${comAudio ? "[ab]" : ""}`);
 
+  if (comAudio && total > (segmentos(projeto).at(-1)?.fim ?? 0)) {
+    const antigo = filtros.pop(); filtros.push(antigo.replaceAll("[ab]","[abase]"));
+    filtros.push(`[abase]apad=whole_dur=${numero(total)},atrim=duration=${numero(total)}[ab]`);
+  }
+
+  if (comVideo && total > (segmentos(projeto).at(-1)?.fim ?? 0)) {
+    for(let i=0;i<filtros.length;i++) filtros[i]=filtros[i].replaceAll("[vb]","[vbase]");
+    filtros.push(`[vbase]tpad=stop_mode=clone:stop_duration=${numero(total-(segmentos(projeto).at(-1)?.fim??0))},trim=duration=${numero(total)}[vb]`);
+  }
   let video = "vb";
   if (comVideo) {
     projeto.textos.forEach((texto, j) => {
       args.push("-loop", "1", "-framerate", String(fps), "-t", numero(total), "-i", entradas.textos[j]);
       const n = indiceDaEntrada++;
       const proximo = `vt${j}`;
-      filtros.push(`[${video}][${n}:v]overlay=0:0:enable='${texto.id.startsWith("legenda-")?`gte(t,${numero(texto.inicio)})*lt(t,${numero(texto.fim)})`:`between(t,${numero(texto.inicio)},${numero(texto.fim)})`}'[${proximo}]`);
+      filtros.push(`[${video}][${n}:v]overlay=0:0:enable='${(texto.id.startsWith("legenda-") || texto.id.startsWith("contagem-"))?`gte(t,${numero(texto.inicio)})*lt(t,${numero(texto.fim)})`:`between(t,${numero(texto.inicio)},${numero(texto.fim)})`}'[${proximo}]`);
       video = proximo;
     });
     if (projeto.saida === "gif") {

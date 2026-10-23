@@ -1,3 +1,4 @@
+import { validarAnimacao } from "./estudio-animacao.mjs";
 /** Geometria das camadas. X/Y inclinam a superfície; Z gira no plano. Medidas normalizadas. */
 export const TRANSFORMACAO_PADRAO = Object.freeze({
   x: 0.5, y: 0.5, escala: 1, giro: 0, giroX: 0, giroY: 0,
@@ -72,6 +73,7 @@ export function projetarPonto(m, x, y) {
 
 export function validarTransformacao(t = {}) {
   if (t === null) return null;
+  const animacao = validarAnimacao(t); if (animacao) return animacao;
   const limites = { x: [-2, 3], y: [-2, 3], escala: [0.05, 6], giro: [-360, 360], giroX: [-180, 180], giroY: [-180, 180], opacidade: [0, 1], brilho: [-1, 1], contraste: [-0.8, 1], saturacao: [-1, 1] };
   for (const [campo, [min, max]] of Object.entries(limites)) {
     if (t[campo] !== undefined && (!Number.isFinite(t[campo]) || t[campo] < min || t[campo] > max)) return `Ajuste inválido da camada: ${campo}.`;

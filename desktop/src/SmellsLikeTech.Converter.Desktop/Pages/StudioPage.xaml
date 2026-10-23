@@ -21,7 +21,10 @@
                     </StackPanel>
                 </Button>
             </StackPanel>
-            <Button x:Name="NewProjectButton" Content="Novo projeto" HorizontalAlignment="Right" VerticalAlignment="Center" Click="OnNewProject" Visibility="Collapsed" />
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Spacing="8">
+                <Button x:Name="OpenProjectButton" Content="Abrir projeto" Click="OnOpenProject" />
+                <Button x:Name="NewProjectButton" Content="Novo projeto" Click="OnNewProject" Visibility="Collapsed" />
+            </StackPanel>
         </Grid>
 
         <InfoBar x:Name="StatusBar" Grid.Row="1" IsOpen="False" IsClosable="True" Margin="0,0,0,10" />

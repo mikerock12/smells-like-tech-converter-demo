@@ -1,0 +1,146 @@
+{
+  "nome": "Fundo animado durante transições e extensão de faixa livre",
+  "projeto": {
+    "versao": 4,
+    "destino": "personalizado",
+    "largura": 64,
+    "altura": 64,
+    "fps": 10,
+    "saida": "video",
+    "quadro": 1.5,
+    "clipes": [
+      {
+        "id": "c0",
+        "arquivo": "a.mp4",
+        "tipo": "video",
+        "inicio": 1,
+        "fim": 2,
+        "ajuste": "caber",
+        "transicao": {
+          "tipo": "dissolver",
+          "duracao": 0.3
+        }
+      },
+      {
+        "id": "c1",
+        "arquivo": "b.mp4",
+        "tipo": "video",
+        "inicio": 0,
+        "fim": 1,
+        "ajuste": "caber"
+      }
+    ],
+    "camadas": [
+      {
+        "id": "l",
+        "arquivo": "sobre.mp4",
+        "tipo": "video",
+        "inicio": 0.5,
+        "fim": 3,
+        "ordem": -1,
+        "transformacao": {
+          "mascara": "circulo",
+          "tempoDaAnimacao": 0.25,
+          "quadrosChave": [
+            {
+              "tempo": 0,
+              "x": 0.8,
+              "y": 0.2,
+              "escala": 0.3
+            },
+            {
+              "tempo": 2,
+              "x": 0.3,
+              "y": 0.6,
+              "escala": 0.5
+            }
+          ]
+        }
+      }
+    ],
+    "audios": [],
+    "textos": []
+  },
+  "entradas": {
+    "clipes": [
+      {
+        "caminho": "a.mp4",
+        "temAudio": true
+      },
+      {
+        "caminho": "b.mp4",
+        "temAudio": false
+      }
+    ],
+    "textos": [],
+    "audios": [],
+    "camadas": [
+      "sobre.mp4"
+    ]
+  },
+  "esperado": {
+    "duracao": 3,
+    "segmentos": [
+      {
+        "indice": 0,
+        "id": "c0",
+        "inicio": 0,
+        "fim": 1,
+        "duracao": 1
+      },
+      {
+        "indice": 1,
+        "id": "c1",
+        "inicio": 0.7,
+        "fim": 1.7,
+        "duracao": 1
+      }
+    ],
+    "problemas": [],
+    "avisos": [],
+    "gif": {
+      "largura": 64,
+      "altura": 64
+    },
+    "receita": {
+      "args": [
+        "-ss",
+        "1",
+        "-t",
+        "1",
+        "-i",
+        "a.mp4",
+        "-ss",
+        "0",
+        "-t",
+        "1",
+        "-i",
+        "b.mp4",
+        "-stream_loop",
+        "-1",
+        "-ss",
+        "0",
+        "-t",
+        "0.5",
+        "-i",
+        "sobre.mp4",
+        "-stream_loop",
+        "-1",
+        "-ss",
+        "0",
+        "-t",
+        "2.5",
+        "-i",
+        "sobre.mp4"
+      ],
+      "filtro": "[0:a]aresample=48000,aformat=channel_layouts=stereo,volume=1,apad=whole_dur=1,atrim=duration=1,asetpts=PTS-STARTPTS[a0];anullsrc=r=48000:cl=stereo,atrim=duration=1,asetpts=PTS-STARTPTS[a1];[a0][a1]acrossfade=d=0.3:c1=tri:c2=tri[ax1];[ax1]anull[abase];[abase]apad=whole_dur=3,atrim=duration=3[ab];[0:v]fps=10,format=rgba,scale=64:64:force_original_aspect_ratio=decrease:force_divisible_by=2,pad=64:64:(ow-iw)/2:(oh-ih)/2:color=black@0,setsar=1,format=gbrap,geq=r='st(0,(W*(1*(X+0.5)/W+0*(Y+0.5)/H+0)/(0*(X+0.5)/W+0*(Y+0.5)/H+1)-0.5));st(1,(H*(0*(X+0.5)/W+1*(Y+0.5)/H+0)/(0*(X+0.5)/W+0*(Y+0.5)/H+1)-0.5));1*r(ld(0),ld(1))+0*g(ld(0),ld(1))+0*b(ld(0),ld(1))+0':g='st(0,(W*(1*(X+0.5)/W+0*(Y+0.5)/H+0)/(0*(X+0.5)/W+0*(Y+0.5)/H+1)-0.5));st(1,(H*(0*(X+0.5)/W+1*(Y+0.5)/H+0)/(0*(X+0.5)/W+0*(Y+0.5)/H+1)-0.5));0*r(ld(0),ld(1))+1*g(ld(0),ld(1))+0*b(ld(0),ld(1))+0':b='st(0,(W*(1*(X+0.5)/W+0*(Y+0.5)/H+0)/(0*(X+0.5)/W+0*(Y+0.5)/H+1)-0.5));st(1,(H*(0*(X+0.5)/W+1*(Y+0.5)/H+0)/(0*(X+0.5)/W+0*(Y+0.5)/H+1)-0.5));0*r(ld(0),ld(1))+0*g(ld(0),ld(1))+1*b(ld(0),ld(1))+0':a='st(0,(W*(1*(X+0.5)/W+0*(Y+0.5)/H+0)/(0*(X+0.5)/W+0*(Y+0.5)/H+1)-0.5));st(1,(H*(0*(X+0.5)/W+1*(Y+0.5)/H+0)/(0*(X+0.5)/W+0*(Y+0.5)/H+1)-0.5));if(between(ld(0),-0.5,W-0.5)*between(ld(1),-0.5,H-0.5),alpha(ld(0),ld(1))*1,0)':interpolation=bilinear,format=rgba,setpts=PTS-STARTPTS,format=gbrap,settb=AVTB[cp0];color=c=black:s=64x64:r=10:d=1,format=rgba,geq=r='0+(0)*clip(((X+0.5)*W+(Y+0.5)*H)/(W*W+H*H),0,1)':g='0+(0)*clip(((X+0.5)*W+(Y+0.5)*H)/(W*W+H*H),0,1)':b='0+(0)*clip(((X+0.5)*W+(Y+0.5)*H)/(W*W+H*H),0,1)':a='255+(0)*clip(((X+0.5)*W+(Y+0.5)*H)/(W*W+H*H),0,1)',format=rgba[cbglocal0];[2:v]fps=10,tpad=stop_mode=clone:stop_duration=0.5,trim=start=0:duration=0.5,setpts=PTS-STARTPTS,format=rgba,scale=64:64:force_original_aspect_ratio=decrease:force_divisible_by=2,pad=64:64:(ow-iw)/2:(oh-ih)/2:color=black@0,setsar=1,format=gbrap,geq=r='st(2,if(lt((T+0.25),2),0.8+(-0.5)*clip(((T+0.25)-0)/2,0,1),0.3));st(3,if(lt((T+0.25),2),0.2+(0.4)*clip(((T+0.25)-0)/2,0,1),0.6));st(4,1/(if(lt((T+0.25),2),0.3+(0.2)*clip(((T+0.25)-0)/2,0,1),0.5)));st(5,((X+0.5)/W-ld(2))*ld(4)+0.5);st(6,((Y+0.5)/H-ld(3))*ld(4)+0.5);st(7,(0*ld(5)+0*ld(6)+1));st(0,(W*(1*ld(5)+0*ld(6)+0)/ld(7)-0.5));st(1,(H*(0*ld(5)+1*ld(6)+0)/ld(7)-0.5));1*r(ld(0),ld(1))+0':g='st(2,if(lt((T+0.25),2),0.8+(-0.5)*clip(((T+0.25)-0)/2,0,1),0.3));st(3,if(lt((T+0.25),2),0.2+(0.4)*clip(((T+0.25)-0)/2,0,1),0.6));st(4,1/(if(lt((T+0.25),2),0.3+(0.2)*clip(((T+0.25)-0)/2,0,1),0.5)));st(5,((X+0.5)/W-ld(2))*ld(4)+0.5);st(6,((Y+0.5)/H-ld(3))*ld(4)+0.5);st(7,(0*ld(5)+0*ld(6)+1));st(0,(W*(1*ld(5)+0*ld(6)+0)/ld(7)-0.5));st(1,(H*(0*ld(5)+1*ld(6)+0)/ld(7)-0.5));1*g(ld(0),ld(1))+0':b='st(2,if(lt((T+0.25),2),0.8+(-0.5)*clip(((T+0.25)-0)/2,0,1),0.3));st(3,if(lt((T+0.25),2),0.2+(0.4)*clip(((T+0.25)-0)/2,0,1),0.6));st(4,1/(if(lt((T+0.25),2),0.3+(0.2)*clip(((T+0.25)-0)/2,0,1),0.5)));st(5,((X+0.5)/W-ld(2))*ld(4)+0.5);st(6,((Y+0.5)/H-ld(3))*ld(4)+0.5);st(7,(0*ld(5)+0*ld(6)+1));st(0,(W*(1*ld(5)+0*ld(6)+0)/ld(7)-0.5));st(1,(H*(0*ld(5)+1*ld(6)+0)/ld(7)-0.5));1*b(ld(0),ld(1))+0':a='st(2,if(lt((T+0.25),2),0.8+(-0.5)*clip(((T+0.25)-0)/2,0,1),0.3));st(3,if(lt((T+0.25),2),0.2+(0.4)*clip(((T+0.25)-0)/2,0,1),0.6));st(4,1/(if(lt((T+0.25),2),0.3+(0.2)*clip(((T+0.25)-0)/2,0,1),0.5)));st(5,((X+0.5)/W-ld(2))*ld(4)+0.5);st(6,((Y+0.5)/H-ld(3))*ld(4)+0.5);st(7,(0*ld(5)+0*ld(6)+1));st(0,(W*(1*ld(5)+0*ld(6)+0)/ld(7)-0.5));st(1,(H*(0*ld(5)+1*ld(6)+0)/ld(7)-0.5));if(between(ld(0),-0.5,W-0.5)*between(ld(1),-0.5,H-0.5),alpha(ld(0),ld(1))*1*lte(pow((ld(0)+0.5-W/2)/(min(W,H)/2),2)+pow((ld(1)+0.5-H/2)/(min(W,H)/2),2),1),0)':interpolation=bilinear,format=rgba,setpts=PTS-STARTPTS+0.5/TB[cbl0_0];[cbglocal0][cbl0_0]overlay=0:0:format=auto:enable='gte(t,0.5)*lt(t,1)'[cblbase0_0];[cblbase0_0][cp0]overlay=0:0:format=auto:enable='gte(t,0)*lt(t,1)'[cq0];[cq0]format=gbrap,settb=AVTB[cqf0];[1:v]fps=10,format=rgba,scale=64:64:force_original_aspect_ratio=decrease:force_divisible_by=2,pad=64:64:(ow-iw)/2:(oh-ih)/2:color=black@0,setsar=1,tpad=stop_mode=clone:stop_duration=1.3,trim=duration=2.3,format=gbrap,geq=r='st(0,(W*(1*(X+0.5)/W+0*(Y+0.5)/H+0)/(0*(X+0.5)/W+0*(Y+0.5)/H+1)-0.5));st(1,(H*(0*(X+0.5)/W+1*(Y+0.5)/H+0)/(0*(X+0.5)/W+0*(Y+0.5)/H+1)-0.5));1*r(ld(0),ld(1))+0*g(ld(0),ld(1))+0*b(ld(0),ld(1))+0':g='st(0,(W*(1*(X+0.5)/W+0*(Y+0.5)/H+0)/(0*(X+0.5)/W+0*(Y+0.5)/H+1)-0.5));st(1,(H*(0*(X+0.5)/W+1*(Y+0.5)/H+0)/(0*(X+0.5)/W+0*(Y+0.5)/H+1)-0.5));0*r(ld(0),ld(1))+1*g(ld(0),ld(1))+0*b(ld(0),ld(1))+0':b='st(0,(W*(1*(X+0.5)/W+0*(Y+0.5)/H+0)/(0*(X+0.5)/W+0*(Y+0.5)/H+1)-0.5));st(1,(H*(0*(X+0.5)/W+1*(Y+0.5)/H+0)/(0*(X+0.5)/W+0*(Y+0.5)/H+1)-0.5));0*r(ld(0),ld(1))+0*g(ld(0),ld(1))+1*b(ld(0),ld(1))+0':a='st(0,(W*(1*(X+0.5)/W+0*(Y+0.5)/H+0)/(0*(X+0.5)/W+0*(Y+0.5)/H+1)-0.5));st(1,(H*(0*(X+0.5)/W+1*(Y+0.5)/H+0)/(0*(X+0.5)/W+0*(Y+0.5)/H+1)-0.5));if(between(ld(0),-0.5,W-0.5)*between(ld(1),-0.5,H-0.5),alpha(ld(0),ld(1))*1,0)':interpolation=bilinear,format=rgba,setpts=PTS-STARTPTS,format=gbrap,settb=AVTB[cp1];color=c=black:s=64x64:r=10:d=2.3,format=rgba,geq=r='0+(0)*clip(((X+0.5)*W+(Y+0.5)*H)/(W*W+H*H),0,1)':g='0+(0)*clip(((X+0.5)*W+(Y+0.5)*H)/(W*W+H*H),0,1)':b='0+(0)*clip(((X+0.5)*W+(Y+0.5)*H)/(W*W+H*H),0,1)':a='255+(0)*clip(((X+0.5)*W+(Y+0.5)*H)/(W*W+H*H),0,1)',format=rgba[cbglocal1];[3:v]fps=10,tpad=stop_mode=clone:stop_duration=2.5,trim=start=0.2:duration=2.3,setpts=PTS-STARTPTS,format=rgba,scale=64:64:force_original_aspect_ratio=decrease:force_divisible_by=2,pad=64:64:(ow-iw)/2:(oh-ih)/2:color=black@0,setsar=1,format=gbrap,geq=r='st(2,if(lt(((T+0.2)+0.25),2),0.8+(-0.5)*clip((((T+0.2)+0.25)-0)/2,0,1),0.3));st(3,if(lt(((T+0.2)+0.25),2),0.2+(0.4)*clip((((T+0.2)+0.25)-0)/2,0,1),0.6));st(4,1/(if(lt(((T+0.2)+0.25),2),0.3+(0.2)*clip((((T+0.2)+0.25)-0)/2,0,1),0.5)));st(5,((X+0.5)/W-ld(2))*ld(4)+0.5);st(6,((Y+0.5)/H-ld(3))*ld(4)+0.5);st(7,(0*ld(5)+0*ld(6)+1));st(0,(W*(1*ld(5)+0*ld(6)+0)/ld(7)-0.5));st(1,(H*(0*ld(5)+1*ld(6)+0)/ld(7)-0.5));1*r(ld(0),ld(1))+0':g='st(2,if(lt(((T+0.2)+0.25),2),0.8+(-0.5)*clip((((T+0.2)+0.25)-0)/2,0,1),0.3));st(3,if(lt(((T+0.2)+0.25),2),0.2+(0.4)*clip((((T+0.2)+0.25)-0)/2,0,1),0.6));st(4,1/(if(lt(((T+0.2)+0.25),2),0.3+(0.2)*clip((((T+0.2)+0.25)-0)/2,0,1),0.5)));st(5,((X+0.5)/W-ld(2))*ld(4)+0.5);st(6,((Y+0.5)/H-ld(3))*ld(4)+0.5);st(7,(0*ld(5)+0*ld(6)+1));st(0,(W*(1*ld(5)+0*ld(6)+0)/ld(7)-0.5));st(1,(H*(0*ld(5)+1*ld(6)+0)/ld(7)-0.5));1*g(ld(0),ld(1))+0':b='st(2,if(lt(((T+0.2)+0.25),2),0.8+(-0.5)*clip((((T+0.2)+0.25)-0)/2,0,1),0.3));st(3,if(lt(((T+0.2)+0.25),2),0.2+(0.4)*clip((((T+0.2)+0.25)-0)/2,0,1),0.6));st(4,1/(if(lt(((T+0.2)+0.25),2),0.3+(0.2)*clip((((T+0.2)+0.25)-0)/2,0,1),0.5)));st(5,((X+0.5)/W-ld(2))*ld(4)+0.5);st(6,((Y+0.5)/H-ld(3))*ld(4)+0.5);st(7,(0*ld(5)+0*ld(6)+1));st(0,(W*(1*ld(5)+0*ld(6)+0)/ld(7)-0.5));st(1,(H*(0*ld(5)+1*ld(6)+0)/ld(7)-0.5));1*b(ld(0),ld(1))+0':a='st(2,if(lt(((T+0.2)+0.25),2),0.8+(-0.5)*clip((((T+0.2)+0.25)-0)/2,0,1),0.3));st(3,if(lt(((T+0.2)+0.25),2),0.2+(0.4)*clip((((T+0.2)+0.25)-0)/2,0,1),0.6));st(4,1/(if(lt(((T+0.2)+0.25),2),0.3+(0.2)*clip((((T+0.2)+0.25)-0)/2,0,1),0.5)));st(5,((X+0.5)/W-ld(2))*ld(4)+0.5);st(6,((Y+0.5)/H-ld(3))*ld(4)+0.5);st(7,(0*ld(5)+0*ld(6)+1));st(0,(W*(1*ld(5)+0*ld(6)+0)/ld(7)-0.5));st(1,(H*(0*ld(5)+1*ld(6)+0)/ld(7)-0.5));if(between(ld(0),-0.5,W-0.5)*between(ld(1),-0.5,H-0.5),alpha(ld(0),ld(1))*1*lte(pow((ld(0)+0.5-W/2)/(min(W,H)/2),2)+pow((ld(1)+0.5-H/2)/(min(W,H)/2),2),1),0)':interpolation=bilinear,format=rgba,setpts=PTS-STARTPTS+0/TB[cbl1_0];[cbglocal1][cbl1_0]overlay=0:0:format=auto:enable='gte(t,0)*lt(t,2.3)'[cblbase1_0];[cblbase1_0][cp1]overlay=0:0:format=auto:enable='gte(t,0)*lt(t,2.3)'[cq1];[cq1]format=gbrap,settb=AVTB[cqf1];[cqf0][cqf1]xfade=transition=fade:duration=0.3:offset=0.7[cx1]",
+      "mapas": [
+        "-map",
+        "[cx1]",
+        "-map",
+        "[ab]"
+      ],
+      "duracao": 3
+    }
+  }
+}

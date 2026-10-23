@@ -12,7 +12,7 @@ namespace SmellsLikeTech.Converter.Core.Studio;
 /// </summary>
 public static class StudioRules
 {
-    public const int ProjectVersion = 3;
+    public const int ProjectVersion = 4;
     public const double DefaultImageDuration = 3;
     public const double MinimumDuration = 0.1;
     public const int GifShortSide = 480;
@@ -97,7 +97,7 @@ public static class StudioRules
     }
 
     public static double TotalDuration(StudioProject project) =>
-        Segments(project).LastOrDefault()?.End ?? 0;
+        project.Version<4 ? Segments(project).LastOrDefault()?.End ?? 0 : Round(new[]{Segments(project).LastOrDefault()?.End ?? 0,project.Layers.Where(c=>c.Visible).Select(c=>c.End).DefaultIfEmpty(0).Max(),project.Audios.Select(a=>(a.At??0)+a.End-a.Start).DefaultIfEmpty(0).Max()}.Max());
 
     /// <summary>Clipe visivel no instante <paramref name="time"/> e o ponto dele no arquivo.</summary>
     public static (int Index, StudioClip Clip, double TimeInFile)? ClipAt(StudioProject project, double time)
@@ -111,7 +111,7 @@ public static class StudioRules
         var target = Math.Min(Math.Max(0, time), TotalDuration(project));
         var segment = segments.FirstOrDefault(s => target < s.End) ?? segments[^1];
         var clip = project.Clips[segment.Index];
-        var inside = Math.Min(target - segment.Start, segment.Duration);
+        var inside = Math.Min(target - segment.Start, project.Version>=4 && target>=segment.End ? Math.Max(0,(Math.Ceiling(segment.Duration*project.Fps)-1)/project.Fps) : segment.Duration);
         return (segment.Index, clip, Round(clip.IsImage ? 0 : (clip.Start ?? 0) + inside * ClipSpeed(clip)));
     }
 
@@ -142,7 +142,7 @@ public static class StudioRules
     public static IReadOnlyList<string> Problems(StudioProject project)
     {
         var list = new List<string>();
-        if (project.Version is not (1 or 2 or ProjectVersion))
+        if (project.Version is not (1 or 2 or 3 or ProjectVersion))
         {
             list.Add("Projeto de uma versão que este app não conhece.");
         }
@@ -214,6 +214,12 @@ public static class StudioRules
         static bool ValidColor(string color) => System.Text.RegularExpressions.Regex.IsMatch(color, "^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$");
         if (project.Background is { } background && (!ValidColor(background.Color) || (background.EndColor is not null && !ValidColor(background.EndColor)))) list.Add("Cor de fundo inválida.");
         var total = TotalDuration(project);
+        if(project.Version>=4) {
+            if(project.Fps<1||project.Fps>60) list.Add("Use uma taxa de 1 a 60 quadros por segundo.");
+            if(!double.IsFinite(total)||total<0||total>86400) list.Add("A composição deve ter duração finita de até 24 horas.");
+            if(project.Clips.Count>100||project.Texts.Count>1100||project.Audios.Count>20) list.Add("Use até 100 clipes, 1100 textos e 20 áudios.");
+            if(project.Audios.Any(a=>!double.IsFinite(a.At??0)||(a.At??0)<0||!double.IsFinite(a.Start)||a.Start<0||!double.IsFinite(a.End))) list.Add("O intervalo de um áudio é inválido.");
+        }
         if (project.Output == "imagem" && project.Clips.Count > 0 && !(project.Frame >= 0 && project.Frame <= total))
         {
             list.Add("Escolha um instante dentro do vídeo para a imagem.");

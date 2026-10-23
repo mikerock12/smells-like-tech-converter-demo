@@ -32,7 +32,7 @@ object Estudio {
 
     fun usaCamadas(projeto: Projeto) = projeto.fundo != null || projeto.camadas.isNotEmpty() ||
         projeto.clipes.any { it.transformacao != null } || projeto.textos.any { it.transformacao != null }
-    const val VERSAO_DO_PROJETO = 3
+    const val VERSAO_DO_PROJETO = 4
     const val DURACAO_PADRAO_DA_IMAGEM = 3.0
     const val DURACAO_MINIMA = 0.1
     const val LADO_DO_GIF = 480
@@ -112,7 +112,7 @@ object Estudio {
         }
     }
 
-    fun duracaoTotal(projeto: Projeto): Double = segmentos(projeto).lastOrNull()?.fim ?: 0.0
+    fun duracaoTotal(projeto: Projeto): Double = if(projeto.versao<4) segmentos(projeto).lastOrNull()?.fim ?: 0.0 else arredondar(maxOf(segmentos(projeto).lastOrNull()?.fim ?: 0.0, projeto.camadas.filter { it.visivel }.maxOfOrNull { it.fim } ?: 0.0, projeto.audios.maxOfOrNull { (it.entrada ?: 0.0)+it.fim-it.inicio } ?: 0.0))
 
     /** O clipe visível no instante `t` e o ponto dele no arquivo. */
     fun clipeNoTempo(projeto: Projeto, t: Double): Triple<Int, Clipe, Double>? {
@@ -121,11 +121,11 @@ object Estudio {
         val alvo = min(max(0.0, t), duracaoTotal(projeto))
         val segmento = lista.firstOrNull { alvo < it.fim } ?: lista.last()
         val clipe = projeto.clipes[segmento.indice]
-        val dentro = min(alvo - segmento.inicio, segmento.duracao)
+        val dentro = min(alvo - segmento.inicio, if(projeto.versao>=4 && alvo>=segmento.fim) maxOf(0.0,(kotlin.math.ceil(segmento.duracao*projeto.fps)-1)/projeto.fps) else segmento.duracao)
         return Triple(segmento.indice, clipe, arredondar(if (clipe.ehImagem) 0.0 else (clipe.inicio ?: 0.0) + dentro * velocidadeDoClipe(clipe)))
     }
 
-    fun textosNoTempo(projeto: Projeto, t: Double) = projeto.textos.filter { t >= it.inicio && (if(it.id.startsWith("legenda-")) t < it.fim else t <= it.fim) }
+    fun textosNoTempo(projeto: Projeto, t: Double) = projeto.textos.filter { t >= it.inicio && (if((it.id.startsWith("legenda-") || it.id.startsWith("contagem-"))) t < it.fim else t <= it.fim) }
 
     /** Onde a origem é desenhada para preencher ou caber (pares, como o scale do FFmpeg): x, y, largura, altura. */
     fun retanguloDoAjuste(ajuste: String, larguraDaOrigem: Double, alturaDaOrigem: Double, largura: Int, altura: Int): List<Double> {
@@ -146,7 +146,7 @@ object Estudio {
     /** Problemas que impedem exportar, nos mesmos textos do site e do Windows. */
     fun problemas(projeto: Projeto): List<String> {
         val lista = mutableListOf<String>()
-        if (projeto.versao !in listOf(1, 2, VERSAO_DO_PROJETO)) lista += "Projeto de uma versão que este app não conhece."
+        if (projeto.versao !in listOf(1, 2, 3, VERSAO_DO_PROJETO)) lista += "Projeto de uma versão que este app não conhece."
         if (!(projeto.largura >= 16 && projeto.altura >= 16 && projeto.largura <= 4096 && projeto.altura <= 4096)) {
             lista += "O tamanho do quadro precisa ficar entre 16 e 4096 pixels."
         }
@@ -178,6 +178,12 @@ object Estudio {
         fun corValida(cor: String) = cor.matches(Regex("#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?"))
         projeto.fundo?.let { if (!corValida(it.cor) || (it.corFinal != null && !corValida(it.corFinal))) lista += "Cor de fundo inválida." }
         val total = duracaoTotal(projeto)
+        if(projeto.versao>=4) {
+            if(projeto.fps !in 1..60) lista+="Use uma taxa de 1 a 60 quadros por segundo."
+            if(!total.isFinite()||total<0||total>86400) lista+="A composição deve ter duração finita de até 24 horas."
+            if(projeto.clipes.size>100||projeto.textos.size>1100||projeto.audios.size>20) lista+="Use até 100 clipes, 1100 textos e 20 áudios."
+            if(projeto.audios.any {!(it.entrada?:0.0).isFinite()||(it.entrada?:0.0)<0||!it.inicio.isFinite()||it.inicio<0||!it.fim.isFinite()}) lista+="O intervalo de um áudio é inválido."
+        }
         if (projeto.saida == "imagem" && projeto.clipes.isNotEmpty() && !(projeto.quadro >= 0 && projeto.quadro <= total)) {
             lista += "Escolha um instante dentro do vídeo para a imagem."
         }
@@ -239,13 +245,21 @@ object Estudio {
             filtros+="[$anterior]anull[ab]"
         } else filtros += "${pares}concat=n=${projeto.clipes.size}:v=${if (comVideo) 1 else 0}:a=${if (comAudio) 1 else 0}${if (comVideo) "[vb]" else ""}${if (comAudio) "[ab]" else ""}"
 
+        if(comAudio && total>(segmentos(projeto).lastOrNull()?.fim ?: 0.0)) {
+            val antigo=filtros.removeAt(filtros.lastIndex);filtros+=antigo.replace("[ab]","[abase]")
+            filtros+="[abase]apad=whole_dur=${numero(total)},atrim=duration=${numero(total)}[ab]"
+        }
+        if(comVideo && total>(segmentos(projeto).lastOrNull()?.fim ?: 0.0)) {
+            for(i in filtros.indices) filtros[i]=filtros[i].replace("[vb]","[vbase]")
+            filtros+="[vbase]tpad=stop_mode=clone:stop_duration=${numero(total-(segmentos(projeto).lastOrNull()?.fim?:0.0))},trim=duration=${numero(total)}[vb]"
+        }
         var video = "vb"
         if (comVideo) {
             projeto.textos.forEachIndexed { j, texto ->
                 args += listOf("-loop", "1", "-framerate", fps.toString(), "-t", numero(total), "-i", entradas.textos[j])
                 val n = indiceDaEntrada++
                 val proximo = "vt$j"
-                filtros += "[$video][$n:v]overlay=0:0:enable='${if(texto.id.startsWith("legenda-")) "gte(t,${numero(texto.inicio)})*lt(t,${numero(texto.fim)})" else "between(t,${numero(texto.inicio)},${numero(texto.fim)})"}'[$proximo]"
+                filtros += "[$video][$n:v]overlay=0:0:enable='${if((texto.id.startsWith("legenda-") || texto.id.startsWith("contagem-"))) "gte(t,${numero(texto.inicio)})*lt(t,${numero(texto.fim)})" else "between(t,${numero(texto.inicio)},${numero(texto.fim)})"}'[$proximo]"
                 video = proximo
             }
             if (projeto.saida == "gif") {

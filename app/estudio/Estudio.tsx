@@ -39,6 +39,9 @@ import { usePlano } from "@/lib/plano/usePlano";
 import { usePlugin } from "@/lib/plugin/usePlugin";
 import Paywall from "../converter/Paywall";
 import ControlesDeCamada from "./ControlesDeCamada";
+import LinhaDoTempo from "./LinhaDoTempo";
+import ProjetosDoEstudio from "./ProjetosDoEstudio";
+import NarracaoDoEstudio from "./NarracaoDoEstudio";
 import PainelDeCamadas from "./PainelDeCamadas";
 
 type Etapa = "destino" | "saida" | "editor";
@@ -125,7 +128,7 @@ export default function Estudio() {
     mudar((p) => ({ ...p, clipes: [...p.clipes, ...clipes] }));
   };
 
-  const adicionarMusica = async (arquivo: File) => {
+  const adicionarMusica = async (arquivo: File, entrada = 0, inteira = false) => {
     const chave = novoId("a");
     const duracao = (await duracaoDaMidia(arquivo)) ?? 30;
     setArquivos((atuais) => new Map(atuais).set(chave, arquivo));
@@ -133,7 +136,7 @@ export default function Estudio() {
     const id = novoId("m");
     mudar((p) => ({
       ...p,
-      audios: [...p.audios, { id, arquivo: chave, entrada: 0, inicio: 0, fim: Math.min(duracao, duracaoTotal(p) || duracao), volume: 0.8, fadeEntrada: 0, fadeSaida: 1 }],
+      audios: [...p.audios, { id, arquivo: chave, entrada, inicio: 0, fim: inteira ? duracao : Math.min(duracao, duracaoTotal(p) || duracao), volume: inteira ? 1 : 0.8, fadeEntrada: 0, fadeSaida: inteira ? 0 : 1 }],
     }));
     setAberto(id);
   };
@@ -144,7 +147,7 @@ export default function Estudio() {
     const tipo = arquivo.type === "image/gif" || /\.gif$/i.test(arquivo.name) ? "gif" : arquivo.type.startsWith("video/") ? "video" : "imagem";
     const chave = novoId("a"), id = novoId("camada");
     setArquivos(atuais => new Map(atuais).set(chave, arquivo));
-    mudar(p => ({ ...p, versao: 2, camadas: [...(p.camadas ?? []), {
+    mudar(p => ({ ...p, versao: 4, camadas: [...(p.camadas ?? []), {
       id, arquivo: chave, tipo, inicio: Math.min(instante, Math.max(0, total - .1)), fim: total,
       ordem: (p.camadas?.length ?? 0) + 1, transformacao: { escala: .5 },
     }] }));
@@ -173,6 +176,13 @@ export default function Estudio() {
     setAberto(id);
   };
 
+  const abrirSalvo = async (p: Projeto, midias: ReadonlyMap<string,File>) => {
+    const novasInfos: Record<string,Info> = {};
+    for(const [ref,f] of midias) novasInfos[ref]={nome:f.name,duracao:IMAGEM.test(f.name)?null:await duracaoDaMidia(f).catch(()=>null)};
+    setTocando(false);setProjeto(p);setArquivos(midias);setInfos(novasInfos);setInstante(0);setResultado(null);setErro(null);setEtapa("editor");
+  };
+  const projetos = <ProjetosDoEstudio projeto={projeto} arquivos={arquivos} instante={instante} mudar={mudar} abrir={abrirSalvo} ocupado={!!andamento}/>;
+
   const comecarDeNovo = () => {
     if (!window.confirm("Começar outro projeto? Este será descartado (os arquivos originais continuam no seu computador).")) return;
     setProjeto(null);
@@ -186,10 +196,11 @@ export default function Estudio() {
   // ==================== exportar ====================
 
   const { plano, pro } = usePlano();
-  const { cliente, ligado } = usePlugin();
+  const { cliente, ligado, apresentacao } = usePlugin();
   const [modeloLegendas,setModeloLegendas]=useState("base");
   const gerarLegendas=async()=>{
     if(!projeto || !ligado) return;
+    if(projeto.versao>=4&&(apresentacao?.versaoDoEstudio??1)<4) {setErro("Atualize o plugin para usar projetos da Etapa 3 e gerar suas legendas.");return;}
     const original=projeto;
     const trava=conferirEstudio({...projeto,saida:"texto"},pro?"pro":plano,{exportacoesHoje:usoDeHoje("estudio"),transcricaoRestante:restanteHoje(plano,"transcricao")});
     if(trava) {setBloqueio(trava);return;}
@@ -223,6 +234,7 @@ export default function Estudio() {
     setBloqueio(null);
     setResultado(null);
     const peloPlugin = !forcarNavegador && ligado && (projeto.saida === "texto" || !cabeNoNavegador(projeto));
+    if(peloPlugin&&projeto.versao>=4&&(apresentacao?.versaoDoEstudio??1)<4) {setErro("Atualize o plugin para exportar projetos da Etapa 3.");return;}
     const travou = conferirEstudio(projeto, pro ? "pro" : plano, { exportacoesHoje: usoDeHoje("estudio"), transcricaoRestante: restanteHoje(plano, "transcricao") });
     if (travou) {
       setBloqueio(travou);
@@ -284,6 +296,7 @@ export default function Estudio() {
   if (etapa === "destino" || !projeto) {
     return (
       <main className="estudio">
+        {projetos}
         <EscolhaDoDestino
           atual={projeto?.destino ?? null}
           voltar={projeto ? () => setEtapa("editor") : null}
@@ -328,6 +341,8 @@ export default function Estudio() {
         <button type="button" className="button" onClick={comecarDeNovo}>Novo projeto</button>
       </div>
 
+      {projetos}
+      <LinhaDoTempo projeto={projeto} instante={instante} irPara={setInstante} selecionar={(id,tipo)=>{setAberto(id);setAba(tipo);}} />
       <div className="estudio__grade">
         <Previa
           projeto={projeto}
@@ -393,11 +408,12 @@ export default function Estudio() {
             </div>
           )}
 
-          {aba === "camadas" && <PainelDeCamadas projeto={projeto} nomes={arquivos} mudar={mudar} importar={adicionarCamada} />}
+          {aba === "camadas" && <PainelDeCamadas instante={instante} projeto={projeto} nomes={arquivos} mudar={mudar} importar={adicionarCamada} />}
 
           {aba === "audio" && (
             <div className="estudio__lista">
-              <EscolherArquivos rotulo="Adicionar música ou áudio" aceita="audio/*" aoEscolher={(lista) => lista[0] && void adicionarMusica(lista[0])} />
+              <NarracaoDoEstudio projeto={projeto} instante={instante} desabilitado={!!andamento||!projeto.clipes.length} adicionar={(f,entrada)=>adicionarMusica(f,entrada,true)} />
+              <EscolherArquivos rotulo="Adicionar música ou áudio" aceita="audio/*,video/*" aoEscolher={(lista) => lista[0] && void adicionarMusica(lista[0])} />
               {projeto.audios.length === 0 && <p className="estudio__dica">A música toca por cima do som dos vídeos. Escolha o trecho, onde ela entra, o volume e o fade.</p>}
               {projeto.audios.map((audio) => (
                 <CartaoDoAudio
@@ -672,7 +688,7 @@ function CartaoDoClipe({
           {clipe.tipo==="video" && <Controle rotulo={`Velocidade: ${(clipe.velocidade??1).toFixed(2)}×`}><input type="range" min={.25} max={4} step={.05} value={clipe.velocidade??1} onChange={e=>mudar(c=>({...c,velocidade:Number(e.target.value)}))}/></Controle>}
           <label className="estudio__campo">Transição para o próximo clipe<select value={clipe.transicao?.tipo??"corte"} onChange={e=>mudar(c=>({...c,transicao:{tipo:e.target.value as Transicao["tipo"],duracao:c.transicao?.duracao??.5}}))}>{TRANSICOES.map(t=><option key={t.id} value={t.id}>{t.titulo}</option>)}</select></label>
           {clipe.transicao && clipe.transicao.tipo!=="corte" && <Controle rotulo={`Duração da transição: ${clipe.transicao.duracao.toFixed(1)} s`}><input type="range" min={.1} max={5} step={.1} value={clipe.transicao.duracao} onChange={e=>mudar(c=>({...c,transicao:{tipo:c.transicao!.tipo,duracao:Number(e.target.value)}}))}/><small>Limitada à metade dos clipes vizinhos. O último clipe termina sem transição.</small></Controle>}
-          <ControlesDeCamada valor={clipe.transformacao} mudar={transformacao => mudar(c => ({ ...c, transformacao }))} />
+          <ControlesDeCamada duracao={duracaoDoClipe(clipe)} valor={clipe.transformacao} mudar={transformacao => mudar(c => ({ ...c, transformacao }))} />
           {clipe.tipo === "video" && (
             <>
               <label className="estudio__chave">
@@ -725,7 +741,7 @@ function CartaoDoTexto({
           <div className="estudio__chips">
             {["😀", "😂", "😍", "😎", "🔥", "❤️", "🎉", "👍"].map(emoji => <button key={emoji} type="button" className="button" onClick={() => mudar(t => ({ ...t, texto: t.texto === "Seu texto aqui" ? emoji : t.texto + emoji }))}>{emoji}</button>)}
           </div>
-          <ControlesDeCamada valor={texto.transformacao} permitirRecorte={false} mudar={transformacao => mudar(t => ({ ...t, transformacao }))} />
+          <ControlesDeCamada duracao={texto.fim-texto.inicio} valor={texto.transformacao} permitirRecorte={false} mudar={transformacao => mudar(t => ({ ...t, transformacao }))} />
           <Controle rotulo="Fonte">
             <div className="estudio__chips">
               {FONTES.map((fonte) => (

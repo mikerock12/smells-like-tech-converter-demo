@@ -134,6 +134,55 @@ class EstudioViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) {
         etapa = Etapa.DESTINO
     }
 
+    fun salvarProjeto(uri: Uri) = executar("Salvando projeto com mídias…") {
+        val atual=projeto ?: return@executar
+        val arquivo=File.createTempFile("projeto-", ".sltstudio", contexto.cacheDir)
+        try {
+            withContext(Dispatchers.IO) {
+                arquivo.outputStream().use { ArquivoDoProjeto.salvar(atual,it) }
+                contexto.contentResolver.openOutputStream(uri,"wt").use { destino ->
+                    requireNotNull(destino) { "Não foi possível gravar o projeto." };arquivo.inputStream().use {it.copyTo(destino)}
+                }
+            }
+        } finally {arquivo.delete()}
+    }
+
+    fun abrirProjeto(uri: Uri) = executar("Abrindo projeto salvo…") {
+        val importado=File(pasta,"importado-${UUID.randomUUID()}")
+        val temporario=File.createTempFile("abrir-projeto-", ".zip", contexto.cacheDir)
+        val novo=withContext(Dispatchers.IO) {
+            val entrada=requireNotNull(contexto.contentResolver.openInputStream(uri)) {"Não foi possível ler o projeto."}
+            ArquivoDoProjeto.abrir(entrada,importado,temporario)
+        }
+        val novasInfos=mutableMapOf<String,InfoDaMidia>()
+        for(caminho in Criacao.arquivos(novo)) {
+            val arquivo=File(caminho)
+            val sondagem=runCatching { Ffmpeg.sondar(contexto,arquivo) }.getOrNull()
+            novasInfos[caminho]=InfoDaMidia(arquivo.name,sondagem?.duracaoSegundos,sondagem?.largura,sondagem?.altura,sondagem?.temAudio?:false)
+        }
+        projeto=novo;infos.clear();infos.putAll(novasInfos);instante=0.0;resultado=null;etapa=Etapa.EDITOR
+        montador.esquecer();salvar();atualizarPrevia()
+    }
+
+    fun aplicarModelo(id: String) {runCatching {mudar {Criacao.modelo(it,id)}}.onFailure {erro=it.message}}
+    fun adicionarContagem(quantidade: Int) {runCatching {mudar {Criacao.contagem(it,instante,quantidade)}}.onFailure {erro=it.message}}
+
+    fun narrarNaLinhaDoTempo(texto: String,voz: String,velocidade: Float=1.0f) = executar("Gerando narração Kokoro…") {
+        require(texto.isNotBlank()&&texto.length<=50000) {"Escreva até 50 mil caracteres para narrar."}
+        val atual=projeto ?: return@executar
+        val entrada=instante
+        val arquivo=File(pasta,"narracao-${UUID.randomUUID()}.wav").apply {parentFile?.mkdirs()}
+        try {
+            br.com.smellsliketech.converter.conversao.Kokoro.gravar(contexto,texto,
+                br.com.smellsliketech.converter.conversao.Opcoes(formato="wav",vozDaNarracao=voz,velocidadeDaFala=velocidade),arquivo) {progresso=it}
+            val s=Ffmpeg.sondar(contexto,arquivo);val duracao=requireNotNull(s.duracaoSegundos)
+            if(projeto!==atual) throw ErroDeConversao("O projeto mudou durante a narração. Gere novamente.")
+            infos[arquivo.absolutePath]=InfoDaMidia("Narração Kokoro",duracao,null,null,true)
+            val audio=AudioExtra(novoId("n"),arquivo.absolutePath,entrada=entrada,inicio=0.0,fim=duracao,volume=1.0)
+            mudar {it.copy(versao=4,audios=it.audios+audio)};audioAberto=audio.id
+        } catch(e: Exception) {arquivo.delete();throw e}
+    }
+
     // ==================== mídias ====================
 
     fun adicionarMidias(uris: List<Uri>) = executar("Copiando para o projeto…") {

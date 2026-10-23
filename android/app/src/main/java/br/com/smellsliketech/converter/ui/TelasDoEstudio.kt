@@ -127,6 +127,7 @@ private fun EscolhaDoDestino(modelo: EstudioViewModel, voltar: () -> Unit) {
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item {
             TextButton(onClick = voltar) { Text("← Voltar") }
+            ProjetosDoEstudio(modelo)
             Text("Para onde é?", fontSize = 26.sp, fontWeight = FontWeight.SemiBold)
             Text(
                 "Escolha a rede e o formato: o estúdio já ajusta o tamanho do quadro e avisa se passar do tempo que ela costuma aceitar.",
@@ -244,12 +245,20 @@ private fun Editor(modelo: EstudioViewModel, podeExportar: Boolean, abrirLicenca
                 TextButton(onClick = { confirmarNovo = true }) { Text("Novo") }
             }
         }
+        item { ProjetosDoEstudio(modelo) }
         item { Previa(modelo, projeto) }
         item {
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 AbaDoEstudio.entries.forEach { opcao -> FilterChip(selected = aba == opcao, onClick = { aba = opcao }, label = { Text(opcao.titulo) }) }
             }
         }
+        item { FaixasDoEstudio(modelo) {id,tipo ->
+            when(tipo) {
+                "camadas" -> {aba=AbaDoEstudio.CAMADAS;modelo.camadaAberta=id}
+                "audio" -> {aba=AbaDoEstudio.AUDIO;modelo.audioAberto=id}
+                else -> {aba=AbaDoEstudio.CLIPES;modelo.clipeAberto=id}
+            }
+        } }
         when (aba) {
             AbaDoEstudio.CLIPES -> {
                 item {
@@ -275,7 +284,7 @@ private fun Editor(modelo: EstudioViewModel, podeExportar: Boolean, abrirLicenca
                 items(projeto.textos, key = { it.id }) { texto -> CartaoDoTexto(modelo, texto) }
             }
             AbaDoEstudio.AUDIO -> {
-                item { BotaoDeAudio(modelo) }
+                item { NarracaoDoEstudio(modelo,podeExportar,abrirLicenca); BotaoDeAudio(modelo) }
                 items(projeto.audios, key = { it.id }) { audio -> CartaoDoAudio(modelo, audio) }
             }
             AbaDoEstudio.CAMADAS -> item { PainelDeCamadasDoEstudio(modelo) }
@@ -375,7 +384,7 @@ private fun CartaoDoClipe(modelo: EstudioViewModel, projeto: Projeto, clipe: Cli
                 Dica("Limitada à metade dos clipes vizinhos. O áudio acompanha a transição.")
             }
         }
-        ControlesDeTransformacao(clipe.transformacao) { valor -> modelo.mudarClipe(clipe.id) { it.copy(transformacao = valor) } }
+        ControlesDeTransformacao(clipe.transformacao, duracao=Estudio.duracaoDoClipe(clipe)) { valor -> modelo.mudarClipe(clipe.id) { it.copy(transformacao = valor) } }
         if (!clipe.ehImagem) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("Som do vídeo", fontSize = 13.sp, modifier = Modifier.weight(1f))
@@ -438,7 +447,7 @@ private fun CartaoDoTexto(modelo: EstudioViewModel, texto: Texto) {
         }
         Text("Altura: ${(texto.y * 100).toInt()}%", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Slider(value = texto.y.toFloat(), valueRange = 0f..1f, onValueChange = { v -> modelo.mudarTexto(texto.id) { it.copy(y = Math.round(v * 100) / 100.0) } })
-        ControlesDeTransformacao(texto.transformacao, permitirRecorte = false) { valor -> modelo.mudarTexto(texto.id) { it.copy(transformacao = valor) } }
+        ControlesDeTransformacao(texto.transformacao, permitirRecorte = false, duracao=texto.fim-texto.inicio) { valor -> modelo.mudarTexto(texto.id) { it.copy(transformacao = valor) } }
         if (total > 0) {
             Text("Aparece de ${tempo(texto.inicio)} até ${tempo(texto.fim)}", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             RangeSlider(

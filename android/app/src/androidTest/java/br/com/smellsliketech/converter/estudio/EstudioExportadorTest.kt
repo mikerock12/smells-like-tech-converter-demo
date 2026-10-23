@@ -33,7 +33,7 @@ class EstudioExportadorTest {
     }
 
     private fun projeto(saida: String, video: File, foto: File, musica: File) = Projeto(
-        destino = "personalizado", largura = 540, altura = 960, fps = 30, saida = saida,
+        versao = 3, destino = "personalizado", largura = 540, altura = 960, fps = 30, saida = saida,
         clipes = listOf(
             Clipe("c1", video.absolutePath, "video", inicio = 0.5, fim = 2.5, ajuste = "caber-desfocado", volume = 1.0),
             Clipe("c2", foto.absolutePath, "imagem", duracao = 1.5, ajuste = "preencher"),

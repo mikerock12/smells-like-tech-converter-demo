@@ -1,3 +1,4 @@
+import { movimentoNoTempo } from "@/packages/converter-core/estudio-animacao.mjs";
 import { cantosDaCamada, homografia, matrizDeCor, TRANSFORMACAO_PADRAO, type Transformacao } from "@/packages/converter-core/camadas.mjs";
 
 type Contexto = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
@@ -41,8 +42,13 @@ class Projetor {
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
   }
 
-  desenhar(imagem: Imagem, largura: number, altura: number, t: Partial<Transformacao>): OffscreenCanvas | null {
-    const h = homografia(cantosDaCamada(imagem.width, imagem.height, largura, altura, t));
+  desenhar(imagem: Imagem, largura: number, altura: number, t: Partial<Transformacao>, tempo = 0): OffscreenCanvas | null {
+    const q = movimentoNoTempo(t,tempo), z = q.escala / (t.escala ?? 1);
+    const cantos = cantosDaCamada(imagem.width, imagem.height, largura, altura, t).map(p => ({
+      x: (p.x - largura * (t.x ?? .5)) * z + largura * q.x,
+      y: (p.y - altura * (t.y ?? .5)) * z + altura * q.y,
+    }));
+    const h = homografia(cantos);
     if (!h) return null;
     const { gl, programa } = this;
     if (gl.isContextLost()) throw new Error("A prévia perdeu acesso à placa gráfica. Reabra o editor.");
@@ -64,9 +70,18 @@ class Projetor {
 }
 
 let projetor: Projetor | null = null;
-export function desenharCamada(ctx: Contexto, imagem: Imagem, largura: number, altura: number, transformacao: Partial<Transformacao> = {}): void {
+export function desenharCamada(ctx: Contexto, imagem: Imagem, largura: number, altura: number, transformacao: Partial<Transformacao> = {}, tempo = 0): void {
   const t = { ...TRANSFORMACAO_PADRAO, ...transformacao };
-  const desenho = (projetor ??= new Projetor()).desenhar(imagem, largura, altura, t);
+  if (t.mascara && t.mascara !== "nenhuma") {
+    const tela = new OffscreenCanvas(largura,altura), c = tela.getContext("2d")!;
+    const z = Math.min(largura/imagem.width,altura/imagem.height);
+    c.beginPath();
+    if(t.mascara === "arredondada") c.roundRect(0,0,largura,altura,Math.min(largura,altura)*.15);
+    else c.ellipse(largura/2,altura/2,t.mascara === "circulo" ? Math.min(largura,altura)/2 : largura/2,t.mascara === "circulo" ? Math.min(largura,altura)/2 : altura/2,0,0,Math.PI*2);
+    c.clip();c.drawImage(imagem,(largura-imagem.width*z)/2,(altura-imagem.height*z)/2,imagem.width*z,imagem.height*z);
+    imagem = tela;
+  }
+  const desenho = (projetor ??= new Projetor()).desenhar(imagem, largura, altura, t, tempo);
   if (!desenho) return;
   ctx.save();
   ctx.globalAlpha = t.opacidade;
