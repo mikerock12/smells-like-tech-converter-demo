@@ -3,18 +3,19 @@
 import { useEffect, useRef, useState } from "react";
 import { CatalogoDeStickers, estadoDoCatalogo, type ResultadoDoCatalogo, type ItemDoCatalogo } from "@/packages/converter-core/catalogo-stickers.mjs";
 import noto from "@/packages/converter-core/stickers-noto.json";
+import { abrirConfiguracaoGiphy } from "@/packages/converter-core/configuracao-giphy.mjs";
 
-let instancia: CatalogoDeStickers | null = null;
+let criacao: Promise<CatalogoDeStickers> | null = null;
 const normalizar = (texto: string) => texto.toLocaleLowerCase("pt-BR").normalize("NFD").replace(/\p{M}/gu, "");
-function catalogo() {
-  if (instancia) return instancia;
+function catalogo() { return criacao ??= criarCatalogo(); }
+async function criarCatalogo() {
   let estado = estadoDoCatalogo();
   try {
     const salvo = JSON.parse(localStorage.getItem("estudio-cota-giphy") ?? "null");
     if (salvo && Array.isArray(salvo.tentativas) && Number.isFinite(salvo.tentarEm) && Number.isFinite(salvo.falhas)) estado = salvo;
   } catch { /* Sem armazenamento, a cota continua em memória. */ }
-  instancia = new CatalogoDeStickers({
-    chave: process.env.NEXT_PUBLIC_GIPHY_EDITOR_API_KEY ?? "",
+  const instancia = new CatalogoDeStickers({
+    chave: await abrirConfiguracaoGiphy(process.env.NEXT_PUBLIC_GIPHY_EDITOR_API_KEY ?? ""),
     estado,
     salvarEstado: valor => localStorage.setItem("estudio-cota-giphy", JSON.stringify(valor)),
     buscarNoto: async consulta => {
@@ -42,7 +43,7 @@ export default function SeletorDeStickers({ adicionar, fechar }: { adicionar: (a
     let timer: ReturnType<typeof setTimeout>;
     const buscar = async () => {
       try {
-        const proximo = await catalogo().buscar(consulta, { pagina, signal: controle.signal });
+        const proximo = await (await catalogo()).buscar(consulta, { pagina, signal: controle.signal });
         if (controle.signal.aborted) return;
         setResultado(proximo);
         if (proximo.tentarEm) timer = setTimeout(() => { void buscar(); }, Math.max(1000, proximo.tentarEm - Date.now()));

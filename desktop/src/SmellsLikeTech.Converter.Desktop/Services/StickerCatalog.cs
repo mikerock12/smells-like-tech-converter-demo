@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Reflection;
 using System.Net.Http;
 using System.Text;
 using System.Text.Json;
@@ -14,7 +15,11 @@ public sealed record CatalogPage(string Provider,IReadOnlyList<CatalogSticker> I
 public sealed class StickerCatalog
 {
     public static StickerCatalog Instance { get; }=new();
-    private static readonly HttpClient Http=new(new HttpClientHandler {AllowAutoRedirect=false}) {Timeout=TimeSpan.FromSeconds(25)};
+    // O GIPHY recusou o transporte SocketsHttpHandler com 403 nesta integração.
+    // WinHTTP mantém HTTPS direto e respeita o proxy do usuário, sem subprocessos.
+    private static readonly HttpClient Http=new(new WinHttpHandler {
+        AutomaticRedirection=false,WindowsProxyUsePolicy=WindowsProxyUsePolicy.UseWinInetProxy
+    }) {Timeout=TimeSpan.FromSeconds(25)};
     private readonly SemaphoreSlim gate=new(1,1);
     private StickerCatalogState state=new([]);
     private bool loaded;
@@ -32,6 +37,9 @@ public sealed class StickerCatalog
             }
             state=StickerCatalogPolicy.Prepare(state,Now);
             var key=Environment.GetEnvironmentVariable("GIPHY_WINDOWS_EDITOR_API_KEY");
+            if(string.IsNullOrWhiteSpace(key)) key=typeof(StickerCatalog).Assembly
+                .GetCustomAttributes<AssemblyMetadataAttribute>().FirstOrDefault(a=>a.Key=="GiphyEditorApiKey")?.Value;
+            key=GiphyConfiguration.Open(key);
             if(string.IsNullOrWhiteSpace(key)) return Noto(query);
             if(state.RetryAt>Now) return Noto(query,StickerCatalogPolicy.Notice(state.Reason),state.RetryAt);
             query=query.Trim(); if(query.Length>100) query=query[..100]; page=Math.Clamp(page,0,20);

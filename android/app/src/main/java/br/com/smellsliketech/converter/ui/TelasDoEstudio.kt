@@ -13,6 +13,12 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.calculatePan
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -62,6 +68,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -234,22 +241,35 @@ private fun Editor(modelo: EstudioViewModel, podeExportar: Boolean, abrirLicenca
     val preset = Estudio.preset(modelo.presets, projeto.destino)
     val adicionarMidias = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris -> if (uris.isNotEmpty()) modelo.adicionarMidias(uris) }
 
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    val salvarProjeto = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { it?.let(modelo::salvarProjeto) }
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+      val alturaDaPrevia = maxHeight * .30f
+      Column(Modifier.fillMaxSize().padding(horizontal = 8.dp)) {
+        Previa(modelo, projeto, alturaDaPrevia, aba.name)
+    LazyColumn(Modifier.weight(1f).fillMaxWidth(), contentPadding = PaddingValues(8.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                TextButton(onClick = voltar) { Text("← Início") }
+                AcaoDoEditor(AcaoEditor.CANCELAR, "Voltar ao início") { voltar() }
                 Column(Modifier.weight(1f).clickable { modelo.etapa = EstudioViewModel.Etapa.DESTINO }, horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(if (preset == null || preset.id == "personalizado") "Personalizado" else preset.titulo, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
                     Text("${projeto.largura}×${projeto.altura} · trocar", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                TextButton(onClick = { confirmarNovo = true }) { Text("Novo") }
+                AcaoDoEditor(AcaoEditor.ADICIONAR, "Começar novo projeto") { confirmarNovo = true }
             }
         }
         item { ProjetosDoEstudio(modelo) }
-        item { Previa(modelo, projeto) }
         item {
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                AbaDoEstudio.entries.forEach { opcao -> FilterChip(selected = aba == opcao, onClick = { aba = opcao }, label = { Text(opcao.titulo) }) }
+                AbaDoEstudio.entries.forEach { opcao ->
+                    val icone = when (opcao) {
+                        AbaDoEstudio.CLIPES -> AcaoEditor.ENQUADRAR
+                        AbaDoEstudio.TEXTOS -> AcaoEditor.TEXTO
+                        AbaDoEstudio.AUDIO -> AcaoEditor.AUDIO
+                        AbaDoEstudio.CAMADAS -> AcaoEditor.CAMADAS
+                        AbaDoEstudio.EXPORTAR -> AcaoEditor.SALVAR
+                    }
+                    AcaoDoEditor(icone, opcao.titulo, selecionada = aba == opcao) { aba = opcao }
+                }
             }
         }
         item { FaixasDoEstudio(modelo) {id,tipo ->
@@ -291,6 +311,14 @@ private fun Editor(modelo: EstudioViewModel, podeExportar: Boolean, abrirLicenca
             AbaDoEstudio.EXPORTAR -> item { PainelDeExportar(modelo, projeto, podeExportar, abrirLicenca, abrirModelos) }
         }
     }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+            AcaoDoEditor(AcaoEditor.DESFAZER, "Desfazer alteração", habilitada = modelo.podeDesfazer) { modelo.desfazer() }
+            AcaoDoEditor(AcaoEditor.REFAZER, "Refazer alteração", habilitada = modelo.podeRefazer) { modelo.refazer() }
+            AcaoDoEditor(AcaoEditor.CANCELAR, "Fechar editor (projeto mantido)") { voltar() }
+            AcaoDoEditor(AcaoEditor.SALVAR, "Salvar projeto com mídias", habilitada = projeto.clipes.isNotEmpty()) { salvarProjeto.launch("projeto.sltstudio") }
+        }
+      }
+    }
     if (confirmarNovo) {
         AlertDialog(
             onDismissRequest = { confirmarNovo = false },
@@ -303,11 +331,26 @@ private fun Editor(modelo: EstudioViewModel, podeExportar: Boolean, abrirLicenca
 }
 
 @Composable
-private fun Previa(modelo: EstudioViewModel, projeto: Projeto) {
-    val proporcao = projeto.largura.toFloat() / projeto.altura
+private fun Previa(modelo: EstudioViewModel, projeto: Projeto, altura: Dp, secao: String) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Box(
-            Modifier.heightIn(max = 420.dp).aspectRatio(proporcao).clip(RoundedCornerShape(10.dp)).background(Color.Black),
+            Modifier.fillMaxWidth().height(altura).clip(RoundedCornerShape(10.dp)).background(Color.Black)
+                .pointerInput(secao, modelo.camadaAberta, modelo.textoAberto, modelo.clipeAberto) {
+                    awaitEachGesture {
+                        awaitFirstDown(requireUnconsumed = false)
+                        modelo.iniciarGesto()
+                        try {
+                            do {
+                                val evento = awaitPointerEvent()
+                                if (evento.changes.count { it.pressed } >= 2) {
+                                    val pan = evento.calculatePan()
+                                    modelo.inclinarSelecionada(pan.x / size.width, pan.y / size.height, secao)
+                                    evento.changes.forEach { it.consume() }
+                                }
+                            } while (evento.changes.any { it.pressed })
+                        } finally { modelo.terminarGesto() }
+                    }
+                },
             contentAlignment = Alignment.Center,
         ) {
             val quadro = modelo.previa
@@ -321,7 +364,7 @@ private fun Previa(modelo: EstudioViewModel, projeto: Projeto) {
                 Text(tempo(total), fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Slider(value = modelo.instante.toFloat(), onValueChange = { modelo.irPara(it.toDouble()) }, valueRange = 0f..total.toFloat())
-            OutlinedButton(onClick = modelo::gerarPreviaEmVideo, modifier = Modifier.fillMaxWidth()) { Text("Assistir à prévia (baixa resolução)") }
+            AcaoDoEditor(AcaoEditor.TOCAR, "Assistir à prévia em vídeo (baixa resolução)") { modelo.gerarPreviaEmVideo() }
         }
     }
 }

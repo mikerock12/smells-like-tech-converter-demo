@@ -31,13 +31,13 @@ android {
         minSdk = 28
         // A Google Play exige o Android 16 como alvo desde 31/08/2026.
         targetSdk = 36
-        versionCode = 24
-        versionName = "0.9.0"
+        versionCode = 25
+        versionName = "1.0.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         // Injetadas pelo ambiente do build; nunca gravadas nos fontes ou nos logs.
         for ((campo, variavel) in listOf("GIPHY_FIGURINHAS" to "GIPHY_ANDROID_FIGURINHAS_API_KEY", "GIPHY_EDITOR" to "GIPHY_ANDROID_EDITOR_API_KEY")) {
             val chave = providers.environmentVariable(variavel).orNull.orEmpty()
-            require(chave.isEmpty() || chave.matches(Regex("[A-Za-z0-9_-]{16,256}"))) { "Configuração GIPHY inválida." }
+            require(chave.isEmpty() || chave.matches(Regex("[A-Za-z0-9_-]{16,256}")) || chave.matches(Regex("v1\\.[A-Za-z0-9+/=.]{80,2048}"))) { "Configuração GIPHY inválida." }
             buildConfigField("String", campo, "\"$chave\"")
         }
         // As arquiteturas do FFmpeg compilado (android/nativos): celulares ARM e, em x86_64,

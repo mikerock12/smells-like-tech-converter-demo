@@ -18,12 +18,18 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+. (Join-Path $PSScriptRoot '../../scripts/giphy-ambiente.ps1')
+$estadoGiphy = Ativar-AmbienteGiphy
+$PSDefaultParameterValues['Start-Process:WindowStyle'] = 'Hidden'
+try {
 
 $installerDir = $PSScriptRoot
 $desktopDir = Split-Path -Parent $installerDir
 $project = Join-Path $desktopDir "src\SmellsLikeTech.Converter.Bridge\SmellsLikeTech.Converter.Bridge.csproj"
 $payloadDir = Join-Path $desktopDir "artifacts\plugin"
 $outputDir = Join-Path $desktopDir "artifacts\installer"
+$raizArtefatos = [IO.Path]::GetFullPath((Join-Path $desktopDir "artifacts")) + [IO.Path]::DirectorySeparatorChar
+if (-not [IO.Path]::GetFullPath($payloadDir).StartsWith($raizArtefatos, [StringComparison]::OrdinalIgnoreCase)) { throw "Payload fora da pasta de artefatos." }
 $exeName = "SmellsLikeTechPlugin.exe"
 
 if (-not $Version) {
@@ -83,6 +89,7 @@ $size = [Math]::Round((Get-Item $setup).Length / 1MB, 1)
 if (-not $SkipVerify) {
     Write-Host "-> verificando (instalação de teste, silenciosa)…" -ForegroundColor Cyan
     $destino = Join-Path $env:TEMP "verificacao-plugin-$(Get-Random)"
+    if (-not [IO.Path]::GetFullPath($destino).StartsWith(([IO.Path]::GetFullPath($env:TEMP).TrimEnd('\') + '\verificacao-plugin-'), [StringComparison]::OrdinalIgnoreCase)) { throw "Pasta de teste fora do destino temporário." }
     & $setup /VERYSILENT /SUPPRESSMSGBOXES /NORESTART "/DIR=$destino" /TASKS="" | Out-Null
     Start-Sleep -Seconds 3
 
@@ -147,3 +154,5 @@ Write-Host ""
 Write-Host "Instalador do plugin: $setup ($size MB)" -ForegroundColor Green
 Write-Host "Pronto para o site: $publicado (public\baixar\plugin.json atualizado)" -ForegroundColor Green
 Write-Host "Envie ao R2 com: npm run instaladores:publicar -- --so plugin" -ForegroundColor Green
+
+} finally { Restaurar-AmbienteGiphy $estadoGiphy }

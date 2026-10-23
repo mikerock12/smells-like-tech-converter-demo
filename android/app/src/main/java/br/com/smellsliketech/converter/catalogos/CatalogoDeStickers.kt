@@ -172,9 +172,11 @@ class CatalogoDeStickers private constructor(private val contexto: Context, seca
 
     companion object {
         private val instancias = mutableMapOf<String, CatalogoDeStickers>()
-        @Synchronized fun obter(contexto: Context, secao: String): CatalogoDeStickers =
-            instancias.getOrPut(secao) { CatalogoDeStickers(contexto.applicationContext, secao,
-                if (secao == "figurinhas") BuildConfig.GIPHY_FIGURINHAS else BuildConfig.GIPHY_EDITOR) }
+        @Synchronized fun obter(contexto: Context, secao: String): CatalogoDeStickers {
+            val grupo = if (BuildConfig.GIPHY_FIGURINHAS == BuildConfig.GIPHY_EDITOR) "compartilhado" else secao
+            return instancias.getOrPut(grupo) { CatalogoDeStickers(contexto.applicationContext, grupo,
+                ConfiguracaoGiphy.abrir(if (secao == "figurinhas") BuildConfig.GIPHY_FIGURINHAS else BuildConfig.GIPHY_EDITOR)) }
+        }
         private fun normalizar(texto: String) = Normalizer.normalize(texto.lowercase(), Normalizer.Form.NFD).replace(Regex("\\p{M}"), "")
     }
 }

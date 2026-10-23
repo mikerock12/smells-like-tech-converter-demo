@@ -21,6 +21,11 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- Injetada no build do instalador, nunca literal nos fontes públicos. -->
+    <AssemblyMetadata Include="GiphyEditorApiKey" Value="$(GIPHY_WINDOWS_EDITOR_API_KEY)" Condition="'$(GIPHY_WINDOWS_EDITOR_API_KEY)' != ''" />
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- Ícone, marca e vinheta de abertura, copiados ao lado do executável. -->
     <Content Include="Assets\**\*">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
@@ -29,6 +34,7 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.8.*" />
+    <PackageReference Include="System.Net.Http.WinHttpHandler" Version="10.0.13" />
   </ItemGroup>
 
   <ItemGroup>

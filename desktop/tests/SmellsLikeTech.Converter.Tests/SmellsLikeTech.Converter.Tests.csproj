@@ -22,6 +22,7 @@
 
   <ItemGroup>
     <!-- Casos compartilhados do estudio: os mesmos que o site e o Android conferem. -->
+    <Content Include="..\..\..\packages\converter-core\giphy-caso.json" Link="giphy-caso.json" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="..\..\..\packages\converter-core\estudio-casos\*.json">
       <Link>estudio-casos\%(Filename)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

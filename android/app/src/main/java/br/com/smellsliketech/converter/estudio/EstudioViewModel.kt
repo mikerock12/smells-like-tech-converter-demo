@@ -72,6 +72,32 @@ class EstudioViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) {
     private var trabalhoDaPrevia: Job? = null
     private var andamento = Andamento()
 
+    private val historico = br.com.smellsliketech.converter.figurinhas.HistoricoDeEdicao<Projeto>()
+    var podeDesfazer by mutableStateOf(false)
+        private set
+    var podeRefazer by mutableStateOf(false)
+        private set
+    private fun atualizarHistorico() { podeDesfazer = historico.podeDesfazer; podeRefazer = historico.podeRefazer }
+    fun desfazer() { projeto?.let { historico.desfazer(it)?.let(::restaurar) } }
+    fun refazer() { projeto?.let { historico.refazer(it)?.let(::restaurar) } }
+    private fun restaurar(valor: Projeto) { projeto = valor; instante = instante.coerceAtMost(total); atualizarHistorico(); salvar(); atualizarPrevia() }
+    fun iniciarGesto() = historico.iniciar()
+    fun terminarGesto() = historico.terminar()
+    fun inclinarSelecionada(dx: Float, dy: Float, secao: String) {
+        fun inclinar(t: Transformacao?) = (t ?: Transformacao()).let {
+            it.copy(giroX = (it.giroX + dy * 180).coerceIn(-180.0, 180.0), giroY = (it.giroY + dx * 180).coerceIn(-180.0, 180.0))
+        }
+        val p = projeto ?: return
+        when {
+            secao == "CAMADAS" && camadaAberta != null -> mudarCamada(camadaAberta!!) { it.copy(transformacao = inclinar(it.transformacao)) }
+            secao == "TEXTOS" && textoAberto != null -> mudarTexto(textoAberto!!) { it.copy(transformacao = inclinar(it.transformacao)) }
+            else -> {
+                val id = clipeAberto ?: Estudio.clipeNoTempo(p, instante)?.second?.id ?: p.clipes.firstOrNull()?.id
+                if (id != null) mudarClipe(id) { it.copy(transformacao = inclinar(it.transformacao)) }
+            }
+        }
+    }
+
     init {
         runCatching {
             val textoDoProjeto = lerAtomico(arquivoDoProjeto)
@@ -126,6 +152,7 @@ class EstudioViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) {
             pasta.deleteRecursively()
         }
         projeto = null
+        historico.limpar(); atualizarHistorico()
         infos.clear()
         previa = null
         instante = 0.0
@@ -160,6 +187,7 @@ class EstudioViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) {
             val sondagem=runCatching { Ffmpeg.sondar(contexto,arquivo) }.getOrNull()
             novasInfos[caminho]=InfoDaMidia(arquivo.name,sondagem?.duracaoSegundos,sondagem?.largura,sondagem?.altura,sondagem?.temAudio?:false)
         }
+        historico.limpar(); atualizarHistorico()
         projeto=novo;infos.clear();infos.putAll(novasInfos);instante=0.0;resultado=null;etapa=Etapa.EDITOR
         montador.esquecer();salvar();atualizarPrevia()
     }
@@ -402,7 +430,11 @@ class EstudioViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) {
 
     private fun mudar(mudanca: (Projeto) -> Projeto) {
         val atual = projeto ?: return
-        projeto = mudanca(atual)
+        val novo = mudanca(atual)
+        if (novo == atual) return
+        historico.registrar(atual)
+        atualizarHistorico()
+        projeto = novo
         if (instante > total) instante = total
         salvar()
         atualizarPrevia()
@@ -463,8 +495,7 @@ class EstudioViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) {
 
     private fun apagarCopia(caminho: String) {
         if (projeto?.let { p -> p.clipes.any { it.arquivo == caminho } || p.camadas.any { it.arquivo == caminho } || p.audios.any { it.arquivo == caminho } } == true) return
-        infos.remove(caminho)
-        File(caminho).takeIf { it.parentFile == File(pasta, "midias") }?.delete()
+        // A mídia continua disponível para desfazer/refazer; novoProjeto limpa a pasta.
         salvar()
     }
 

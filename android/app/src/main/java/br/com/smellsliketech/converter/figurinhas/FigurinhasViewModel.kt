@@ -68,6 +68,8 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
 
     fun mudarQuadrosPorSegundo(valor: Int) {
         if (valor !in Regras.QUADROS_POR_SEGUNDO) return
+        if (valor == quadrosPorSegundo) return
+        if (origem != null) registrar()
         quadrosPorSegundo = valor
         preferencias.edit().putInt("quadrosPorSegundo", valor).apply()
     }
@@ -160,6 +162,51 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
     private var trabalhoDaBase: Job? = null
     private var versaoDoEditor = 0
 
+    private data class EstadoDoEditor(
+        val base: Bitmap?, val edicao: Edicao, val mascara: Bitmap?, val manual: Boolean,
+        val camadas: List<CamadaDeFigurinha>, val selecionada: String?, val fundo: Int, val fundoFinal: Int?,
+        val emojis: List<String>, val inicio: Double, val fim: Double, val animada: Boolean, val fps: Int,
+    )
+    private val historico = HistoricoDeEdicao<EstadoDoEditor>(peso = { estado ->
+        (listOfNotNull(estado.base, estado.mascara) + estado.camadas.flatMap { listOfNotNull(it.imagem, it.mascara) }).distinct().sumOf { it.allocationByteCount.toLong() }
+    })
+    private val copiasRetidas = mutableSetOf<File>()
+    var podeDesfazer by mutableStateOf(false)
+        private set
+    var podeRefazer by mutableStateOf(false)
+        private set
+    private fun estadoDoEditor() = EstadoDoEditor(basePrincipal, edicaoPrincipal, mascaraPrincipal, mascaraManualPrincipal,
+        camadas, camadaSelecionada, corDeFundo, corFinalDoFundo, emojis, inicio, fim, animada, quadrosPorSegundo)
+    private fun atualizarHistorico() { podeDesfazer = historico.podeDesfazer; podeRefazer = historico.podeRefazer }
+    private fun registrar(chave: String = "") {
+        historico.registrar(estadoDoEditor(), chave)
+        atualizarHistorico()
+    }
+    fun iniciarAlteracao() = historico.iniciar()
+    fun terminarAlteracao() = historico.terminar()
+    fun desfazer() { historico.desfazer(estadoDoEditor())?.let(::restaurar) }
+    fun refazer() { historico.refazer(estadoDoEditor())?.let(::restaurar) }
+    private fun restaurar(estado: EstadoDoEditor) {
+        trabalhoDaBase?.cancel(); versaoDoEditor++
+        basePrincipal = estado.base
+        edicaoPrincipal = estado.edicao; mascaraPrincipal = estado.mascara; mascaraManualPrincipal = estado.manual
+        camadas = estado.camadas; camadaSelecionada = estado.selecionada
+        corDeFundo = estado.fundo; corFinalDoFundo = estado.fundoFinal; emojis = estado.emojis
+        inicio = estado.inicio; fim = estado.fim; animada = estado.animada
+        quadrosPorSegundo = estado.fps
+        preferencias.edit().putInt("quadrosPorSegundo", estado.fps).apply()
+        atualizarHistorico(); atualizarPrevia()
+    }
+    fun mudarAnimada(valor: Boolean) { if (animada != valor) { registrar(); animada = valor } }
+    fun mudarEmojis(valor: List<String>) { if (emojis != valor) { registrar(); emojis = valor } }
+    fun mudarTrecho(de: Double, ate: Double) {
+        if (de == inicio && ate == fim) return
+        registrar("trecho")
+        val inicioMudou = inicio != de
+        inicio = de; fim = ate
+        if (inicioMudou) carregarBase()
+    }
+
     fun recarregar() {
         lista = pacotes.listar()
         pacoteAberto = pacoteAberto?.let { pacotes.ler(it.id) }
@@ -250,6 +297,8 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
     fun selecionarCamada(id: String?) { camadaSelecionada = id }
 
     fun mudarFundo(cor: Int, final: Int? = null) {
+        if (cor == corDeFundo && final == corFinalDoFundo) return
+        registrar("fundo")
         corDeFundo = cor
         corFinalDoFundo = final
         atualizarPrevia()
@@ -260,6 +309,7 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
         val ordem = (camadas.map { it.id to it.ordem } + ("" to 0)).sortedBy { it.second }.map { it.first }.toMutableList()
         val indice = ordem.indexOf(id)
         if (indice < 0) return
+        registrar()
         val alvo = (indice + passo).coerceIn(0, ordem.lastIndex)
         ordem.add(alvo, ordem.removeAt(indice))
         val principal = ordem.indexOf("")
@@ -268,14 +318,16 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
     }
 
     fun ocultarCamada(id: String) {
+        registrar()
         camadas = camadas.map { if (it.id == id) it.copy(visivel = !it.visivel) else it }
         atualizarPrevia()
     }
 
     fun excluirCamada(id: String) {
         val removida = camadas.firstOrNull { it.id == id } ?: return
+        registrar()
         camadas = camadas.filterNot { it.id == id }
-        removida.origem?.copia?.delete()
+        removida.origem?.copia?.let { copiasRetidas += it }
         if (camadaSelecionada == id) camadaSelecionada = null
         if (!temAnimacao) animada = false
         atualizarPrevia()
@@ -283,6 +335,7 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
 
     fun adicionarTexto(texto: String = "Seu texto", emoji: Boolean = false) {
         if (camadas.size >= 12) { aviso = "Use até 12 camadas adicionais por figurinha."; return }
+        registrar()
         val camada = CamadaDeFigurinha(nome = if (emoji) "Emoji $texto" else "Texto",
             imagem = Bitmap.createBitmap(512, 512, Bitmap.Config.ARGB_8888), texto = true,
             edicao = Edicao(texto = texto, tamanhoDoTexto = if (emoji) 180f else 64f, posicaoDoTexto = PosicaoDoTexto.MEIO,
@@ -321,7 +374,9 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
                 val camada = CamadaDeFigurinha(nome = nome, origem = Origem(uri, nome, tipo, copia), imagem = imagem,
                     edicao = Edicao(zoom = if (comoFundo) 1f else 0.5f),
                     ordem = if (comoFundo) minOf(-1, (camadas.minOfOrNull { it.ordem } ?: 0) - 1) else (camadas.maxOfOrNull { it.ordem } ?: 0) + 1)
+                registrar()
                 camadas = camadas + camada
+                copia?.let { copiasRetidas += it }
                 camadaSelecionada = camada.id
                 if (tipo != TipoDaOrigem.IMAGEM) {
                     animada = true
@@ -344,6 +399,25 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
     }
 
     fun mudar(nova: Edicao) {
+        if (nova == edicao) return
+        val anterior = edicao
+        val campo = when {
+            nova.copy(zoom = anterior.zoom) == anterior -> "zoom"
+            nova.copy(deslocamentoX = anterior.deslocamentoX) == anterior -> "deslocamentoX"
+            nova.copy(deslocamentoY = anterior.deslocamentoY) == anterior -> "deslocamentoY"
+            nova.copy(giro = anterior.giro) == anterior -> "giro"
+            nova.copy(inclinacaoX = anterior.inclinacaoX) == anterior -> "inclinacaoX"
+            nova.copy(inclinacaoY = anterior.inclinacaoY) == anterior -> "inclinacaoY"
+            nova.copy(opacidade = anterior.opacidade) == anterior -> "opacidade"
+            nova.copy(brilho = anterior.brilho) == anterior -> "brilho"
+            nova.copy(contraste = anterior.contraste) == anterior -> "contraste"
+            nova.copy(saturacao = anterior.saturacao) == anterior -> "saturacao"
+            nova.copy(texto = anterior.texto) == anterior -> "texto"
+            nova.copy(tamanhoDoTexto = anterior.tamanhoDoTexto) == anterior -> "tamanhoDoTexto"
+            nova.copy(larguraDoContorno = anterior.larguraDoContorno) == anterior -> "larguraDoContorno"
+            else -> ""
+        }
+        registrar(if (campo.isEmpty()) "" else "edicao:$camadaSelecionada:$campo")
         val ligouRemocao = nova.removerFundo && !edicao.removerFundo
         edicao = nova
         if (ligouRemocao && mascara == null) {
@@ -384,16 +458,21 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
      * O pincel: apaga (ou devolve) a figura em volta do ponto tocado. `x` e `y` são frações
      * (0..1) da imagem base; `raio` também, em relação ao lado maior.
      */
-    fun pincelar(x: Float, y: Float, raio: Float, apagar: Boolean) {
+    fun pincelar(x: Float, y: Float, raio: Float, apagar: Boolean, deX: Float = x, deY: Float = y) {
         val imagem = base ?: return
+        if (x !in 0f..1f || y !in 0f..1f || raio <= 0) return
+        registrar("pincel:$camadaSelecionada")
         val atual = mascara ?: Fundo.mascaraCheia(imagem.width, imagem.height)
         // A prévia pode estar lendo a máscara anterior em outra thread.
         val editavel = atual.copy(Bitmap.Config.ARGB_8888, true)
         val tela = android.graphics.Canvas(editavel)
         val tinta = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
             color = android.graphics.Color.WHITE
+            strokeWidth = raio * maxOf(imagem.width, imagem.height) * 2
+            strokeCap = android.graphics.Paint.Cap.ROUND
             if (apagar) xfermode = android.graphics.PorterDuffXfermode(android.graphics.PorterDuff.Mode.CLEAR)
         }
+        tela.drawLine(deX * imagem.width, deY * imagem.height, x * imagem.width, y * imagem.height, tinta)
         tela.drawCircle(x * imagem.width, y * imagem.height, raio * maxOf(imagem.width, imagem.height), tinta)
         mascara = editavel
         if (camadaSelecionada == null) mascaraManualPrincipal = true
@@ -403,10 +482,11 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
     }
 
     /** O pincel a partir da prévia: (x, y) e `raio` em frações da figurinha de 512×512. */
-    fun pincelarNaPrevia(x: Float, y: Float, raio: Float, apagar: Boolean) {
+    fun pincelarNaPrevia(x: Float, y: Float, raio: Float, apagar: Boolean, deX: Float = x, deY: Float = y) {
         val imagem = base ?: return
         val (ix, iy, ir) = renderizador.pontoNaImagem(x, y, raio, imagem.width, imagem.height, edicao)
-        pincelar(ix, iy, ir, apagar)
+        val (anteriorX, anteriorY, _) = renderizador.pontoNaImagem(deX, deY, raio, imagem.width, imagem.height, edicao)
+        pincelar(ix, iy, ir, apagar, anteriorX, anteriorY)
     }
 
     /**
@@ -644,6 +724,8 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
     }
 
     private fun limparEditor() {
+        historico.limpar(); atualizarHistorico()
+        copiasRetidas.forEach { it.delete() }; copiasRetidas.clear()
         versaoDoEditor++
         trabalhoDaBase?.cancel()
         trabalhoDaPrevia?.cancel()
@@ -685,6 +767,7 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
     }
 
     fun iniciarGesto() {
+        iniciarAlteracao()
         trabalhoDasGuias?.cancel()
         mostrandoGuias = true
     }
@@ -698,7 +781,7 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
         mudar(alinhamento.edicao)
     }
 
-    fun terminarGesto() = esconderGuiasDepois(700)
+    fun terminarGesto() { terminarAlteracao(); esconderGuiasDepois(700) }
 
     /** Mudança pelos controles (deslizantes, botões): sem encaixe, mas as guias mostram onde está. */
     fun ajustar(nova: Edicao) {

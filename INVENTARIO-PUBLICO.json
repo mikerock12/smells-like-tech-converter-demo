@@ -1,5 +1,5 @@
 {
-  "commit": "3b8cab9d990877d827ebe0ea9a7ab6aa922547c4",
+  "commit": "b7c7d4c31d7a6fa823f4e380018cf8b49931b7dc",
   "repository": "https://github.com/mikerock12/smells-like-tech-converter-demo",
   "originals": [
     {
@@ -34,8 +34,8 @@
     },
     {
       "path": "android/app/build.gradle.kts",
-      "sha256": "804df0b01f52555e24e90aac7516e078bd0402478da4c59a035e078a18fa3dd6",
-      "bytes": 7858
+      "sha256": "c37a03e99213593f55d071393dd3e4fd6ec03edd365cf50300a7b35660e53159",
+      "bytes": 7915
     },
     {
       "path": "android/app/proguard-rules.pro",
@@ -93,6 +93,11 @@
       "bytes": 6836
     },
     {
+      "path": "android/app/src/androidTest/java/br/com/smellsliketech/converter/figurinhas/EditorFixoTest.kt",
+      "sha256": "2d305cc26372d156a91b421d0a3e7c0df223a1c9f8f546eab6a27acfee47a33a",
+      "bytes": 10280
+    },
+    {
       "path": "android/app/src/androidTest/java/br/com/smellsliketech/converter/figurinhas/FigurinhaDeVideoTest.kt",
       "sha256": "f2fd72b3c3a16d19d7d0617e8451a03726c893c2c7290a5f9463c263bd062732",
       "bytes": 6417
@@ -116,6 +121,16 @@
       "path": "android/app/src/androidTest/java/br/com/smellsliketech/converter/figurinhas/QualidadeDaFigurinhaTest.kt",
       "sha256": "62a7c6d3b56f124375c3127f55bfa7f7db9abfcc4a2ec227581e80380ef50d49",
       "bytes": 4158
+    },
+    {
+      "path": "android/app/src/debug/AndroidManifest.xml",
+      "sha256": "6eb15def328fcb77473522f95c2bfa275e19d3b9877d40054f332e2e7bda9be4",
+      "bytes": 203
+    },
+    {
+      "path": "android/app/src/debug/java/br/com/smellsliketech/converter/EditorDeTesteActivity.kt",
+      "sha256": "f88e4b6c886ed2c86b94ed1b431c13231cbde5ef48e49f4c57de9f17aa94caa7",
+      "bytes": 235
     },
     {
       "path": "android/app/src/main/AndroidManifest.xml",
@@ -274,8 +289,13 @@
     },
     {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/catalogos/CatalogoDeStickers.kt",
-      "sha256": "31cda2ea38d7e36ab32f87e7b10519f49337f0581ded079bfca23e3a2ef53c75",
-      "bytes": 10187
+      "sha256": "04f2779ca086ab6e181a1235813546afd38481ee76584b99e680ea56348e2805",
+      "bytes": 10342
+    },
+    {
+      "path": "android/app/src/main/java/br/com/smellsliketech/converter/catalogos/ConfiguracaoGiphy.kt",
+      "sha256": "b6dbfe3666f62bb0836b2cd4ac71e6b49e00d295bf4bd7109f25aa5049e77fae",
+      "bytes": 1251
     },
     {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/catalogos/PoliticaDoCatalogo.kt",
@@ -489,8 +509,8 @@
     },
     {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/estudio/EstudioViewModel.kt",
-      "sha256": "0634e5e5141c12be643b3a986ca7f83a71f3c3388a9b9e01d2667c3a080f2b88",
-      "bytes": 22489
+      "sha256": "f91678bcf84f6310d5f6d138fb931a8ce495691d889da9acdaf08610de976c14",
+      "bytes": 24320
     },
     {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/estudio/Exportador.kt",
@@ -539,8 +559,8 @@
     },
     {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/figurinhas/FigurinhasViewModel.kt",
-      "sha256": "47c6267e16812bdb5e938e414ebda51613dbcb55c84d8725462e884ea8d291e0",
-      "bytes": 45988
+      "sha256": "8859d03d6909dd5d8ab9d11552271f66099a460600cede2b9e63d0bf4a319fa4",
+      "bytes": 50989
     },
     {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/figurinhas/Fundo.kt",
@@ -551,6 +571,16 @@
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/figurinhas/Guias.kt",
       "sha256": "8374d0f045f021e13dc1234359b8a577cad8ea7a40668ee0bf9f06f902ba8729",
       "bytes": 5923
+    },
+    {
+      "path": "android/app/src/main/java/br/com/smellsliketech/converter/figurinhas/HistoricoDeEdicao.kt",
+      "sha256": "a5e012adf642a39fc234b8bacad9cb860237c4b830f6d750134cea078af004c5",
+      "bytes": 1739
+    },
+    {
+      "path": "android/app/src/main/java/br/com/smellsliketech/converter/figurinhas/JanelaDaPrevia.kt",
+      "sha256": "24ee91463e1e285f61c06490135c987ca8a8f4f2f8b15ed25621f9d8d859c0de",
+      "bytes": 1608
     },
     {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/figurinhas/Pacotes.kt",
@@ -608,6 +638,11 @@
       "bytes": 1156
     },
     {
+      "path": "android/app/src/main/java/br/com/smellsliketech/converter/ui/AcoesDoEditor.kt",
+      "sha256": "814482b2658a4db99abf9ca48533ccd92d77e657a02d7ed6806bdf7b518870be",
+      "bytes": 3677
+    },
+    {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/ui/CamadasDoEstudio.kt",
       "sha256": "f356e78cf1dbf8d9bae76b7315f963afebe83bedda3c84b2b53f6e2eec5fac74",
       "bytes": 11793
@@ -638,6 +673,11 @@
       "bytes": 14612
     },
     {
+      "path": "android/app/src/main/java/br/com/smellsliketech/converter/ui/PreviaEditavelDaFigurinha.kt",
+      "sha256": "6eb1d50e5ed46ddbad21d51f6cc060b955fb395f617487f6278d718272abda0c",
+      "bytes": 9605
+    },
+    {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/ui/SeletorDeStickers.kt",
       "sha256": "99aee9a4a6487b5c95dffb8f35fba81364420455c2cf753ef4a7f6250dbd5557",
       "bytes": 7050
@@ -654,13 +694,13 @@
     },
     {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/ui/TelasDasFigurinhas.kt",
-      "sha256": "3ec922770280d09d605b959043f7bdb86c9e17d45f154840a1af2b730ebe4f99",
-      "bytes": 45915
+      "sha256": "9d24663ab912ca276c4be7a50bb0c70cd15bb612dd086f0b4f7c26b957731bbd",
+      "bytes": 45337
     },
     {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/ui/TelasDoEstudio.kt",
-      "sha256": "ae05ba6cb664bfdb0534bce97a4bbb7e5e0ba23cb617be95e224eb08668315f7",
-      "bytes": 40147
+      "sha256": "2eff0d38ca89c0243f6bb969092f5ef3d7aa015ee858403efaf0f6cd8b8ba1e6",
+      "bytes": 42775
     },
     {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/ui/Tema.kt",
@@ -711,6 +751,11 @@
       "path": "android/app/src/site/java/br/com/smellsliketech/converter/loja/LojaDoSite.kt",
       "sha256": "9a7b47ab6791a94ddeadbee2c69aab3f87315d4c24e4c418f5f0780cacff541b",
       "bytes": 788
+    },
+    {
+      "path": "android/app/src/test/java/br/com/smellsliketech/converter/catalogos/ConfiguracaoGiphyTest.kt",
+      "sha256": "dd242e167ec4dae0dcef65134d0e4fdf18741a0aa6380dea7ad127b941217cfa",
+      "bytes": 780
     },
     {
       "path": "android/app/src/test/java/br/com/smellsliketech/converter/catalogos/PoliticaDoCatalogoTest.kt",
@@ -776,6 +821,11 @@
       "path": "android/app/src/test/java/br/com/smellsliketech/converter/estudio/EstudioTest.kt",
       "sha256": "f498137a7534274133ea0618d585e3ced50de91f1e05318b68a8e2804c8cd632",
       "bytes": 5053
+    },
+    {
+      "path": "android/app/src/test/java/br/com/smellsliketech/converter/figurinhas/ControlesDoEditorTest.kt",
+      "sha256": "56c6a740227a0fd776ce5a04f4ce2a23b5deda0753fa69ca9e4db6db954868fb",
+      "bytes": 2109
     },
     {
       "path": "android/app/src/test/java/br/com/smellsliketech/converter/figurinhas/PacotesTest.kt",
@@ -1104,8 +1154,8 @@
     },
     {
       "path": "app/estudio/SeletorDeStickers.tsx",
-      "sha256": "ef34a2b1f4477a2c2ae985b985a6a154adfc1a357234e071b7019875265c298d",
-      "bytes": 6823
+      "sha256": "1ac4c645349d590e6ba533752ab9cea353d1bb2bf681d878006a6197561509e3",
+      "bytes": 7001
     },
     {
       "path": "app/estudio/page.tsx",
@@ -1244,7 +1294,7 @@
     },
     {
       "path": "desktop/Directory.Build.props",
-      "sha256": "21dbc2afc829a3eced10b61876b5ca3f3d8f9098ddf194abd7f02581a5488407",
+      "sha256": "a58fb73c8dc9ff5b6dbe509d8e16fdb870dcac13314b91d49e05310731bd0347",
       "bytes": 472
     },
     {
@@ -1284,13 +1334,13 @@
     },
     {
       "path": "desktop/installer/build-installer.ps1",
-      "sha256": "695121e5429eae47aa61fc571cd034b2ce44ca2d5d2c10858149334210255362",
-      "bytes": 6124
+      "sha256": "9c1c841f3cb6806bc570d1b30e4b233dbeb79ae78a190040e0d42236c1eaa4ed",
+      "bytes": 6858
     },
     {
       "path": "desktop/installer/build-plugin-installer.ps1",
-      "sha256": "c27c74fc6172a4d848e7251deddbae53db9eeba03abec782fda66c1b5f6c83a9",
-      "bytes": 6594
+      "sha256": "e390a2d1777ece99e5c67d96935b44521fe76a6c9b7e42b614dfaceaaf3a326d",
+      "bytes": 7318
     },
     {
       "path": "desktop/installer/wizard-large.bmp",
@@ -1521,6 +1571,11 @@
       "path": "desktop/src/SmellsLikeTech.Converter.Core/SmellsLikeTech.Converter.Core.csproj",
       "sha256": "7d875f8efb308703ebe9ccdbb8ed208cc807e2e1662abbf0c8d6fe99fc282127",
       "bytes": 547
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Core/Studio/GiphyConfiguration.cs",
+      "sha256": "04f0214dfb2039b3ef1c1cb26e98198f39351d54f16dcc69ecc31eb70ff5aa2b",
+      "bytes": 1403
     },
     {
       "path": "desktop/src/SmellsLikeTech.Converter.Core/Studio/StickerCatalogPolicy.cs",
@@ -1874,8 +1929,8 @@
     },
     {
       "path": "desktop/src/SmellsLikeTech.Converter.Desktop/Services/StickerCatalog.cs",
-      "sha256": "3014dcf29e5d68e8d560ea461ceee9c97715a5c0f8a394d22e709a2369884dee",
-      "bytes": 8356
+      "sha256": "82e11e614dfcc0b2be434801971bb3927ddacffc40a15903d0ff94440d876791",
+      "bytes": 8873
     },
     {
       "path": "desktop/src/SmellsLikeTech.Converter.Desktop/Services/WindowPlacement.cs",
@@ -1884,8 +1939,8 @@
     },
     {
       "path": "desktop/src/SmellsLikeTech.Converter.Desktop/SmellsLikeTech.Converter.Desktop.csproj",
-      "sha256": "26d624f6d1f86e760f795098893405ce75a20a3e0c16a2deb95fec7a6377dab2",
-      "bytes": 2435
+      "sha256": "20fa5e71bb4d1bb416b3e29dc509930e3cae752210f46573f25d83913c19e882",
+      "bytes": 2776
     },
     {
       "path": "desktop/src/SmellsLikeTech.Converter.Desktop/SplashWindow.xaml",
@@ -2233,6 +2288,11 @@
       "bytes": 9695
     },
     {
+      "path": "desktop/tests/SmellsLikeTech.Converter.Tests/GiphyConfigurationTests.cs",
+      "sha256": "3225ea4e46f76b770e021052bba79b8fe2ad84adb034d64662ba5de93aa2f978",
+      "bytes": 743
+    },
+    {
       "path": "desktop/tests/SmellsLikeTech.Converter.Tests/HardwareTests.cs",
       "sha256": "f4f41c421119883a84736f8949b6343c8762b25934a3fe47e0e8f78bf799625b",
       "bytes": 2965
@@ -2274,8 +2334,8 @@
     },
     {
       "path": "desktop/tests/SmellsLikeTech.Converter.Tests/SmellsLikeTech.Converter.Tests.csproj",
-      "sha256": "c0581b29e19e6f964aed4198b33bfa0e10665e1426166df642f1194a8b615b1a",
-      "bytes": 2292
+      "sha256": "fe549c761eda1651d94603febdca5126e48a91706ea5c0f5b6a8160283e4a666",
+      "bytes": 2429
     },
     {
       "path": "desktop/tests/SmellsLikeTech.Converter.Tests/SpeechTests.cs",
@@ -2559,8 +2619,8 @@
     },
     {
       "path": "package.json",
-      "sha256": "431a8cc053745956fc782372462acc1e75d8abe4a281c84a90101534ee9b70b9",
-      "bytes": 3655
+      "sha256": "95982e94cf2a721a7cdbce3bc18ebf00182973a6e2ac219d9b3675c581877775",
+      "bytes": 3769
     },
     {
       "path": "packages/admin/index.d.mts",
@@ -2676,6 +2736,16 @@
       "path": "packages/converter-core/catalogo.mjs",
       "sha256": "ab9623bd5b3e98d809108fac2c15a57f6aa249f812e19a546c4c07993bd7f220",
       "bytes": 24469
+    },
+    {
+      "path": "packages/converter-core/configuracao-giphy.d.mts",
+      "sha256": "ae9cb26d93dffdbcc9ebab8c076f50e8722278f34a6cfc974e3efca00a595136",
+      "bytes": 81
+    },
+    {
+      "path": "packages/converter-core/configuracao-giphy.mjs",
+      "sha256": "43a4877d73fa50922a9b6624198bf6fd60df4d931c8d28f8396e4b2a4eb6f368",
+      "bytes": 1133
     },
     {
       "path": "packages/converter-core/estudio-animacao.d.mts",
@@ -2838,6 +2908,11 @@
       "bytes": 10224
     },
     {
+      "path": "packages/converter-core/giphy-caso.json",
+      "sha256": "c200deeea04ed830e5f325a6b135f67d32c51620a9d333b84ff0d20bc0b8940f",
+      "bytes": 261
+    },
+    {
       "path": "packages/converter-core/index.d.mts",
       "sha256": "8cafe54041ded6f6746666ff3436e47afa38ad394fcaadd7704330eb4901a013",
       "bytes": 4314
@@ -2994,12 +3069,12 @@
     },
     {
       "path": "public/baixar/app.json",
-      "sha256": "8a496c111fdbb4bfd8747cca3ef39af521dd9bc8a36031c30428e33454ac1044",
+      "sha256": "83e83cb05bf15f505cc4a6dd131f67b3c5e9702f48041708d65da4ad8809dc96",
       "bytes": 210
     },
     {
       "path": "public/baixar/plugin.json",
-      "sha256": "cb3f31ca94eaa6091486103a66ea03421547983693a7e721158852f64439448e",
+      "sha256": "08f11309356b9ecb660932aa1053a5368863daaecc860a206bad86a0d534a215",
       "bytes": 207
     },
     {
@@ -3223,14 +3298,29 @@
       "bytes": 386
     },
     {
+      "path": "scripts/android-giphy.ps1",
+      "sha256": "bed18317e6a321a1ee73d01b2a4ec8294c5806904662e77d9e8949a44b64eccf",
+      "bytes": 538
+    },
+    {
       "path": "scripts/android.mjs",
       "sha256": "ad9f57c1b9ef1362375892ed8c4fa7e3ddbb6cc67f475fd7641619c1062a009b",
       "bytes": 13035
     },
     {
+      "path": "scripts/com-giphy.mjs",
+      "sha256": "0147daf28bcf496d34ce4376e97ba93950998390f297cd1798cfbefd3a18daea",
+      "bytes": 849
+    },
+    {
       "path": "scripts/copiar-motores.mjs",
       "sha256": "968c3283be118c76119c50dd1b58a653fbc9d1966085f201b0bc9aa4e122dfac",
       "bytes": 2492
+    },
+    {
+      "path": "scripts/giphy-ambiente.ps1",
+      "sha256": "8db943354800b13f90ca917418a11fcee0bc2d563efb1a25c0744abd914868f5",
+      "bytes": 3185
     },
     {
       "path": "scripts/kokoro.py",
@@ -3251,6 +3341,21 @@
       "path": "scripts/testar-offline.mjs",
       "sha256": "1ff97cc7a94f512313dbdd442a5d74687d672c168f99e4cf1a2a9144c4e2592f",
       "bytes": 12389
+    },
+    {
+      "path": "tests/configuracao-giphy.test.mjs",
+      "sha256": "95e5fdbaf30b0b2de792075394948c5d75f955c6abeb60c209f944e3d2a4d365",
+      "bytes": 896
+    },
+    {
+      "path": "tests/giphy-ambiente.Tests.ps1",
+      "sha256": "af3161bdd60204d6d6a75c97613ce07bc35734416ebabd2e7a0cf7ebfb78b355",
+      "bytes": 2969
+    },
+    {
+      "path": "tests/giphy-ambiente.test.mjs",
+      "sha256": "d157ae182af01e716742a23e2b8dd0ce52b9bea251ccbe3e79d86a8b229d3026",
+      "bytes": 488
     },
     {
       "path": "tests/kokoro-progresso.test.mjs",

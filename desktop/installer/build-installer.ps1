@@ -20,12 +20,18 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+. (Join-Path $PSScriptRoot '../../scripts/giphy-ambiente.ps1')
+$estadoGiphy = Ativar-AmbienteGiphy
+$PSDefaultParameterValues['Start-Process:WindowStyle'] = 'Hidden'
+try {
 
 $installerDir = $PSScriptRoot
 $desktopDir = Split-Path -Parent $installerDir
 $project = Join-Path $desktopDir "src\SmellsLikeTech.Converter.Desktop\SmellsLikeTech.Converter.Desktop.csproj"
 $payloadDir = Join-Path $desktopDir "artifacts\app"
 $outputDir = Join-Path $desktopDir "artifacts\installer"
+$raizArtefatos = [IO.Path]::GetFullPath((Join-Path $desktopDir "artifacts")) + [IO.Path]::DirectorySeparatorChar
+if (-not [IO.Path]::GetFullPath($payloadDir).StartsWith($raizArtefatos, [StringComparison]::OrdinalIgnoreCase)) { throw "Payload fora da pasta de artefatos." }
 
 # Versão: parâmetro > <Version> do Directory.Build.props
 if (-not $Version) {
@@ -80,6 +86,7 @@ $size = [Math]::Round((Get-Item $setup).Length / 1MB, 1)
 if (-not $SkipVerify) {
     Write-Host "-> verificando o instalador (instalação de teste)…" -ForegroundColor Cyan
     $prova = Join-Path ([System.IO.Path]::GetTempPath()) "slt-verificacao-$([Guid]::NewGuid().ToString('N'))"
+    if (-not [IO.Path]::GetFullPath($prova).StartsWith(([IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd('\') + '\slt-verificacao-'), [StringComparison]::OrdinalIgnoreCase)) { throw "Pasta de teste fora do destino temporário." }
     $registro = "$prova.log"
 
     $processo = Start-Process -FilePath $setup -Wait -PassThru -ArgumentList @(
@@ -132,3 +139,5 @@ Write-Host ""
 Write-Host "OK: $setup ($size MB)" -ForegroundColor Green
 Write-Host "Pronto para o site: $publicado (public/baixar/app.json atualizado)" -ForegroundColor Green
 Write-Host "Envie ao R2 com: npm run instaladores:publicar -- --so app" -ForegroundColor Green
+
+} finally { Restaurar-AmbienteGiphy $estadoGiphy }
