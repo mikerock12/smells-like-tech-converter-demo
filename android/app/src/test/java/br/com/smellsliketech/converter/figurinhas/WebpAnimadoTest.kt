@@ -58,6 +58,33 @@ class WebpAnimadoTest {
         assertThrows(IllegalArgumentException::class.java) { WebpAnimado.ler(fora) }
     }
 
+    private fun completos(): ByteArray {
+        val fonte = exemplo()
+        val primeiro = WebpAnimado.ler(fonte).quadros.first()
+        assertEquals(512, primeiro.largura); assertEquals(512, primeiro.altura)
+        val inicio = primeiro.posicaoDoTempo - 20
+        val tamanho = (0..3).fold(0) { n, k -> n or ((fonte[inicio + 4 + k].toInt() and 255) shl (8 * k)) }
+        val quadro = fonte.copyOfRange(inicio, inicio + 8 + tamanho + (tamanho and 1))
+        val webp = fonte.copyOfRange(0, inicio) + quadro + quadro
+        repeat(4) { webp[4 + it] = ((webp.size - 8) ushr (8 * it)).toByte() }
+        return webp
+    }
+
+    @Test fun quadrosCompletosSubstituemOAnteriorSemAlterarPixelsOuTempos() {
+        val antes = completos(); val depois = WebpAnimado.quadrosIndependentes(antes)
+        val permitidos = WebpAnimado.ler(antes).quadros.map { it.posicaoDoTempo + 3 }.toSet() + (38..41).toSet()
+        assertArrayEquals(antes.filterIndexed { i, _ -> i !in permitidos }.toByteArray(), depois.filterIndexed { i, _ -> i !in permitidos }.toByteArray())
+        assertTrue(WebpAnimado.ler(depois).quadros.all { depois[it.posicaoDoTempo + 3].toInt() == 2 })
+        assertTrue((38..41).all { depois[it].toInt() == 0 })
+        assertArrayEquals(antes, completos())
+    }
+
+    @Test fun naoAplicaSubstituicaoEmQuadroParcial() {
+        val webp = completos(); val quadro = WebpAnimado.ler(webp).quadros.last()
+        webp[quadro.posicaoDoTempo - 6] = 0 // largura 257 em vez de 512
+        assertThrows(IllegalArgumentException::class.java) { WebpAnimado.quadrosIndependentes(webp) }
+    }
+
     @Test fun naoTransformaUmaImagemParadaEmAnimacao() {
         val webp = exemplo()
         val primeiro = WebpAnimado.ler(webp).quadros.first()

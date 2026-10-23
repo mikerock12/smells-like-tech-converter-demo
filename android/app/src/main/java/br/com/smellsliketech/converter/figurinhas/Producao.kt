@@ -152,12 +152,16 @@ object Producao {
         private val saida = arquivo.outputStream().buffered(1 shl 20)
         private val pontos = IntArray(Regras.LADO * Regras.LADO)
         private val bytes = ByteBuffer.allocate(pontos.size * 4).order(ByteOrder.BIG_ENDIAN)
+        private val visiveis = mutableListOf<Boolean>()
         var quantidade = 0
             private set
+
+        fun temImagem(ate: Int = quantidade): Boolean = visiveis.take(ate).any { it }
 
         fun gravar(quadro: Bitmap) {
             require(quadro.width == Regras.LADO && quadro.height == Regras.LADO)
             quadro.getPixels(pontos, 0, Regras.LADO, 0, 0, Regras.LADO, Regras.LADO)
+            visiveis += pontos.any { it ushr 24 != 0 }
             bytes.clear()
             bytes.asIntBuffer().put(pontos)
             saida.write(bytes.array())
@@ -254,9 +258,9 @@ object Producao {
                 aoTentar("q=$qualidade quadros=$quadros/$total ${tamanho / 1024}KB")
                 if (tamanho in 1..Regras.ANIMADA_MAX_BYTES.toLong()) {
                     val gerada = saida.readBytes()
-                    if (!temImagem(gerada)) throw ErroDeConversao("A figurinha ficou vazia: a imagem saiu do quadro. Toque em Centralizar e tente de novo.")
+                    if (!crus.temImagem(quadros)) throw ErroDeConversao("A figurinha ficou vazia: a imagem saiu do quadro. Toque em Centralizar e tente de novo.")
                     val duracaoMs = (quadros * 1000L / crus.porSegundo).coerceIn(16, WebpAnimado.DURACAO_MAX_MS.toLong()).toInt()
-                    val webp = WebpAnimado.normalizar(gerada, duracaoMs)
+                    val webp = WebpAnimado.normalizar(WebpAnimado.quadrosIndependentes(gerada), duracaoMs)
                     aoAvancar(1.0)
                     return@withContext Animada(webp, quadros.toDouble() / crus.porSegundo, quadros < total)
                 }
@@ -327,7 +331,9 @@ object Producao {
                 "-f", "rawvideo", "-pix_fmt", "argb", "-s", "${Regras.LADO}x${Regras.LADO}",
                 "-framerate", crus.porSegundo.toString(), "-i", crus.arquivo.absolutePath) +
                 (if (filtros.isEmpty()) emptyList() else listOf("-vf", filtros.joinToString(","))) +
-                listOf("-c:v", "libwebp_anim", "-lossless", "0", "-quality", qualidade.toString(),
+                // O animador elimina áreas "parecidas" entre quadros em modo com perdas. Isso
+                // acumula resíduos nas bordas em movimento. Cada quadro completo substitui o anterior.
+                listOf("-c:v", "libwebp", "-lossless", "0", "-quality", qualidade.toString(),
                     "-compression_level", "4", "-loop", "0", "-pix_fmt", "yuva420p", "-an", "-f", "webp", saida.absolutePath),
             duracao = quadrosNaSaida / porSegundo,
             aoAvancar = { aoAvancar(it / 100.0) },
