@@ -33,11 +33,13 @@ data class CamadaSalva(
     val visivel: Boolean = true,
     val ordem: Int = 0,
     val texto: Boolean = false,
+    val inicio: Double = 0.0,
+    val fim: Double? = null,
 )
 
 object Projetos {
     const val ARQUIVO = "projeto.json"
-    private const val VERSAO = 1
+    private const val VERSAO = 2
 
     fun gravar(pasta: File, projeto: ProjetoSalvo) {
         val objeto = JSONObject()
@@ -92,6 +94,8 @@ object Projetos {
         .put("visivel", c.visivel)
         .put("ordem", c.ordem)
         .put("texto", c.texto)
+        .put("inicio", c.inicio)
+        .put("fim", c.fim ?: JSONObject.NULL)
 
     private fun camadaDeJson(o: JSONObject) = CamadaSalva(
         id = o.getString("id"),
@@ -103,6 +107,8 @@ object Projetos {
         visivel = o.optBoolean("visivel", true),
         ordem = o.optInt("ordem"),
         texto = o.optBoolean("texto"),
+        inicio = o.optDouble("inicio", 0.0).takeIf { it.isFinite() && it >= 0 } ?: 0.0,
+        fim = o.optDouble("fim", Double.NaN).takeIf { it.isFinite() && it > o.optDouble("inicio", 0.0) },
     )
 
     fun edicaoParaJson(e: Edicao): JSONObject = JSONObject()

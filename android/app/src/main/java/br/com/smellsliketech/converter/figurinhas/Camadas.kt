@@ -19,6 +19,8 @@ data class CamadaDeFigurinha(
     val visivel: Boolean = true,
     val ordem: Int = 1,
     val texto: Boolean = false,
+    val inicio: Double = 0.0,
+    val fim: Double? = null,
 )
 
 /** Cada camada é recortada/filtrada isoladamente, e só depois é mesclada na composição. */

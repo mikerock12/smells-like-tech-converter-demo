@@ -34,6 +34,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableDoubleStateOf
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -79,7 +80,7 @@ private class EstadoDaPrevia {
 @Composable
 fun PreviaDoTrecho(uri: Uri, video: Boolean, opcoes: Opcoes, aoEscolherInstante: (Double) -> Unit = {}, mudar: (Opcoes) -> Unit) {
     val contexto = LocalContext.current
-    val estado = remember(uri) { EstadoDaPrevia() }
+    val estado = remember(uri) { EstadoDaPrevia().apply { posicao = opcoes.inicioSegundos.coerceAtLeast(0.0) } }
     var telaCheia by remember(uri) { mutableStateOf(false) }
 
     // A taxa de quadros do arquivo, para andar exatamente um quadro (30 quando não informa).
@@ -87,6 +88,7 @@ fun PreviaDoTrecho(uri: Uri, video: Boolean, opcoes: Opcoes, aoEscolherInstante:
         if (video) quadrosDoVideo(contexto, uri)?.let { estado.quadrosPorSegundo = it }
     }
 
+    key(uri) {
     if (telaCheia) {
         Text("A prévia está em tela cheia.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
         Dialog(
@@ -99,6 +101,7 @@ fun PreviaDoTrecho(uri: Uri, video: Boolean, opcoes: Opcoes, aoEscolherInstante:
         }
     } else {
         Player(uri, video, opcoes, mudar, estado, telaCheia = false, aoEscolherInstante = aoEscolherInstante) { telaCheia = true }
+    }
     }
 }
 

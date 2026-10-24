@@ -329,6 +329,7 @@ private fun EditorDeFigurinha(modelo: FigurinhasViewModel) {
         modelo.adicionarMidia(android.net.Uri.fromFile(it), descartarAoAbrir = true)
     }
     val origem = modelo.origem ?: return
+    val origemSelecionada = modelo.origemSelecionada
     val edicao = modelo.edicao
     val giroVisivel = if (edicao.giro in -180..180) edicao.giro else (edicao.giro + 180).mod(360) - 180
     var aba by remember { mutableStateOf(Aba.ENQUADRAR) }
@@ -354,7 +355,8 @@ private fun EditorDeFigurinha(modelo: FigurinhasViewModel) {
                 }
             }
             Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rolagemDosAjustes).padding(horizontal = 4.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(origem.nome, style = MaterialTheme.typography.bodySmall, maxLines = 1)
+                Text(origemSelecionada?.nome ?: modelo.camadas.firstOrNull { it.id == modelo.camadaSelecionada }?.nome ?: origem.nome,
+                    style = MaterialTheme.typography.bodySmall, maxLines = 1)
                 when (aba) {
                     Aba.CAMADAS -> {
                         AcaoDoEditor(AcaoEditor.EMOJI, "Stickers e GIF stickers") { catalogoAberto = true }
@@ -417,7 +419,7 @@ private fun EditorDeFigurinha(modelo: FigurinhasViewModel) {
                     }
                     Aba.FUNDO -> {
                         Linha("Remover o fundo automaticamente", edicao.removerFundo) { modelo.mudar(edicao.copy(removerFundo = it)) }
-                        if (modelo.animada && origem.tipo != TipoDaOrigem.IMAGEM) {
+                        if (modelo.animada && origemSelecionada?.tipo in listOf(TipoDaOrigem.VIDEO, TipoDaOrigem.GIF)) {
                             Dica("Na figurinha animada o fundo é removido em cada quadro ao salvar (leva um pouco mais).")
                         } else {
                             Linha("Pincel (ajuste à mão)", pincel) { pincel = it }
@@ -507,15 +509,19 @@ private fun EditorDeFigurinha(modelo: FigurinhasViewModel) {
                         FilterChip(selected = !modelo.animada, onClick = { modelo.mudarAnimada(false) }, enabled = modelo.editando == null, label = { Text("Estática (um quadro)") })
                         FilterChip(selected = modelo.animada, onClick = { modelo.mudarAnimada(true) }, enabled = modelo.editando == null, label = { Text("Animada (até 10 s)") })
                     }
-                    if (origem.tipo == TipoDaOrigem.VIDEO) {
-                        val opcoes = Opcoes(formato = "mp4", inicioSegundos = modelo.inicio, fimSegundos = modelo.fim)
-                        PreviaDoTrecho(origem.uri, video = true, opcoes = opcoes,
-                            aoEscolherInstante = { modelo.mostrarInstante((it - modelo.inicio).toFloat()) }) { novas ->
+                    if (origemSelecionada?.tipo == TipoDaOrigem.VIDEO) {
+                        val opcoes = Opcoes(formato = "mp4", inicioSegundos = modelo.inicioSelecionado, fimSegundos = modelo.fimSelecionado)
+                        androidx.compose.runtime.key(modelo.camadaSelecionada, origemSelecionada.uri) {
+                        PreviaDoTrecho(origemSelecionada.uri, video = true, opcoes = opcoes,
+                            aoEscolherInstante = modelo::mostrarInstanteDaSelecionada) { novas ->
                             val ate = if (novas.fimSegundos > 0) minOf(novas.fimSegundos, novas.inicioSegundos + Regras.ANIMADA_MAX_SEGUNDOS) else novas.inicioSegundos + Regras.ANIMADA_MAX_SEGUNDOS
-                            modelo.mudarTrecho(novas.inicioSegundos, ate)
+                            modelo.mudarTrechoSelecionado(novas.inicioSegundos, ate)
                         }
-                        Dica(if (modelo.animada) "A figurinha animada usa o trecho entre Início e Fim (no máximo 10 s)." else "A figurinha estática usa o quadro marcado em Início.")
-                    } else if (origem.tipo == TipoDaOrigem.GIF) {
+                        }
+                        Dica(if (!modelo.animada) "A figurinha estática usa o quadro marcado em Início."
+                            else if (modelo.camadaSelecionada == null) "A figurinha animada usa o trecho entre Início e Fim (no máximo 10 s)."
+                            else "O corte vale só para esta camada. O trecho se repete até o fim da composição.")
+                    } else if (origemSelecionada?.tipo == TipoDaOrigem.GIF) {
                         Dica(if (modelo.animada) "O GIF vira figurinha animada (os primeiros 10 s)." else "A figurinha estática usa o primeiro quadro do GIF.")
                     }
                     if (modelo.animada) {
