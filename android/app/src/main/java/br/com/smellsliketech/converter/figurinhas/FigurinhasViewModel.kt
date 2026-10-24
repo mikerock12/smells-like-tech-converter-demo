@@ -59,7 +59,7 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
 
     private val preferencias = aplicacao.getSharedPreferences("figurinhas", android.content.Context.MODE_PRIVATE)
 
-    /** Quadros por segundo da animada (10, 12 ou 15), iguais em toda figurinha; a escolha fica guardada. */
+    /** Quadros por segundo da animada (8, 10, 12 ou 15), iguais em toda figurinha; a escolha fica guardada. */
     var quadrosPorSegundo by mutableStateOf(
         preferencias.getInt("quadrosPorSegundo", Regras.QUADROS_POR_SEGUNDO_PADRAO).takeIf { it in Regras.QUADROS_POR_SEGUNDO }
             ?: Regras.QUADROS_POR_SEGUNDO_PADRAO,
@@ -86,6 +86,7 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
         private set
     var tempoDaPrevia by mutableStateOf(0f)
         private set
+    private var instanteEscolhido = false
     private var trabalhoDaPrevia: Job? = null
     private fun selecionada() = camadas.firstOrNull { it.id == camadaSelecionada }
     var edicao: Edicao
@@ -194,6 +195,7 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
         corDeFundo = estado.fundo; corFinalDoFundo = estado.fundoFinal; emojis = estado.emojis
         inicio = estado.inicio; fim = estado.fim; animada = estado.animada
         quadrosPorSegundo = estado.fps
+        tempoDaPrevia = tempoDaPrevia.coerceIn(0f, (fim - inicio).toFloat().coerceAtLeast(0f))
         preferencias.edit().putInt("quadrosPorSegundo", estado.fps).apply()
         atualizarHistorico(); atualizarPrevia()
     }
@@ -204,7 +206,9 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
         registrar("trecho")
         val inicioMudou = inicio != de
         inicio = de; fim = ate
+        tempoDaPrevia = tempoDaPrevia.coerceIn(0f, (fim - inicio).toFloat().coerceAtLeast(0f))
         if (inicioMudou) carregarBase()
+        else atualizarPrevia()
     }
 
     fun recarregar() {
@@ -506,11 +510,15 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
                     previaPendente = false
                     val lista = composicao()
                     if (lista.isEmpty()) break
-                    val desenho = withContext(Dispatchers.Default) { compositor.desenhar(lista, corDeFundo, corFinalDoFundo) }
+                    val segundo = tempoDaPrevia
+                    val desenho = if (instanteEscolhido) desenharInstante(lista, segundo)
+                    else withContext(Dispatchers.Default) { compositor.desenhar(lista, corDeFundo, corFinalDoFundo) }
                     ensureActive()
-                    previa = desenho
+                    if (segundo == tempoDaPrevia) previa = desenho else desenho.recycle()
                 }
-            } finally {
+            } catch (erro: CancellationException) { throw erro }
+            catch (erro: Exception) { aviso = "Não foi possível atualizar a prévia: ${erro.message}" }
+            finally {
                 desenhandoPrevia = false
             }
         }
@@ -519,30 +527,33 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
     private var desenhandoPrevia = false
 
     fun mostrarInstante(segundos: Float) {
-        tempoDaPrevia = segundos
-        trabalhoDaPrevia?.cancel()
-        val lista = composicao()
-        trabalhoDaPrevia = viewModelScope.launch {
-            delay(150)
-            val temporarios = mutableListOf<Bitmap>()
-            try {
-                val quadros = lista.map { camada ->
-                    val trecho = trechoDe(camada)
-                    if (trecho == null) camada else {
-                        val sequencia = quadrosDoTrecho(trecho) { ocupado = CONVERTENDO_PARA_A_PREVIA }
-                        val quadro = withContext(Dispatchers.IO) { lerQuadro(sequencia, (segundos * sequencia.porSegundo).toInt(), camada) }
-                        temporarios += quadro
-                        val recorte = if (camada.mascaraManual) camada.mascara else if (camada.edicao.removerFundo) Fundo.mascara(quadro).also { temporarios += it } else null
-                        camada.copy(imagem = quadro, mascara = recorte)
+        if (!segundos.isFinite()) return
+        tempoDaPrevia = segundos.coerceIn(0f, (fim - inicio).toFloat().coerceAtLeast(0f))
+        instanteEscolhido = true
+        atualizarPrevia()
+    }
+
+    /** O quadro escolhido também é a base visual dos ajustes seguintes. */
+    private suspend fun desenharInstante(lista: List<CamadaDeFigurinha>, segundos: Float): Bitmap {
+        val temporarios = mutableListOf<Bitmap>()
+        try {
+            val quadros = lista.map { camada ->
+                val trecho = trechoDe(camada)
+                if (trecho == null) camada else {
+                    val sequencia = quadrosDoTrecho(trecho) { ocupado = CONVERTENDO_PARA_A_PREVIA }
+                    val indice = (segundos * sequencia.porSegundo).roundToInt().let {
+                        if (camada.id == "principal") it.coerceAtMost(sequencia.arquivos.lastIndex) else it
                     }
+                    val quadro = withContext(Dispatchers.IO) { lerQuadro(sequencia, indice, camada) }
+                    temporarios += quadro
+                    val recorte = if (camada.mascaraManual) camada.mascara else if (camada.edicao.removerFundo) Fundo.mascara(quadro).also { temporarios += it } else null
+                    camada.copy(imagem = quadro, mascara = recorte)
                 }
-                previa = withContext(Dispatchers.Default) { compositor.desenhar(quadros, corDeFundo, corFinalDoFundo) }
-            } catch (erro: CancellationException) { throw erro }
-            catch (erro: Exception) { aviso = "Não foi possível mostrar este instante: ${erro.message}" }
-            finally {
-                if (ocupado == CONVERTENDO_PARA_A_PREVIA) ocupado = null
-                temporarios.forEach { it.recycle() }
             }
+            return withContext(Dispatchers.Default) { compositor.desenhar(quadros, corDeFundo, corFinalDoFundo) }
+        } finally {
+            if (ocupado == CONVERTENDO_PARA_A_PREVIA) ocupado = null
+            temporarios.forEach { it.recycle() }
         }
     }
 
@@ -741,6 +752,7 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
         corDeFundo = android.graphics.Color.TRANSPARENT
         corFinalDoFundo = null
         tempoDaPrevia = 0f
+        instanteEscolhido = false
         base = null
         mascara = null
         mascaraManualPrincipal = false

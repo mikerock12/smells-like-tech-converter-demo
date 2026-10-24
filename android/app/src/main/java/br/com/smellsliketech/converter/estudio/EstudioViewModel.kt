@@ -83,17 +83,21 @@ class EstudioViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) {
     private fun restaurar(valor: Projeto) { projeto = valor; instante = instante.coerceAtMost(total); atualizarHistorico(); salvar(); atualizarPrevia() }
     fun iniciarGesto() = historico.iniciar()
     fun terminarGesto() = historico.terminar()
-    fun inclinarSelecionada(dx: Float, dy: Float, secao: String) {
-        fun inclinar(t: Transformacao?) = (t ?: Transformacao()).let {
+    fun inclinarSelecionada(dx: Float, dy: Float, secao: String) = transformarSelecionada(secao) {
             it.copy(giroX = (it.giroX + dy * 180).coerceIn(-180.0, 180.0), giroY = (it.giroY + dx * 180).coerceIn(-180.0, 180.0))
-        }
+    }
+    fun ampliarSelecionada(fator: Float, secao: String) = transformarSelecionada(secao) {
+        Animacao.mudarBase(it, it.copy(escala = (it.escala * fator).coerceIn(.05, 6.0)))
+    }
+    private fun transformarSelecionada(secao: String, transformar: (Transformacao) -> Transformacao) {
+        fun aplicar(t: Transformacao?) = transformar(t ?: Transformacao())
         val p = projeto ?: return
         when {
-            secao == "CAMADAS" && camadaAberta != null -> mudarCamada(camadaAberta!!) { it.copy(transformacao = inclinar(it.transformacao)) }
-            secao == "TEXTOS" && textoAberto != null -> mudarTexto(textoAberto!!) { it.copy(transformacao = inclinar(it.transformacao)) }
+            secao == "CAMADAS" && camadaAberta != null -> mudarCamada(camadaAberta!!) { it.copy(transformacao = aplicar(it.transformacao)) }
+            secao == "TEXTOS" && textoAberto != null -> mudarTexto(textoAberto!!) { it.copy(transformacao = aplicar(it.transformacao)) }
             else -> {
                 val id = clipeAberto ?: Estudio.clipeNoTempo(p, instante)?.second?.id ?: p.clipes.firstOrNull()?.id
-                if (id != null) mudarClipe(id) { it.copy(transformacao = inclinar(it.transformacao)) }
+                if (id != null) mudarClipe(id) { it.copy(transformacao = aplicar(it.transformacao)) }
             }
         }
     }
@@ -353,6 +357,15 @@ class EstudioViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) {
     fun irPara(t: Double) {
         instante = t.coerceIn(0.0, total)
         atualizarPrevia()
+    }
+
+    fun mostrarInstanteDoClipe(id: String, segundosNaOrigem: Double) {
+        if (!segundosNaOrigem.isFinite()) return
+        val p = projeto ?: return
+        val clipe = p.clipes.firstOrNull { it.id == id } ?: return
+        val segmento = Estudio.segmentos(p).first { it.id == id }
+        val local = (segundosNaOrigem - (clipe.inicio ?: 0.0)) / Estudio.velocidadeDoClipe(clipe)
+        irPara(segmento.inicio + local.coerceIn(0.0, segmento.duracao))
     }
 
     private fun atualizarPrevia() {

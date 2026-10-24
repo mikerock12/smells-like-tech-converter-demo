@@ -123,15 +123,21 @@ class EditarDeNovoTest {
         val videos = File(contexto.filesDir, "videos-de-teste").listFiles { f -> f.extension == "mp4" }.orEmpty()
         assumeTrue("sem vídeos de teste", videos.isNotEmpty())
         val video = videos.minBy { it.length() }
+        for (taxa in listOf(8, 12)) {
         val m = modelo()
-        naTela { m.mudarQuadrosPorSegundo(12); m.abrir(Uri.fromFile(video)) }
+        naTela { m.mudarQuadrosPorSegundo(taxa); m.abrir(Uri.fromFile(video)) }
         esperar { m.ocupado == null && m.previa != null }
-        naTela { m.inicio = 1.0; m.fim = 4.0; m.salvar(null, "Reeditar vídeo") }
+        naTela { m.inicio = 1.0; m.fim = 4.0; m.salvar(null, "Reeditar vídeo $taxa fps") }
         Thread.sleep(200)
         esperar { m.ocupado == null && m.origem == null }
         val pacote = m.pacoteAberto!!
         val figurinha = pacote.figurinhas.single()
         try {
+            val bytes = m.pacotes.arquivo(pacote, figurinha.arquivo).readBytes()
+            val animacao = WebpAnimado.ler(bytes)
+            assertTrue(bytes.size <= Regras.ANIMADA_MAX_BYTES)
+            assertTrue(animacao.quadros.size > 1)
+            if (taxa == 8) assertTrue("8 fps usa períodos de 125 ms", animacao.quadros.all { it.duracaoMs > 0 && it.duracaoMs % 125 == 0 })
             val pasta = m.pacotes.pastaDoProjeto(pacote, figurinha.arquivo)
             val trecho = File(pasta, "principal.mp4")
             assertTrue(trecho.isFile)
@@ -140,7 +146,7 @@ class EditarDeNovoTest {
             naTela { m.editar(pacote, figurinha) }
             esperar { m.ocupado == null && m.previa != null && m.editando != null }
             assertTrue(m.animada)
-            assertEquals(12, m.quadrosPorSegundo)
+            assertEquals(taxa, m.quadrosPorSegundo)
             assertEquals(3.0, m.fim - m.inicio, 0.01)
             assertNotNull(m.origem?.copia)
             assertEquals(TipoDaOrigem.VIDEO, m.origem!!.tipo)
@@ -148,6 +154,7 @@ class EditarDeNovoTest {
         } finally {
             m.pacotes.ler(pacote.id)?.let { m.pacotes.excluir(it) }
             naTela { m.mudarQuadrosPorSegundo(Regras.QUADROS_POR_SEGUNDO_PADRAO) }
+        }
         }
     }
 }

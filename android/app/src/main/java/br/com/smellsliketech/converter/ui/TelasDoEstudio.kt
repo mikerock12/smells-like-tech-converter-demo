@@ -16,6 +16,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.calculatePan
+import androidx.compose.foundation.gestures.calculateZoom
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.height
@@ -48,7 +50,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RangeSlider
-import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -336,18 +337,35 @@ private fun Previa(modelo: EstudioViewModel, projeto: Projeto, altura: Dp, secao
         Box(
             Modifier.fillMaxWidth().height(altura).clip(RoundedCornerShape(10.dp)).background(Color.Black)
                 .pointerInput(secao, modelo.camadaAberta, modelo.textoAberto, modelo.clipeAberto) {
+                    var ultimoToque = 0L
+                    var ultimoPonto = Offset.Unspecified
                     awaitEachGesture {
-                        awaitFirstDown(requireUnconsumed = false)
+                        val primeiro = awaitFirstDown(requireUnconsumed = false)
+                        var inclinar = primeiro.uptimeMillis - ultimoToque in 40..viewConfiguration.doubleTapTimeoutMillis &&
+                            ultimoPonto.x.isFinite() && (primeiro.position - ultimoPonto).getDistance() < viewConfiguration.touchSlop * 4
+                        var moveu = false
+                        var multiplo = false
+                        var soltura = primeiro.uptimeMillis
                         modelo.iniciarGesto()
                         try {
                             do {
                                 val evento = awaitPointerEvent()
+                                soltura = evento.changes.maxOf { it.uptimeMillis }
+                                if ((evento.changes.first().position - primeiro.position).getDistance() > viewConfiguration.touchSlop) moveu = true
                                 if (evento.changes.count { it.pressed } >= 2) {
+                                    multiplo = true; inclinar = false
+                                    val zoom = evento.calculateZoom()
+                                    if (zoom != 1f) modelo.ampliarSelecionada(zoom, secao)
+                                    evento.changes.forEach { it.consume() }
+                                }
+                                if (inclinar) {
                                     val pan = evento.calculatePan()
                                     modelo.inclinarSelecionada(pan.x / size.width, pan.y / size.height, secao)
                                     evento.changes.forEach { it.consume() }
                                 }
                             } while (evento.changes.any { it.pressed })
+                            ultimoToque = if (!moveu && !multiplo && soltura - primeiro.uptimeMillis < viewConfiguration.longPressTimeoutMillis) soltura else 0L
+                            ultimoPonto = primeiro.position
                         } finally { modelo.terminarGesto() }
                     }
                 },
@@ -363,7 +381,7 @@ private fun Previa(modelo: EstudioViewModel, projeto: Projeto, altura: Dp, secao
                 Text(tempo(modelo.instante), fontSize = 12.sp, modifier = Modifier.weight(1f))
                 Text(tempo(total), fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            Slider(value = modelo.instante.toFloat(), onValueChange = { modelo.irPara(it.toDouble()) }, valueRange = 0f..total.toFloat())
+            DeslizanteComAjusteFino(valor = modelo.instante.toFloat(), mudar = { modelo.irPara(it.toDouble()) }, limites = 0f..total.toFloat(), passo = .1f, descricao = "Instante do projeto")
             AcaoDoEditor(AcaoEditor.TOCAR, "Assistir à prévia em vídeo (baixa resolução)") { modelo.gerarPreviaEmVideo() }
         }
     }
@@ -392,13 +410,12 @@ private fun CartaoDoClipe(modelo: EstudioViewModel, projeto: Projeto, clipe: Cli
         if (!aberto) return@Painel
         if (clipe.ehImagem) {
             Text("Na tela por ${decimal1(clipe.duracao ?: Estudio.DURACAO_PADRAO_DA_IMAGEM)} s", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Slider(
-                value = (clipe.duracao ?: Estudio.DURACAO_PADRAO_DA_IMAGEM).toFloat(), valueRange = 0.5f..15f, steps = 28,
-                onValueChange = { valor -> modelo.mudarClipe(clipe.id) { it.copy(duracao = Math.round(valor * 2) / 2.0) } },
-            )
+            DeslizanteComAjusteFino(valor = (clipe.duracao ?: Estudio.DURACAO_PADRAO_DA_IMAGEM).toFloat(), limites = 0.5f..15f,
+                mudar = { valor -> modelo.mudarClipe(clipe.id) { it.copy(duracao = Math.round(valor * 10) / 10.0) } }, passo = .1f, descricao = "Duração do clipe")
         } else {
             Text("Trecho do vídeo", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            PreviaDoTrecho(Uri.fromFile(File(clipe.arquivo)), video = true, opcoes = Opcoes("mp4", inicioSegundos = clipe.inicio ?: 0.0, fimSegundos = clipe.fim ?: info?.duracao ?: 0.0)) { opcoes ->
+            PreviaDoTrecho(Uri.fromFile(File(clipe.arquivo)), video = true, opcoes = Opcoes("mp4", inicioSegundos = clipe.inicio ?: 0.0, fimSegundos = clipe.fim ?: info?.duracao ?: 0.0),
+                aoEscolherInstante = { modelo.mostrarInstanteDoClipe(clipe.id, it) }) { opcoes ->
                 val fim = if (opcoes.fimSegundos > opcoes.inicioSegundos) opcoes.fimSegundos else (info?.duracao ?: opcoes.inicioSegundos + 1)
                 modelo.mudarClipe(clipe.id) { it.copy(inicio = opcoes.inicioSegundos, fim = fim) }
             }
@@ -412,7 +429,7 @@ private fun CartaoDoClipe(modelo: EstudioViewModel, projeto: Projeto, clipe: Cli
         Text(Estudio.AJUSTES.first { it.id == clipe.ajuste }.descricao, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         if(!clipe.ehImagem) {
             Text("Velocidade: ${String.format(Locale.ROOT,"%.2f",clipe.velocidade)}×",fontSize=12.sp)
-            Slider(value=clipe.velocidade.toFloat(),valueRange=.25f..4f,onValueChange={v->modelo.mudarClipe(clipe.id) {it.copy(velocidade=Math.round(v*20)/20.0)}})
+            DeslizanteComAjusteFino(valor =clipe.velocidade.toFloat(),limites =.25f..4f,mudar ={v->modelo.mudarClipe(clipe.id) {it.copy(velocidade=Math.round(v*100)/100.0)}}, passo = .01f, descricao = "Velocidade")
         }
         if(projeto.clipes.lastOrNull()?.id!=clipe.id) {
             Text("Transição para o próximo clipe",fontSize=12.sp)
@@ -423,7 +440,7 @@ private fun CartaoDoClipe(modelo: EstudioViewModel, projeto: Projeto, clipe: Cli
             }
             clipe.transicao?.takeIf {it.tipo!="corte"}?.let {t->
                 Text("Duração da transição: ${t.duracao} s",fontSize=12.sp)
-                Slider(value=t.duracao.toFloat(),valueRange=.1f..5f,onValueChange={v->modelo.mudarClipe(clipe.id) {it.copy(transicao=t.copy(duracao=Math.round(v*10)/10.0))}})
+                DeslizanteComAjusteFino(valor =t.duracao.toFloat(),limites =.1f..5f,mudar ={v->modelo.mudarClipe(clipe.id) {it.copy(transicao=t.copy(duracao=Math.round(v*10)/10.0))}}, passo = .1f, descricao = "Duração da transição")
                 Dica("Limitada à metade dos clipes vizinhos. O áudio acompanha a transição.")
             }
         }
@@ -435,7 +452,7 @@ private fun CartaoDoClipe(modelo: EstudioViewModel, projeto: Projeto, clipe: Cli
             }
             if (clipe.mudo != true) {
                 Text("Volume: ${((clipe.volume ?: 1.0) * 100).toInt()}%", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Slider(value = (clipe.volume ?: 1.0).toFloat(), valueRange = 0f..2f, onValueChange = { v -> modelo.mudarClipe(clipe.id) { it.copy(volume = Math.round(v * 20) / 20.0) } })
+                DeslizanteComAjusteFino(valor = (clipe.volume ?: 1.0).toFloat(), limites = 0f..2f, mudar = { v -> modelo.mudarClipe(clipe.id) { it.copy(volume = Math.round(v * 100) / 100.0) } }, passo = .01f, descricao = "Volume do clipe")
             }
         }
     }
@@ -481,7 +498,7 @@ private fun CartaoDoTexto(modelo: EstudioViewModel, texto: Texto) {
             Switch(checked = texto.caixa != null, onCheckedChange = { ligado -> modelo.mudarTexto(texto.id) { it.copy(caixa = if (ligado) "#000000AA" else null) } })
         }
         Text("Tamanho", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Slider(value = texto.tamanho.toFloat(), valueRange = 0.03f..0.16f, onValueChange = { v -> modelo.mudarTexto(texto.id) { it.copy(tamanho = Math.round(v * 1000) / 1000.0) } })
+        DeslizanteComAjusteFino(valor = texto.tamanho.toFloat(), limites = 0.03f..0.16f, mudar = { v -> modelo.mudarTexto(texto.id) { it.copy(tamanho = Math.round(v * 1000) / 1000.0) } }, passo = .001f, descricao = "Tamanho do texto")
         Text("Posição", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             listOf("Em cima" to 0.15, "No meio" to 0.5, "Embaixo" to 0.85).forEach { (rotulo, y) ->
@@ -489,7 +506,7 @@ private fun CartaoDoTexto(modelo: EstudioViewModel, texto: Texto) {
             }
         }
         Text("Altura: ${(texto.y * 100).toInt()}%", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Slider(value = texto.y.toFloat(), valueRange = 0f..1f, onValueChange = { v -> modelo.mudarTexto(texto.id) { it.copy(y = Math.round(v * 100) / 100.0) } })
+        DeslizanteComAjusteFino(valor = texto.y.toFloat(), limites = 0f..1f, mudar = { v -> modelo.mudarTexto(texto.id) { it.copy(y = Math.round(v * 100) / 100.0) } }, passo = .01f, descricao = "Posição vertical do texto")
         ControlesDeTransformacao(texto.transformacao, permitirRecorte = false, duracao=texto.fim-texto.inicio) { valor -> modelo.mudarTexto(texto.id) { it.copy(transformacao = valor) } }
         if (total > 0) {
             Text("Aparece de ${tempo(texto.inicio)} até ${tempo(texto.fim)}", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -537,10 +554,10 @@ private fun CartaoDoAudio(modelo: EstudioViewModel, audio: AudioExtra) {
         )
         if (total > 0) {
             Text("Entra no vídeo em ${tempo(audio.entrada ?: 0.0)}", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Slider(value = (audio.entrada ?: 0.0).toFloat().coerceIn(0f, total.toFloat()), valueRange = 0f..total.toFloat(), onValueChange = { v -> modelo.mudarAudio(audio.id) { it.copy(entrada = Math.round(v * 10) / 10.0) } })
+            DeslizanteComAjusteFino(valor = (audio.entrada ?: 0.0).toFloat().coerceIn(0f, total.toFloat()), limites = 0f..total.toFloat(), mudar = { v -> modelo.mudarAudio(audio.id) { it.copy(entrada = Math.round(v * 10) / 10.0) } }, passo = .1f, descricao = "Entrada do áudio")
         }
         Text("Volume: ${((audio.volume ?: 1.0) * 100).toInt()}%", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Slider(value = (audio.volume ?: 1.0).toFloat(), valueRange = 0f..2f, onValueChange = { v -> modelo.mudarAudio(audio.id) { it.copy(volume = Math.round(v * 20) / 20.0) } })
+        DeslizanteComAjusteFino(valor = (audio.volume ?: 1.0).toFloat(), limites = 0f..2f, mudar = { v -> modelo.mudarAudio(audio.id) { it.copy(volume = Math.round(v * 100) / 100.0) } }, passo = .01f, descricao = "Volume do áudio")
         Text("Fade de entrada e de saída", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             listOf(0.0, 1.0, 2.0, 3.0).forEach { s -> FilterChip(selected = (audio.fadeEntrada ?: 0.0) == s, onClick = { modelo.mudarAudio(audio.id) { it.copy(fadeEntrada = s) } }, label = { Text("Entra ${decimal1(s)} s", fontSize = 12.sp) }) }

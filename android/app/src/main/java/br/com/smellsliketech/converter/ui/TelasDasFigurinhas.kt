@@ -51,7 +51,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
-import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -331,6 +330,7 @@ private fun EditorDeFigurinha(modelo: FigurinhasViewModel) {
     }
     val origem = modelo.origem ?: return
     val edicao = modelo.edicao
+    val giroVisivel = if (edicao.giro in -180..180) edicao.giro else (edicao.giro + 180).mod(360) - 180
     var aba by remember { mutableStateOf(Aba.ENQUADRAR) }
     var pincel by remember { mutableStateOf(false) }
     var apagar by remember { mutableStateOf(true) }
@@ -378,7 +378,7 @@ private fun EditorDeFigurinha(modelo: FigurinhasViewModel) {
                             }
                         }
                         Rotulado("Opacidade: ${(edicao.opacidade * 100).roundToInt()}%") {
-                            Slider(edicao.opacidade, { modelo.mudar(edicao.copy(opacidade = it)) })
+                            DeslizanteComAjusteFino(edicao.opacidade, { modelo.mudar(edicao.copy(opacidade = it)) }, passo = .01f, descricao = "Opacidade")
                         }
                         FlowRow {
                             Mescla.entries.forEach { mescla ->
@@ -387,28 +387,28 @@ private fun EditorDeFigurinha(modelo: FigurinhasViewModel) {
                         }
                     }
                     Aba.ENQUADRAR -> {
-                        Dica("Um dedo move. Dois dedos em paralelo inclinam frente/trás ou esquerda/direita. Pinça aproxima; torção gira no plano. As guias piscam quando a imagem fica no centro, encosta na borda ou se alinha com a camada de trás.")
+                        Dica("Um dedo move. Dois toques e arraste no segundo inclinam frente/trás ou esquerda/direita. Pinça com dois dedos aproxima; torção gira no plano. As guias piscam quando a imagem fica no centro, encosta na borda ou se alinha com a camada de trás.")
                         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             AcaoDoEditor(AcaoEditor.ENQUADRAR, "Preencher (1×1)") { modelo.preencher() }
                             AcaoDoEditor(AcaoEditor.CONTORNO, "Caber inteira") { modelo.ajustar(edicao.copy(zoom = 1f, deslocamentoX = 0f, deslocamentoY = 0f)) }
                             AcaoDoEditor(AcaoEditor.CENTRALIZAR, "Centralizar") { modelo.ajustar(edicao.copy(deslocamentoX = 0f, deslocamentoY = 0f)) }
                         }
-                        Rotulado("Zoom") { Slider(edicao.zoom.coerceIn(0.3f, 6f), { modelo.ajustar(edicao.copy(zoom = it)) }, valueRange = 0.3f..6f) }
-                        Rotulado("Horizontal") { Slider(edicao.deslocamentoX, { modelo.ajustar(edicao.copy(deslocamentoX = it)) }, valueRange = -1f..1f) }
-                        Rotulado("Vertical") { Slider(edicao.deslocamentoY, { modelo.ajustar(edicao.copy(deslocamentoY = it)) }, valueRange = -1f..1f) }
-                        Rotulado("Giro no plano (Z): ${edicao.giro}°") {
-                            Slider(edicao.giro.toFloat().coerceIn(-180f, 180f), { modelo.ajustar(edicao.copy(giro = it.roundToInt())) }, valueRange = -180f..180f)
+                        Rotulado("Zoom: ${"%.2f".format(edicao.zoom)}×") { DeslizanteComAjusteFino(edicao.zoom.coerceIn(0.3f, 6f), { modelo.ajustar(edicao.copy(zoom = it)) }, limites = 0.3f..6f, passo = .01f, descricao = "Zoom") }
+                        Rotulado("Horizontal") { DeslizanteComAjusteFino(edicao.deslocamentoX, { modelo.ajustar(edicao.copy(deslocamentoX = it)) }, limites = -1f..1f, passo = .01f, descricao = "Horizontal") }
+                        Rotulado("Vertical") { DeslizanteComAjusteFino(edicao.deslocamentoY, { modelo.ajustar(edicao.copy(deslocamentoY = it)) }, limites = -1f..1f, passo = .01f, descricao = "Vertical") }
+                        Rotulado("Giro no plano (Z): $giroVisivel°") {
+                            DeslizanteComAjusteFino(giroVisivel.toFloat(), { modelo.ajustar(edicao.copy(giro = it.roundToInt())) }, limites = -180f..180f, passo = 1f, descricao = "Giro Z")
                         }
                         Rotulado("Inclinar para frente / trás (X): ${edicao.inclinacaoX.roundToInt()}°") {
-                            Slider(edicao.inclinacaoX, { modelo.mudar(edicao.copy(inclinacaoX = it)) }, valueRange = -180f..180f)
+                            DeslizanteComAjusteFino(edicao.inclinacaoX, { modelo.mudar(edicao.copy(inclinacaoX = it)) }, limites = -180f..180f, passo = 1f, descricao = "Inclinação X")
                         }
                         Rotulado("Inclinar para esquerda / direita (Y): ${edicao.inclinacaoY.roundToInt()}°") {
-                            Slider(edicao.inclinacaoY, { modelo.mudar(edicao.copy(inclinacaoY = it)) }, valueRange = -180f..180f)
+                            DeslizanteComAjusteFino(edicao.inclinacaoY, { modelo.mudar(edicao.copy(inclinacaoY = it)) }, limites = -180f..180f, passo = 1f, descricao = "Inclinação Y")
                         }
                         Rotulado("Girar e espelhar") {
                             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                AcaoDoEditor(AcaoEditor.GIRAR_ESQUERDA, "Girar à esquerda") { modelo.mudar(edicao.copy(giro = (edicao.giro + 270) % 360)) }
-                                AcaoDoEditor(AcaoEditor.GIRAR_DIREITA, "Girar à direita") { modelo.mudar(edicao.copy(giro = (edicao.giro + 90) % 360)) }
+                                AcaoDoEditor(AcaoEditor.GIRAR_ESQUERDA, "Girar à esquerda") { modelo.mudar(edicao.copy(giro = (edicao.giro + 90).mod(360) - 180)) }
+                                AcaoDoEditor(AcaoEditor.GIRAR_DIREITA, "Girar à direita") { modelo.mudar(edicao.copy(giro = (edicao.giro + 270).mod(360) - 180)) }
                                 AcaoDoEditor(AcaoEditor.ESPELHAR, "Espelhar horizontalmente", selecionada = edicao.espelharHorizontal) { modelo.mudar(edicao.copy(espelharHorizontal = !edicao.espelharHorizontal)) }
                                 AcaoDoEditor(AcaoEditor.INVERTER, "De cabeça para baixo", selecionada = edicao.espelharVertical) { modelo.mudar(edicao.copy(espelharVertical = !edicao.espelharVertical)) }
                             }
@@ -427,7 +427,7 @@ private fun EditorDeFigurinha(modelo: FigurinhasViewModel) {
                                     AcaoDoEditor(AcaoEditor.PINCEL, "Restaurar com o pincel", selecionada = !apagar) { apagar = false }
                                 }
                                 Dica("Toque e arraste para posicionar o pincel acima do dedo. Dê dois toques e arraste no segundo para apagar ou restaurar. Use caixas de zoom para trabalhar nos detalhes; dois dedos movem a área ampliada.")
-                                Rotulado("Tamanho do pincel") { Slider(tamanhoDoPincel, { tamanhoDoPincel = it }, valueRange = 0.01f..0.15f) }
+                                Rotulado("Tamanho do pincel") { DeslizanteComAjusteFino(tamanhoDoPincel, { tamanhoDoPincel = it }, limites = 0.01f..0.15f, passo = .001f, descricao = "Tamanho do pincel") }
                             }
                         }
                         Text("Cor do fundo", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -445,9 +445,9 @@ private fun EditorDeFigurinha(modelo: FigurinhasViewModel) {
                                 FilterChip(selected = edicao.filtro == filtro, onClick = { modelo.mudar(edicao.copy(filtro = filtro)) }, label = { Text(filtro.rotulo, fontSize = 12.sp) })
                             }
                         }
-                        Rotulado("Brilho") { Slider(edicao.brilho, { modelo.mudar(edicao.copy(brilho = it)) }, valueRange = -1f..1f) }
-                        Rotulado("Contraste") { Slider(edicao.contraste, { modelo.mudar(edicao.copy(contraste = it)) }, valueRange = -0.8f..1f) }
-                        Rotulado("Saturação") { Slider(edicao.saturacao, { modelo.mudar(edicao.copy(saturacao = it)) }, valueRange = -1f..1f) }
+                        Rotulado("Brilho") { DeslizanteComAjusteFino(edicao.brilho, { modelo.mudar(edicao.copy(brilho = it)) }, limites = -1f..1f, passo = .01f, descricao = "Brilho") }
+                        Rotulado("Contraste") { DeslizanteComAjusteFino(edicao.contraste, { modelo.mudar(edicao.copy(contraste = it)) }, limites = -0.8f..1f, passo = .01f, descricao = "Contraste") }
+                        Rotulado("Saturação") { DeslizanteComAjusteFino(edicao.saturacao, { modelo.mudar(edicao.copy(saturacao = it)) }, limites = -1f..1f, passo = .01f, descricao = "Saturação") }
                     }
                     Aba.TEXTO -> {
                         OutlinedTextField(edicao.texto, { modelo.mudar(edicao.copy(texto = it.take(60))) }, label = { Text("Texto") }, modifier = Modifier.fillMaxWidth())
@@ -460,7 +460,7 @@ private fun EditorDeFigurinha(modelo: FigurinhasViewModel) {
                         SeletorDeCor(CORES, edicao.corDoTexto) { modelo.mudar(edicao.copy(corDoTexto = it)) }
                         Text("Contorno do texto", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         SeletorDeCor(listOf(CorAndroid.TRANSPARENT) + CORES, edicao.corDoContornoDoTexto) { modelo.mudar(edicao.copy(corDoContornoDoTexto = it)) }
-                        Rotulado("Tamanho") { Slider(edicao.tamanhoDoTexto, { modelo.mudar(edicao.copy(tamanhoDoTexto = it)) }, valueRange = 28f..120f) }
+                        Rotulado("Tamanho") { DeslizanteComAjusteFino(edicao.tamanhoDoTexto, { modelo.mudar(edicao.copy(tamanhoDoTexto = it)) }, limites = 28f..120f, passo = 1f, descricao = "Tamanho do texto") }
                         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                             PosicaoDoTexto.entries.forEach { posicao ->
                                 FilterChip(selected = edicao.posicaoDoTexto == posicao, onClick = { modelo.mudar(edicao.copy(posicaoDoTexto = posicao)) }, label = { Text(posicao.rotulo, fontSize = 12.sp) })
@@ -471,7 +471,7 @@ private fun EditorDeFigurinha(modelo: FigurinhasViewModel) {
                         Linha("Contorno de figurinha", edicao.contorno) { modelo.mudar(edicao.copy(contorno = it)) }
                         if (edicao.contorno) {
                             SeletorDeCor(CORES, edicao.corDoContorno) { modelo.mudar(edicao.copy(corDoContorno = it)) }
-                            Rotulado("Largura") { Slider(edicao.larguraDoContorno, { modelo.mudar(edicao.copy(larguraDoContorno = it)) }, valueRange = 4f..24f) }
+                            Rotulado("Largura") { DeslizanteComAjusteFino(edicao.larguraDoContorno, { modelo.mudar(edicao.copy(larguraDoContorno = it)) }, limites = 4f..24f, passo = 1f, descricao = "Largura do contorno") }
                             if (!edicao.removerFundo) Dica("Com o fundo removido, o contorno acompanha a figura; sem remover, ele contorna o quadro.")
                         }
                     }
@@ -509,7 +509,8 @@ private fun EditorDeFigurinha(modelo: FigurinhasViewModel) {
                     }
                     if (origem.tipo == TipoDaOrigem.VIDEO) {
                         val opcoes = Opcoes(formato = "mp4", inicioSegundos = modelo.inicio, fimSegundos = modelo.fim)
-                        PreviaDoTrecho(origem.uri, video = true, opcoes = opcoes) { novas ->
+                        PreviaDoTrecho(origem.uri, video = true, opcoes = opcoes,
+                            aoEscolherInstante = { modelo.mostrarInstante((it - modelo.inicio).toFloat()) }) { novas ->
                             val ate = if (novas.fimSegundos > 0) minOf(novas.fimSegundos, novas.inicioSegundos + Regras.ANIMADA_MAX_SEGUNDOS) else novas.inicioSegundos + Regras.ANIMADA_MAX_SEGUNDOS
                             modelo.mudarTrecho(novas.inicioSegundos, ate)
                         }
@@ -527,12 +528,12 @@ private fun EditorDeFigurinha(modelo: FigurinhasViewModel) {
                         }
                         Dica("Toda figurinha anima nessa velocidade, sem pular quadros. Se o vídeo tiver movimento demais para os 500 KB do WhatsApp, ela fica mais curta. Mais quadros: mais suave e mais curta.")
                         Rotulado("Duração da composição: ${(modelo.fim - modelo.inicio).toFloat()} s") {
-                            Slider((modelo.fim - modelo.inicio).toFloat().coerceIn(0.2f, 10f),
-                                { modelo.mudarTrecho(modelo.inicio, modelo.inicio + it) }, valueRange = 0.2f..10f)
+                            DeslizanteComAjusteFino((modelo.fim - modelo.inicio).toFloat().coerceIn(0.2f, 10f),
+                                { modelo.mudarTrecho(modelo.inicio, modelo.inicio + it) }, limites = 0.2f..10f, passo = .1f, descricao = "Duração")
                         }
                         Rotulado("Prévia: ${"%.1f".format(modelo.tempoDaPrevia)} s") {
-                            Slider(modelo.tempoDaPrevia.coerceIn(0f, (modelo.fim - modelo.inicio).toFloat().coerceAtLeast(0.2f)),
-                                modelo::mostrarInstante, valueRange = 0f..(modelo.fim - modelo.inicio).toFloat().coerceAtLeast(0.2f))
+                            DeslizanteComAjusteFino(modelo.tempoDaPrevia.coerceIn(0f, (modelo.fim - modelo.inicio).toFloat().coerceAtLeast(0.2f)),
+                                modelo::mostrarInstante, limites = 0f..(modelo.fim - modelo.inicio).toFloat().coerceAtLeast(0.2f), passo = 1f / modelo.quadrosPorSegundo, descricao = "Instante da prévia")
                         }
                     }
                 }

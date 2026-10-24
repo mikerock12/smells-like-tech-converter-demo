@@ -420,7 +420,7 @@ private fun AjustesDaFala(opcoes: Opcoes, mudar: (Opcoes) -> Unit) {
 private fun Trecho(amostra: Entrada?, opcoes: Opcoes, mudar: (Opcoes) -> Unit) {
     // Com o arquivo à mão, o mini player marca o trecho; os campos continuam valendo.
     if (amostra != null && amostra.tipo in setOf(Tipo.VIDEO, Tipo.AUDIO)) {
-        PreviaDoTrecho(amostra.uri, amostra.tipo == Tipo.VIDEO, opcoes, mudar)
+        PreviaDoTrecho(amostra.uri, amostra.tipo == Tipo.VIDEO, opcoes, mudar = mudar)
     }
     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         CampoDeTempo("Início", opcoes.inicioSegundos, Modifier.weight(1f)) { mudar(opcoes.copy(inicioSegundos = it)) }

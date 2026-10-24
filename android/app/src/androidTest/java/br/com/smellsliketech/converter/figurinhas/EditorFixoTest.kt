@@ -75,12 +75,39 @@ class EditorFixoTest {
         val coordenadas = arrayOf(MotionEvent.PointerCoords().apply { this.x = x; this.y = y; pressure = 1f; size = 1f })
         MotionEvent.obtain(inicio, SystemClock.uptimeMillis(), acao, 1, propriedades, coordenadas, 0, 0, 1f, 1f, 0, 0, InputDevice.SOURCE_TOUCHSCREEN, 0).also { i.sendPointerSync(it); it.recycle() }
     }
-    private fun inclinar(b: Rect) {
+    private fun inclinar(b: Rect, dx: Float = 0f, dy: Float = 32f) {
+        val x = b.centerX().toFloat(); val y = b.centerY().toFloat()
+        gesto(x, y); SystemClock.sleep(70); gesto(x, y, x + dx, y + dy)
+    }
+    private fun rolarPara(descricao: String) {
+        for (volta in 0 until 12) {
+            val area = todos().firstOrNull { it.isScrollable } ?: break
+            if (!area.performAction(AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD)) break
+            i.waitForIdleSync(); Thread.sleep(200)
+        }
+        repeat(25) {
+            val arvore = todos()
+            val alvo = arvore.firstOrNull { it.contentDescription?.toString() == descricao }
+            if (alvo != null) {
+                val limites = Rect(); alvo.getBoundsInScreen(limites)
+                if (alvo.isVisibleToUser && limites.width() > 0 && limites.height() > 0) return
+                alvo.performAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_SHOW_ON_SCREEN.id)
+                i.waitForIdleSync(); Thread.sleep(300)
+            }
+            val rolavel = arvore.first { it.isScrollable }
+            val b = Rect(); rolavel.getBoundsInScreen(b)
+            gesto(b.left + 4f, b.top + b.height() * .7f, b.left + 4f, b.top + b.height() * .4f)
+            i.waitForIdleSync(); Thread.sleep(350)
+        }
+        error("Controle fora da rolagem: $descricao")
+    }
+    private fun multitoque(b: Rect, ampliar: Boolean) {
         val inicio = SystemClock.uptimeMillis()
         val props = Array(2) { n -> MotionEvent.PointerProperties().apply { id = n; toolType = MotionEvent.TOOL_TYPE_FINGER } }
         fun enviar(acao: Int, quantidade: Int, dy: Float) {
             val coords = Array(quantidade) { n -> MotionEvent.PointerCoords().apply {
-                x = b.centerX() + (if (n == 0) -40f else 40f); y = b.centerY() + dy; pressure = 1f; size = 1f
+                x = b.centerX() + (if (n == 0) -1 else 1) * (40f + if (ampliar) dy else 0f)
+                y = b.centerY() + if (ampliar) 0f else dy; pressure = 1f; size = 1f
             } }
             val e = MotionEvent.obtain(inicio, SystemClock.uptimeMillis(), acao, quantidade, props, coords, 0, 0, 1f, 1f, 0, 0, InputDevice.SOURCE_TOUCHSCREEN, 0)
             i.sendPointerSync(e); e.recycle()
@@ -110,16 +137,43 @@ class EditorFixoTest {
             val cancelar = caixa("Cancelar edição")
             assertTrue(salvar.bottom <= atividade.resources.displayMetrics.heightPixels)
             assertEquals(salvar.top, cancelar.top)
-            val rolavel = todos().first { it.actionList.any { acao -> acao.id == AccessibilityNodeInfo.ACTION_SCROLL_FORWARD } }
+            rolarPara("Aumentar Zoom")
+            tocar("Aumentar Zoom"); esperar { modelo.edicao.zoom > 1f }
+            assertEquals(1.01f, modelo.edicao.zoom, .0001f)
+            tocar("Diminuir Zoom"); esperar { modelo.edicao.zoom == 1f }
+            tela { modelo.mudar(modelo.edicao.copy(zoom = 6f)) }; i.waitForIdleSync()
+            tocar("Aumentar Zoom"); assertEquals(6f, modelo.edicao.zoom, 0f)
+            tocar("Diminuir Zoom"); esperar { modelo.edicao.zoom < 6f }
+            assertEquals(5.99f, modelo.edicao.zoom, .0001f)
+            tela { modelo.mudar(modelo.edicao.copy(zoom = 1f)) }
+            rolarPara("Aumentar Giro Z")
+            tela { modelo.mudar(modelo.edicao.copy(giro = 179)) }; i.waitForIdleSync()
+            tocar("Aumentar Giro Z"); esperar { modelo.edicao.giro == 180 }
+            tocar("Aumentar Giro Z"); assertEquals(180, modelo.edicao.giro)
+            tocar("Diminuir Giro Z"); esperar { modelo.edicao.giro == 179 }
+            tela { modelo.mudar(modelo.edicao.copy(giro = 0)) }
+            rolarPara("Aumentar Inclinação X")
+            tocar("Aumentar Inclinação X"); esperar { modelo.edicao.inclinacaoX == 1f }
+            tocar("Diminuir Inclinação X"); esperar { modelo.edicao.inclinacaoX == 0f }
+            val rolavel = todos().first { it.isScrollable }
             rolavel.performAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD)
             i.waitForIdleSync(); Thread.sleep(350)
             assertEquals(previa, caixa("Prévia da figurinha")); assertEquals(salvar, caixa("Salvar no pacote"))
+            multitoque(previa, false); i.waitForIdleSync()
+            assertEquals(0f, modelo.edicao.inclinacaoX, 0f)
+            assertEquals(0f, modelo.edicao.deslocamentoY, 0f)
+            multitoque(previa, true); esperar { modelo.edicao.zoom > 1.1f }
+            assertEquals(0f, modelo.edicao.inclinacaoX, 0f)
+            tocar("Desfazer alteração"); esperar { modelo.edicao.zoom == 1f }
             inclinar(previa)
             i.waitForIdleSync()
             esperar { modelo.edicao.inclinacaoX > 3f }
             assertEquals(0f, modelo.edicao.deslocamentoY, .0001f)
             tocar("Desfazer alteração")
             esperar { modelo.edicao.inclinacaoX == 0f }
+            inclinar(previa, dx = 32f, dy = 0f); esperar { modelo.edicao.inclinacaoY > 3f }
+            assertEquals(0f, modelo.edicao.deslocamentoX, 0f)
+            tocar("Desfazer alteração"); esperar { modelo.edicao.inclinacaoY == 0f }
             tocar("Fundo")
             tocar("Pincel (ajuste à mão)")
             i.waitForIdleSync(); Thread.sleep(300)
@@ -141,7 +195,10 @@ class EditorFixoTest {
             val zoom = modelo.edicao.zoom
             tocar("Desenhar caixa de zoom")
             gesto(area.left + area.width() * .25f, area.top + area.height() * .25f, area.left + area.width() * .75f, area.top + area.height() * .75f)
-            i.waitForIdleSync(); Thread.sleep(150)
+            val limiteDoZoom = SystemClock.uptimeMillis() + 10_000
+            do {
+                i.waitForIdleSync(); Thread.sleep(150)
+            } while (!todos().any { it.text?.toString() == "2×" } && SystemClock.uptimeMillis() < limiteDoZoom)
             assertTrue(todos().any { it.text?.toString() == "2×" })
             assertEquals("Zoom de inspeção não muda exportação", zoom, modelo.edicao.zoom, 0f)
             tocar("Ver imagem inteira")
@@ -177,5 +234,40 @@ class EditorFixoTest {
             tela { modelo.fecharEditor(); atividade.finish() }
             arquivo.delete()
         }
+    }
+
+    @Test fun gestosDoEstudioSeparamPincaDeInclinacaoEMantemOCursor() {
+        val arquivo = File(contexto.filesDir, "gesto-estudio.png").apply { parentFile!!.mkdirs() }
+        Bitmap.createBitmap(256, 256, Bitmap.Config.ARGB_8888).apply {
+            eraseColor(Color.BLUE); arquivo.outputStream().use { compress(Bitmap.CompressFormat.PNG, 100, it) }; recycle()
+        }
+        lateinit var modelo: br.com.smellsliketech.converter.estudio.EstudioViewModel
+        tela {
+            modelo = br.com.smellsliketech.converter.estudio.EstudioViewModel(contexto.applicationContext as Application)
+            modelo.novoProjeto(); modelo.escolherDestino("personalizado", 512, 512); modelo.escolherSaida("imagem")
+            modelo.adicionarMidias(listOf(Uri.fromFile(arquivo)))
+        }
+        esperar { modelo.previa != null && modelo.ocupado == null }
+        tela { modelo.irPara(1.5) }
+        val atividade = i.startActivitySync(Intent().setClassName(contexto.packageName, "br.com.smellsliketech.converter.EditorDeTesteActivity").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) as ComponentActivity
+        try {
+            tela { atividade.setContent { TemaDoConverter { br.com.smellsliketech.converter.ui.TelaDoEstudio(modelo, true, {}, {}, {}) } } }
+            i.waitForIdleSync(); Thread.sleep(500)
+            val area = caixa("Prévia do projeto")
+            multitoque(area, false); i.waitForIdleSync()
+            assertEquals(0.0, modelo.projeto!!.clipes.first().transformacao?.giroX ?: 0.0, 0.0)
+            multitoque(area, true)
+            esperar { (modelo.projeto!!.clipes.first().transformacao?.escala ?: 1.0) > 1.1 }
+            tela { modelo.desfazer() }; i.waitForIdleSync()
+            inclinar(area)
+            esperar { (modelo.projeto!!.clipes.first().transformacao?.giroX ?: 0.0) > 3.0 }
+            assertEquals(1.5, modelo.instante, .0001)
+        } catch (erro: Throwable) {
+            i.uiAutomation.takeScreenshot()?.let { imagem ->
+                File(contexto.filesDir, "estudio-gesto-falha.png").outputStream().use { imagem.compress(Bitmap.CompressFormat.PNG, 100, it) }; imagem.recycle()
+            }
+            File(contexto.filesDir, "estudio-gesto-arvore.txt").writeText(todos().joinToString("\n") { "${it.text} | ${it.contentDescription}" })
+            throw erro
+        } finally { tela { modelo.novoProjeto(); atividade.finish() }; arquivo.delete() }
     }
 }

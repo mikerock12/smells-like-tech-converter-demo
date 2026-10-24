@@ -25,7 +25,7 @@ data class JanelaDaPrevia(val x: Float = 0f, val y: Float = 0f, val lado: Float 
     }
 }
 
-/** Dois dedos paralelos inclinam; pinça e torção continuam controlando zoom e giro Z. */
+/** O arraste após dois toques inclina; pinça e torção controlam zoom e giro Z. */
 object GestoDeInclinacao {
     fun aplicar(edicao: Edicao, dx: Float, dy: Float, largura: Int, altura: Int): Edicao = edicao.copy(
         inclinacaoX = (edicao.inclinacaoX + dy / max(1, altura) * 180).coerceIn(-180f, 180f),

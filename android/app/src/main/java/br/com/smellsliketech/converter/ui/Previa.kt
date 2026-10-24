@@ -77,7 +77,7 @@ private class EstadoDaPrevia {
  * para todos.
  */
 @Composable
-fun PreviaDoTrecho(uri: Uri, video: Boolean, opcoes: Opcoes, mudar: (Opcoes) -> Unit) {
+fun PreviaDoTrecho(uri: Uri, video: Boolean, opcoes: Opcoes, aoEscolherInstante: (Double) -> Unit = {}, mudar: (Opcoes) -> Unit) {
     val contexto = LocalContext.current
     val estado = remember(uri) { EstadoDaPrevia() }
     var telaCheia by remember(uri) { mutableStateOf(false) }
@@ -94,11 +94,11 @@ fun PreviaDoTrecho(uri: Uri, video: Boolean, opcoes: Opcoes, mudar: (Opcoes) -> 
             properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
         ) {
             Box(Modifier.fillMaxSize().background(Color.Black)) {
-                Player(uri, video, opcoes, mudar, estado, telaCheia = true) { telaCheia = false }
+                Player(uri, video, opcoes, mudar, estado, telaCheia = true, aoEscolherInstante = aoEscolherInstante) { telaCheia = false }
             }
         }
     } else {
-        Player(uri, video, opcoes, mudar, estado, telaCheia = false) { telaCheia = true }
+        Player(uri, video, opcoes, mudar, estado, telaCheia = false, aoEscolherInstante = aoEscolherInstante) { telaCheia = true }
     }
 }
 
@@ -111,6 +111,7 @@ private fun Player(
     mudar: (Opcoes) -> Unit,
     estado: EstadoDaPrevia,
     telaCheia: Boolean,
+    aoEscolherInstante: (Double) -> Unit,
     alternarTelaCheia: () -> Unit,
 ) {
     val contexto = LocalContext.current
@@ -153,13 +154,14 @@ private fun Player(
         if (video) videoView?.pause() else if (mp.isPlaying) mp.pause()
         tocando = false
         pararEm = null
-        if (agora != null && agora > 0) estado.posicao = agora
+        if (agora != null && agora > 0) { estado.posicao = agora; aoEscolherInstante(agora) }
     }
 
     fun irPara(segundos: Double) {
         val mp = player ?: return
         estado.posicao = segundos.coerceIn(0.0, duracao)
         mp.seekTo((estado.posicao * 1000).toLong(), MediaPlayer.SEEK_CLOSEST)
+        aoEscolherInstante(estado.posicao)
     }
 
     fun quadro(sentido: Int) {
@@ -254,8 +256,8 @@ private fun Player(
                     val novoInicio = Relogio.milesimo(faixa.start.toDouble())
                     val novoFim = Relogio.milesimo(faixa.endInclusive.toDouble())
                     // Mostra o quadro da ponta que está sendo arrastada.
-                    irPara(if (novoInicio != Relogio.milesimo(inicio)) novoInicio else novoFim)
                     mudar(opcoes.copy(inicioSegundos = novoInicio, fimSegundos = novoFim))
+                    irPara(if (novoInicio != Relogio.milesimo(inicio)) novoInicio else novoFim)
                 },
                 valueRange = 0f..duracao.toFloat(),
             )

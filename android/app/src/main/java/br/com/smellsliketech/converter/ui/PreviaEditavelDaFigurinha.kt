@@ -42,9 +42,11 @@ fun PreviaEditavelDaFigurinha(modelo: FigurinhasViewModel, pincel: Boolean, apag
                 val segundoToque = primeiro.uptimeMillis - ultimoToque in 40..viewConfiguration.doubleTapTimeoutMillis &&
                     ultimoPonto.x.isFinite() && (primeiro.position - ultimoPonto).getDistance() < viewConfiguration.touchSlop * 4
                 var pintar = pincel && segundoToque && !selecionarZoom
+                var inclinar = !pincel && segundoToque && !selecionarZoom
                 val de = primeiro.position
                 var foiMultiplo = false
                 var moveu = false
+                var soltura = primeiro.uptimeMillis
                 var bruta = modelo.edicao
                 var pontoAnterior: Pair<Float, Float>? = null
                 var giro = bruta.giro.toFloat()
@@ -66,12 +68,13 @@ fun PreviaEditavelDaFigurinha(modelo: FigurinhasViewModel, pincel: Boolean, apag
                 try {
                     do {
                         val evento = awaitPointerEvent()
+                        soltura = evento.changes.maxOf { it.uptimeMillis }
                         val dedos = evento.changes.count { it.pressed }
                         val pan = evento.calculatePan()
                         val zoom = evento.calculateZoom()
                         val rotacao = evento.calculateRotation()
                         if ((evento.changes.first().position - de).getDistance() > viewConfiguration.touchSlop) moveu = true
-                        if (dedos > 1) { foiMultiplo = true; pintar = false }
+                        if (dedos > 1) { foiMultiplo = true; pintar = false; inclinar = false }
                         when {
                             selecionarZoom -> fimCaixa = evento.changes.first().position
                             pincel && dedos <= 1 && !foiMultiplo -> aplicar(evento.changes.first().position)
@@ -83,11 +86,12 @@ fun PreviaEditavelDaFigurinha(modelo: FigurinhasViewModel, pincel: Boolean, apag
                             else -> {
                                 giro += rotacao
                                 bruta = bruta.copy(zoom = (bruta.zoom * zoom).coerceIn(.3f, 6f), giro = (giro.roundToInt() + 540).mod(360) - 180)
-                                bruta = if (dedos > 1) GestoDeInclinacao.aplicar(bruta, pan.x, pan.y, size.width, size.height)
-                                else bruta.copy(deslocamentoX = (bruta.deslocamentoX + pan.x / size.width).coerceIn(-1f, 1f),
+                                bruta = if (inclinar) GestoDeInclinacao.aplicar(bruta, pan.x, pan.y, size.width, size.height)
+                                else if (!foiMultiplo) bruta.copy(deslocamentoX = (bruta.deslocamentoX + pan.x / size.width).coerceIn(-1f, 1f),
                                     deslocamentoY = (bruta.deslocamentoY + pan.y / size.height).coerceIn(-1f, 1f))
+                                else bruta
                                 if (pan != Offset.Zero || zoom != 1f || rotacao != 0f) {
-                                    if (dedos > 1) modelo.mudar(bruta)
+                                    if (inclinar || foiMultiplo) modelo.mudar(bruta)
                                     else modelo.moverPorGesto(bruta, abs(giro - giroInicial) > 1)
                                 }
                             }
@@ -100,7 +104,7 @@ fun PreviaEditavelDaFigurinha(modelo: FigurinhasViewModel, pincel: Boolean, apag
                         janela = janela.caixa(de.x / size.width, de.y / size.height, ate.x / size.width, ate.y / size.height)
                         selecionarZoom = false
                     }
-                    ultimoToque = if (!moveu && !foiMultiplo) primeiro.uptimeMillis else 0L
+                    ultimoToque = if (!moveu && !foiMultiplo && soltura - primeiro.uptimeMillis < viewConfiguration.longPressTimeoutMillis) soltura else 0L
                     ultimoPonto = primeiro.position
                 } finally {
                     modelo.terminarGesto(); inicioCaixa = null; fimCaixa = null

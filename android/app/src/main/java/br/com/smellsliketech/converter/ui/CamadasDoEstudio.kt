@@ -87,8 +87,8 @@ fun ControlesDeTransformacao(valor: Transformacao?, permitirRecorte: Boolean = t
 @Composable
 private fun ControleDaCamada(nome: String, valor: Double, limites: ClosedFloatingPointRange<Double>, unidade: String, mudar: (Double) -> Unit) {
     Text("$nome: ${String.format(Locale.ROOT, "%.1f", valor)}$unidade")
-    Slider(valor.toFloat().coerceIn(limites.start.toFloat(), limites.endInclusive.toFloat()),
-        { mudar(Math.round(it * 10) / 10.0) }, valueRange = limites.start.toFloat()..limites.endInclusive.toFloat())
+    DeslizanteComAjusteFino(valor.toFloat(), { mudar(Math.round(it * 10) / 10.0) },
+        limites.start.toFloat()..limites.endInclusive.toFloat(), .1f, nome)
 }
 
 @OptIn(ExperimentalLayoutApi::class)

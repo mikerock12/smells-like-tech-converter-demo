@@ -29,7 +29,7 @@ object Regras {
      * nenhum quadro é pulado. Quando o vídeo tem movimento demais para os 500 KB, a figurinha
      * fica mais curta, não mais travada.
      */
-    val QUADROS_POR_SEGUNDO = listOf(10, 12, 15)
+    val QUADROS_POR_SEGUNDO = listOf(8, 10, 12, 15)
     const val QUADROS_POR_SEGUNDO_PADRAO = 10
     /** Abaixo disso a imagem fica quadriculada demais: daí em diante, encurta. */
     const val QUALIDADE_MINIMA_ANIMADA = 25
