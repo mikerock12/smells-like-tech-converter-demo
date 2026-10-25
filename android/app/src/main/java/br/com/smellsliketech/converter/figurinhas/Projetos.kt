@@ -20,6 +20,7 @@ data class ProjetoSalvo(
     val emojis: List<String>,
     val principal: CamadaSalva,
     val camadas: List<CamadaSalva>,
+    val duracao: Double? = null,
 )
 
 /** `arquivo` e `mascara` são nomes dentro da pasta do projeto; texto não tem arquivo. */
@@ -39,7 +40,7 @@ data class CamadaSalva(
 
 object Projetos {
     const val ARQUIVO = "projeto.json"
-    private const val VERSAO = 2
+    private const val VERSAO = 3
 
     fun gravar(pasta: File, projeto: ProjetoSalvo) {
         val objeto = JSONObject()
@@ -48,6 +49,7 @@ object Projetos {
             .put("quadrosPorSegundo", projeto.quadrosPorSegundo)
             .put("inicio", projeto.inicio)
             .put("fim", projeto.fim)
+            .put("duracao", projeto.duracao ?: JSONObject.NULL)
             .put("corDeFundo", projeto.corDeFundo)
             .put("corFinalDoFundo", projeto.corFinalDoFundo ?: JSONObject.NULL)
             .put("emojis", JSONArray(projeto.emojis))
@@ -68,6 +70,7 @@ object Projetos {
                     ?: Regras.QUADROS_POR_SEGUNDO_PADRAO,
                 inicio = o.getDouble("inicio"),
                 fim = o.getDouble("fim"),
+                duracao = o.optDouble("duracao", Double.NaN).takeIf { it.isFinite() && it in 0.2..10.0 },
                 corDeFundo = o.getInt("corDeFundo"),
                 corFinalDoFundo = if (o.isNull("corFinalDoFundo")) null else o.getInt("corFinalDoFundo"),
                 emojis = (0 until emojis.length()).map { emojis.getString(it) },

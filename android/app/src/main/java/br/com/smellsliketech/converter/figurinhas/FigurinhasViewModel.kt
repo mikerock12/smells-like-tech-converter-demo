@@ -87,9 +87,19 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
     var tempoDaPrevia by mutableStateOf(0f)
         private set
     private var instanteEscolhido = false
+    private var previaPorCamada = false
+    private var cursoresDasCamadas by mutableStateOf<Map<String, Float>>(emptyMap())
+    private var duracaoEscolhida by mutableStateOf<Double?>(null)
+    val duracaoDaComposicao get() = duracaoEscolhida ?: maxOf((fim - inicio).coerceAtLeast(0.0),
+        camadas.filter { it.visivel && it.origem?.tipo == TipoDaOrigem.VIDEO }
+            .maxOfOrNull { it.fim?.minus(it.inicio) ?: 0.0 } ?: 0.0).coerceIn(0.2, 10.0)
+    val tempoDaCamadaSelecionada get() = cursoresDasCamadas[camadaSelecionada ?: "principal"] ?: 0f
+    val posicaoDoPlayer get() = inicioSelecionado + tempoDaCamadaSelecionada.coerceIn(0f,
+        (fimSelecionado - inicioSelecionado).toFloat().coerceAtLeast(0f))
     private var trabalhoDaPrevia: Job? = null
     private fun selecionada() = camadas.firstOrNull { it.id == camadaSelecionada }
     val origemSelecionada get() = if (camadaSelecionada == null) origem else selecionada()?.origem
+    fun origemDaCamada(id: String?) = if (id == null) origem else camadas.firstOrNull { it.id == id }?.origem
     val inicioSelecionado get() = selecionada()?.inicio ?: inicio
     val fimSelecionado get() = if (camadaSelecionada == null) fim
         else selecionada()?.let { it.fim ?: (it.inicio + (fim - inicio).coerceIn(0.2, 10.0)) } ?: 0.0
@@ -172,6 +182,7 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
         val base: Bitmap?, val edicao: Edicao, val mascara: Bitmap?, val manual: Boolean,
         val camadas: List<CamadaDeFigurinha>, val selecionada: String?, val fundo: Int, val fundoFinal: Int?,
         val emojis: List<String>, val inicio: Double, val fim: Double, val animada: Boolean, val fps: Int,
+        val duracao: Double?,
     )
     private val historico = HistoricoDeEdicao<EstadoDoEditor>(peso = { estado ->
         (listOfNotNull(estado.base, estado.mascara) + estado.camadas.flatMap { listOfNotNull(it.imagem, it.mascara) }).distinct().sumOf { it.allocationByteCount.toLong() }
@@ -182,7 +193,7 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
     var podeRefazer by mutableStateOf(false)
         private set
     private fun estadoDoEditor() = EstadoDoEditor(basePrincipal, edicaoPrincipal, mascaraPrincipal, mascaraManualPrincipal,
-        camadas, camadaSelecionada, corDeFundo, corFinalDoFundo, emojis, inicio, fim, animada, quadrosPorSegundo)
+        camadas, camadaSelecionada, corDeFundo, corFinalDoFundo, emojis, inicio, fim, animada, quadrosPorSegundo, duracaoEscolhida)
     private fun atualizarHistorico() { podeDesfazer = historico.podeDesfazer; podeRefazer = historico.podeRefazer }
     private fun registrar(chave: String = "") {
         historico.registrar(estadoDoEditor(), chave)
@@ -201,37 +212,76 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
         corDeFundo = estado.fundo; corFinalDoFundo = estado.fundoFinal; emojis = estado.emojis
         inicio = estado.inicio; fim = estado.fim; animada = estado.animada
         quadrosPorSegundo = estado.fps
-        tempoDaPrevia = tempoDaPrevia.coerceIn(0f, (fim - inicio).toFloat().coerceAtLeast(0f))
+        duracaoEscolhida = estado.duracao
+        tempoDaPrevia = tempoDaPrevia.coerceIn(0f, duracaoDaComposicao.toFloat())
         preferencias.edit().putInt("quadrosPorSegundo", estado.fps).apply()
         atualizarHistorico(); atualizarPrevia()
     }
     fun mudarAnimada(valor: Boolean) { if (animada != valor) { registrar(); animada = valor } }
     fun mudarEmojis(valor: List<String>) { if (emojis != valor) { registrar(); emojis = valor } }
+    fun mudarDuracao(valor: Float) {
+        if (!valor.isFinite()) return
+        registrar("duracao")
+        duracaoEscolhida = valor.toDouble().coerceIn(0.2, 10.0)
+        tempoDaPrevia = tempoDaPrevia.coerceAtMost(duracaoDaComposicao.toFloat())
+        atualizarPrevia()
+    }
     fun mudarTrecho(de: Double, ate: Double) {
+        if (!de.isFinite() || !ate.isFinite() || de < 0 || ate <= de) return
         if (de == inicio && ate == fim) return
         registrar("trecho")
         val inicioMudou = inicio != de
+        camadas = camadas.map { if (it.origem?.tipo == TipoDaOrigem.VIDEO && it.fim == null)
+            it.copy(fim = it.inicio + (fim - inicio).coerceIn(0.2, 10.0)) else it }
         inicio = de; fim = ate
-        tempoDaPrevia = tempoDaPrevia.coerceIn(0f, (fim - inicio).toFloat().coerceAtLeast(0f))
+        cursorDaCamada("principal", if (inicioMudou) 0f else (cursoresDasCamadas["principal"] ?: 0f).coerceAtMost((ate - de).toFloat()))
+        tempoDaPrevia = tempoDaPrevia.coerceIn(0f, duracaoDaComposicao.toFloat())
         if (inicioMudou) carregarBase()
         else atualizarPrevia()
     }
 
     /** O corte do player pertence à camada selecionada; a duração da composição é separada. */
-    fun mudarTrechoSelecionado(de: Double, ate: Double) {
-        val camada = selecionada() ?: run { if (camadaSelecionada == null) mudarTrecho(de, ate); return }
+    fun mudarTrechoSelecionado(de: Double, ate: Double) = mudarTrechoDaCamada(camadaSelecionada, de, ate)
+
+    fun mudarTrechoDaCamada(id: String?, de: Double, ate: Double) {
+        if (id == null) { mudarTrecho(de, ate); return }
+        val camada = camadas.firstOrNull { it.id == id } ?: return
         if (camada.origem?.tipo != TipoDaOrigem.VIDEO || !de.isFinite() || !ate.isFinite() || de < 0 || ate <= de) return
         val limite = minOf(ate, de + Regras.ANIMADA_MAX_SEGUNDOS)
         if (de == camada.inicio && limite == camada.fim) return
         registrar("trecho:${camada.id}")
         camadas = camadas.map { if (it.id == camada.id) it.copy(inicio = de, fim = limite) else it }
-        instanteEscolhido = true
+        cursorDaCamada(camada.id, if (de != camada.inicio) 0f else (cursoresDasCamadas[id] ?: 0f).coerceAtMost((limite - de).toFloat()))
         atualizarPrevia()
         if (de != camada.inicio) carregarBaseDaCamada(camada.id)
     }
 
-    fun mostrarInstanteDaSelecionada(segundosNaOrigem: Double) {
-        mostrarInstante((segundosNaOrigem - inicioSelecionado).toFloat())
+    fun mostrarInstanteDaSelecionada(segundosNaOrigem: Double) = mostrarInstanteDaCamada(camadaSelecionada, segundosNaOrigem)
+
+    fun mostrarInstanteDaCamada(id: String?, segundosNaOrigem: Double) {
+        if (!segundosNaOrigem.isFinite()) return
+        if (origemDaCamada(id) == null) return
+        val camada = camadas.firstOrNull { it.id == id }
+        val de = camada?.inicio ?: inicio
+        val ate = if (id == null) fim else camada?.fim ?: (de + (fim - inicio).coerceIn(0.2, 10.0))
+        cursorDaCamada(id ?: "principal", (segundosNaOrigem - de).toFloat()
+            .coerceIn(0f, (ate - de).toFloat().coerceAtLeast(0f)))
+        atualizarPrevia()
+    }
+
+    private fun cursorDaCamada(id: String, segundos: Float) {
+        cursoresDasCamadas = cursoresDasCamadas + (id to segundos)
+        previaPorCamada = true
+        instanteEscolhido = true
+    }
+
+    private suspend fun duracaoDoVideo(arquivo: File): Double = withContext(Dispatchers.IO) {
+        val leitor = android.media.MediaMetadataRetriever()
+        try {
+            leitor.setDataSource(arquivo.absolutePath)
+            leitor.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_DURATION)?.toDoubleOrNull()
+                ?.div(1000)?.takeIf { it.isFinite() && it > 0 } ?: Regras.ANIMADA_MAX_SEGUNDOS
+        } finally { leitor.release() }
     }
 
     private fun carregarBaseDaCamada(id: String) {
@@ -284,7 +334,8 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
                 origem = Origem(uri, nome, tipo, copia)
                 animada = tipo != TipoDaOrigem.IMAGEM
                 inicio = 0.0
-                fim = if (tipo == TipoDaOrigem.IMAGEM) 0.0 else Regras.ANIMADA_MAX_SEGUNDOS
+                fim = if (tipo == TipoDaOrigem.IMAGEM) 0.0 else if (tipo == TipoDaOrigem.VIDEO)
+                    minOf(duracaoDoVideo(copia!!), Regras.ANIMADA_MAX_SEGUNDOS) else Regras.ANIMADA_MAX_SEGUNDOS
                 carregarBase()
             } catch (erro: Exception) {
                 aviso = erro.message ?: "Não deu para abrir o arquivo."
@@ -421,6 +472,7 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
                 copia = if (tipo == TipoDaOrigem.IMAGEM) null else Ffmpeg.copiar(contexto, Entrada(uri, nome, if (tipo == TipoDaOrigem.VIDEO) Tipo.VIDEO else Tipo.IMAGEM, 0))
                 val imagem = if (copia == null) withContext(Dispatchers.IO) { decodificar(uri) } else Producao.quadro(contexto, copia, 0.0)
                 val camada = CamadaDeFigurinha(nome = nome, origem = Origem(uri, nome, tipo, copia), imagem = imagem,
+                    fim = if (tipo == TipoDaOrigem.VIDEO) minOf(duracaoDoVideo(copia!!), (fim - inicio).takeIf { it > 0 } ?: 3.0) else null,
                     edicao = Edicao(zoom = if (comoFundo) 1f else 0.5f),
                     ordem = if (comoFundo) minOf(-1, (camadas.minOfOrNull { it.ordem } ?: 0) - 1) else (camadas.maxOfOrNull { it.ordem } ?: 0) + 1)
                 registrar()
@@ -556,10 +608,11 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
                     val lista = composicao()
                     if (lista.isEmpty()) break
                     val segundo = tempoDaPrevia
-                    val desenho = if (instanteEscolhido) desenharInstante(lista, segundo)
+                    val cursores = if (previaPorCamada) cursoresDasCamadas else null
+                    val desenho = if (instanteEscolhido) desenharInstante(lista, segundo, cursores)
                     else withContext(Dispatchers.Default) { compositor.desenhar(lista, corDeFundo, corFinalDoFundo) }
                     ensureActive()
-                    if (segundo == tempoDaPrevia) previa = desenho else desenho.recycle()
+                    if (segundo == tempoDaPrevia && cursores == (if (previaPorCamada) cursoresDasCamadas else null)) previa = desenho else desenho.recycle()
                 }
             } catch (erro: CancellationException) { throw erro }
             catch (erro: Exception) { aviso = "Não foi possível atualizar a prévia: ${erro.message}" }
@@ -573,22 +626,25 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
 
     fun mostrarInstante(segundos: Float) {
         if (!segundos.isFinite()) return
-        tempoDaPrevia = segundos.coerceIn(0f, (fim - inicio).toFloat().coerceAtLeast(0f))
+        tempoDaPrevia = segundos.coerceIn(0f, duracaoDaComposicao.toFloat())
+        cursoresDasCamadas = composicao().associate { it.id to tempoDaPrevia }
+        previaPorCamada = false
         instanteEscolhido = true
         atualizarPrevia()
     }
 
     /** O quadro escolhido também é a base visual dos ajustes seguintes. */
-    private suspend fun desenharInstante(lista: List<CamadaDeFigurinha>, segundos: Float): Bitmap {
+    private suspend fun desenharInstante(lista: List<CamadaDeFigurinha>, segundos: Float, cursores: Map<String, Float>?): Bitmap {
         val temporarios = mutableListOf<Bitmap>()
         try {
-            val quadros = lista.map { camada ->
+            val quadros = lista.mapNotNull { camada ->
                 val trecho = trechoDe(camada)
                 if (trecho == null) camada else {
                     val sequencia = quadrosDoTrecho(trecho) { ocupado = CONVERTENDO_PARA_A_PREVIA }
-                    val indice = (segundos * sequencia.porSegundo).roundToInt().let {
-                        if (camada.id == "principal") it.coerceAtMost(sequencia.arquivos.lastIndex) else it
-                    }
+                    val tempo = cursores?.get(camada.id) ?: if (cursores != null) 0f else segundos
+                    val indice = TempoDaCamada.indice(tempo.toDouble(), trecho.duracao, sequencia.porSegundo, sequencia.arquivos.size,
+                        repetir = camada.origem?.tipo == TipoDaOrigem.GIF,
+                        ultimoNaBorda = cursores != null || kotlin.math.abs(segundos - duracaoDaComposicao) < .0001, arredondar = true) ?: return@mapNotNull null
                     val quadro = withContext(Dispatchers.IO) { lerQuadro(sequencia, indice, camada) }
                     temporarios += quadro
                     val recorte = if (camada.mascaraManual) camada.mascara else if (camada.edicao.removerFundo) Fundo.mascara(quadro).also { temporarios += it } else null
@@ -683,7 +739,7 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
 
     private suspend fun gerarAnimadaEmCamadas(): Producao.Animada {
         val lista = composicao().filter { it.visivel }
-        val duracao = (fim - inicio).coerceIn(0.2, 10.0)
+        val duracao = duracaoDaComposicao
         val taxa = quadrosPorSegundo
         val extraidos = mutableMapOf<String, Producao.Quadros>()
         val pasta = File.createTempFile("composicao-", "", contexto.cacheDir).apply { delete(); mkdirs() }
@@ -721,10 +777,13 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
     private suspend fun comporQuadro(lista: List<CamadaDeFigurinha>, extraidos: Map<String, Producao.Quadros>, indice: Int, taxa: Int): Bitmap {
         val temporarios = mutableListOf<Bitmap>()
         try {
-            val quadros = lista.map { camada ->
+            val quadros = lista.mapNotNull { camada ->
                 val sequencia = extraidos[camada.id]
                 if (sequencia == null) camada else {
-                    val imagem = lerQuadro(sequencia, (indice.toDouble() / taxa * sequencia.porSegundo).toInt(), camada)
+                    val trecho = trechoDe(camada)!!
+                    val n = TempoDaCamada.indice(indice.toDouble() / taxa, trecho.duracao, sequencia.porSegundo, sequencia.arquivos.size,
+                        repetir = camada.origem?.tipo == TipoDaOrigem.GIF) ?: return@mapNotNull null
+                    val imagem = lerQuadro(sequencia, n, camada)
                     temporarios += imagem
                     val recorte = if (camada.mascaraManual) camada.mascara
                     else if (camada.edicao.removerFundo) Fundo.mascara(imagem).also { temporarios += it } else null
@@ -776,7 +835,7 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
     }
 
     private fun lerQuadro(sequencia: Producao.Quadros, posicao: Int, camada: CamadaDeFigurinha): Bitmap =
-        android.graphics.BitmapFactory.decodeFile(sequencia.arquivos[posicao.coerceAtLeast(0) % sequencia.arquivos.size].absolutePath)
+        android.graphics.BitmapFactory.decodeFile(sequencia.arquivos[posicao.coerceIn(0, sequencia.arquivos.lastIndex)].absolutePath)
             ?: throw ErroDeConversao("Não deu para abrir um quadro da camada ${camada.nome}.")
 
     fun cancelar() {
@@ -814,6 +873,9 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
         corFinalDoFundo = null
         tempoDaPrevia = 0f
         instanteEscolhido = false
+        previaPorCamada = false
+        cursoresDasCamadas = emptyMap()
+        duracaoEscolhida = null
         base = null
         mascara = null
         mascaraManualPrincipal = false
@@ -889,7 +951,7 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
     // ---- Prévia final ----
 
     /** Tudo o que muda a figurinha gerada: se nada mudou desde a prévia final, o Salvar a reaproveita. */
-    private fun assinatura(): Any = listOf(composicao(), corDeFundo, corFinalDoFundo, inicio, fim, animada && temAnimacao, quadrosPorSegundo)
+    private fun assinatura(): Any = listOf(composicao(), corDeFundo, corFinalDoFundo, inicio, fim, duracaoEscolhida, animada && temAnimacao, quadrosPorSegundo)
 
     /** Gera a figurinha exatamente como o Salvar faria e mostra (animada, com duração e tamanho). */
     fun verComoFica() {
@@ -965,6 +1027,7 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
                 quadrosPorSegundo = projeto.quadrosPorSegundo
                 inicio = projeto.inicio
                 fim = projeto.fim
+                duracaoEscolhida = projeto.duracao
                 corDeFundo = projeto.corDeFundo
                 corFinalDoFundo = projeto.corFinalDoFundo
                 emojis = projeto.emojis.ifEmpty { listOf(Pacotes.EMOJI_PADRAO) }
@@ -998,7 +1061,7 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
         val destino = pacotes.pastaDoProjeto(pacote, arquivo)
         val temporaria = File(destino.parentFile, destino.name + ".novo")
         withContext(Dispatchers.IO) { temporaria.deleteRecursively(); temporaria.mkdirs() }
-        val duracao = (fim - inicio).coerceIn(0.2, Regras.ANIMADA_MAX_SEGUNDOS)
+        val duracaoPrincipal = (fim - inicio).coerceIn(0.2, Regras.ANIMADA_MAX_SEGUNDOS)
         val animadaAgora = animada && temAnimacao
         var inicioGuardado = inicio
         var fimGuardado = fim
@@ -1007,7 +1070,7 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
             File(temporaria, nome).outputStream().use { bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
             nome
         }
-        suspend fun midia(camada: CamadaDeFigurinha, prefixo: String, comeco: Double, segundos: Double = duracao): String? {
+        suspend fun midia(camada: CamadaDeFigurinha, prefixo: String, comeco: Double, segundos: Double = duracaoPrincipal): String? {
             val origemDaCamada = camada.origem
             return when {
                 camada.texto -> null
@@ -1025,10 +1088,10 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
         val lista = composicao()
         val principal = lista.first { it.id == "principal" }
         val arquivoPrincipal = midia(principal, "principal", inicio)
-        if (principal.origem?.tipo == TipoDaOrigem.VIDEO) { inicioGuardado = 0.0; fimGuardado = if (animadaAgora) duracao else 0.5 }
+        if (principal.origem?.tipo == TipoDaOrigem.VIDEO) { inicioGuardado = 0.0; fimGuardado = if (animadaAgora) duracaoPrincipal else 0.5 }
         val salvas = lista.filter { it.id != "principal" }.mapIndexed { indice, camada ->
             val video = camada.origem?.tipo == TipoDaOrigem.VIDEO
-            val segundos = (camada.fim?.minus(camada.inicio) ?: duracao).coerceIn(0.2, 10.0)
+            val segundos = (camada.fim?.minus(camada.inicio) ?: duracaoPrincipal).coerceIn(0.2, 10.0)
             CamadaSalva(camada.id, camada.nome, camada.origem?.tipo ?: if (camada.texto) null else TipoDaOrigem.IMAGEM,
                 midia(camada, "camada-$indice", camada.inicio, segundos),
                 camada.mascara?.takeIf { camada.mascaraManual }?.let { png(it, "camada-$indice-mascara.png") },
@@ -1042,6 +1105,7 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
             principal = CamadaSalva("principal", principal.nome, principal.origem?.tipo ?: TipoDaOrigem.IMAGEM, arquivoPrincipal,
                 principal.mascara?.takeIf { principal.mascaraManual }?.let { png(it, "principal-mascara.png") }, principal.edicao),
             camadas = salvas,
+            duracao = duracaoEscolhida,
         )
         withContext(Dispatchers.IO) {
             Projetos.gravar(temporaria, projeto)

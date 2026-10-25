@@ -511,16 +511,18 @@ private fun EditorDeFigurinha(modelo: FigurinhasViewModel) {
                     }
                     if (origemSelecionada?.tipo == TipoDaOrigem.VIDEO) {
                         val opcoes = Opcoes(formato = "mp4", inicioSegundos = modelo.inicioSelecionado, fimSegundos = modelo.fimSelecionado)
-                        androidx.compose.runtime.key(modelo.camadaSelecionada, origemSelecionada.uri) {
+                        val idDoPlayer = modelo.camadaSelecionada
+                        androidx.compose.runtime.key(idDoPlayer, origemSelecionada.uri) {
                         PreviaDoTrecho(origemSelecionada.uri, video = true, opcoes = opcoes,
-                            aoEscolherInstante = modelo::mostrarInstanteDaSelecionada) { novas ->
+                            posicaoInicial = modelo.posicaoDoPlayer,
+                            aoEscolherInstante = { if (modelo.origemDaCamada(idDoPlayer) === origemSelecionada) modelo.mostrarInstanteDaCamada(idDoPlayer, it) }) { novas ->
                             val ate = if (novas.fimSegundos > 0) minOf(novas.fimSegundos, novas.inicioSegundos + Regras.ANIMADA_MAX_SEGUNDOS) else novas.inicioSegundos + Regras.ANIMADA_MAX_SEGUNDOS
-                            modelo.mudarTrechoSelecionado(novas.inicioSegundos, ate)
+                            if (modelo.origemDaCamada(idDoPlayer) === origemSelecionada) modelo.mudarTrechoDaCamada(idDoPlayer, novas.inicioSegundos, ate)
                         }
                         }
                         Dica(if (!modelo.animada) "A figurinha estática usa o quadro marcado em Início."
                             else if (modelo.camadaSelecionada == null) "A figurinha animada usa o trecho entre Início e Fim (no máximo 10 s)."
-                            else "O corte vale só para esta camada. O trecho se repete até o fim da composição.")
+                            else "O corte e a visualização valem só para esta camada. Ao terminar o trecho, o vídeo fica transparente.")
                     } else if (origemSelecionada?.tipo == TipoDaOrigem.GIF) {
                         Dica(if (modelo.animada) "O GIF vira figurinha animada (os primeiros 10 s)." else "A figurinha estática usa o primeiro quadro do GIF.")
                     }
@@ -533,14 +535,15 @@ private fun EditorDeFigurinha(modelo: FigurinhasViewModel) {
                             }
                         }
                         Dica("Toda figurinha anima nessa velocidade, sem pular quadros. Se o vídeo tiver movimento demais para os 500 KB do WhatsApp, ela fica mais curta. Mais quadros: mais suave e mais curta.")
-                        Rotulado("Duração da composição: ${(modelo.fim - modelo.inicio).toFloat()} s") {
-                            DeslizanteComAjusteFino((modelo.fim - modelo.inicio).toFloat().coerceIn(0.2f, 10f),
-                                { modelo.mudarTrecho(modelo.inicio, modelo.inicio + it) }, limites = 0.2f..10f, passo = .1f, descricao = "Duração")
+                        Rotulado("Duração da composição: ${modelo.duracaoDaComposicao.toFloat()} s") {
+                            DeslizanteComAjusteFino(modelo.duracaoDaComposicao.toFloat(),
+                                modelo::mudarDuracao, limites = 0.2f..10f, passo = .1f, descricao = "Duração")
                         }
                         Rotulado("Prévia: ${"%.1f".format(modelo.tempoDaPrevia)} s") {
-                            DeslizanteComAjusteFino(modelo.tempoDaPrevia.coerceIn(0f, (modelo.fim - modelo.inicio).toFloat().coerceAtLeast(0.2f)),
-                                modelo::mostrarInstante, limites = 0f..(modelo.fim - modelo.inicio).toFloat().coerceAtLeast(0.2f), passo = 1f / modelo.quadrosPorSegundo, descricao = "Instante da prévia")
+                            DeslizanteComAjusteFino(modelo.tempoDaPrevia.coerceIn(0f, modelo.duracaoDaComposicao.toFloat()),
+                                modelo::mostrarInstante, limites = 0f..modelo.duracaoDaComposicao.toFloat(), passo = 1f / modelo.quadrosPorSegundo, descricao = "Instante da prévia")
                         }
+                        Dica("A barra da composição avança todas as camadas juntas. O player de cada camada ajusta apenas seu próprio vídeo.")
                     }
                 }
 

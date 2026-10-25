@@ -27,6 +27,9 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.RangeSlider
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
@@ -45,6 +48,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -53,6 +61,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import br.com.smellsliketech.converter.conversao.Opcoes
 import br.com.smellsliketech.converter.conversao.Relogio
+import br.com.smellsliketech.converter.conversao.TempoDoCorte
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -78,9 +87,10 @@ private class EstadoDaPrevia {
  * para todos.
  */
 @Composable
-fun PreviaDoTrecho(uri: Uri, video: Boolean, opcoes: Opcoes, aoEscolherInstante: (Double) -> Unit = {}, mudar: (Opcoes) -> Unit) {
+fun PreviaDoTrecho(uri: Uri, video: Boolean, opcoes: Opcoes, posicaoInicial: Double = opcoes.inicioSegundos,
+    aoEscolherInstante: (Double) -> Unit = {}, mudar: (Opcoes) -> Unit) {
     val contexto = LocalContext.current
-    val estado = remember(uri) { EstadoDaPrevia().apply { posicao = opcoes.inicioSegundos.coerceAtLeast(0.0) } }
+    val estado = remember(uri) { EstadoDaPrevia().apply { posicao = posicaoInicial.coerceAtLeast(0.0) } }
     var telaCheia by remember(uri) { mutableStateOf(false) }
 
     // A taxa de quadros do arquivo, para andar exatamente um quadro (30 quando não informa).
@@ -264,6 +274,15 @@ private fun Player(
                 },
                 valueRange = 0f..duracao.toFloat(),
             )
+            CampoDeTempoDoCorte("Início", inicio, 0.0, (duracao - .001).coerceAtLeast(0.0), 1.0 / estado.quadrosPorSegundo) { de ->
+                val ate = if (fim > de) fim else minOf(duracao, de + (fim - inicio).coerceAtLeast(.001))
+                mudar(opcoes.copy(inicioSegundos = de, fimSegundos = ate))
+                irPara(de)
+            }
+            CampoDeTempoDoCorte("Fim", fim, inicio + .001, duracao.coerceAtLeast(inicio + .001), 1.0 / estado.quadrosPorSegundo) { ate ->
+                mudar(opcoes.copy(fimSegundos = ate))
+                irPara(ate)
+            }
             FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 OutlinedButton(onClick = {
                     val agora = Relogio.milesimo(estado.posicao)
@@ -282,6 +301,43 @@ private fun Player(
                 if (!telaCheia) OutlinedButton(onClick = { pausar(); alternarTelaCheia() }) { Text("Tela cheia", fontSize = 12.sp) }
             }
         }
+    }
+}
+
+@Composable
+private fun CampoDeTempoDoCorte(rotulo: String, valor: Double, minimo: Double, maximo: Double,
+    passo: Double, mudar: (Double) -> Unit) {
+    var texto by remember { mutableStateOf(Relogio.completo(valor)) }
+    var focado by remember { mutableStateOf(false) }
+    val foco = LocalFocusManager.current
+    val digitado = TempoDoCorte.ler(texto)
+    val valido = digitado != null && digitado in minimo..maximo
+    LaunchedEffect(valor) { if (!focado) texto = Relogio.completo(valor) }
+    fun aplicar() {
+        if (valido) {
+            val novo = Relogio.milesimo(digitado!!)
+            texto = Relogio.completo(novo)
+            mudar(novo)
+        }
+    }
+    fun ajustar(sentido: Int) {
+        val novo = Relogio.milesimo((if (valido) digitado!! else valor) + sentido * passo).coerceIn(minimo, maximo)
+        texto = Relogio.completo(novo)
+        mudar(novo)
+    }
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        AcaoDoEditor(AcaoEditor.DIMINUIR, "Diminuir $rotulo do trecho", habilitada = valor > minimo) { ajustar(-1) }
+        OutlinedTextField(texto, { texto = it }, label = { Text("$rotulo do trecho") }, singleLine = true,
+            trailingIcon = { AcaoDoEditor(AcaoEditor.SALVAR, "Aplicar $rotulo do trecho", habilitada = valido) { aplicar(); foco.clearFocus() } },
+            supportingText = { Text(if (valido) "Tempo ou segundos, ex.: 0:05,125 ou 5.125" else "Informe um tempo entre ${Relogio.completo(minimo)} e ${Relogio.completo(maximo)}") },
+            isError = !valido, keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+            keyboardActions = KeyboardActions(onDone = { aplicar(); foco.clearFocus() }),
+            modifier = Modifier.weight(1f).semantics { contentDescription = "$rotulo do trecho" }.onFocusChanged { estado ->
+                val perdeuFoco = focado && !estado.isFocused
+                focado = estado.isFocused
+                if (perdeuFoco) aplicar()
+            })
+        AcaoDoEditor(AcaoEditor.ADICIONAR, "Aumentar $rotulo do trecho", habilitada = valor < maximo) { ajustar(1) }
     }
 }
 

@@ -41,7 +41,7 @@ class EditorFixoTest {
     private fun todos(no: AccessibilityNodeInfo? = i.uiAutomation.rootInActiveWindow): List<AccessibilityNodeInfo> =
         if (no == null) emptyList() else listOf(no) + (0 until no.childCount).flatMap { todos(no.getChild(it)) }
     private fun no(descricao: String): AccessibilityNodeInfo {
-        val limite = SystemClock.uptimeMillis() + 20_000
+        val limite = SystemClock.uptimeMillis() + 45_000
         do {
             val arvore = todos()
             arvore.firstOrNull { it.contentDescription?.toString() == descricao }?.let { return it }
@@ -128,7 +128,7 @@ class EditorFixoTest {
         lateinit var modelo: FigurinhasViewModel
         tela { modelo = FigurinhasViewModel(contexto.applicationContext as Application); modelo.abrir(Uri.fromFile(arquivo)) }
         esperar { modelo.previa != null && modelo.ocupado == null }
-        val atividade = i.startActivitySync(Intent().setClassName(contexto.packageName, "br.com.smellsliketech.converter.EditorDeTesteActivity").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) as ComponentActivity
+        val atividade = i.startActivitySync(Intent().setClassName(contexto.packageName, "br.com.smellsliketech.converter.EditorDeTesteActivity").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)) as ComponentActivity
         try {
             tela { atividade.setContent { TemaDoConverter { TelaDasFigurinhas(modelo, true, {}, {}) } } }
             i.waitForIdleSync(); Thread.sleep(600)
@@ -216,7 +216,12 @@ class EditorFixoTest {
             val tempo = SystemClock.uptimeMillis()
             enviarToque(tempo, MotionEvent.ACTION_DOWN, botaoSalvar.centerX().toFloat(), botaoSalvar.centerY().toFloat())
             try {
-                SystemClock.sleep(900)
+                val limiteTooltip = SystemClock.uptimeMillis() + 2500
+                var tooltipVisivel = false
+                while (!tooltipVisivel && SystemClock.uptimeMillis() < limiteTooltip) {
+                    SystemClock.sleep(100)
+                    tooltipVisivel = i.uiAutomation.windows.mapNotNull { it.root }.flatMap { todos(it) }.any { it.text?.toString() == "Salvar no pacote" }
+                }
                 i.uiAutomation.takeScreenshot()?.let { imagem ->
                     File(contexto.filesDir, "editor-tooltip.png").outputStream().use { imagem.compress(Bitmap.CompressFormat.PNG, 100, it) }
                     imagem.recycle()
@@ -249,7 +254,7 @@ class EditorFixoTest {
         }
         esperar { modelo.previa != null && modelo.ocupado == null }
         tela { modelo.irPara(1.5) }
-        val atividade = i.startActivitySync(Intent().setClassName(contexto.packageName, "br.com.smellsliketech.converter.EditorDeTesteActivity").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) as ComponentActivity
+        val atividade = i.startActivitySync(Intent().setClassName(contexto.packageName, "br.com.smellsliketech.converter.EditorDeTesteActivity").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)) as ComponentActivity
         try {
             tela { atividade.setContent { TemaDoConverter { br.com.smellsliketech.converter.ui.TelaDoEstudio(modelo, true, {}, {}, {}) } } }
             i.waitForIdleSync(); Thread.sleep(500)

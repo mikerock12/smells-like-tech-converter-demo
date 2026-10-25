@@ -92,7 +92,7 @@ class PlayerDaCamadaTest {
         esperar { m.camadas.size == 1 && m.ocupado == null }
         val id = m.camadas.single().id
         tela { m.mudar(m.edicao.copy(zoom = 1f)); m.mudarQuadrosPorSegundo(8) }
-        val a = i.startActivitySync(Intent().setClassName(app.packageName, "br.com.smellsliketech.converter.EditorDeTesteActivity").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) as ComponentActivity
+        val a = i.startActivitySync(Intent().setClassName(app.packageName, "br.com.smellsliketech.converter.EditorDeTesteActivity").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)) as ComponentActivity
         var pacoteId: String? = null
         try {
             tela { a.setContent { TemaDoConverter { TelaDasFigurinhas(m, true, {}, {}) } } }
@@ -105,7 +105,8 @@ class PlayerDaCamadaTest {
             tela { m.excluirCamada(texto); m.selecionarCamada(id) }; mostrarPlayer(a, 4000)
             tela { m.mudarTrechoSelecionado(2.0, 3.0); m.mostrarInstanteDaSelecionada(2.5) }
             esperar { m.ocupado == null && azul(m.previa) && azul(m.base) }
-            assertEquals(0.5f, m.tempoDaPrevia, .001f)
+            assertEquals(0.5f, m.tempoDaCamadaSelecionada, .001f)
+            assertEquals(0f, m.tempoDaPrevia, 0f)
             assertEquals(0.0, m.inicio, 0.0); assertEquals(2.0, m.fim, 0.0)
             assertEquals(2.0, m.inicioSelecionado, 0.0); assertEquals(3.0, m.fimSelecionado, 0.0)
             tela { m.desfazer() }; esperar { m.ocupado == null && amarelo(m.previa) }
@@ -123,6 +124,7 @@ class PlayerDaCamadaTest {
             val informacao = WebpAnimado.ler(webp)
             assertEquals(2000L, informacao.duracaoMs)
             // Cada ANMF é um quadro completo independente; o decoder Android lê seu WebP estático.
+            var decorrido = 0
             informacao.quadros.forEach { quadro ->
                 val anmf = quadro.posicaoDoTempo - 20
                 val tamanho = (0..3).fold(0) { n, k -> n or ((webp[anmf + 4 + k].toInt() and 255) shl (8 * k)) }
@@ -131,7 +133,10 @@ class PlayerDaCamadaTest {
                 estatico[20] = (estatico[20].toInt() and 0xfd).toByte() // sem a flag de animação
                 val imagem = android.graphics.BitmapFactory.decodeByteArray(estatico, 0, estatico.size)
                 assertNotNull("Quadro exportado decodificável", imagem)
-                assertTrue("Animada repete só o trecho escolhido da camada", azul(imagem)); imagem.recycle()
+                if (decorrido < 1000) assertTrue("Trecho azul aparece no primeiro segundo", azul(imagem))
+                else assertTrue("Camada termina e revela a mídia principal", Color.red(imagem.getPixel(256, 256)) > 150 && Color.blue(imagem.getPixel(256, 256)) < 80)
+                decorrido += quadro.duracaoMs
+                imagem.recycle()
             }
             tela { m.exibindoPreviaFinal = false; m.salvar(null, "Player de camada") }
             esperar { m.origem == null && m.ocupado == null }
@@ -152,13 +157,162 @@ class PlayerDaCamadaTest {
             tela { m.editar(pacote, figurinha) }
             esperar { m.editando != null && m.ocupado == null && azul(m.previa) }
             tela { m.selecionarCamada(id); m.mostrarInstante(1.5f) }
-            esperar { m.ocupado == null && azul(m.previa) }
+            esperar { m.ocupado == null && m.previa?.let { Color.red(it.getPixel(256, 256)) > 150 && Color.blue(it.getPixel(256, 256)) < 80 } == true }
             assertEquals(0.0, m.inicioSelecionado, 0.0); assertEquals(1.0, m.fimSelecionado, .001)
-            File(app.filesDir, "player-da-camada.json").writeText("{\"playerAlternado2s4s\":true,\"corteIndependente\":true,\"estaticaAnimadaAzuis\":true,\"historicoReedicaoLegado\":true}")
+            File(app.filesDir, "player-da-camada.json").writeText("{\"playerAlternado2s4s\":true,\"corteIndependente\":true,\"fimRevelaPrincipal\":true,\"historicoReedicaoLegado\":true}")
         } finally {
             tela { m.fecharEditor(); m.mudarQuadrosPorSegundo(Regras.QUADROS_POR_SEGUNDO_PADRAO); a.finish() }
             pacoteId?.let { m.pacotes.ler(it)?.let(m.pacotes::excluir) }
             principal.delete(); sobreposta.delete()
+        }
+    }
+
+    private fun trazer(descricao: String): AccessibilityNodeInfo {
+        repeat(15) {
+            if (nos().firstOrNull { it.isScrollable }?.performAction(AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD) != true) return@repeat
+            i.waitForIdleSync(); Thread.sleep(200)
+        }
+        repeat(40) {
+            val arvore = nos()
+            val alvo = arvore.firstOrNull { it.contentDescription?.toString() == descricao }
+            if (alvo != null) {
+                val b = Rect(); alvo.getBoundsInScreen(b)
+                if (alvo.isVisibleToUser && b.height() > 0) return alvo
+                alvo.performAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_SHOW_ON_SCREEN.id)
+            }
+            arvore.firstOrNull { it.isScrollable }?.performAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD)
+            i.waitForIdleSync(); Thread.sleep(300)
+        }
+        error("Campo não encontrado: $descricao")
+    }
+    private fun digitar(rotulo: String, tempo: String) {
+        val campo = trazer("$rotulo do trecho")
+        val arvore = nos()
+        File(app.filesDir, "campos-arvore.txt").writeText(arvore.joinToString("\n") { "${it.text} | ${it.contentDescription} | ${it.className} | hint=${it.hintText} | editavel=${it.isEditable} | ${it.actionList}" })
+        val b = Rect(); campo.getBoundsInScreen(b)
+        val editavel = arvore.filter { it.isVisibleToUser && it.isEditable && it.actionList.any { a -> a.id == AccessibilityNodeInfo.ACTION_SET_TEXT } }
+            .minByOrNull { n -> val r = Rect(); n.getBoundsInScreen(r); kotlin.math.abs(r.centerY() - b.centerY()) } ?: campo
+        assertTrue("Campo editável: $rotulo", editavel.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, android.os.Bundle().apply {
+            putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, tempo)
+        }))
+        Thread.sleep(200)
+        tocarAcao("Aplicar $rotulo do trecho")
+    }
+    private fun tocarAcao(descricao: String) {
+        val b = Rect(); trazer(descricao).getBoundsInScreen(b)
+        val tempo = SystemClock.uptimeMillis()
+        val propriedades = arrayOf(android.view.MotionEvent.PointerProperties().apply { id = 0; toolType = android.view.MotionEvent.TOOL_TYPE_FINGER })
+        val coordenadas = arrayOf(android.view.MotionEvent.PointerCoords().apply { x = b.centerX().toFloat(); y = b.centerY().toFloat(); pressure = 1f; size = 1f })
+        for (acao in listOf(android.view.MotionEvent.ACTION_DOWN, android.view.MotionEvent.ACTION_UP)) {
+            android.view.MotionEvent.obtain(tempo, SystemClock.uptimeMillis(), acao, 1, propriedades, coordenadas, 0, 0, 1f, 1f, 0, 0,
+                android.view.InputDevice.SOURCE_TOUCHSCREEN, 0).also { i.sendPointerSync(it); it.recycle() }
+        }
+        i.waitForIdleSync(); Thread.sleep(150)
+    }
+    private fun cor(b: Bitmap?, x: Int, y: Int, esperada: Int): Boolean = b?.let {
+        val p = it.getPixel(x, y)
+        kotlin.math.abs(Color.red(p) - Color.red(esperada)) < 65 &&
+            kotlin.math.abs(Color.green(p) - Color.green(esperada)) < 65 &&
+            kotlin.math.abs(Color.blue(p) - Color.blue(esperada)) < 65 && Color.alpha(p) > 240
+    } ?: false
+    private fun quadroNoTempo(webp: ByteArray, segundos: Double): Bitmap {
+        var tempo = 0
+        for (q in WebpAnimado.ler(webp).quadros) {
+            tempo += q.duracaoMs
+            if (segundos * 1000 >= tempo) continue
+            val anmf = q.posicaoDoTempo - 20
+            val tamanho = (0..3).fold(0) { n, k -> n or ((webp[anmf + 4 + k].toInt() and 255) shl (8 * k)) }
+            val estatico = webp.copyOfRange(0, 30) + webp.copyOfRange(anmf + 24, anmf + 8 + tamanho)
+            repeat(4) { k -> estatico[4 + k] = ((estatico.size - 8) ushr (8 * k)).toByte() }
+            estatico[20] = (estatico[20].toInt() and 0xfd).toByte()
+            return android.graphics.BitmapFactory.decodeByteArray(estatico, 0, estatico.size) ?: error("Quadro inválido")
+        }
+        error("Tempo ausente na animação")
+    }
+
+    @Test fun tresCortesCursoresIndependentesCamposPrecisosETransparencia() = runBlocking {
+        val principal = video("tempos-principal.mp4", 5) { if (it < 25) Color.RED else Color.GREEN }
+        val longa = video("tempos-longa.mp4", 16) { if (it < 100) Color.YELLOW else if (it < 125) Color.BLUE else Color.CYAN }
+        val curta = video("tempos-curta.mp4", 3) { if (it < 20) Color.WHITE else Color.MAGENTA }
+        lateinit var m: FigurinhasViewModel
+        tela { m = FigurinhasViewModel(app); m.abrir(Uri.fromFile(principal)) }
+        esperar { m.previa != null && m.ocupado == null }
+        tela { m.mudarTrecho(0.0, 5.0); m.adicionarMidia(Uri.fromFile(longa)) }
+        esperar { m.camadas.size == 1 && m.ocupado == null }
+        val b = m.camadaSelecionada!!
+        tela { m.mudar(m.edicao.copy(zoom = .4f, deslocamentoX = -.25f)); m.mudarTrechoSelecionado(10.0, 15.0) }
+        esperar { m.ocupado == null && cor(m.previa, 128, 256, Color.BLUE) }
+        tela { m.adicionarMidia(Uri.fromFile(curta)) }
+        esperar { m.camadas.size == 2 && m.ocupado == null }
+        val c = m.camadaSelecionada!!
+        tela { m.mudar(m.edicao.copy(zoom = .4f, deslocamentoX = .25f)); m.mudarTrechoSelecionado(2.0, 3.0) }
+        esperar { m.ocupado == null && cor(m.previa, 384, 256, Color.MAGENTA) }
+        tela { m.mudarTrechoDaCamada(b, 10.25, 15.0) }
+        esperar { m.ocupado == null }
+        assertEquals(c, m.camadaSelecionada)
+        assertEquals(2.0, m.inicioSelecionado, 0.0)
+        tela { m.mudarTrechoDaCamada(b, 10.0, 15.0) }
+        esperar { m.ocupado == null }
+        val a = i.startActivitySync(Intent().setClassName(app.packageName, "br.com.smellsliketech.converter.EditorDeTesteActivity").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)) as ComponentActivity
+        var pacoteId: String? = null
+        try {
+            tela { a.setContent { TemaDoConverter { TelaDasFigurinhas(m, true, {}, {}) } }; m.selecionarCamada(b) }
+            mostrarPlayer(a, 16000)
+            digitar("Início", "10.125")
+            esperar { m.ocupado == null && m.inicioSelecionado == 10.125 }
+            tocarAcao("Aumentar Início do trecho")
+            esperar { m.ocupado == null && kotlin.math.abs(m.inicioSelecionado - 10.225) < .0001 }
+            digitar("Fim", "0:14,875")
+            esperar { m.ocupado == null && m.fimSelecionado == 14.875 }
+            tocarAcao("Diminuir Fim do trecho")
+            esperar { m.ocupado == null && kotlin.math.abs(m.fimSelecionado - 14.775) < .0001 }
+            assertEquals(0.0, m.inicio, 0.0); assertEquals(5.0, m.fim, 0.0)
+            assertEquals(2.0, m.camadas.first { it.id == c }.inicio, 0.0)
+            assertEquals(3.0, m.camadas.first { it.id == c }.fim!!, 0.0)
+            tela { m.mudarTrechoSelecionado(10.0, 15.0); m.mostrarInstanteDaSelecionada(13.5) }
+            esperar { m.ocupado == null && cor(m.previa, 128, 256, Color.CYAN) }
+            assertTrue("Scrub da camada longa não avança a principal", cor(m.previa, 256, 400, Color.RED))
+            assertTrue("Scrub da camada longa não avança a curta", cor(m.previa, 384, 256, Color.MAGENTA))
+            tela { m.selecionarCamada(null); m.mostrarInstanteDaSelecionada(4.0) }
+            esperar { m.ocupado == null && cor(m.previa, 256, 400, Color.GREEN) }
+            assertTrue(cor(m.previa, 128, 256, Color.CYAN)); assertTrue(cor(m.previa, 384, 256, Color.MAGENTA))
+            tela { m.selecionarCamada(b) }
+            assertEquals(13.5, m.posicaoDoPlayer, .001)
+            tela { m.mostrarInstante(.5f) }
+            esperar { m.ocupado == null && cor(m.previa, 128, 256, Color.BLUE) && cor(m.previa, 256, 400, Color.RED) }
+            assertTrue(cor(m.previa, 384, 256, Color.MAGENTA))
+            tela { m.mostrarInstante(1.25f) }
+            esperar { m.ocupado == null && cor(m.previa, 384, 256, Color.RED) }
+            assertTrue("Camada curta não repete", cor(m.previa, 128, 256, Color.BLUE))
+            m.previa!!.let { imagem -> File(app.filesDir, "camadas-fim-transparente.png").outputStream().use { imagem.compress(Bitmap.CompressFormat.PNG, 100, it) } }
+            tela { m.mostrarInstante(3.5f) }
+            esperar { m.ocupado == null && cor(m.previa, 128, 256, Color.CYAN) && cor(m.previa, 384, 256, Color.GREEN) }
+            tela { m.mudarDuracao(6f); m.mostrarInstante(5.5f) }
+            esperar { m.ocupado == null && m.previa?.let { Color.alpha(it.getPixel(256, 400)) == 0 && Color.alpha(it.getPixel(128, 256)) == 0 } == true }
+            tela { m.verComoFica() }
+            esperar { m.ocupado == null && m.previaFinal != null }
+            val webp = m.previaFinal!!.arquivo.readBytes()
+            assertEquals(6000L, WebpAnimado.ler(webp).duracaoMs)
+            quadroNoTempo(webp, 1.25).let { q -> assertTrue(cor(q, 384, 256, Color.RED)); assertTrue(cor(q, 128, 256, Color.BLUE)); q.recycle() }
+            quadroNoTempo(webp, 3.5).let { q -> assertTrue(cor(q, 384, 256, Color.GREEN)); assertTrue(cor(q, 128, 256, Color.CYAN)); q.recycle() }
+            quadroNoTempo(webp, 5.5).let { q -> assertEquals(0, Color.alpha(q.getPixel(128, 256))); assertEquals(0, Color.alpha(q.getPixel(256, 400))); q.recycle() }
+            tela { m.exibindoPreviaFinal = false; m.salvar(null, "Tempos independentes") }
+            esperar { m.origem == null && m.ocupado == null }
+            val pacote = m.pacoteAberto!!; pacoteId = pacote.id
+            val figurinha = pacote.figurinhas.single()
+            val pasta = m.pacotes.pastaDoProjeto(pacote, figurinha.arquivo)
+            assertEquals(6.0, Projetos.ler(pasta)!!.duracao!!, 0.0)
+            tela { m.editar(pacote, figurinha) }
+            esperar { m.editando != null && m.ocupado == null && m.previa != null }
+            tela { m.mostrarInstante(1.25f) }
+            esperar { m.ocupado == null && cor(m.previa, 384, 256, Color.RED) }
+            tela { m.mostrarInstante(5.5f) }
+            esperar { m.ocupado == null && m.previa?.let { Color.alpha(it.getPixel(128, 256)) == 0 } == true }
+            File(app.filesDir, "tempos-independentes.json").writeText("{\"cortes\":[[0,5],[10,15],[2,3]],\"cursoresIndependentes\":true,\"camposMilissegundos\":true,\"passosDeUmQuadro\":true,\"transparenciaPreviaExportacaoReedicao\":true}")
+        } finally {
+            tela { m.fecharEditor(); a.finish() }
+            pacoteId?.let { m.pacotes.ler(it)?.let(m.pacotes::excluir) }
+            principal.delete(); longa.delete(); curta.delete()
         }
     }
 }
