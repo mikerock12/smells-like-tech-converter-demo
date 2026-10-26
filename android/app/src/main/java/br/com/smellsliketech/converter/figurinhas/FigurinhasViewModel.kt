@@ -393,7 +393,12 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
 
     val temAnimacao get() = origem?.tipo?.let { it != TipoDaOrigem.IMAGEM } == true || camadas.any { it.origem?.tipo?.let { tipo -> tipo != TipoDaOrigem.IMAGEM } == true }
 
-    fun selecionarCamada(id: String?) { camadaSelecionada = id }
+    fun selecionarCamada(id: String?) {
+        camadaSelecionada = id
+        // A composição pode estar depois do fim desta camada. Selecioná-la volta
+        // à inspeção do próprio vídeo, sem alterar seu corte nem os outros cursores.
+        if (origemSelecionada?.tipo == TipoDaOrigem.VIDEO) mostrarInstanteDaCamada(id, posicaoDoPlayer)
+    }
 
     fun mudarFundo(cor: Int, final: Int? = null) {
         if (cor == corDeFundo && final == corFinalDoFundo) return
@@ -644,7 +649,9 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
                     val tempo = cursores?.get(camada.id) ?: if (cursores != null) 0f else segundos
                     val indice = TempoDaCamada.indice(tempo.toDouble(), trecho.duracao, sequencia.porSegundo, sequencia.arquivos.size,
                         repetir = camada.origem?.tipo == TipoDaOrigem.GIF,
-                        ultimoNaBorda = cursores != null || kotlin.math.abs(segundos - duracaoDaComposicao) < .0001, arredondar = true) ?: return@mapNotNull null
+                        ultimoNaBorda = cursores != null || kotlin.math.abs(segundos - duracaoDaComposicao) < .0001,
+                        arredondar = true,
+                        inspecionar = cursores != null && camada.id == (camadaSelecionada ?: "principal")) ?: return@mapNotNull null
                     val quadro = withContext(Dispatchers.IO) { lerQuadro(sequencia, indice, camada) }
                     temporarios += quadro
                     val recorte = if (camada.mascaraManual) camada.mascara else if (camada.edicao.removerFundo) Fundo.mascara(quadro).also { temporarios += it } else null

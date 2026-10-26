@@ -31,8 +31,8 @@ android {
         minSdk = 28
         // A Google Play exige o Android 16 como alvo desde 31/08/2026.
         targetSdk = 36
-        versionCode = 28
-        versionName = "1.0.3"
+        versionCode = 29
+        versionName = "1.0.4"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         // Injetadas pelo ambiente do build; nunca gravadas nos fontes ou nos logs.
         for ((campo, variavel) in listOf("GIPHY_FIGURINHAS" to "GIPHY_ANDROID_FIGURINHAS_API_KEY", "GIPHY_EDITOR" to "GIPHY_ANDROID_EDITOR_API_KEY")) {

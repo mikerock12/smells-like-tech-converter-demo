@@ -55,6 +55,18 @@ class EditorFixoTest {
         error("Controle não encontrado: $descricao")
     }
     private fun caixa(descricao: String) = Rect().also { no(descricao).getBoundsInScreen(it) }
+    private fun esperarValor(descricao: String, valor: Float) {
+        // Consultar UIA fora da thread principal: ela precisa responder à consulta.
+        val fim = SystemClock.uptimeMillis() + 15_000
+        do {
+            val controle = todos().firstOrNull { it.contentDescription?.toString() == descricao }
+            // UIA guarda valores antigos em cache mesmo depois de o quadro mudar.
+            controle?.refresh()
+            if (controle?.rangeInfo?.current?.let { kotlin.math.abs(it - valor) < .001f } == true) return
+            Thread.sleep(100)
+        } while (SystemClock.uptimeMillis() < fim)
+        error("Valor ainda não apareceu na tela: $descricao = $valor")
+    }
     private fun tocar(descricao: String) {
         val b = caixa(descricao); gesto(b.centerX().toFloat(), b.centerY().toFloat())
         i.waitForIdleSync(); Thread.sleep(150)
@@ -147,11 +159,15 @@ class EditorFixoTest {
             assertEquals(5.99f, modelo.edicao.zoom, .0001f)
             tela { modelo.mudar(modelo.edicao.copy(zoom = 1f)) }
             rolarPara("Aumentar Giro Z")
-            tela { modelo.mudar(modelo.edicao.copy(giro = 179)) }; i.waitForIdleSync()
+            tela { modelo.mudar(modelo.edicao.copy(giro = 179)) }
+            // Esperar a recomposição: o botão anterior ainda capturava giro=0.
+            esperarValor("Giro Z", 179f)
+            i.waitForIdleSync()
             tocar("Aumentar Giro Z"); esperar { modelo.edicao.giro == 180 }
             tocar("Aumentar Giro Z"); assertEquals(180, modelo.edicao.giro)
             tocar("Diminuir Giro Z"); esperar { modelo.edicao.giro == 179 }
             tela { modelo.mudar(modelo.edicao.copy(giro = 0)) }
+            esperarValor("Giro Z", 0f)
             rolarPara("Aumentar Inclinação X")
             tocar("Aumentar Inclinação X"); esperar { modelo.edicao.inclinacaoX == 1f }
             tocar("Diminuir Inclinação X"); esperar { modelo.edicao.inclinacaoX == 0f }
@@ -232,6 +248,9 @@ class EditorFixoTest {
                 enviarToque(tempo, MotionEvent.ACTION_UP, botaoSalvar.centerX().toFloat(), botaoSalvar.centerY().toFloat())
             }
         } finally {
+            File(contexto.filesDir, "editor-fixo-arvore.txt").writeText(todos().joinToString("\n") {
+                "texto=${it.text} descricao=${it.contentDescription} faixa=${it.rangeInfo?.current}"
+            })
             i.uiAutomation.takeScreenshot()?.let { imagem ->
                 File(contexto.filesDir, "editor-fixo.png").outputStream().use { imagem.compress(Bitmap.CompressFormat.PNG, 100, it) }
                 imagem.recycle()

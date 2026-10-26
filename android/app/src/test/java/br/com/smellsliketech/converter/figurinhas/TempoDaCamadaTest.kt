@@ -5,6 +5,20 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class TempoDaCamadaTest {
+    @Test fun inspecaoDoFimEntreQuadrosMostraOUltimoSemAlterarAComposicao() {
+        // 1,025 s de corte, mas a versão leve só tem quadros até 1,0 s.
+        for (fps in listOf(8, 10, 12, 15)) {
+            assertNull(TempoDaCamada.indice(1.025, 1.025, fps, fps, ultimoNaBorda = true))
+            assertEquals(fps - 1, TempoDaCamada.indice(1.025, 1.025, fps, fps, inspecionar = true))
+            assertEquals(fps - 1, TempoDaCamada.indice(4.0, 1.025, fps, fps, inspecionar = true))
+            assertNull(TempoDaCamada.indice(4.0, 1.025, fps, fps))
+        }
+    }
+    @Test fun inspecaoNaoInventaQuadrosDeUmTrechoVazio() {
+        assertNull(TempoDaCamada.indice(0.0, 1.0, 8, 0, inspecionar = true))
+        assertNull(TempoDaCamada.indice(0.0, Double.NaN, 8, 8, inspecionar = true))
+        assertNull(TempoDaCamada.indice(0.0, 0.0, 8, 8, inspecionar = true))
+    }
     @Test fun videosSomemNoFimDoTrechoSemVoltarAoInicio() {
         assertEquals(4, TempoDaCamada.indice(.5, 1.0, 8, 8))
         assertNull(TempoDaCamada.indice(1.0, 1.0, 8, 8))

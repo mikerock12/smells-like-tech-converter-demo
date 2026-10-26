@@ -60,6 +60,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -118,8 +119,14 @@ fun TelaDasFigurinhas(modelo: FigurinhasViewModel, podeCriar: Boolean, abrirLice
         Box(Modifier.fillMaxSize().safeDrawingPadding()) {
             when {
                 modelo.origem != null -> {
-                    BackHandler { modelo.fecharEditor() }
-                    EditorDeFigurinha(modelo)
+                    var confirmarSaida by rememberSaveable(modelo.origem) { mutableStateOf(false) }
+                    val pedirSaida = { confirmarSaida = true }
+                    BackHandler(onBack = pedirSaida)
+                    EditorDeFigurinha(modelo, pedirSaida)
+                    if (confirmarSaida) ConfirmarSaidaDaEdicao(
+                        continuar = { confirmarSaida = false },
+                        sair = { confirmarSaida = false; modelo.fecharEditor() },
+                    )
                 }
                 modelo.pacoteAberto != null -> {
                     BackHandler { modelo.pacoteAberto = null }
@@ -323,7 +330,7 @@ private enum class Aba(val rotulo: String) { CAMADAS("Camadas"), ENQUADRAR("Enqu
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun EditorDeFigurinha(modelo: FigurinhasViewModel) {
+private fun EditorDeFigurinha(modelo: FigurinhasViewModel, pedirSaida: () -> Unit) {
     var catalogoAberto by remember { mutableStateOf(false) }
     if (catalogoAberto) SeletorDeStickers("figurinhas", { catalogoAberto = false }) {
         modelo.adicionarMidia(android.net.Uri.fromFile(it), descartarAoAbrir = true)
@@ -552,7 +559,7 @@ private fun EditorDeFigurinha(modelo: FigurinhasViewModel) {
                 AcaoDoEditor(AcaoEditor.DESFAZER, "Desfazer alteração", habilitada = modelo.podeDesfazer) { modelo.desfazer() }
                 AcaoDoEditor(AcaoEditor.REFAZER, "Refazer alteração", habilitada = modelo.podeRefazer) { modelo.refazer() }
                 AcaoDoEditor(AcaoEditor.TOCAR, "Ver como vai ficar", habilitada = modelo.previa != null) { modelo.verComoFica() }
-                AcaoDoEditor(AcaoEditor.CANCELAR, "Cancelar edição") { modelo.fecharEditor() }
+                AcaoDoEditor(AcaoEditor.CANCELAR, "Cancelar edição", executar = pedirSaida)
                 AcaoDoEditor(AcaoEditor.SALVAR, if (modelo.editando != null) "Salvar alterações" else "Salvar no pacote", habilitada = modelo.previa != null) {
                     if (modelo.editando != null) modelo.salvar(null, "") else salvando = true
                 }

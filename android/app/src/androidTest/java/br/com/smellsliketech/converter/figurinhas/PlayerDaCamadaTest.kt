@@ -315,4 +315,41 @@ class PlayerDaCamadaTest {
             principal.delete(); longa.delete(); curta.delete()
         }
     }
+
+    @Test fun fimFracionarioNaoEscondeACamadaESelecionarRecuperaAInspecao() = runBlocking {
+        val principal = video("fim-principal.mp4", 4) { Color.RED }
+        val sobreposta = video("fim-camada.mp4", 4) { Color.BLUE }
+        lateinit var m: FigurinhasViewModel
+        tela { m = FigurinhasViewModel(app); m.abrir(Uri.fromFile(principal)) }
+        esperar { m.previa != null && m.ocupado == null }
+        tela { m.adicionarMidia(Uri.fromFile(sobreposta)) }
+        esperar { m.camadas.size == 1 && m.ocupado == null }
+        val id = m.camadaSelecionada!!
+        try {
+            for (fps in listOf(8, 10, 12, 15)) {
+                tela { m.mudarQuadrosPorSegundo(fps); m.mudarTrechoSelecionado(0.0, 1.025); m.mostrarInstanteDaSelecionada(1.025) }
+                esperar { m.ocupado == null && azul(m.previa) }
+                tela { m.mostrarInstante(2f) }
+                esperar { m.ocupado == null && cor(m.previa, 256, 256, Color.RED) }
+                tela { m.selecionarCamada(id) }
+                esperar { m.ocupado == null && azul(m.previa) }
+                assertEquals(1.025, m.fimSelecionado, .00001)
+                // Encurtar ainda mais e reampliar mantém a camada editável.
+                tela { m.mudarTrechoSelecionado(0.0, .475); m.mostrarInstanteDaSelecionada(.475) }
+                esperar { m.ocupado == null && azul(m.previa) }
+                tela { m.mudarTrechoSelecionado(0.0, 1.025); m.mostrarInstanteDaSelecionada(.5) }
+                esperar { m.ocupado == null && azul(m.previa) }
+                assertEquals(0.0, m.inicio, 0.0); assertEquals(4.0, m.fim, 0.0)
+            }
+            tela { m.mudarQuadrosPorSegundo(8); m.verComoFica() }
+            esperar { m.ocupado == null && m.previaFinal != null }
+            val webp = m.previaFinal!!.arquivo.readBytes()
+            quadroNoTempo(webp, .5).let { q -> assertTrue(azul(q)); q.recycle() }
+            quadroNoTempo(webp, 2.0).let { q -> assertTrue(cor(q, 256, 256, Color.RED)); q.recycle() }
+            File(app.filesDir, "fim-fracionario.json").writeText("{\"fps\":[8,10,12,15],\"fimFracionarioVisivel\":true,\"selecaoRecupera\":true,\"exportacaoTransparenteAposFim\":true}")
+        } finally {
+            tela { m.fecharEditor(); m.mudarQuadrosPorSegundo(Regras.QUADROS_POR_SEGUNDO_PADRAO) }
+            principal.delete(); sobreposta.delete()
+        }
+    }
 }

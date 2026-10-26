@@ -96,6 +96,8 @@ import java.util.Locale
  */
 @Composable
 fun TelaDoEstudio(modelo: EstudioViewModel, podeExportar: Boolean, abrirLicenca: () -> Unit, abrirModelos: () -> Unit, voltar: () -> Unit) {
+    var confirmarSaida by rememberSaveable { mutableStateOf(false) }
+    val pedirSaida = { confirmarSaida = true }
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Box(Modifier.fillMaxSize().safeDrawingPadding()) {
             when (modelo.etapa) {
@@ -108,8 +110,8 @@ fun TelaDoEstudio(modelo: EstudioViewModel, podeExportar: Boolean, abrirLicenca:
                     EscolhaDaSaida(modelo.projeto?.saida) { modelo.escolherSaida(it) }
                 }
                 EstudioViewModel.Etapa.EDITOR -> {
-                    BackHandler(onBack = voltar)
-                    Editor(modelo, podeExportar, abrirLicenca, abrirModelos, voltar)
+                    BackHandler(onBack = pedirSaida)
+                    Editor(modelo, podeExportar, abrirLicenca, abrirModelos, pedirSaida)
                 }
             }
         }
@@ -123,6 +125,11 @@ fun TelaDoEstudio(modelo: EstudioViewModel, podeExportar: Boolean, abrirLicenca:
             )
         }
         modelo.videoDaPrevia?.let { video -> PlayerDaPrevia(video) { modelo.videoDaPrevia = null } }
+        if (confirmarSaida) ConfirmarSaidaDaEdicao(
+            rascunhoAutomatico = true,
+            continuar = { confirmarSaida = false },
+            sair = { confirmarSaida = false; voltar() },
+        )
     }
 }
 
