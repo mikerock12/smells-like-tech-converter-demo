@@ -1,5 +1,5 @@
 {
-  "commit": "253e01c2af5c777782986a80eec59ac516537a73",
+  "commit": "9dd29d72d355520dfc0f423bf3a0546e16c34ce0",
   "repository": "https://github.com/mikerock12/smells-like-tech-converter-demo",
   "originals": [
     {
@@ -3414,8 +3414,8 @@
     },
     {
       "path": "scripts/kokoro.py",
-      "sha256": "fd98cf6f063347c8937230f7db9500597e1aa6cd3b5173c325ce62f54afcbc79",
-      "bytes": 10413
+      "sha256": "658b81b02d53fa3e522e5394102507925207861ae0debc845ab72ebcd7cffff7",
+      "bytes": 10835
     },
     {
       "path": "scripts/pwa.mjs",

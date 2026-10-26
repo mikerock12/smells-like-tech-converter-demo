@@ -18,6 +18,12 @@ ASSETS = {
     'wasm': (f'https://github.com/k2-fsa/sherpa-onnx/releases/download/v{VERSION}/sherpa-onnx-wasm-simd-{VERSION}-kokoro-multi-lang-v1_0.tar.bz2', '39180cc8851bc5c4a2b8f47e2546b31f58704169421fd2e2dc06c459b7d367e7'),
     'android': (f'https://github.com/k2-fsa/sherpa-onnx/releases/download/v{VERSION}/sherpa-onnx-{VERSION}.aar', '633c24321e06b1fe79feafa03ea16cbc0f8a286641e2da3559bac91bdb13bd96'),
 }
+# O fornecedor reempacotou o mesmo conteúdo em 26/10/2026: os 377 arquivos,
+# inclusive os pesos fp32, foram comparados byte a byte. Aceitar apenas os dois
+# arquivos conhecidos conserva o cache verificado e permite downloads novos.
+ARCHIVES_EQUIVALENTES = {
+    'webmodel': {'60703707bc05ccd48d60e1eb723f38b07d6e474795a0b6a588d7220400e0f7a4'},
+}
 LICENSES = {
     'GPL-3.0.txt': ('https://raw.githubusercontent.com/csukuangfj/espeak-ng/ed530aa113046142eb5115cf2fc9157854d0ffe1/COPYING', '8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903'),
     'Sherpa-ONNX.txt': ('https://raw.githubusercontent.com/k2-fsa/sherpa-onnx/v1.13.8/LICENSE', 'cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30'),
@@ -60,13 +66,14 @@ def sha(path):
 
 def download(key):
     url, expected = ASSETS[key]
+    accepted = {expected} | ARCHIVES_EQUIVALENTES.get(key, set())
     target = WORK / 'downloads' / ('sherpa.aar' if key == 'android' else f'{key}.tar.bz2')
     target.parent.mkdir(parents=True, exist_ok=True)
-    if not target.exists() or sha(target) != expected:
+    if not target.exists() or sha(target) not in accepted:
         partial = target.with_suffix('.partial')
         print(f'Kokoro: baixando {key} oficial...', flush=True)
         urllib.request.urlretrieve(url, partial)
-        if sha(partial) != expected:
+        if sha(partial) not in accepted:
             raise ValueError(f'SHA-256 incorreto: {key}')
         partial.replace(target)
     return target
