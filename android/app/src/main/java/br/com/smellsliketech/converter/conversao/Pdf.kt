@@ -2,6 +2,7 @@ package br.com.smellsliketech.converter.conversao
 
 import android.content.Context
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.graphics.pdf.PdfRenderer
 import android.net.Uri
@@ -142,8 +143,26 @@ object Pdf {
         val altura = stream.getInt(COSName.HEIGHT)
         if (largura <= 0 || altura <= 0 || largura.toLong() * altura !in 4096L..36_000_000L) return
         val amostra = ceil(max(largura, altura).toDouble() / nivel.ladoMaximo).toInt().coerceAtLeast(1)
-        val foto = try { PDImageXObject(PDStream(stream), null).getImage(null, amostra) }
+        val foto = try {
+            if (filtro == COSName.DCT_DECODE) {
+                // JPEG RGB/cinza sem máscaras/Decode/ICC: reduzir já na decodificação.
+                // O leitor de regiões do PDFBox pode tentar recortar nas dimensões
+                // originais depois do subsampling e lançar IllegalArgumentException.
+                val opcoes = BitmapFactory.Options().apply {
+                    inSampleSize = Integer.highestOneBit(amostra)
+                    inPreferredConfig = Bitmap.Config.ARGB_8888
+                }
+                val decodificada = stream.createRawInputStream().use { BitmapFactory.decodeStream(it, null, opcoes) } ?: return
+                val w = ceil(largura.toDouble() / amostra).toInt()
+                val h = ceil(altura.toDouble() / amostra).toInt()
+                if (decodificada.width == w && decodificada.height == h) decodificada
+                else try { Bitmap.createScaledBitmap(decodificada, w, h, true) } finally { decodificada.recycle() }
+            } else PDImageXObject(PDStream(stream), null).getImage(null, amostra)
+        }
         catch (_: java.io.IOException) { return }
+        catch (_: IllegalArgumentException) { return } // imagem inválida fica intacta no PDF
+        val larguraFinal = foto.width
+        val alturaFinal = foto.height
         val bytes = try {
             // Prints, diagramas e logos com poucas cores não devem ganhar artefatos JPEG.
             if (filtro == COSName.FLATE_DECODE && !pareceFoto(foto)) return
@@ -159,8 +178,8 @@ object Pdf {
         stream.removeItem(COSName.DECODE_PARMS)
         stream.setItem(COSName.COLORSPACE, COSName.DEVICERGB)
         stream.setInt(COSName.BITS_PER_COMPONENT, 8)
-        stream.setInt(COSName.WIDTH, ceil(largura.toDouble() / amostra).toInt())
-        stream.setInt(COSName.HEIGHT, ceil(altura.toDouble() / amostra).toInt())
+        stream.setInt(COSName.WIDTH, larguraFinal)
+        stream.setInt(COSName.HEIGHT, alturaFinal)
     }
 
     private fun pareceFoto(bitmap: Bitmap): Boolean {

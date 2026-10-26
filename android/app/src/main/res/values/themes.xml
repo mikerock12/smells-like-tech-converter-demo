@@ -1,10 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Só a abertura: o resto é Compose. Escuro desde o primeiro quadro, como o site. -->
-    <style name="Tema.Abertura" parent="android:Theme.Material.NoActionBar">
+    <style name="Tema.Base" parent="android:Theme.Material.NoActionBar">
         <item name="android:windowBackground">@color/fundo</item>
-        <item name="android:statusBarColor">@color/fundo</item>
-        <item name="android:navigationBarColor">@color/fundo</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
+    </style>
+    <!-- Só Android 9/10: o modo ALWAYS ainda não existe nessas versões. -->
+    <style name="Tema.Abertura" parent="Tema.Base">
+        <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
     </style>
     <color name="fundo">#FF0E0E12</color>
 </resources>

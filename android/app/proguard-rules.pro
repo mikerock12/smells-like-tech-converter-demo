@@ -12,10 +12,8 @@
 -keep class kotlinx.coroutines.** { *; }
 -keep class androidx.tracing.** { *; }
 
-# PdfBox-Android lê fontes e tabelas por nome e usa reflexão em alguns pontos: fica inteiro.
--keep class com.tom_roush.pdfbox.** { *; }
--keep class com.tom_roush.fontbox.** { *; }
--keep class com.tom_roush.harmony.** { *; }
+# PDFBox: as regras de reflexão vêm do proguard.txt da própria biblioteca.
+# Não manter pacotes inteiros: isso impedia remover codificadores nunca usados.
 # Partes opcionais do PdfBox que o app não usa (JPEG 2000, criptografia do BouncyCastle).
 -dontwarn com.gemalto.jp2.**
 -dontwarn org.bouncycastle.**

@@ -5,3 +5,5 @@ LICENSE text eol=lf
 LICENSING.md text eol=lf
 packages/kokoro/NOTICE.txt text eol=lf
 docs/kokoro-fontes.md text eol=lf
+# PDFs de regressão têm offsets binários e não podem sofrer conversão LF/CRLF.
+android/app/src/androidTest/assets/publicacao/*.pdf -text

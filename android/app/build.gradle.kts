@@ -2,7 +2,6 @@ import java.util.Properties
 
 plugins {
     id("com.android.application")
-    id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
@@ -21,7 +20,11 @@ val chaveDaPlay = "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA3IGjUBKUseVN2Tcmx
 
 android {
     // Permite verificar o APK oficial (com R8 e assinatura real) no emulador.
-    testBuildType = if (providers.gradleProperty("testeRelease").orNull == "true") "release" else "debug"
+    testBuildType = when {
+        providers.gradleProperty("validacaoR8").orNull == "true" -> "validacao"
+        providers.gradleProperty("testeRelease").orNull == "true" -> "release"
+        else -> "debug"
+    }
     namespace = "br.com.smellsliketech.converter"
     compileSdk = 36
 
@@ -31,9 +34,11 @@ android {
         minSdk = 28
         // A Google Play exige o Android 16 como alvo desde 31/08/2026.
         targetSdk = 36
-        versionCode = 29
-        versionName = "1.0.4"
+        versionCode = 30
+        versionName = "1.0.5"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        if (providers.gradleProperty("validacaoR8").orNull == "true")
+            testApplicationId = "br.com.smellsliketech.converter.validacao.test"
         // Injetadas pelo ambiente do build; nunca gravadas nos fontes ou nos logs.
         for ((campo, variavel) in listOf("GIPHY_FIGURINHAS" to "GIPHY_ANDROID_FIGURINHAS_API_KEY", "GIPHY_EDITOR" to "GIPHY_ANDROID_EDITOR_API_KEY")) {
             val chave = providers.environmentVariable(variavel).orNull.orEmpty()
@@ -98,6 +103,13 @@ android {
             signingConfig = signingConfigs.getByName("debug")
             matchingFallbacks += listOf("release")
         }
+        // Exercita as mesmas regras R8 sem substituir a instalação do dono no AVD.
+        create("validacao") {
+            initWith(getByName("release"))
+            applicationIdSuffix = ".validacao"
+            signingConfig = signingConfigs.getByName("debug")
+            matchingFallbacks += listOf("release")
+        }
     }
 
     compileOptions {
@@ -122,10 +134,10 @@ kotlin {
 
 dependencies {
     implementation(files("libs/sherpa-onnx-1.13.8.aar"))
-    implementation("androidx.core:core-ktx:1.15.0")
+    implementation("androidx.core:core-ktx:1.17.0")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")
-    implementation("androidx.activity:activity-compose:1.9.3")
+    implementation("androidx.activity:activity-compose:1.11.0")
     implementation(platform("androidx.compose:compose-bom:2024.12.01"))
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.material3:material3")
@@ -136,6 +148,10 @@ dependencies {
     implementation("com.google.mlkit:text-recognition:16.0.1")
     // Remoção de fundo das figurinhas: segmentação de assunto no aparelho, pelo Google Play Services.
     implementation("com.google.android.gms:play-services-mlkit-subject-segmentation:16.0.0-beta1")
+    implementation("io.coil-kt.coil3:coil-core:3.3.0")
+    implementation("io.coil-kt.coil3:coil-gif:3.3.0")
+    implementation("io.coil-kt.coil3:coil-network-okhttp:3.3.0")
+
     // PDF: juntar, dividir, girar (o Android só sabe desenhar e criar PDF).
     implementation("com.tom-roush:pdfbox-android:2.0.27.0")
     // HTML e EPUB (documentos): um leitor que aguenta HTML malformado.

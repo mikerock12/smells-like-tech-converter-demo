@@ -16,10 +16,12 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.io.ByteArrayOutputStream
 import java.io.File
-import java.net.HttpURLConnection
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.Response
+import java.util.concurrent.TimeUnit
 import java.net.URI
 import java.net.URLEncoder
-import java.nio.ByteBuffer
 import java.text.Normalizer
 
 data class StickerDoCatalogo(val id: String, val nome: String, val previa: String, val url: String, val fonte: String, val autor: String)
@@ -29,6 +31,9 @@ data class ResultadoDoCatalogo(val fonte: String, val itens: List<StickerDoCatal
 class CatalogoDeStickers private constructor(private val contexto: Context, secao: String, private val chave: String) {
     private val preferencias = contexto.getSharedPreferences("catalogo-$secao", Context.MODE_PRIVATE)
     private val trava = Mutex()
+    private val cliente = OkHttpClient.Builder().connectTimeout(12, TimeUnit.SECONDS)
+        .readTimeout(15, TimeUnit.SECONDS).followRedirects(false).followSslRedirects(false).build()
+    private val miniaturas = MiniaturasDoCatalogo(contexto)
     private var estado = runCatching {
         val j = JSONObject(preferencias.getString("cota", "{}")!!)
         val tentativas = j.optJSONArray("tentativas") ?: JSONArray()
@@ -58,10 +63,10 @@ class CatalogoDeStickers private constructor(private val contexto: Context, seca
             try {
                 val conexao = abrir(endereco)
                 val corpo = try {
-                    status = conexao.responseCode
-                    retry = conexao.getHeaderField("Retry-After")
+                    status = conexao.code
+                    retry = conexao.header("Retry-After")
                     if (status == 200) JSONObject(ler(conexao, 2_000_000).toString(Charsets.UTF_8)) else null
-                } finally { conexao.disconnect() }
+                } finally { conexao.close() }
                 currentCoroutineContext().ensureActive()
                 status = corpo?.optJSONObject("meta")?.optInt("status", status) ?: status
                 val dados = corpo?.optJSONArray("data")
@@ -104,25 +109,22 @@ class CatalogoDeStickers private constructor(private val contexto: Context, seca
         return ResultadoDoCatalogo("noto", itens, PoliticaDoCatalogo.aviso(motivo), tentarEm)
     }
 
-    suspend fun previa(item: StickerDoCatalogo): Drawable = withContext(Dispatchers.IO) {
-        val bytes = bytes(item, true)
-        ImageDecoder.decodeDrawable(ImageDecoder.createSource(ByteBuffer.wrap(bytes))) { decoder, info, _ ->
-            val escala = 160f / maxOf(info.size.width, info.size.height)
-            decoder.setTargetSize((info.size.width * escala).toInt().coerceAtLeast(1), (info.size.height * escala).toInt().coerceAtLeast(1))
-        }
-    }
+    suspend fun previa(item: StickerDoCatalogo): Drawable = miniaturas.carregar(item)
 
     /** Cópia temporária apenas do item escolhido para edição; removida após importar no editor. */
     suspend fun importar(item: StickerDoCatalogo, animado: Boolean): File = withContext(Dispatchers.IO) {
-        val dados = bytes(item, false)
         // O nome do arquivo vira o título da camada no estúdio.
         val nome = item.nome.filterNot { it in "\\/:*?\"<>|" }.trim().take(40).ifBlank { "Sticker" }
         // createTempFile pede prefixo de pelo menos 3 caracteres.
         val arquivo = File.createTempFile("$nome-".padEnd(3, '_'), if (animado) ".gif" else ".png", contexto.cacheDir)
         try {
-            if (animado) arquivo.writeBytes(dados) else {
-                val imagem = ImageDecoder.decodeBitmap(ImageDecoder.createSource(ByteBuffer.wrap(dados))) { d, _, _ ->
+            baixarPara(item, arquivo)
+            if (!animado) {
+                val imagem = ImageDecoder.decodeBitmap(ImageDecoder.createSource(arquivo)) { d, info, _ ->
                     d.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
+                    val escala = minOf(1f, 1024f / maxOf(info.size.width, info.size.height))
+                    d.setTargetSize((info.size.width * escala).toInt().coerceAtLeast(1),
+                        (info.size.height * escala).toInt().coerceAtLeast(1))
                 }
                 try { arquivo.outputStream().use { imagem.compress(Bitmap.CompressFormat.PNG, 100, it) } }
                 finally { imagem.recycle() }
@@ -132,31 +134,40 @@ class CatalogoDeStickers private constructor(private val contexto: Context, seca
         } catch (erro: Exception) { arquivo.delete(); throw erro }
     }
 
-    private suspend fun bytes(item: StickerDoCatalogo, miniatura: Boolean): ByteArray {
-        if (item.fonte == "noto") return contexto.assets.open(if (miniatura) item.previa else item.url).use { it.readBytes() }
-        val conexao = abrir(if (miniatura) item.previa else item.url)
-        return try {
-            require(conexao.responseCode == 200) { "Não foi possível abrir o sticker." }
-            ler(conexao, if (miniatura) 8_000_000 else 32_000_000)
-        } finally { conexao.disconnect() }
+    private suspend fun baixarPara(item: StickerDoCatalogo, arquivo: File) {
+        val limite = 32_000_000L
+        suspend fun copiar(entrada: java.io.InputStream) {
+            entrada.use { fonte -> arquivo.outputStream().use { saida ->
+                val buffer = ByteArray(8192)
+                var total = 0L
+                while (true) {
+                    currentCoroutineContext().ensureActive()
+                    val n = fonte.read(buffer)
+                    if (n < 0) break
+                    total += n
+                    require(total <= limite) { "Este sticker é grande demais." }
+                    saida.write(buffer, 0, n)
+                }
+            } }
+        }
+        if (item.fonte == "noto") { copiar(contexto.assets.open(item.url)); return }
+        val conexao = abrir(item.url)
+        try {
+            require(conexao.code == 200) { "Não foi possível abrir o sticker." }
+            require(requireNotNull(conexao.body).contentLength() <= limite) { "Este sticker é grande demais." }
+            copiar(requireNotNull(conexao.body).byteStream())
+        } finally { conexao.close() }
     }
-
-    private fun abrir(url: String): HttpURLConnection {
+    private fun abrir(url: String): Response {
         val uri = URI(url)
         require(uri.scheme == "https" && (uri.host == "api.giphy.com" || uri.host == "giphy.com" || uri.host?.endsWith(".giphy.com") == true)) {
             "Endereço de sticker inválido."
         }
-        return (uri.toURL().openConnection() as HttpURLConnection).apply {
-            connectTimeout = 12_000
-            readTimeout = 15_000
-            useCaches = false
-            instanceFollowRedirects = false
-        }
+        return cliente.newCall(Request.Builder().url(url).build()).execute()
     }
-
-    private suspend fun ler(conexao: HttpURLConnection, limite: Int): ByteArray {
-        require(conexao.contentLengthLong <= limite) { "Este sticker é grande demais." }
-        return conexao.inputStream.use { entrada ->
+    private suspend fun ler(conexao: Response, limite: Int): ByteArray {
+        require(requireNotNull(conexao.body).contentLength() <= limite) { "Este sticker é grande demais." }
+        return requireNotNull(conexao.body).byteStream().use { entrada ->
             val saida = ByteArrayOutputStream()
             val buffer = ByteArray(8192)
             while (true) {
