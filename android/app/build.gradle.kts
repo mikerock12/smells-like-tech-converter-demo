@@ -34,8 +34,8 @@ android {
         minSdk = 28
         // A Google Play exige o Android 16 como alvo desde 31/08/2026.
         targetSdk = 36
-        versionCode = 30
-        versionName = "1.0.5"
+        versionCode = 31
+        versionName = "1.0.6"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         if (providers.gradleProperty("validacaoR8").orNull == "true")
             testApplicationId = "br.com.smellsliketech.converter.validacao.test"

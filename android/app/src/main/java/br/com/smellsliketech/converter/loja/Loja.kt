@@ -10,8 +10,11 @@ interface Loja {
     /** O preço como a loja mostra ("R$ 249,00"), ou nulo quando ela não sabe. */
     suspend fun preco(): String?
 
-    /** Abre a compra. O que acontecer chega pelo [Ouvinte]. */
-    fun comprar(atividade: Activity)
+    /** O preço da assinatura mensal ("R$ 19,90"), ou nulo quando a loja não sabe. */
+    suspend fun precoMensal(): String? = null
+
+    /** Abre a compra (vitalícia, ou a assinatura `mensal`). O que acontecer chega pelo [Ouvinte]. */
+    fun comprar(atividade: Activity, mensal: Boolean = false)
 
     /**
      * Confere as compras que a loja conhece: reinstalação, outro celular com a mesma conta,
@@ -28,8 +31,11 @@ interface Loja {
         /** A compra existe, mas o pagamento ainda não caiu. */
         fun pendente()
 
-        /** A loja respondeu e esta conta não tem a compra. */
+        /** A loja respondeu e esta conta não tem a compra vitalícia. */
         fun semCompra()
+
+        /** A loja respondeu e esta conta não tem assinatura mensal ativa. */
+        fun semAssinatura() = Unit
 
         fun falhou(mensagem: String)
     }

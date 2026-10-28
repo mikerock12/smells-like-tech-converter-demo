@@ -3,6 +3,9 @@
 import { kenBurns, mudarBaseDaAnimacao } from "@/packages/converter-core/estudio-animacao.mjs";
 import { useState } from "react";
 import { TRANSFORMACAO_PADRAO, type Transformacao } from "@/packages/converter-core/camadas.mjs";
+import { caberInteira, centralizar, guiasDaCamada, preencher, type Caixa, type Medidas } from "@/packages/converter-core/guias.mjs";
+import { mostrarGuias } from "@/lib/estudio/guias-na-tela";
+import { Deslizante } from "./Deslizante";
 
 const filtros = { original: "Original", vivido: "Vívido", pb: "P&B", sepia: "Sépia", vintage: "Vintage", frio: "Frio", quente: "Quente", negativo: "Negativo" };
 const mesclas = { normal: "Normal", multiplicar: "Multiplicar", clarear: "Clarear", sobrepor: "Sobrepor" };
@@ -15,10 +18,28 @@ const faixas: [keyof Transformacao, string, number, number, number][] = [
   ["contraste", "Contraste", -.8, 1, .01], ["saturacao", "Saturação", -1, 1, .01],
 ];
 
-export default function ControlesDeCamada({ valor, mudar, permitirRecorte = true, duracao = 3 }: { valor?: Partial<Transformacao>; mudar: (valor: Partial<Transformacao>) => void; permitirRecorte?: boolean; duracao?: number }) {
+/**
+ * `medidas`: a mídia e o quadro, para as guias e o Preencher. `referencias`: as caixas das outras
+ * camadas visíveis. `enquadrar`: nos clipes, Preencher e Caber trocam o enquadramento do clipe.
+ */
+export default function ControlesDeCamada({ valor, mudar, permitirRecorte = true, duracao = 3, medidas, referencias = [], enquadrar }: {
+  valor?: Partial<Transformacao>; mudar: (valor: Partial<Transformacao>) => void; permitirRecorte?: boolean; duracao?: number;
+  medidas?: Medidas | null; referencias?: Caixa[]; enquadrar?: (ajuste: "preencher" | "caber") => void;
+}) {
   const [tempo, setTempo] = useState(0);
   const t = { ...TRANSFORMACAO_PADRAO, ...valor };
+  // Os controles mostram as guias em que a camada ficou, sem encaixar: encaixar prenderia o − e o +.
+  const aplicar = (novo: Transformacao) => {
+    mudar(mudarBaseDaAnimacao(t, novo));
+    const mexeuNoLugar = (["x", "y", "escala", "giro", "giroX", "giroY"] as const).some((campo) => novo[campo] !== t[campo]);
+    if (medidas && mexeuNoLugar) mostrarGuias(guiasDaCamada(medidas, novo, referencias));
+  };
   return <details className="estudio__detalhe"><summary>Posição, giro 3D, filtros e mesclagem</summary>
+    <div className="estudio__linha">
+      <button type="button" className="button" title="Cobre o quadro inteiro, centralizada e reta" onClick={() => { if (enquadrar) { enquadrar("preencher"); aplicar(caberInteira(t)); } else aplicar(preencher(t, medidas)); }}>Preencher</button>
+      <button type="button" className="button" title="Inteira dentro do quadro, centralizada e reta" onClick={() => { enquadrar?.("caber"); aplicar(caberInteira(t)); }}>Caber inteira</button>
+      <button type="button" className="button" onClick={() => aplicar(centralizar(t))}>Centralizar</button>
+    </div>
     <label className="estudio__campo">Máscara<select value={t.mascara ?? "nenhuma"} onChange={e => mudar({...t, mascara:e.target.value as Transformacao["mascara"]})}>
       <option value="nenhuma">Sem máscara</option><option value="circulo">Círculo</option><option value="oval">Oval</option><option value="arredondada">Cantos arredondados</option>
     </select></label>
@@ -35,10 +56,10 @@ export default function ControlesDeCamada({ valor, mudar, permitirRecorte = true
       </fieldset>)}
       <button type="button" className="button" onClick={()=>mudar({...t,quadrosChave:[]})}>Remover animação</button>
     </details>
-    {faixas.map(([campo, nome, min, max, step]) => <label className="estudio__campo" key={campo}>
-      {nome}: {Number(t[campo]).toLocaleString("pt-BR", { maximumFractionDigits: 2 })}{campo.startsWith("giro") ? "°" : ""}
-      <input type="range" min={min} max={max} step={step} value={Number(t[campo])} onChange={e => mudar(mudarBaseDaAnimacao(t,{ ...t, [campo]: Number(e.target.value) }))} />
-    </label>)}
+    {faixas.map(([campo, nome, min, max, step]) => <div className="estudio__campo" key={campo}>
+      <span>{nome}: {Number(t[campo]).toLocaleString("pt-BR", { maximumFractionDigits: 2 })}{campo.startsWith("giro") ? "°" : ""}</span>
+      <Deslizante rotulo={nome} min={min} max={max} passo={step} valor={Number(t[campo])} mudar={v => aplicar({ ...t, [campo]: v })} />
+    </div>)}
     <div className="estudio__linha">
       <button type="button" className="button" onClick={() => mudar({ ...t, espelharX: !t.espelharX })}>Espelhar na horizontal</button>
       <button type="button" className="button" onClick={() => mudar({ ...t, espelharY: !t.espelharY })}>Espelhar na vertical</button>

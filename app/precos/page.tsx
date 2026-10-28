@@ -23,7 +23,7 @@ const perguntas = [
   {
     pergunta: "Por que não tem assinatura automática?",
     resposta:
-      "Porque cancelar assinatura é a reclamação número um dos conversores por aí. Aqui cada pagamento libera um período: 31 dias ou 366 dias. Acabou, você decide se paga de novo. Não existe o que cancelar, e ninguém cobra sem você clicar.",
+      "Porque cancelar assinatura é a reclamação número um dos conversores por aí. Aqui cada pagamento libera um período: 31 dias ou 366 dias, no Pro e também no aplicativo para Windows. Acabou, você decide se paga de novo. Não existe o que cancelar, e ninguém cobra sem você clicar. A única exceção é a assinatura mensal do app para Android, que a Google Play renova e que você cancela na própria Play, a qualquer momento.",
   },
   {
     pergunta: "Preciso criar conta?",
@@ -58,8 +58,10 @@ export default async function PaginaDePrecos({ searchParams }: { searchParams: P
   const mensal = produto("pro-mensal")!;
   const anual = produto("pro-anual")!;
   const app = produto("app-vitalicio")!;
+  const appMensal = produto("app-mensal")!;
   const completo = produto("completo-vitalicio")!;
   const android = produto("android-vitalicio")!;
+  const androidMensal = produto("android-mensal")!;
   // O app para Android é vendido dentro dele, pela Google Play: aqui só é apresentado, e
   // só depois de estar publicado na loja.
   const { total, noNavegador } = contagem();
@@ -143,7 +145,7 @@ export default async function PaginaDePrecos({ searchParams }: { searchParams: P
             <p className="plano__nome">{PLANOS.app.nome}</p>
             <p className="plano__preco">
               <strong>{formatarReais(app.centavos)}</strong>
-              <span>pagamento único · licença vitalícia</span>
+              <span>pagamento único · ou {formatarReais(appMensal.centavos)} por mês</span>
             </p>
             <p className="plano__chamada">{PLANOS.app.chamada}</p>
             <ul className="plano__lista">
@@ -154,12 +156,13 @@ export default async function PaginaDePrecos({ searchParams }: { searchParams: P
               <li>Até {MAQUINAS_POR_LICENCA} computadores · {DIAS_DE_TESTE_DO_APP} dias de teste antes de pagar</li>
             </ul>
             <div className="plano__acoes">
-              <BotaoDeCompra produto={app.id} rotulo={`Comprar a licença · ${formatarReais(app.centavos)}`} destaque origem={origem} />
+              <BotaoDeCompra produto={app.id} rotulo={`Licença vitalícia · ${formatarReais(app.centavos)}`} destaque origem={origem} />
+              <BotaoDeCompra produto={appMensal.id} rotulo={`Mensal · ${formatarReais(appMensal.centavos)} por 31 dias`} origem={origem} />
               <a className="button button--ghost" href="/aplicativo">
                 Baixar e testar por {DIAS_DE_TESTE_DO_APP} dias
               </a>
             </div>
-            <p className="plano__nota">{app.nota}</p>
+            <p className="plano__nota">{app.nota} Mensal: {appMensal.nota}</p>
           </article>
         </section>
 
@@ -168,11 +171,11 @@ export default async function PaginaDePrecos({ searchParams }: { searchParams: P
             <div>
               <p className="converter__eyebrow">{PLANOS.android.nome}</p>
               <h2 id="android-titulo">
-                {PLANOS.android.chamada}. <em>{formatarReais(android.centavos)}, uma vez.</em>
+                {PLANOS.android.chamada}. <em>{formatarReais(android.centavos)}, uma vez, ou {formatarReais(androidMensal.centavos)} por mês.</em>
               </h2>
               <p>
-                {PLANOS.android.descricao} {DIAS_DE_TESTE_DO_APP} dias de teste completo; depois, uma compra única dentro do app,
-                pela Google Play.
+                {PLANOS.android.descricao} {DIAS_DE_TESTE_DO_APP} dias de teste completo; depois, dentro do app, pela Google Play: a
+                licença vitalícia ou a assinatura mensal, que você cancela na própria Play.
               </p>
             </div>
             <div className="combo__acao">

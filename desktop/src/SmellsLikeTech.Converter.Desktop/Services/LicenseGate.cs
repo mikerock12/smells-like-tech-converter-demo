@@ -21,10 +21,10 @@ public static class LicenseGate
             case DesktopAccess.Trial:
                 message = access.TrialDaysLeft == 1
                     ? "Último dia de teste. Depois disso, o aplicativo pede a licença em Configurações → Licença."
-                    : $"Teste: faltam {access.TrialDaysLeft} dias. A licença vitalícia é ativada em Configurações → Licença.";
+                    : $"Teste: faltam {access.TrialDaysLeft} dias. A licença (vitalícia ou mensal) é ativada em Configurações → Licença.";
                 return true;
             default:
-                message = "Os 7 dias de teste acabaram. Compre a licença vitalícia em converter.smellsliketech.com.br/precos e cole a chave em Configurações → Licença.";
+                message = "O teste (ou a licença mensal) acabou. Compre a licença vitalícia ou a mensal em converter.smellsliketech.com.br/precos e cole a chave em Configurações → Licença.";
                 return false;
         }
     }
@@ -35,10 +35,18 @@ public static class LicenseGate
         var access = App.Services.EvaluateDesktopAccess();
         return access.Access switch
         {
+            DesktopAccess.Licensed when access.Claims is { ExpiresAt: { } expira } claims =>
+                $"Licença mensal ativa até {Vencimento(expira)} · pedido {claims.Id} · {claims.Email}",
             DesktopAccess.Licensed when access.Claims is { } claims =>
                 $"Licença vitalícia ativa · pedido {claims.Id} · {claims.Email}",
             DesktopAccess.Trial => $"Em teste: faltam {access.TrialDaysLeft} dia(s). Depois disso o aplicativo pede a chave.",
-            _ => "Teste encerrado. Cole a chave da licença vitalícia para voltar a converter."
+            _ => "Teste encerrado. Cole a chave da licença vitalícia ou da mensal para voltar a converter."
         };
     }
+
+    /// <summary>"25/11/2026", na data local de quem usa.</summary>
+    public static string Vencimento(string expira) =>
+        DateTimeOffset.TryParse(expira, null, System.Globalization.DateTimeStyles.AssumeUniversal, out var data)
+            ? data.ToLocalTime().ToString("dd/MM/yyyy")
+            : expira;
 }

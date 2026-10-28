@@ -45,18 +45,22 @@ class OficinaViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) {
     /** O preço que a loja mostra (só a Google Play sabe) e o último recado dela. */
     var precoDaLoja by mutableStateOf<String?>(null)
         private set
+    var precoMensalDaLoja by mutableStateOf<String?>(null)
+        private set
     var recadoDaLoja by mutableStateOf<String?>(null)
 
     private val loja = novaLoja(aplicacao, object : Loja.Ouvinte {
         override fun comprou(json: String, assinatura: String): Boolean {
-            val jaTinha = situacao is Acesso.Situacao.Comprada
+            val jaTinha = situacao is Acesso.Situacao.Comprada || situacao is Acesso.Situacao.Assinada
             val recibo = acesso.guardarCompra(json, assinatura)
             atualizarSituacao()
             if (recibo == null) {
                 recadoDaLoja = "A Google Play mandou um recibo que não confere. A compra não foi liberada; fale com converter@smellsliketech.com.br."
                 return false
             }
-            if (!jaTinha) recadoDaLoja = "Compra confirmada. O app está liberado para sempre, também nos outros celulares com a mesma conta Google."
+            if (!jaTinha) recadoDaLoja = if (recibo.mensal)
+                "Assinatura confirmada. O app está liberado enquanto ela estiver ativa; cancele quando quiser na Google Play."
+            else "Compra confirmada. O app está liberado para sempre, também nos outros celulares com a mesma conta Google."
             return true
         }
 
@@ -71,6 +75,11 @@ class OficinaViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) {
             }
         }
 
+        override fun semAssinatura() {
+            acesso.esquecerAssinatura()
+            atualizarSituacao()
+        }
+
         override fun falhou(mensagem: String) {
             recadoDaLoja = mensagem
         }
@@ -80,19 +89,20 @@ class OficinaViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) {
         viewModelScope.launch {
             loja.sincronizar()
             precoDaLoja = loja.preco()
+            precoMensalDaLoja = loja.precoMensal()
         }
     }
 
-    fun comprar(atividade: Activity) {
+    fun comprar(atividade: Activity, mensal: Boolean = false) {
         recadoDaLoja = null
-        loja.comprar(atividade)
+        loja.comprar(atividade, mensal)
     }
 
     /** "Restaurar compra": pergunta de novo à loja, por exemplo depois de trocar de celular. */
     fun restaurar() {
         viewModelScope.launch {
             loja.sincronizar()
-            if (situacao !is Acesso.Situacao.Comprada && recadoDaLoja == null) {
+            if (situacao !is Acesso.Situacao.Comprada && situacao !is Acesso.Situacao.Assinada && recadoDaLoja == null) {
                 recadoDaLoja = "A Google Play não achou a compra nesta conta. Confira se a Play Store está com a conta usada na compra."
             }
         }

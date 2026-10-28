@@ -67,7 +67,7 @@ fun TelaInicial(
                         Text("CONVERTER", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp, letterSpacing = 3.sp)
                     }
                     val (texto, alerta) = when (situacao) {
-                        is Acesso.Situacao.Ativa, is Acesso.Situacao.Comprada -> "Licença ativa" to false
+                        is Acesso.Situacao.Ativa, is Acesso.Situacao.Comprada, is Acesso.Situacao.Assinada -> "Licença ativa" to false
                         is Acesso.Situacao.Teste -> "Teste: ${situacao.diasRestantes} ${if (situacao.diasRestantes == 1) "dia" else "dias"}" to false
                         Acesso.Situacao.TesteAcabou -> "Teste acabou" to true
                     }

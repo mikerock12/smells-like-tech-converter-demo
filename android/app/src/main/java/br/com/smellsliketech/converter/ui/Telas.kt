@@ -78,6 +78,7 @@ import br.com.smellsliketech.converter.conversao.Tipo
 import br.com.smellsliketech.converter.conversao.textoDoAndamento
 import br.com.smellsliketech.converter.conversao.Transcricao
 import br.com.smellsliketech.converter.licenca.Acesso
+import br.com.smellsliketech.converter.licenca.ReciboDaPlay
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.Locale
@@ -189,7 +190,7 @@ private fun Cabecalho(situacao: Acesso.Situacao, abrirLicenca: () -> Unit) {
                 Text("CONVERTER", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp, letterSpacing = 3.sp)
             }
             val (texto, destaque) = when (situacao) {
-                is Acesso.Situacao.Ativa, is Acesso.Situacao.Comprada -> "Licença ativa" to false
+                is Acesso.Situacao.Ativa, is Acesso.Situacao.Comprada, is Acesso.Situacao.Assinada -> "Licença ativa" to false
                 is Acesso.Situacao.Teste -> "Teste: ${situacao.diasRestantes} ${if (situacao.diasRestantes == 1) "dia" else "dias"}" to false
                 Acesso.Situacao.TesteAcabou -> "Teste acabou" to true
             }
@@ -573,20 +574,38 @@ private fun TelaDaLicenca(modelo: OficinaViewModel, fechar: () -> Unit) {
                             Text("Aplicativo para Android · vitalício", fontWeight = FontWeight.SemiBold)
                             Text("Pedido ${situacao.recibo.pedido} · não vence", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
                         }
+                        is Acesso.Situacao.Assinada -> {
+                            Rotulo("ASSINATURA MENSAL NA GOOGLE PLAY")
+                            Text("Aplicativo para Android · mensal", fontWeight = FontWeight.SemiBold)
+                            Text("Pedido ${situacao.recibo.pedido} · renova todo mês pela Google Play. Cancele quando quiser.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
+                            OutlinedButton(onClick = {
+                                runCatching {
+                                    contexto.startActivity(Intent(Intent.ACTION_VIEW,
+                                        Uri.parse("https://play.google.com/store/account/subscriptions?sku=${ReciboDaPlay.PRODUTO_MENSAL}&package=${contexto.packageName}")))
+                                }
+                            }) { Text("Gerenciar ou cancelar na Google Play") }
+                            Text("Quer parar de pagar todo mês? A licença vitalícia libera o app para sempre.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
+                        }
                         is Acesso.Situacao.Teste -> {
                             Rotulo("TESTE GRÁTIS")
-                            Text("Faltam ${situacao.diasRestantes} ${if (situacao.diasRestantes == 1) "dia" else "dias"} de teste completo.", fontWeight = FontWeight.SemiBold)
-                            Text("Depois, o app pede a licença vitalícia do Android.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
+                            Text("${if (situacao.diasRestantes == 1) "Falta" else "Faltam"} ${situacao.diasRestantes} ${if (situacao.diasRestantes == 1) "dia" else "dias"} de teste completo.", fontWeight = FontWeight.SemiBold)
+                            Text("Depois, escolha: assinatura mensal ou licença vitalícia.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
                         }
                         Acesso.Situacao.TesteAcabou -> {
                             Rotulo("O TESTE ACABOU")
-                            Text("Para continuar convertendo, ative a licença do app para Android.", fontWeight = FontWeight.SemiBold)
+                            Text("Para continuar convertendo, assine por mês ou compre a licença vitalícia.", fontWeight = FontWeight.SemiBold)
                         }
                     }
                     val ativa = modelo.situacao is Acesso.Situacao.Ativa || modelo.situacao is Acesso.Situacao.Comprada
+                    val assinada = modelo.situacao is Acesso.Situacao.Assinada
+                    if (!ativa && !assinada) {
+                        Button(onClick = { atividade?.let { modelo.comprar(it, mensal = true) } }, enabled = atividade != null) {
+                            Text(modelo.precoMensalDaLoja?.let { "Assinar por mês · $it/mês" } ?: "Assinar por mês")
+                        }
+                    }
                     if (!ativa) {
-                        Button(onClick = { atividade?.let(modelo::comprar) }, enabled = atividade != null) {
-                            Text(modelo.precoDaLoja?.let { "Comprar a licença vitalícia · $it" } ?: "Comprar a licença vitalícia")
+                        OutlinedButton(onClick = { atividade?.let { modelo.comprar(it) } }, enabled = atividade != null) {
+                            Text(modelo.precoDaLoja?.let { "Licença vitalícia · $it, uma vez" } ?: "Licença vitalícia, uma vez")
                         }
                     }
                     if (pelaPlay && modelo.situacao !is Acesso.Situacao.Comprada) {
@@ -630,8 +649,8 @@ private fun TelaDaLicenca(modelo: OficinaViewModel, fechar: () -> Unit) {
             }
             item {
                 Text(
-                    if (pelaPlay) "A compra pela Google Play não vence e vale nos celulares com a mesma conta Google."
-                    else "A licença vale em até 3 celulares seus e não vence. Minha conta, no site, guarda todas as suas chaves.",
+                    if (pelaPlay) "A assinatura renova todo mês e pode ser cancelada na Google Play; a vitalícia não vence. As duas valem nos celulares com a mesma conta Google."
+                    else "A mensal libera 31 dias por pagamento, sem renovação automática; a vitalícia vale em até 3 celulares seus e não vence. Minha conta, no site, guarda todas as suas chaves.",
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 12.sp,
                 )

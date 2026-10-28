@@ -51,6 +51,15 @@ class ReciboDaPlayTest {
     }
 
     @Test
+    fun `recibo da assinatura mensal libera e vem marcado como mensal`() {
+        val json = recibo(produto = "\"productId\":\"android_mensal\"")
+        val conferido = ReciboDaPlay.conferir(json, assinar(json), publica, pacote)
+        assertNotNull(conferido)
+        assertEquals(true, conferido!!.mensal)
+        assertEquals(false, ReciboDaPlay.conferir(recibo(), assinar(recibo()), publica, pacote)!!.mensal)
+    }
+
+    @Test
     fun `mudar uma letra do recibo invalida a assinatura`() {
         val json = recibo()
         val assinatura = assinar(json)

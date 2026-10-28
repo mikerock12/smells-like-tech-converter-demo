@@ -90,9 +90,21 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
     private var previaPorCamada = false
     private var cursoresDasCamadas by mutableStateOf<Map<String, Float>>(emptyMap())
     private var duracaoEscolhida by mutableStateOf<Double?>(null)
-    val duracaoDaComposicao get() = duracaoEscolhida ?: maxOf((fim - inicio).coerceAtLeast(0.0),
+
+    /** O maior trecho de mídia que anima (o da principal e os vídeos visíveis), até 10 s. */
+    private val maiorTrecho get() = maxOf((fim - inicio).coerceAtLeast(0.0),
         camadas.filter { it.visivel && it.origem?.tipo == TipoDaOrigem.VIDEO }
             .maxOfOrNull { it.fim?.minus(it.inicio) ?: 0.0 } ?: 0.0).coerceIn(0.2, 10.0)
+
+    /**
+     * Até onde a composição pode ir: com vídeo, o fim do maior trecho escolhido (depois dele só
+     * sobraria quadro vazio); só com GIF ou imagem, os 10 s do WhatsApp, porque o GIF se repete.
+     */
+    val duracaoDisponivel get() = if (temVideo) maiorTrecho else Regras.ANIMADA_MAX_SEGUNDOS
+    private val temVideo get() = origem?.tipo == TipoDaOrigem.VIDEO || camadas.any { it.visivel && it.origem?.tipo == TipoDaOrigem.VIDEO }
+
+    /** A duração escolhida, sem nunca passar do tempo de mídia disponível; sem escolha, o maior trecho. */
+    val duracaoDaComposicao get() = (duracaoEscolhida ?: maiorTrecho).coerceIn(0.2, duracaoDisponivel)
     val tempoDaCamadaSelecionada get() = cursoresDasCamadas[camadaSelecionada ?: "principal"] ?: 0f
     val posicaoDoPlayer get() = inicioSelecionado + tempoDaCamadaSelecionada.coerceIn(0f,
         (fimSelecionado - inicioSelecionado).toFloat().coerceAtLeast(0f))
@@ -222,7 +234,8 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
     fun mudarDuracao(valor: Float) {
         if (!valor.isFinite()) return
         registrar("duracao")
-        duracaoEscolhida = valor.toDouble().coerceIn(0.2, 10.0)
+        // Igual ao disponível vale como "automático": acompanha os próximos cortes.
+        duracaoEscolhida = valor.toDouble().coerceIn(0.2, duracaoDisponivel).takeIf { it < duracaoDisponivel - 0.001 }
         tempoDaPrevia = tempoDaPrevia.coerceAtMost(duracaoDaComposicao.toFloat())
         atualizarPrevia()
     }
@@ -230,6 +243,7 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
         if (!de.isFinite() || !ate.isFinite() || de < 0 || ate <= de) return
         if (de == inicio && ate == fim) return
         registrar("trecho")
+        duracaoEscolhida = null
         val inicioMudou = inicio != de
         camadas = camadas.map { if (it.origem?.tipo == TipoDaOrigem.VIDEO && it.fim == null)
             it.copy(fim = it.inicio + (fim - inicio).coerceIn(0.2, 10.0)) else it }
@@ -250,6 +264,7 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
         val limite = minOf(ate, de + Regras.ANIMADA_MAX_SEGUNDOS)
         if (de == camada.inicio && limite == camada.fim) return
         registrar("trecho:${camada.id}")
+        duracaoEscolhida = null
         camadas = camadas.map { if (it.id == camada.id) it.copy(inicio = de, fim = limite) else it }
         cursorDaCamada(camada.id, if (de != camada.inicio) 0f else (cursoresDasCamadas[id] ?: 0f).coerceAtMost((limite - de).toFloat()))
         atualizarPrevia()
@@ -709,7 +724,7 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
                 fecharEditor()
                 aviso = (if (alvo != null) "Figurinha atualizada em “${atualizado.nome}”."
                 else if (atualizado.prontoParaWhatsApp) "Figurinha salva em “${atualizado.nome}”."
-                else "Figurinha salva. Faltam ${atualizado.faltam} para o WhatsApp aceitar o pacote (mínimo ${Regras.MINIMO}).") +
+                else "Figurinha salva. ${if (atualizado.faltam == 1) "Falta" else "Faltam"} ${atualizado.faltam} para o WhatsApp aceitar o pacote (mínimo ${Regras.MINIMO}).") +
                     (encurtada?.let {
                         " Para manter $quadrosPorSegundo quadros/s, ela ficou com ${"%.1f".format(it)} s: o vídeo tem movimento demais para os 500 KB do WhatsApp."
                     } ?: "")

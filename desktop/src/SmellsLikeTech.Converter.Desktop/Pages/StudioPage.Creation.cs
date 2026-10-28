@@ -18,7 +18,7 @@ public sealed partial class StudioPage
             var loaded=await Task.Run(()=>{using var stream=File.OpenRead(path);return StudioArchive.Open(stream,directory);});
             var newInfos=new Dictionary<string,SmellsLikeTech.Converter.Core.Media.MediaInfo>(StringComparer.OrdinalIgnoreCase);
             foreach(var file in StudioCreation.Files(loaded)) newInfos[file]=await App.Services.Inspector.InspectAsync(file,CancellationToken.None);
-            ReleasePlayer();project=loaded;infos.Clear();foreach(var pair in newInfos) infos[pair.Key]=pair.Value;
+            ReleasePlayer();project=loaded;ForgetHistory();infos.Clear();foreach(var pair in newInfos) infos[pair.Key]=pair.Value;
             TimeSlider.Value=0;openId=null;choosingOutput=false;WizardPanel.Tag=null;Save();ShowCurrentStep();
             ShowStatus("Projeto aberto com as mídias incluídas.",InfoBarSeverity.Success);
         } catch(Exception exception) {ShowStatus(exception.Message,InfoBarSeverity.Error);}

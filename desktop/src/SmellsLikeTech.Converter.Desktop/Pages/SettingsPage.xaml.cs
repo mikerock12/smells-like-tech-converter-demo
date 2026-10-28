@@ -84,11 +84,17 @@ public sealed partial class SettingsPage : Page
         var verification = await App.Services.ActivateLicenseAsync(key, CancellationToken.None);
         switch (verification.Status)
         {
+            case LicenseStatus.Valid when verification.Claims is { UnlocksDesktop: true } claims && claims.IsExpired(DateTimeOffset.UtcNow):
+                ShowLicense($"Essa licença mensal venceu em {LicenseGate.Vencimento(claims.ExpiresAt!)}. Renove em converter.smellsliketech.com.br/precos e cole a chave nova.", InfoBarSeverity.Warning);
+                break;
+            case LicenseStatus.Valid when verification.Claims is { UnlocksDesktop: true, ExpiresAt: { } expira } claims:
+                ShowLicense($"Licença mensal ativada até {LicenseGate.Vencimento(expira)}. Obrigado, {claims.Email}!", InfoBarSeverity.Success);
+                break;
             case LicenseStatus.Valid when verification.Claims is { UnlocksDesktop: true } claims:
                 ShowLicense($"Licença ativada. Obrigado, {claims.Email}!", InfoBarSeverity.Success);
                 break;
             case LicenseStatus.Valid:
-                ShowLicense("Essa chave é do plano Pro do site e do plugin. O aplicativo precisa da licença vitalícia (ou do pacote completo).", InfoBarSeverity.Warning);
+                ShowLicense("Essa chave é do plano Pro do site e do plugin. O aplicativo precisa da licença do aplicativo, vitalícia ou mensal (ou do pacote completo).", InfoBarSeverity.Warning);
                 break;
             case LicenseStatus.BadSignature:
                 ShowLicense("Essa chave não foi emitida por nós, ou foi alterada. Confira se copiou inteira.", InfoBarSeverity.Error);

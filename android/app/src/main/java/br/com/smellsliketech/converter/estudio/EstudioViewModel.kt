@@ -81,13 +81,72 @@ class EstudioViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) {
     fun desfazer() { projeto?.let { historico.desfazer(it)?.let(::restaurar) } }
     fun refazer() { projeto?.let { historico.refazer(it)?.let(::restaurar) } }
     private fun restaurar(valor: Projeto) { projeto = valor; instante = instante.coerceAtMost(total); atualizarHistorico(); salvar(); atualizarPrevia() }
-    fun iniciarGesto() = historico.iniciar()
-    fun terminarGesto() = historico.terminar()
+    fun iniciarGesto() { brutaDoGesto = null; historico.iniciar() }
+    fun terminarGesto() { brutaDoGesto = null; historico.terminar() }
     fun inclinarSelecionada(dx: Float, dy: Float, secao: String) = transformarSelecionada(secao) {
+            brutaDoGesto = null
             it.copy(giroX = (it.giroX + dy * 180).coerceIn(-180.0, 180.0), giroY = (it.giroY + dx * 180).coerceIn(-180.0, 180.0))
     }
     fun ampliarSelecionada(fator: Float, secao: String) = transformarSelecionada(secao) {
+        brutaDoGesto = null
         Animacao.mudarBase(it, it.copy(escala = (it.escala * fator).coerceIn(.05, 6.0)))
+    }
+
+    // ==================== guias (as do criador de figurinhas) ====================
+
+    /** As linhas encaixadas que a prévia mostra piscando; a tela apaga depois de um instante. */
+    var guias by mutableStateOf<List<GuiasDoEstudio.Guia>>(emptyList())
+        private set
+    /** A posição que o dedo propôs, sem o encaixe: é ela que anda, para dar para sair da guia. */
+    private var brutaDoGesto: Transformacao? = null
+
+    /** Clipes e textos ocupam o quadro inteiro antes da transformação. */
+    val medidasDoQuadro get() = projeto?.let { GuiasDoEstudio.Medidas(it.largura.toDouble(), it.altura.toDouble(), it.largura.toDouble(), it.altura.toDouble()) }
+
+    fun medidasDaCamada(id: String): GuiasDoEstudio.Medidas? {
+        val p = projeto ?: return null
+        val camada = p.camadas.firstOrNull { it.id == id } ?: return null
+        val (largura, altura) = tamanhoDaMidia(camada.arquivo) ?: return null
+        return GuiasDoEstudio.Medidas(largura.toDouble(), altura.toDouble(), p.largura.toDouble(), p.altura.toDouble())
+    }
+
+    /** Fotos entram sem largura e altura em [infos]: lê só o cabeçalho do arquivo, uma vez. */
+    private val tamanhos = mutableMapOf<String, Pair<Int, Int>?>()
+    private fun tamanhoDaMidia(arquivo: String): Pair<Int, Int>? {
+        infos[arquivo]?.let { i -> if (i.largura != null && i.altura != null) return i.largura to i.altura }
+        return tamanhos.getOrPut(arquivo) {
+            val opcoes = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            android.graphics.BitmapFactory.decodeFile(arquivo, opcoes)
+            (opcoes.outWidth to opcoes.outHeight).takeIf { it.first > 0 && it.second > 0 }
+        }
+    }
+
+    /** As caixas das outras camadas visíveis no cursor: as guias também encostam nelas. */
+    fun referenciasDaCamada(id: String): List<GuiasDoEstudio.Caixa> =
+        projeto?.camadas?.filter { it.id != id && it.visivel && instante in it.inicio..it.fim }
+            ?.mapNotNull { GuiasDoEstudio.caixa(medidasDaCamada(it.id), it.transformacao ?: Transformacao()) } ?: emptyList()
+
+    /** Os controles mostram as guias em que a camada ficou, sem encaixar (encaixar prenderia o − e o +). */
+    fun mostrarGuias(medidas: GuiasDoEstudio.Medidas?, t: Transformacao, referencias: List<GuiasDoEstudio.Caixa> = emptyList()) {
+        guias = GuiasDoEstudio.guias(medidas, t, referencias)
+    }
+
+    fun apagarGuias() { guias = emptyList() }
+
+    /** Arrastar com um dedo: move o que está aberto e encaixa no centro, nas bordas e nas outras camadas. */
+    fun moverSelecionada(dx: Float, dy: Float, secao: String) {
+        val camada = if (secao == "CAMADAS") camadaAberta else null
+        val medidas = if (camada != null) medidasDaCamada(camada) else medidasDoQuadro
+        val referencias = camada?.let(::referenciasDaCamada) ?: emptyList()
+        var encaixadas: List<GuiasDoEstudio.Guia> = emptyList()
+        transformarSelecionada(secao) { atual ->
+            val bruta = (brutaDoGesto ?: atual).let { it.copy(x = it.x + dx, y = it.y + dy) }
+            brutaDoGesto = bruta
+            val alinhamento = GuiasDoEstudio.alinhar(bruta, medidas, referencias)
+            encaixadas = alinhamento.guias
+            Animacao.mudarBase(atual, alinhamento.transformacao)
+        }
+        guias = encaixadas
     }
     private fun transformarSelecionada(secao: String, transformar: (Transformacao) -> Transformacao) {
         fun aplicar(t: Transformacao?) = transformar(t ?: Transformacao())

@@ -191,7 +191,7 @@
                     <TextBlock x:Name="LicenseStatusText" FontSize="13" TextWrapping="Wrap"
                                Foreground="{StaticResource BrandAmberBrush}" />
                     <TextBlock
-                        Text="O aplicativo é pago uma vez só, com licença vitalícia, e começa com 7 dias de teste completo. Compre em converter.smellsliketech.com.br/precos e cole a chave aqui. Ela vale em até 3 computadores seus e é conferida sem internet."
+                        Text="O aplicativo começa com 7 dias de teste completo. Depois, escolha a licença vitalícia (paga uma vez) ou a mensal (R$ 19,90 por 31 dias, sem renovação automática). Compre em converter.smellsliketech.com.br/precos e cole a chave aqui. Ela vale em até 3 computadores seus e é conferida sem internet."
                         FontSize="12" TextWrapping="Wrap"
                         Foreground="{StaticResource BrandTextMutedBrush}" />
                     <StackPanel>

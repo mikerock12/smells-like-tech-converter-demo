@@ -23,6 +23,8 @@ class Acesso(
         data class Teste(val diasRestantes: Int) : Situacao { override val podeConverter = true }
         data class Ativa(val carga: Licenca.Carga) : Situacao { override val podeConverter = true }
         data class Comprada(val recibo: ReciboDaPlay.Recibo) : Situacao { override val podeConverter = true }
+        /** Assinatura mensal da Play, confirmada por ela em `confirmadaEm`. */
+        data class Assinada(val recibo: ReciboDaPlay.Recibo, val confirmadaEm: Instant) : Situacao { override val podeConverter = true }
         data object TesteAcabou : Situacao { override val podeConverter = false }
     }
 
@@ -35,6 +37,7 @@ class Acesso(
             }
         }
         compraGuardada()?.let { return Situacao.Comprada(it) }
+        assinaturaGuardada(agora)?.let { return it }
         val inicio = preferencias.getLong(PRIMEIRA_ABERTURA, 0L).takeIf { it > 0 }
             ?: agora.toEpochMilli().also { preferencias.edit().putLong(PRIMEIRA_ABERTURA, it).apply() }
         val usados = Duration.between(Instant.ofEpochMilli(inicio), agora).toDays().toInt()
@@ -70,16 +73,42 @@ class Acesso(
         preferencias.edit().remove(CHAVE).apply()
     }
 
-    /** Guarda a compra da Google Play se o recibo conferir. Nulo para recibo que não confere. */
-    fun guardarCompra(json: String, assinatura: String): ReciboDaPlay.Recibo? {
+    /**
+     * Guarda a compra da Google Play se o recibo conferir. Nulo para recibo que não confere.
+     * Assinatura mensal: guarda também quando a Play a confirmou (a cada abertura do app).
+     */
+    fun guardarCompra(json: String, assinatura: String, agora: Instant = Instant.now()): ReciboDaPlay.Recibo? {
         val recibo = ReciboDaPlay.conferir(json, assinatura, chaveDaPlay, context.packageName) ?: return null
-        preferencias.edit().putString(RECIBO, json).putString(ASSINATURA_DO_RECIBO, assinatura).apply()
+        if (recibo.mensal) {
+            preferencias.edit().putString(RECIBO_MENSAL, json).putString(ASSINATURA_DO_MENSAL, assinatura)
+                .putLong(MENSAL_CONFIRMADA_EM, agora.toEpochMilli()).apply()
+        } else {
+            preferencias.edit().putString(RECIBO, json).putString(ASSINATURA_DO_RECIBO, assinatura).apply()
+        }
         return recibo
     }
 
-    /** A Google Play diz que esta conta não tem a compra (estornada, ou nunca feita). */
+    /** A Google Play diz que esta conta não tem a compra vitalícia (estornada, ou nunca feita). */
     fun esquecerCompra() {
         preferencias.edit().remove(RECIBO).remove(ASSINATURA_DO_RECIBO).apply()
+    }
+
+    /** A Google Play diz que a assinatura não está mais ativa (cancelada e vencida, ou estornada). */
+    fun esquecerAssinatura() {
+        preferencias.edit().remove(RECIBO_MENSAL).remove(ASSINATURA_DO_MENSAL).remove(MENSAL_CONFIRMADA_EM).apply()
+    }
+
+    /**
+     * A assinatura guardada, enquanto a última confirmação da Play tiver no máximo
+     * [DIAS_SEM_CONFIRMAR] dias: um mês e uma folga para quem fica sem a Play Store por uns dias.
+     */
+    private fun assinaturaGuardada(agora: Instant): Situacao.Assinada? {
+        val json = preferencias.getString(RECIBO_MENSAL, null) ?: return null
+        val assinatura = preferencias.getString(ASSINATURA_DO_MENSAL, null) ?: return null
+        val recibo = ReciboDaPlay.conferir(json, assinatura, chaveDaPlay, context.packageName)?.takeIf { it.mensal } ?: return null
+        val confirmada = Instant.ofEpochMilli(preferencias.getLong(MENSAL_CONFIRMADA_EM, 0L))
+        if (confirmada.isAfter(agora.plus(Duration.ofDays(1))) || Duration.between(confirmada, agora).toDays() > DIAS_SEM_CONFIRMAR) return null
+        return Situacao.Assinada(recibo, confirmada)
     }
 
     private fun compraGuardada(): ReciboDaPlay.Recibo? {
@@ -90,6 +119,10 @@ class Acesso(
 
     companion object {
         const val DIAS_DE_TESTE = 7
+        const val DIAS_SEM_CONFIRMAR = 35L
+        private const val RECIBO_MENSAL = "recibo_mensal_da_play"
+        private const val ASSINATURA_DO_MENSAL = "assinatura_do_recibo_mensal_da_play"
+        private const val MENSAL_CONFIRMADA_EM = "mensal_confirmada_em"
         private const val CHAVE = "chave"
         private const val RECIBO = "recibo_da_play"
         private const val ASSINATURA_DO_RECIBO = "assinatura_do_recibo_da_play"

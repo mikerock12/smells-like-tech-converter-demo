@@ -16,10 +16,14 @@ import java.util.Base64
  * Kotlin puro (java.security), sem nada do Android: os testes rodam no computador.
  */
 object ReciboDaPlay {
-    /** O produto único da loja: a licença vitalícia do app, criada no Play Console com este id. */
+    /** A licença vitalícia do app: produto único, criado no Play Console com este id. */
     const val PRODUTO = "android_vitalicio"
 
-    data class Recibo(val pedido: String, val token: String, val compradoEm: Long)
+    /** A assinatura mensal (R$ 19,90, renovação automática pela Play), criada no Play Console com este id. */
+    const val PRODUTO_MENSAL = "android_mensal"
+
+    /** `mensal`: recibo da assinatura. Ele não traz vencimento: quem diz se continua ativa é a Play. */
+    data class Recibo(val pedido: String, val token: String, val compradoEm: Long, val mensal: Boolean = false)
 
     /**
      * O recibo, se a assinatura confere e a compra é deste app, deste produto e está paga.
@@ -30,7 +34,8 @@ object ReciboDaPlay {
         val campos = JsonPlano.ler(json) ?: return null
         if (campos["packageName"] != pacote) return null
         val produtos = (campos["productIds"] as? List<*>)?.filterIsInstance<String>() ?: listOfNotNull(campos["productId"] as? String)
-        if (PRODUTO !in produtos) return null
+        val mensal = PRODUTO !in produtos && PRODUTO_MENSAL in produtos
+        if (PRODUTO !in produtos && !mensal) return null
         // 0 é paga. A Play Store manda outros valores para cancelada e pendente.
         if ((campos["purchaseState"] as? Long ?: 0L) != 0L) return null
         val token = campos["purchaseToken"] as? String ?: return null
@@ -39,6 +44,7 @@ object ReciboDaPlay {
             pedido = campos["orderId"] as? String ?: "teste-${token.take(8)}",
             token = token,
             compradoEm = campos["purchaseTime"] as? Long ?: 0L,
+            mensal = mensal,
         )
     }
 

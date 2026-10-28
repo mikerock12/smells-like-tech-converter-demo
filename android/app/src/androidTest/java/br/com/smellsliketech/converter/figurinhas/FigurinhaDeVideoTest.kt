@@ -71,6 +71,43 @@ class FigurinhaDeVideoTest {
     }
 
     /**
+     * Trecho menor que 10 s: a composição acompanha o tempo de vídeo disponível. Antes, uma
+     * duração de 10 s escolhida antes continuava valendo e a figurinha terminava com quadros
+     * vazios depois do vídeo (relato do dono com o trecho 12,091–15,061 s).
+     */
+    @Test fun duracaoAcompanhaOTrechoDisponivel() {
+        val video = File(contexto.filesDir, "videos-de-teste").listFiles { f -> f.extension == "mp4" }.orEmpty().minByOrNull { it.length() }
+        assumeTrue("sem vídeos de teste", video != null)
+        lateinit var modelo: FigurinhasViewModel
+        instrumentacao.runOnMainSync { modelo = FigurinhasViewModel(contexto.applicationContext as Application); modelo.mudarQuadrosPorSegundo(10) }
+        instrumentacao.runOnMainSync { modelo.abrir(Uri.fromFile(video)) }
+        esperar { modelo.ocupado == null && (modelo.previa != null || modelo.aviso != null) }
+        instrumentacao.runOnMainSync {
+            modelo.mudarDuracao(10f)
+            modelo.mudarTrecho(1.091, 4.061)
+        }
+        var duracao = 0.0
+        var disponivel = 0.0
+        instrumentacao.runOnMainSync { duracao = modelo.duracaoDaComposicao; disponivel = modelo.duracaoDisponivel }
+        org.junit.Assert.assertEquals(2.97, disponivel, 0.001)
+        org.junit.Assert.assertEquals("a composição não passa do vídeo", 2.97, duracao, 0.001)
+        // Pedir mais que o disponível também fica no disponível.
+        instrumentacao.runOnMainSync { modelo.mudarDuracao(10f); duracao = modelo.duracaoDaComposicao }
+        org.junit.Assert.assertEquals(2.97, duracao, 0.001)
+        instrumentacao.runOnMainSync { modelo.salvar(null, "Duração disponível") }
+        Thread.sleep(200)
+        esperar { modelo.ocupado == null && modelo.origem == null }
+        val pacote = modelo.pacoteAberto!!
+        try {
+            val info = WebpAnimado.ler(Pacotes(contexto).arquivo(pacote, pacote.figurinhas.single().arquivo).readBytes())
+            assertTrue("a figurinha tem ${info.duracaoMs} ms; o trecho tem 2.970 ms", info.duracaoMs in 2_800..3_100)
+        } finally {
+            Pacotes(contexto).excluir(pacote)
+            instrumentacao.runOnMainSync { modelo.mudarQuadrosPorSegundo(Regras.QUADROS_POR_SEGUNDO_PADRAO) }
+        }
+    }
+
+    /**
      * Pinçar e arrastar mudam a edição a cada ~16 ms. A prévia tem de acompanhar durante o
      * gesto, não só quando o dedo solta (cancelar e esperar a cada evento deixava a imagem
      * parada até o fim do movimento).

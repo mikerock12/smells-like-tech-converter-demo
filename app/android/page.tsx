@@ -22,14 +22,15 @@ const passos = [
       "Escolha arquivos no app ou compartilhe da galeria, do WhatsApp ou do app Arquivos e escolha Converter. Os resultados vão para Downloads/SmellsLikeTech. O teste é completo, sem marca d'água nem qualidade reduzida.",
   },
   {
-    titulo: "Gostou? Compre uma vez",
+    titulo: "Gostou? Assine ou compre uma vez",
     corpo:
-      "A licença vitalícia é uma compra única dentro do app, pelo Google Play, e vale nos celulares com a mesma conta Google. Quem já tem o “Tudo, para sempre” ativa a chave no app e não paga de novo.",
+      "Dentro do app, pelo Google Play: a assinatura mensal, que você cancela na própria Play, ou a licença vitalícia, uma compra única. As duas valem nos celulares com a mesma conta Google. Quem já tem o “Tudo, para sempre” ativa a chave no app e não paga de novo.",
   },
 ];
 
 export default function PaginaDoAndroid() {
   const licenca = produto("android-vitalicio")!;
+  const mensal = produto("android-mensal")!;
 
   return (
     <>
@@ -50,7 +51,8 @@ export default function PaginaDoAndroid() {
             app: as mesmas conversões do aplicativo para Windows (imagem, vídeo, áudio, PDF e documentos), transcrição com o
             Whisper, OCR e narração, no próprio aparelho e sem o site. Nenhum arquivo sai do celular. Teste tudo por{" "}
             {DIAS_DE_TESTE_DO_APP} dias; se ficar, a licença vitalícia custa <strong>{formatarReais(licenca.centavos)}</strong>,
-            numa compra única dentro do app.
+            numa compra única dentro do app, ou assine por <strong>{formatarReais(mensal.centavos)}</strong> por mês e
+            cancele quando quiser.
           </p>
 
           {ANDROID_NA_PLAY ? (

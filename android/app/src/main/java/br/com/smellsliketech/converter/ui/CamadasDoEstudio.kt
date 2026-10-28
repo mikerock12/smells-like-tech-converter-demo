@@ -14,14 +14,33 @@ import br.com.smellsliketech.converter.estudio.*
 import java.io.File
 import java.util.Locale
 
-/** Controles compartilhados por clipes, textos e mídias sobrepostas. */
+/**
+ * Controles compartilhados por clipes, textos e mídias sobrepostas. `medidas`: a mídia e o quadro,
+ * para o Preencher. `enquadrar`: nos clipes, Preencher e Caber trocam o enquadramento do clipe.
+ * `mostrarGuias`: os controles mostram as guias em que a camada ficou, sem encaixar.
+ */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun ControlesDeTransformacao(valor: Transformacao?, permitirRecorte: Boolean = true, duracao: Double = 3.0, mudar: (Transformacao) -> Unit) {
+fun ControlesDeTransformacao(
+    valor: Transformacao?, permitirRecorte: Boolean = true, duracao: Double = 3.0,
+    medidas: GuiasDoEstudio.Medidas? = null, enquadrar: ((String) -> Unit)? = null, mostrarGuias: (Transformacao) -> Unit = {},
+    mudarDireto: (Transformacao) -> Unit,
+) {
     var aberto by rememberSaveable { mutableStateOf(false) }
     val t = valor ?: Transformacao()
+    // Guias só quando muda onde a camada fica (posição, tamanho ou giro), não com filtro ou brilho.
+    val mudar: (Transformacao) -> Unit = {
+        mudarDireto(it)
+        if (it.x != t.x || it.y != t.y || it.escala != t.escala || it.giro != t.giro || it.giroX != t.giroX || it.giroY != t.giroY) mostrarGuias(it)
+    }
     TextButton(onClick = { aberto = !aberto }) { Text(if (aberto) "▾ Transformar e filtrar" else "▸ Transformar e filtrar") }
     if (!aberto) return
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        OutlinedButton({ enquadrar?.invoke("preencher"); mudar(Animacao.mudarBase(t, if (enquadrar != null) GuiasDoEstudio.caberInteira(t) else GuiasDoEstudio.preencher(t, medidas))) }) { Text("Preencher") }
+        OutlinedButton({ enquadrar?.invoke("caber"); mudar(Animacao.mudarBase(t, GuiasDoEstudio.caberInteira(t))) }) { Text("Caber inteira") }
+        OutlinedButton({ mudar(Animacao.mudarBase(t, GuiasDoEstudio.centralizar(t))) }) { Text("Centralizar") }
+    }
+    Text("Arraste a prévia com um dedo para mover; pinça muda o tamanho. As guias piscam quando encaixa no centro ou nas bordas.", style = MaterialTheme.typography.bodySmall)
     Text("Máscara")
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         listOf("nenhuma" to "Sem máscara", "circulo" to "Círculo", "oval" to "Oval", "arredondada" to "Cantos arredondados").forEach { (id,nome) ->
@@ -143,7 +162,8 @@ fun PainelDeCamadasDoEstudio(modelo: EstudioViewModel) {
                                     ControleDaCamada("Início no arquivo", camada.deslocamento, 0.0..maxOf(0.0, duracao - .1), " s") { valor -> modelo.mudarCamada(camada.id) { it.copy(deslocamento = valor) } }
                                 }
                             }
-                            ControlesDeTransformacao(camada.transformacao, duracao=camada.fim-camada.inicio) { valor -> modelo.mudarCamada(camada.id) { it.copy(transformacao = valor) } }
+                            ControlesDeTransformacao(camada.transformacao, duracao=camada.fim-camada.inicio, medidas = modelo.medidasDaCamada(camada.id),
+                                mostrarGuias = { modelo.mostrarGuias(modelo.medidasDaCamada(camada.id), it, modelo.referenciasDaCamada(camada.id)) }) { valor -> modelo.mudarCamada(camada.id) { it.copy(transformacao = valor) } }
                         }
                     }
                 }

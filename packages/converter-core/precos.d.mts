@@ -1,7 +1,7 @@
 import type { Contador, Ferramenta } from "./catalogo.mjs";
 
 export type PlanoId = "gratis" | "pro" | "app" | "android" | "completo";
-export type ProdutoId = "pro-mensal" | "pro-anual" | "app-vitalicio" | "android-vitalicio" | "completo-vitalicio";
+export type ProdutoId = "pro-mensal" | "pro-anual" | "app-mensal" | "app-vitalicio" | "android-mensal" | "android-vitalicio" | "completo-vitalicio";
 
 export interface Plano {
   readonly id: PlanoId;

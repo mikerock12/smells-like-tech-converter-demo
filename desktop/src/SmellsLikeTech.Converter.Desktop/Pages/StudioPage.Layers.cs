@@ -9,12 +9,42 @@ namespace SmellsLikeTech.Converter.Desktop.Pages;
 
 public sealed partial class StudioPage
 {
-    private static FrameworkElement TransformControls(Func<StudioTransform?> read, Action<StudioTransform> change, bool allowRemoval=true,double duration=3)
+    /// <summary>
+    /// <paramref name="measures"/>: a mídia e o quadro, para as guias e o Preencher. <paramref name="fit"/>:
+    /// nos clipes, Preencher e Caber trocam o enquadramento do clipe. <paramref name="references"/>: as
+    /// caixas das outras camadas visíveis.
+    /// </summary>
+    private FrameworkElement TransformControls(Func<StudioTransform?> read, Action<StudioTransform> change, bool allowRemoval=true,double duration=3,
+        Func<StudioMeasures>? measures=null, Action<string>? fit=null, Func<IReadOnlyList<StudioBox>>? references=null)
     {
         var body=new StackPanel {Spacing=8};
         var t=read()??new StudioTransform();
+        // Os controles mostram as guias em que a camada ficou, sem encaixar: encaixar prenderia o − e o +.
+        void Apply(StudioTransform next)
+        {
+            var before=read()??new StudioTransform();
+            change(next);
+            // Guias só quando muda onde a camada fica (posição, tamanho ou giro), não com filtro ou brilho.
+            var moved=next.X!=before.X||next.Y!=before.Y||next.Scale!=before.Scale||next.Rotation!=before.Rotation||next.RotationX!=before.RotationX||next.RotationY!=before.RotationY;
+            if(measures is not null&&moved) ShowGuides(StudioGuides.Guides(measures(),next,references?.Invoke()));
+        }
+        void Frame(Func<StudioTransform,StudioTransform> framing)
+        {
+            var before=read()??new StudioTransform();
+            Apply(StudioAnimation.ChangeBase(before,framing(before)));
+            RefreshPanels();
+        }
+        var framingRow=new StackPanel {Orientation=Orientation.Horizontal,Spacing=6};
+        var fill=Action("Preencher"); ToolTipService.SetToolTip(fill,"Cobre o quadro inteiro, centralizada e reta");
+        fill.Click+=(_,_)=>{ fit?.Invoke("preencher"); Frame(b=>fit is not null?StudioGuides.FitWhole(b):StudioGuides.Fill(b,measures?.Invoke()??default)); };
+        var whole=Action("Caber inteira"); ToolTipService.SetToolTip(whole,"Inteira dentro do quadro, centralizada e reta");
+        whole.Click+=(_,_)=>{ fit?.Invoke("caber"); Frame(StudioGuides.FitWhole); };
+        var center=Action("Centralizar"); center.Click+=(_,_)=>Frame(StudioGuides.Center);
+        framingRow.Children.Add(fill); framingRow.Children.Add(whole); framingRow.Children.Add(center);
+        body.Children.Add(framingRow);
+        body.Children.Add(Muted("Arraste na prévia para mover; a roda do mouse muda o tamanho. As guias piscam quando encaixa no centro ou nas bordas."));
         void Control(string title,double value,double min,double max,double step,Func<StudioTransform,double,StudioTransform> update) =>
-            body.Children.Add(Slider(title,value,min,max,step,v=>v.ToString("0.#",PtBr),v=>{var before=read()??new StudioTransform();change(StudioAnimation.ChangeBase(before,update(before,v)));},null));
+            body.Children.Add(Slider(title,value,min,max,step,v=>v.ToString("0.#",PtBr),v=>{var before=read()??new StudioTransform();Apply(StudioAnimation.ChangeBase(before,update(before,v)));},null));
         Control("Giro no plano (Z): {0}°",t.Rotation,-360,360,.1,(v,n)=>v with {Rotation=n});
         Control("Inclinar para frente/trás (X): {0}°",t.RotationX,-180,180,.1,(v,n)=>v with {RotationX=n});
         Control("Inclinar para esquerda/direita (Y): {0}°",t.RotationY,-180,180,.1,(v,n)=>v with {RotationY=n});
@@ -90,7 +120,8 @@ public sealed partial class StudioPage
             if(duration>.1) body.Children.Add(Slider("Início no arquivo: {0}",layer.Offset,0,duration.Value-.1,.1,Clock,
                 n=>Change(p=>WithLayer(p,layer.Id,c=>c with {Offset=n})),null));
         }
-        body.Children.Add(TransformControls(()=>FindLayer(layer.Id).Transform,t=>Change(p=>WithLayer(p,layer.Id,c=>c with {Transform=t})),duration:layer.End-layer.Start));
+        body.Children.Add(TransformControls(()=>FindLayer(layer.Id).Transform,t=>Change(p=>WithLayer(p,layer.Id,c=>c with {Transform=t})),duration:layer.End-layer.Start,
+            measures:()=>LayerMeasures(FindLayer(layer.Id)),references:()=>LayerReferences(layer.Id)));
         return Panel(body);
     }
 

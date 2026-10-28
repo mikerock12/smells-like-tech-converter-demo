@@ -4,6 +4,12 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     Background="{StaticResource BrandBackgroundBrush}">
 
+    <Page.KeyboardAccelerators>
+        <KeyboardAccelerator Modifiers="Control" Key="Z" Invoked="OnUndoAccelerator" />
+        <KeyboardAccelerator Modifiers="Control,Shift" Key="Z" Invoked="OnUndoAccelerator" />
+        <KeyboardAccelerator Modifiers="Control" Key="Y" Invoked="OnUndoAccelerator" />
+    </Page.KeyboardAccelerators>
+
     <Grid Padding="20">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
@@ -22,6 +28,8 @@
                 </Button>
             </StackPanel>
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Spacing="8">
+                <Button x:Name="UndoButton" Content="↶ Desfazer" Click="OnUndo" IsEnabled="False" Visibility="Collapsed" ToolTipService.ToolTip="Desfazer (Ctrl+Z)" />
+                <Button x:Name="RedoButton" Content="↷ Refazer" Click="OnRedo" IsEnabled="False" Visibility="Collapsed" ToolTipService.ToolTip="Refazer (Ctrl+Y)" />
                 <Button x:Name="OpenProjectButton" Content="Abrir projeto" Click="OnOpenProject" />
                 <Button x:Name="NewProjectButton" Content="Novo projeto" Click="OnNewProject" Visibility="Collapsed" />
             </StackPanel>
@@ -50,8 +58,13 @@
                         <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
                     <Border Grid.Row="0" Background="Black" CornerRadius="8" MinHeight="260">
-                        <Grid>
+                        <!-- Arrastar move o que está aberto no painel; a roda muda o tamanho. -->
+                        <Grid x:Name="PreviewArea" Background="Transparent"
+                              PointerPressed="OnPreviewPointerPressed" PointerMoved="OnPreviewPointerMoved"
+                              PointerReleased="OnPreviewPointerReleased" PointerCanceled="OnPreviewPointerReleased"
+                              PointerWheelChanged="OnPreviewWheel">
                             <Image x:Name="PreviewImage" Stretch="Uniform" />
+                            <Canvas x:Name="GuidesCanvas" IsHitTestVisible="False" />
                             <TextBlock x:Name="EmptyText" Text="Adicione vídeos ou fotos na aba Clipes" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{StaticResource BrandTextMutedBrush}" />
                             <ProgressRing x:Name="PreviewRing" IsActive="False" Width="28" Height="28" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="10" />
                         </Grid>

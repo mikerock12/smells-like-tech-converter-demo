@@ -100,7 +100,13 @@ public sealed partial class StudioPage : Page
             return;
         }
 
+        var antes = project;
         project = mudanca(project);
+        if (!ReferenceEquals(antes, project))
+        {
+            Remember(antes);
+        }
+
         Save();
         TimeSlider.Maximum = Math.Max(0.1, Total);
         TotalText.Text = Clock(Total);
@@ -126,6 +132,7 @@ public sealed partial class StudioPage : Page
         EditorView.Visibility = editing ? Visibility.Visible : Visibility.Collapsed;
         DestinationButton.Visibility = project is null ? Visibility.Collapsed : Visibility.Visible;
         NewProjectButton.Visibility = project is null ? Visibility.Collapsed : Visibility.Visible;
+        UpdateUndoButtons();
         if (project is not null)
         {
             var preset = StudioRules.FindPreset(project.Destination);
@@ -258,6 +265,7 @@ public sealed partial class StudioPage : Page
 
         ReleasePlayer();
         project = null;
+        ForgetHistory();
         infos.Clear();
         choosingOutput = false;
         WizardPanel.Tag = null;
@@ -399,7 +407,8 @@ public sealed partial class StudioPage : Page
                 resumo.Text = ClipSummary(Find(clip.Id));
             }));
             corpo.Children.Add(Muted(StudioRules.Fits.First(f => f.Id == clip.Fit).Description));
-            corpo.Children.Add(TransformControls(() => Find(clip.Id).Transform, t => Change(p => WithClip(p, clip.Id, c => c with { Transform = t })),duration:StudioRules.ClipDuration(clip)));
+            corpo.Children.Add(TransformControls(() => Find(clip.Id).Transform, t => Change(p => WithClip(p, clip.Id, c => c with { Transform = t })),duration:StudioRules.ClipDuration(clip),
+                measures:() => FrameMeasures, fit:id => Change(p => WithClip(p, clip.Id, c => c with { Fit = id }))));
             if (!clip.IsImage)
             {
                 var som = new ToggleSwitch { Header = "Som do vídeo", IsOn = clip.Muted != true };
@@ -494,7 +503,8 @@ public sealed partial class StudioPage : Page
             ChangeAndRefresh(p => WithText(p, texto.Id, t => t with { Y = double.Parse(y, CultureInfo.InvariantCulture), X = 0.5 }))));
         corpo.Children.Add(Slider("Altura: {0}%", texto.Y, 0, 1, 0.01, v => Math.Round(v * 100).ToString(PtBr),
             v => Change(p => WithText(p, texto.Id, t => t with { Y = v })), null));
-        corpo.Children.Add(TransformControls(() => FindText(texto.Id).Transform, t => Change(p => WithText(p, texto.Id, c => c with { Transform = t })), allowRemoval: false,duration:texto.End-texto.Start));
+        corpo.Children.Add(TransformControls(() => FindText(texto.Id).Transform, t => Change(p => WithText(p, texto.Id, c => c with { Transform = t })), allowRemoval: false,duration:texto.End-texto.Start,
+            measures:() => FrameMeasures));
         if (Total > 0)
         {
             corpo.Children.Add(Slider("Aparece em {0}", Math.Min(texto.Start, Total), 0, Total, 0.1, v => Clock(v),
@@ -1068,9 +1078,29 @@ public sealed partial class StudioPage : Page
             mudar(e.NewValue);
             depois?.Invoke();
         };
+        // − e + andam um passo: o ajuste fino que o mouse não acerta (como no editor de figurinhas).
+        Button Fino(string texto, int sinal)
+        {
+            var botao = new Button { Content = texto, Width = 32, Padding = new Thickness(0, 2, 0, 4), VerticalAlignment = VerticalAlignment.Center };
+            ToolTipService.SetToolTip(botao, sinal < 0 ? "Diminuir um passo" : "Aumentar um passo");
+            botao.Click += (_, _) => controle.Value = Math.Clamp(Math.Round((controle.Value + (sinal * passo)) / passo) * passo, controle.Minimum, controle.Maximum);
+            return botao;
+        }
+
+        var linha = new Grid { ColumnSpacing = 6 };
+        linha.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        linha.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        linha.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        var menos = Fino("−", -1);
+        var mais = Fino("+", 1);
+        Grid.SetColumn(controle, 1);
+        Grid.SetColumn(mais, 2);
+        linha.Children.Add(menos);
+        linha.Children.Add(controle);
+        linha.Children.Add(mais);
         var bloco = new StackPanel { Spacing = 0 };
         bloco.Children.Add(titulo);
-        bloco.Children.Add(controle);
+        bloco.Children.Add(linha);
         return bloco;
     }
 

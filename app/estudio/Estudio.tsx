@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type DragEvent } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ChangeEvent, type DragEvent } from "react";
 
 import {
   AJUSTES,
@@ -27,6 +27,12 @@ import {
   type Texto,
 } from "@/packages/converter-core/estudio.mjs";
 import { conferirEstudio, type BloqueioDoEstudio } from "@/packages/converter-core/estudio-plano.mjs";
+import { camadasNoTempo } from "@/packages/converter-core/estudio.mjs";
+import { mudarBaseDaAnimacao } from "@/packages/converter-core/estudio-animacao.mjs";
+import { TRANSFORMACAO_PADRAO, type Transformacao } from "@/packages/converter-core/camadas.mjs";
+import { alinharCamada, caixaDaCamada, TOLERANCIA, type Caixa, type Guia, type Medidas } from "@/packages/converter-core/guias.mjs";
+import { mostrarGuias, useGuiasNaTela } from "@/lib/estudio/guias-na-tela";
+import { useMedidas } from "@/lib/estudio/medidas";
 import { limite as limiteDoPlano } from "@/packages/converter-core/precos.mjs";
 
 import { ExportacaoCancelada, exportarNoNavegador, type Exportado } from "@/lib/estudio/exportar";
@@ -43,12 +49,15 @@ import LinhaDoTempo from "./LinhaDoTempo";
 import ProjetosDoEstudio from "./ProjetosDoEstudio";
 import NarracaoDoEstudio from "./NarracaoDoEstudio";
 import PainelDeCamadas from "./PainelDeCamadas";
+import { CampoDeTempo, Deslizante } from "./Deslizante";
 
 type Etapa = "destino" | "saida" | "editor";
 type Aba = "clipes" | "camadas" | "textos" | "audio" | "exportar";
 type Info = { nome: string; duracao: number | null };
 type Resultado = { nome: string; url: string; bytes: number; doPlugin: boolean };
 type Andamento = { etapa: string; fracao: number; restante: number | null; cancelar: () => void };
+/** O que arrastar na prévia move: `comecar` guarda o estado do toque e devolve quem anda com ele. */
+type Alvo = { comecar: () => (dx: number, dy: number) => void; zoom?: (fator: number) => void };
 
 const CORES = ["#FFFFFF", "#000000", "#FFD54A", "#FF7A18", "#E53935", "#43A047", "#1E88E5", "#8E24AA"];
 const IMAGEM = /\.(jpe?g|png|webp|avif|bmp|gif|heic|heif)$/i;
@@ -78,6 +87,16 @@ export default function Estudio() {
   const [personalizado, setPersonalizado] = useState({ largura: "1080", altura: "1080" });
 
   const total = projeto ? duracaoTotal(projeto) : 0;
+  const medidas = useMedidas(arquivos);
+
+  // Desfazer e refazer: cada mudança guarda o projeto anterior. Mudanças seguidas a menos de
+  // 600 ms (arrastar um controle ou a camada na prévia) viram um passo só.
+  const atual = useRef(projeto);
+  useLayoutEffect(() => { atual.current = projeto; }, [projeto]);
+  const historico = useRef<{ antes: Projeto[]; depois: Projeto[]; ultima: number }>({ antes: [], depois: [], ultima: 0 });
+  const [passos, setPassos] = useState({ desfazer: 0, refazer: 0 });
+  const [sujo, setSujo] = useState(false);
+  const zerarHistorico = () => { historico.current = { antes: [], depois: [], ultima: 0 }; setPassos({ desfazer: 0, refazer: 0 }); setSujo(false); };
 
   // ==================== assistente ====================
 
@@ -100,9 +119,57 @@ export default function Estudio() {
   // ==================== edição ====================
 
   const mudar = useCallback((mudanca: (p: Projeto) => Projeto) => {
-    setProjeto((p) => (p ? mudanca(p) : p));
+    const p = atual.current;
+    if (!p) return;
+    const novo = mudanca(p);
+    if (novo === p) return;
+    const h = historico.current, agora = performance.now();
+    if (agora - h.ultima > 600) { h.antes.push(p); if (h.antes.length > 100) h.antes.shift(); }
+    h.ultima = agora;
+    h.depois = [];
+    atual.current = novo;
+    setProjeto(novo);
+    setPassos({ desfazer: h.antes.length, refazer: 0 });
+    setSujo(true);
     setResultado(null);
   }, []);
+
+  const voltarPasso = useCallback((para: "desfazer" | "refazer") => {
+    const h = historico.current, p = atual.current;
+    const de = para === "desfazer" ? h.antes : h.depois, ate = para === "desfazer" ? h.depois : h.antes;
+    const outro = de.pop();
+    if (!p || !outro) return;
+    ate.push(p);
+    h.ultima = 0;
+    atual.current = outro;
+    setProjeto(outro);
+    setPassos({ desfazer: h.antes.length, refazer: h.depois.length });
+    setSujo(true);
+    setResultado(null);
+  }, []);
+
+  // Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y, menos dentro de um campo de texto (lá vale o desfazer do campo).
+  useEffect(() => {
+    const tecla = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
+      const alvo = e.target as HTMLElement | null;
+      if (alvo && (alvo.isContentEditable || alvo.tagName === "TEXTAREA" || (alvo.tagName === "INPUT" && !["range", "checkbox", "radio", "button", "color"].includes((alvo as HTMLInputElement).type)))) return;
+      const k = e.key.toLowerCase();
+      if (k === "z" && !e.shiftKey) { e.preventDefault(); voltarPasso("desfazer"); }
+      else if ((k === "z" && e.shiftKey) || k === "y") { e.preventDefault(); voltarPasso("refazer"); }
+    };
+    window.addEventListener("keydown", tecla);
+    return () => window.removeEventListener("keydown", tecla);
+  }, [voltarPasso]);
+
+  // Sair da página com edição não exportada pede confirmação, como o "Sair sem salvar?" dos apps.
+  const temClipes = Boolean(projeto?.clipes.length);
+  useEffect(() => {
+    if (!sujo || !temClipes) return;
+    const avisar = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ""; };
+    window.addEventListener("beforeunload", avisar);
+    return () => window.removeEventListener("beforeunload", avisar);
+  }, [sujo, temClipes]);
 
   const adicionarArquivos = async (lista: readonly File[]) => {
     const midias = lista.filter((arquivo) => arquivo.type.startsWith("video/") || arquivo.type.startsWith("image/") || IMAGEM.test(arquivo.name));
@@ -151,6 +218,7 @@ export default function Estudio() {
       id, arquivo: chave, tipo, inicio: Math.min(instante, Math.max(0, total - .1)), fim: total,
       ordem: (p.camadas?.length ?? 0) + 1, transformacao: { escala: .5 },
     }] }));
+    setAberto(id);
   };
 
   const mudarClipe = (id: string, m: (c: Clipe) => Clipe) => mudar((p) => ({ ...p, clipes: p.clipes.map((c) => (c.id === id ? m(c) : c)) }));
@@ -179,12 +247,15 @@ export default function Estudio() {
   const abrirSalvo = async (p: Projeto, midias: ReadonlyMap<string,File>) => {
     const novasInfos: Record<string,Info> = {};
     for(const [ref,f] of midias) novasInfos[ref]={nome:f.name,duracao:IMAGEM.test(f.name)?null:await duracaoDaMidia(f).catch(()=>null)};
-    setTocando(false);setProjeto(p);setArquivos(midias);setInfos(novasInfos);setInstante(0);setResultado(null);setErro(null);setEtapa("editor");
+    setTocando(false);setProjeto(p);setArquivos(midias);setInfos(novasInfos);setInstante(0);setResultado(null);setErro(null);setEtapa("editor");zerarHistorico();
   };
   const projetos = <ProjetosDoEstudio projeto={projeto} arquivos={arquivos} instante={instante} mudar={mudar} abrir={abrirSalvo} ocupado={!!andamento}/>;
 
   const comecarDeNovo = () => {
-    if (!window.confirm("Começar outro projeto? Este será descartado (os arquivos originais continuam no seu computador).")) return;
+    if (projeto?.clipes.length && !window.confirm(sujo
+      ? "Começar outro projeto? As mudanças deste ainda não foram exportadas nem salvas e serão descartadas (os arquivos originais continuam no seu computador)."
+      : "Começar outro projeto? Este será descartado (os arquivos originais continuam no seu computador).")) return;
+    zerarHistorico();
     setProjeto(null);
     setArquivos(new Map());
     setInfos({});
@@ -278,11 +349,13 @@ export default function Estudio() {
         if (!pro) registrarUso(projeto.saida === "texto" ? "transcricao" : "estudio", projeto.saida === "texto" ? Math.ceil(total / 60) : 1);
         const arquivo = final.arquivos[0];
         setResultado({ nome: arquivo.nome, url: cliente.enderecoDoArquivo(final.id, arquivo.indice), bytes: arquivo.bytes, doPlugin: true });
+        setSujo(false);
       } else {
         const pronto: Exportado = await exportarNoNavegador(projeto, arquivos, atualizar, () => cancelado);
         if (!pro) registrarUso("estudio");
         const url = URL.createObjectURL(new Blob([pronto.bytes], { type: pronto.mime }));
         setResultado({ nome: pronto.nome, url, bytes: pronto.bytes.byteLength, doPlugin: false });
+        setSujo(false);
       }
     } catch (falha) {
       if (!(falha instanceof ExportacaoCancelada)) setErro(falha instanceof Error ? falha.message : String(falha));
@@ -328,6 +401,65 @@ export default function Estudio() {
     );
   }
 
+  // ==================== arrastar na prévia ====================
+
+  const quadro: Medidas = { largura: projeto.largura, altura: projeto.altura, quadroW: projeto.largura, quadroH: projeto.altura };
+  const medidasDaCamada = (ref: string): Medidas | null =>
+    medidas[ref] ? { ...medidas[ref], quadroW: projeto.largura, quadroH: projeto.altura } : null;
+  const referenciasDe = (id: string): Caixa[] => camadasNoTempo(projeto, instante)
+    .filter((c) => c.id !== id && c.visivel !== false)
+    .flatMap((c) => { const m = medidasDaCamada(c.arquivo); const caixa = m && caixaDaCamada(m, c.transformacao); return caixa ? [caixa] : []; });
+  // O arrasto e a roda leem a transformação do projeto mais recente (a que `mudar` recebe), não a
+  // desta renderização: vários eventos podem chegar antes de a tela redesenhar.
+  const alvoDe = (ler: (p: Projeto) => Partial<Transformacao> | undefined, m: Medidas | null, refs: Caixa[],
+    gravar: (p: Projeto, t: Partial<Transformacao>) => Projeto): Alvo => ({
+    comecar: () => {
+      let inicial: Transformacao | null = null;
+      return (dx, dy) => {
+        let guias: Guia[] = [];
+        mudar((p) => {
+          inicial ??= { ...TRANSFORMACAO_PADRAO, ...ler(p) };
+          const r = alinharCamada({ ...inicial, x: inicial.x + dx, y: inicial.y + dy }, m, refs);
+          guias = r.guias;
+          return gravar(p, mudarBaseDaAnimacao(inicial, r.transformacao));
+        });
+        mostrarGuias(guias, true);
+      };
+    },
+    zoom: (fator) => mudar((p) => {
+      const t = { ...TRANSFORMACAO_PADRAO, ...ler(p) };
+      return gravar(p, mudarBaseDaAnimacao(t, { ...t, escala: Math.max(0.05, Math.min(6, t.escala * fator)) }));
+    }),
+  });
+  const alvoDoTexto = (id: string): Alvo => ({
+    comecar: () => {
+      let inicial: { x: number; y: number } | null = null;
+      return (dx, dy) => {
+        const guias: Guia[] = [];
+        mudar((p) => {
+          const achado = p.textos.find((t) => t.id === id);
+          inicial ??= { x: achado?.x ?? 0.5, y: achado?.y ?? 0.5 };
+          let x = Math.max(0, Math.min(1, inicial.x + dx)), y = Math.max(0, Math.min(1, inicial.y + dy));
+          if (Math.abs(x - 0.5) <= TOLERANCIA) { x = 0.5; guias.push({ vertical: true, posicao: 0.5, tipo: "centro" }); }
+          if (Math.abs(y - 0.5) <= TOLERANCIA) { y = 0.5; guias.push({ vertical: false, posicao: 0.5, tipo: "centro" }); }
+          return { ...p, textos: p.textos.map((t) => (t.id === id ? { ...t, x, y } : t)) };
+        });
+        mostrarGuias(guias, true);
+      };
+    },
+    zoom: (fator) => mudarTexto(id, (t) => ({ ...t, tamanho: Math.max(0.03, Math.min(0.16, t.tamanho * fator)) })),
+  });
+  const clipeAberto = aba === "clipes" ? projeto.clipes.find((c) => c.id === aberto) : undefined;
+  const camadaAberta = aba === "camadas" ? projeto.camadas?.find((c) => c.id === aberto) : undefined;
+  const textoAberto = aba === "textos" ? projeto.textos.find((t) => t.id === aberto) : undefined;
+  const alvo: Alvo | null = clipeAberto
+    ? alvoDe((p) => p.clipes.find((c) => c.id === clipeAberto.id)?.transformacao, quadro, [],
+      (p, t) => ({ ...p, clipes: p.clipes.map((c) => (c.id === clipeAberto.id ? { ...c, transformacao: t } : c)) }))
+    : camadaAberta
+      ? alvoDe((p) => p.camadas?.find((c) => c.id === camadaAberta.id)?.transformacao, medidasDaCamada(camadaAberta.arquivo), referenciasDe(camadaAberta.id),
+        (p, t) => ({ ...p, camadas: p.camadas?.map((c) => (c.id === camadaAberta.id ? { ...c, transformacao: t } : c)) }))
+      : textoAberto ? alvoDoTexto(textoAberto.id) : null;
+
   const preset = presetPorId(projeto.destino);
   return (
     <main className="estudio estudio--editor">
@@ -338,7 +470,11 @@ export default function Estudio() {
             <small>{projeto.largura}×{projeto.altura} · trocar</small>
           </button>
         </div>
-        <button type="button" className="button" onClick={comecarDeNovo}>Novo projeto</button>
+        <div className="estudio__linha">
+          <button type="button" className="button" onClick={() => voltarPasso("desfazer")} disabled={!passos.desfazer} title="Desfazer (Ctrl+Z)">↶ Desfazer</button>
+          <button type="button" className="button" onClick={() => voltarPasso("refazer")} disabled={!passos.refazer} title="Refazer (Ctrl+Shift+Z)">↷ Refazer</button>
+          <button type="button" className="button" onClick={comecarDeNovo}>Novo projeto</button>
+        </div>
       </div>
 
       {projetos}
@@ -352,6 +488,7 @@ export default function Estudio() {
           irPara={setInstante}
           tocar={setTocando}
           aoSoltar={adicionarArquivos}
+          alvo={alvo}
         />
 
         <section className="estudio__painel" aria-label="Edição">
@@ -378,6 +515,8 @@ export default function Estudio() {
                   abrir={() => setAberto(aberto === clipe.id ? null : clipe.id)}
                   mudar={(m) => mudarClipe(clipe.id, m)}
                   mover={(passo) => moverClipe(clipe.id, passo)}
+                  fps={projeto.fps}
+                  quadro={quadro}
                   remover={() => mudar((p) => ({ ...p, clipes: p.clipes.filter((c) => c.id !== clipe.id) }))}
                 />
               ))}
@@ -402,13 +541,15 @@ export default function Estudio() {
                   aberto={aberto === texto.id}
                   abrir={() => setAberto(aberto === texto.id ? null : texto.id)}
                   mudar={(m) => mudarTexto(texto.id, m)}
+                  quadro={quadro}
                   remover={() => mudar((p) => ({ ...p, textos: p.textos.filter((t) => t.id !== texto.id) }))}
                 />
               ))}
             </div>
           )}
 
-          {aba === "camadas" && <PainelDeCamadas instante={instante} projeto={projeto} nomes={arquivos} mudar={mudar} importar={adicionarCamada} />}
+          {aba === "camadas" && <PainelDeCamadas instante={instante} projeto={projeto} nomes={arquivos} mudar={mudar} importar={adicionarCamada}
+            medidas={medidas} aberta={aberto} abrir={setAberto} />}
 
           {aba === "audio" && (
             <div className="estudio__lista">
@@ -534,6 +675,7 @@ function Previa({
   irPara,
   tocar,
   aoSoltar,
+  alvo,
 }: {
   projeto: Projeto;
   arquivos: ReadonlyMap<string, File>;
@@ -542,8 +684,26 @@ function Previa({
   irPara: (t: number) => void;
   tocar: (sim: boolean) => void;
   aoSoltar: (arquivos: File[]) => void;
+  alvo: Alvo | null;
 }) {
   const tela = useRef<HTMLCanvasElement>(null);
+  const guias = useGuiasNaTela();
+  const arrasto = useRef<{ x: number; y: number; mover: (dx: number, dy: number) => void } | null>(null);
+  const [arrastando, setArrastando] = useState(false);
+  const ativo = tocando ? null : alvo;
+
+  // A roda do mouse (ou a pinça do touchpad) muda o tamanho do que está selecionado. O ouvinte
+  // não é passivo para poder impedir a rolagem da página.
+  useEffect(() => {
+    const canvas = tela.current, zoom = ativo?.zoom;
+    if (!canvas || !zoom) return;
+    const roda = (e: WheelEvent) => {
+      e.preventDefault();
+      zoom(Math.exp(-e.deltaY * (e.ctrlKey ? 0.01 : 0.0015)));
+    };
+    canvas.addEventListener("wheel", roda, { passive: false });
+    return () => canvas.removeEventListener("wheel", roda);
+  }, [ativo]);
   const previa = useRef<PreviaDoEstudio | null>(null);
   const [erroDaPrevia, setErroDaPrevia] = useState<string | null>(null);
   const total = duracaoTotal(projeto);
@@ -590,9 +750,30 @@ function Previa({
     <section className="estudio__previa" aria-label="Prévia">
       {erroDaPrevia && <p role="alert">{erroDaPrevia}</p>}
       <div className="estudio__tela" onDragOver={(e) => e.preventDefault()} onDrop={soltar}>
-        <canvas ref={tela} width={largura} height={altura} style={{ aspectRatio: `${projeto.largura} / ${projeto.altura}` }} aria-label="Prévia do projeto" />
+        <div
+          className={`estudio__quadro${alvo && !tocando ? " estudio__quadro--arrastavel" : ""}${arrastando ? " estudio__quadro--arrastando" : ""}`}
+          onPointerDown={(e) => {
+            if (!ativo || e.button !== 0) return;
+            e.currentTarget.setPointerCapture(e.pointerId);
+            arrasto.current = { x: e.clientX, y: e.clientY, mover: ativo.comecar() };
+            setArrastando(true);
+          }}
+          onPointerMove={(e) => {
+            const a = arrasto.current, r = tela.current?.getBoundingClientRect();
+            if (!a || !r?.width || !r.height) return;
+            a.mover((e.clientX - a.x) / r.width, (e.clientY - a.y) / r.height);
+          }}
+          onPointerUp={() => { arrasto.current = null; setArrastando(false); }}
+          onPointerCancel={() => { arrasto.current = null; setArrastando(false); }}
+        >
+          <canvas ref={tela} width={largura} height={altura} style={{ aspectRatio: `${projeto.largura} / ${projeto.altura}` }} aria-label="Prévia do projeto" />
+          {guias.map((g) => <span key={`${g.vertical}${g.posicao}`} aria-hidden="true"
+            className={`estudio__guia estudio__guia--${g.vertical ? "vertical" : "horizontal"}${g.tipo === "camada" ? " estudio__guia--camada" : ""}`}
+            style={g.vertical ? { left: `${g.posicao * 100}%` } : { top: `${g.posicao * 100}%` }} />)}
+        </div>
         {projeto.clipes.length === 0 && <p className="estudio__vazio">Adicione vídeos ou fotos (ou arraste para cá)</p>}
       </div>
+      {alvo && !tocando && <p className="estudio__dica">Arraste na prévia para mover o que está aberto no painel; a roda do mouse muda o tamanho. As guias piscam quando encaixa no centro ou nas bordas.</p>}
       {total > 0 && (
         <>
           <div className="estudio__tempo">
@@ -632,6 +813,8 @@ function CartaoDoClipe({
   mudar,
   mover,
   remover,
+  fps,
+  quadro,
 }: {
   clipe: Clipe;
   indice: number;
@@ -642,6 +825,8 @@ function CartaoDoClipe({
   mudar: (m: (c: Clipe) => Clipe) => void;
   mover: (passo: number) => void;
   remover: () => void;
+  fps: number;
+  quadro: Medidas;
 }) {
   const duracaoDoArquivo = info?.duracao ?? clipe.fim ?? 10;
   return (
@@ -662,7 +847,7 @@ function CartaoDoClipe({
         <div className="estudio__detalhe">
           {clipe.tipo === "imagem" ? (
             <Controle rotulo={`Na tela por ${decimal(clipe.duracao ?? 3)} s`}>
-              <input type="range" min={0.5} max={15} step={0.5} value={clipe.duracao ?? 3} onChange={(e) => mudar((c) => ({ ...c, duracao: Number(e.target.value) }))} />
+              <Deslizante rotulo="Duração da foto" min={0.5} max={15} passo={0.5} valor={clipe.duracao ?? 3} mudar={(v) => mudar((c) => ({ ...c, duracao: v }))} />
             </Controle>
           ) : (
             <>
@@ -674,6 +859,12 @@ function CartaoDoClipe({
                 <input type="range" min={0} max={duracaoDoArquivo} step={0.05} value={clipe.fim ?? duracaoDoArquivo}
                   onChange={(e) => mudar((c) => ({ ...c, fim: Math.max(Number(e.target.value), (c.inicio ?? 0) + 0.1) }))} />
               </Controle>
+              <div className="estudio__linha">
+                <CampoDeTempo rotulo="Início exato (s)" fps={fps} min={0} max={Math.max(0, (clipe.fim ?? duracaoDoArquivo) - 0.1)} valor={clipe.inicio ?? 0}
+                  mudar={(v) => mudar((c) => ({ ...c, inicio: Math.min(v, (c.fim ?? duracaoDoArquivo) - 0.1) }))} />
+                <CampoDeTempo rotulo="Fim exato (s)" fps={fps} min={(clipe.inicio ?? 0) + 0.1} max={duracaoDoArquivo} valor={clipe.fim ?? duracaoDoArquivo}
+                  mudar={(v) => mudar((c) => ({ ...c, fim: Math.max(v, (c.inicio ?? 0) + 0.1) }))} />
+              </div>
             </>
           )}
           <Controle rotulo="Enquadramento">
@@ -685,10 +876,11 @@ function CartaoDoClipe({
               ))}
             </div>
           </Controle>
-          {clipe.tipo==="video" && <Controle rotulo={`Velocidade: ${(clipe.velocidade??1).toFixed(2)}×`}><input type="range" min={.25} max={4} step={.05} value={clipe.velocidade??1} onChange={e=>mudar(c=>({...c,velocidade:Number(e.target.value)}))}/></Controle>}
+          {clipe.tipo==="video" && <Controle rotulo={`Velocidade: ${(clipe.velocidade??1).toFixed(2)}×`}><Deslizante rotulo="Velocidade" min={.25} max={4} passo={.05} valor={clipe.velocidade??1} mudar={v=>mudar(c=>({...c,velocidade:v}))}/></Controle>}
           <label className="estudio__campo">Transição para o próximo clipe<select value={clipe.transicao?.tipo??"corte"} onChange={e=>mudar(c=>({...c,transicao:{tipo:e.target.value as Transicao["tipo"],duracao:c.transicao?.duracao??.5}}))}>{TRANSICOES.map(t=><option key={t.id} value={t.id}>{t.titulo}</option>)}</select></label>
           {clipe.transicao && clipe.transicao.tipo!=="corte" && <Controle rotulo={`Duração da transição: ${clipe.transicao.duracao.toFixed(1)} s`}><input type="range" min={.1} max={5} step={.1} value={clipe.transicao.duracao} onChange={e=>mudar(c=>({...c,transicao:{tipo:c.transicao!.tipo,duracao:Number(e.target.value)}}))}/><small>Limitada à metade dos clipes vizinhos. O último clipe termina sem transição.</small></Controle>}
-          <ControlesDeCamada duracao={duracaoDoClipe(clipe)} valor={clipe.transformacao} mudar={transformacao => mudar(c => ({ ...c, transformacao }))} />
+          <ControlesDeCamada duracao={duracaoDoClipe(clipe)} valor={clipe.transformacao} medidas={quadro} mudar={transformacao => mudar(c => ({ ...c, transformacao }))}
+            enquadrar={(ajuste) => mudar((c) => ({ ...c, ajuste }))} />
           {clipe.tipo === "video" && (
             <>
               <label className="estudio__chave">
@@ -696,7 +888,7 @@ function CartaoDoClipe({
               </label>
               {!clipe.mudo && (
                 <Controle rotulo={`Volume: ${Math.round((clipe.volume ?? 1) * 100)}%`}>
-                  <input type="range" min={0} max={2} step={0.05} value={clipe.volume ?? 1} onChange={(e) => mudar((c) => ({ ...c, volume: Number(e.target.value) }))} />
+                  <Deslizante rotulo="Volume" min={0} max={2} passo={0.05} valor={clipe.volume ?? 1} mudar={(v) => mudar((c) => ({ ...c, volume: v }))} />
                 </Controle>
               )}
             </>
@@ -715,6 +907,7 @@ function CartaoDoTexto({
   abrir,
   mudar,
   remover,
+  quadro,
 }: {
   texto: Texto;
   total: number;
@@ -723,6 +916,7 @@ function CartaoDoTexto({
   abrir: () => void;
   mudar: (m: (t: Texto) => Texto) => void;
   remover: () => void;
+  quadro: Medidas;
 }) {
   return (
     <div className="estudio__item">
@@ -741,7 +935,7 @@ function CartaoDoTexto({
           <div className="estudio__chips">
             {["😀", "😂", "😍", "😎", "🔥", "❤️", "🎉", "👍"].map(emoji => <button key={emoji} type="button" className="button" onClick={() => mudar(t => ({ ...t, texto: t.texto === "Seu texto aqui" ? emoji : t.texto + emoji }))}>{emoji}</button>)}
           </div>
-          <ControlesDeCamada duracao={texto.fim-texto.inicio} valor={texto.transformacao} permitirRecorte={false} mudar={transformacao => mudar(t => ({ ...t, transformacao }))} />
+          <ControlesDeCamada duracao={texto.fim-texto.inicio} valor={texto.transformacao} medidas={quadro} permitirRecorte={false} mudar={transformacao => mudar(t => ({ ...t, transformacao }))} />
           <Controle rotulo="Fonte">
             <div className="estudio__chips">
               {FONTES.map((fonte) => (

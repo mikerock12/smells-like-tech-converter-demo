@@ -369,6 +369,13 @@ private fun Previa(modelo: EstudioViewModel, projeto: Projeto, altura: Dp, secao
                                     val pan = evento.calculatePan()
                                     modelo.inclinarSelecionada(pan.x / size.width, pan.y / size.height, secao)
                                     evento.changes.forEach { it.consume() }
+                                } else if (!multiplo && moveu && secao in listOf("CLIPES", "CAMADAS", "TEXTOS")) {
+                                    // Um dedo move o que está aberto, medido na área que a imagem ocupa (ContentScale.Fit).
+                                    val pan = evento.calculatePan()
+                                    val proporcao = projeto.largura.toFloat() / projeto.altura
+                                    val largura = minOf(size.width.toFloat(), size.height * proporcao)
+                                    modelo.moverSelecionada(pan.x / largura, pan.y / (largura / proporcao), secao)
+                                    evento.changes.forEach { it.consume() }
                                 }
                             } while (evento.changes.any { it.pressed })
                             ultimoToque = if (!moveu && !multiplo && soltura - primeiro.uptimeMillis < viewConfiguration.longPressTimeoutMillis) soltura else 0L
@@ -381,6 +388,7 @@ private fun Previa(modelo: EstudioViewModel, projeto: Projeto, altura: Dp, secao
             val quadro = modelo.previa
             if (projeto.clipes.isEmpty()) Text("Adicione vídeos ou fotos", color = Cores.textoApagado, fontSize = 13.sp)
             else if (quadro != null) Image(quadro.asImageBitmap(), contentDescription = "Prévia do projeto", contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize())
+            GuiasNaPrevia(modelo, projeto)
         }
         val total = modelo.total
         if (total > 0) {
@@ -390,6 +398,43 @@ private fun Previa(modelo: EstudioViewModel, projeto: Projeto, altura: Dp, secao
             }
             DeslizanteComAjusteFino(valor = modelo.instante.toFloat(), mudar = { modelo.irPara(it.toDouble()) }, limites = 0f..total.toFloat(), passo = .1f, descricao = "Instante do projeto")
             AcaoDoEditor(AcaoEditor.TOCAR, "Assistir à prévia em vídeo (baixa resolução)") { modelo.gerarPreviaEmVideo() }
+        }
+    }
+}
+
+/**
+ * As linhas encaixadas, por cima da prévia: piscam três vezes, vibram quando uma linha nova
+ * encaixa e somem depois de um instante, como no criador de figurinhas.
+ */
+@Composable
+private fun GuiasNaPrevia(modelo: EstudioViewModel, projeto: Projeto) {
+    val guias = modelo.guias
+    if (guias.isEmpty()) return
+    val vibrar = androidx.compose.ui.platform.LocalHapticFeedback.current
+    var visivel by remember { mutableStateOf(true) }
+    androidx.compose.runtime.LaunchedEffect(guias) {
+        vibrar.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove)
+        repeat(6) { visivel = it % 2 == 0; kotlinx.coroutines.delay(150) }
+        visivel = true
+        kotlinx.coroutines.delay(600)
+        modelo.apagarGuias()
+    }
+    androidx.compose.foundation.Canvas(Modifier.fillMaxSize()) {
+        if (!visivel) return@Canvas
+        val proporcao = projeto.largura.toFloat() / projeto.altura
+        val largura = minOf(size.width, size.height * proporcao)
+        val altura = largura / proporcao
+        val esquerda = (size.width - largura) / 2
+        val topo = (size.height - altura) / 2
+        guias.forEach { g ->
+            val cor = if (g.tipo == "camada") Color(0xFF3DD6FF) else Color(0xFFFF3D9A)
+            if (g.vertical) {
+                val x = esquerda + g.posicao.toFloat() * largura
+                drawLine(cor, Offset(x, topo), Offset(x, topo + altura), strokeWidth = 2.dp.toPx())
+            } else {
+                val y = topo + g.posicao.toFloat() * altura
+                drawLine(cor, Offset(esquerda, y), Offset(esquerda + largura, y), strokeWidth = 2.dp.toPx())
+            }
         }
     }
 }
@@ -451,7 +496,9 @@ private fun CartaoDoClipe(modelo: EstudioViewModel, projeto: Projeto, clipe: Cli
                 Dica("Limitada à metade dos clipes vizinhos. O áudio acompanha a transição.")
             }
         }
-        ControlesDeTransformacao(clipe.transformacao, duracao=Estudio.duracaoDoClipe(clipe)) { valor -> modelo.mudarClipe(clipe.id) { it.copy(transformacao = valor) } }
+        ControlesDeTransformacao(clipe.transformacao, duracao=Estudio.duracaoDoClipe(clipe), medidas = modelo.medidasDoQuadro,
+            enquadrar = { ajuste -> modelo.mudarClipe(clipe.id) { it.copy(ajuste = ajuste) } },
+            mostrarGuias = { modelo.mostrarGuias(modelo.medidasDoQuadro, it) }) { valor -> modelo.mudarClipe(clipe.id) { it.copy(transformacao = valor) } }
         if (!clipe.ehImagem) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("Som do vídeo", fontSize = 13.sp, modifier = Modifier.weight(1f))
@@ -514,7 +561,8 @@ private fun CartaoDoTexto(modelo: EstudioViewModel, texto: Texto) {
         }
         Text("Altura: ${(texto.y * 100).toInt()}%", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         DeslizanteComAjusteFino(valor = texto.y.toFloat(), limites = 0f..1f, mudar = { v -> modelo.mudarTexto(texto.id) { it.copy(y = Math.round(v * 100) / 100.0) } }, passo = .01f, descricao = "Posição vertical do texto")
-        ControlesDeTransformacao(texto.transformacao, permitirRecorte = false, duracao=texto.fim-texto.inicio) { valor -> modelo.mudarTexto(texto.id) { it.copy(transformacao = valor) } }
+        ControlesDeTransformacao(texto.transformacao, permitirRecorte = false, duracao=texto.fim-texto.inicio, medidas = modelo.medidasDoQuadro,
+            mostrarGuias = { modelo.mostrarGuias(modelo.medidasDoQuadro, it) }) { valor -> modelo.mudarTexto(texto.id) { it.copy(transformacao = valor) } }
         if (total > 0) {
             Text("Aparece de ${tempo(texto.inicio)} até ${tempo(texto.fim)}", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             RangeSlider(

@@ -36,13 +36,14 @@ const passos = [
   {
     titulo: "Gostou? Ative a licença",
     corpo:
-      "Compre a licença vitalícia no site e cole a chave em Configurações → Licença. Vale em até 3 computadores seus e nunca vence.",
+      "Compre no site a licença vitalícia (nunca vence) ou a mensal (31 dias por pagamento, sem renovação automática) e cole a chave em Configurações → Licença. Vale em até 3 computadores seus.",
   },
 ];
 
 export default function PaginaDoAplicativo() {
   const download = lerAplicativoParaBaixar();
   const licenca = produto("app-vitalicio")!;
+  const mensal = produto("app-mensal")!;
   const completo = produto("completo-vitalicio")!;
 
   return (
@@ -62,7 +63,8 @@ export default function PaginaDoAplicativo() {
             presets e ajuste fino de cada motor. Depois de instalado, <strong>funciona sem internet</strong> — e
             continua valendo o de sempre: nenhum arquivo sai do seu computador. Teste tudo por {DIAS_DE_TESTE_DO_APP}{" "}
             dias; se ficar, a licença custa <strong>{formatarReais(licenca.centavos)}</strong>, para sempre, em até{" "}
-            {MAQUINAS_POR_LICENCA} computadores.
+            {MAQUINAS_POR_LICENCA} computadores. Prefere ir mês a mês? São {formatarReais(mensal.centavos)} por 31 dias, sem
+            renovação automática.
           </p>
 
           {download ? (
@@ -76,6 +78,9 @@ export default function PaginaDoAplicativo() {
               <p className="plugin__acoes">
                 <a className="button button--primary" href="/precos">
                   Comprar a licença vitalícia · {formatarReais(licenca.centavos)}
+                </a>
+                <a className="button" href="/precos">
+                  Mensal · {formatarReais(mensal.centavos)} por 31 dias
                 </a>
                 <a className="button" href="/precos">
                   Ou tudo, para sempre · {formatarReais(completo.centavos)}

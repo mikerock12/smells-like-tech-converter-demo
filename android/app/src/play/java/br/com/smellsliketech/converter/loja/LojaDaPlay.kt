@@ -26,7 +26,10 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.coroutines.resume
 
-/** A versão da Google Play: a licença vitalícia é um produto único, pago pelo Google Play. */
+/**
+ * A versão da Google Play: a licença vitalícia é um produto único, e a mensal, uma assinatura
+ * com renovação automática; as duas são pagas pelo Google Play.
+ */
 fun novaLoja(contexto: Context, ouvinte: Loja.Ouvinte): Loja = LojaDaPlay(contexto.applicationContext, ouvinte)
 
 /**
@@ -42,7 +45,7 @@ private class LojaDaPlay(contexto: Context, private val ouvinte: Loja.Ouvinte) :
         .enablePendingPurchases(PendingPurchasesParams.newBuilder().enableOneTimeProducts().build())
         .enableAutoServiceReconnection()
         .build()
-    private var produto: ProductDetails? = null
+    private val produtos = mutableMapOf<String, ProductDetails>()
 
     private suspend fun conectar(): Boolean {
         if (cliente.isReady) return true
@@ -59,31 +62,44 @@ private class LojaDaPlay(contexto: Context, private val ouvinte: Loja.Ouvinte) :
         }
     }
 
-    private suspend fun detalhes(): ProductDetails? {
-        produto?.let { return it }
+    private suspend fun detalhes(mensal: Boolean = false): ProductDetails? {
+        val id = if (mensal) ReciboDaPlay.PRODUTO_MENSAL else ReciboDaPlay.PRODUTO
+        produtos[id]?.let { return it }
         if (!conectar()) return null
         val pedido = QueryProductDetailsParams.newBuilder()
             .setProductList(
                 listOf(
                     QueryProductDetailsParams.Product.newBuilder()
-                        .setProductId(ReciboDaPlay.PRODUTO)
-                        .setProductType(BillingClient.ProductType.INAPP)
+                        .setProductId(id)
+                        .setProductType(if (mensal) BillingClient.ProductType.SUBS else BillingClient.ProductType.INAPP)
                         .build(),
                 ),
             )
             .build()
-        return cliente.queryProductDetails(pedido).productDetailsList?.firstOrNull()?.also { produto = it }
+        return cliente.queryProductDetails(pedido).productDetailsList?.firstOrNull()?.also { produtos[id] = it }
     }
+
+    /** A oferta do plano básico (sem promoção): é ela que vale depois dos 7 dias de teste do app. */
+    private fun ofertaMensal(detalhes: ProductDetails) =
+        detalhes.subscriptionOfferDetails?.let { ofertas -> ofertas.firstOrNull { it.offerId == null } ?: ofertas.firstOrNull() }
 
     override suspend fun preco(): String? = detalhes()?.oneTimePurchaseOfferDetails?.formattedPrice
 
-    override fun comprar(atividade: Activity) {
+    override suspend fun precoMensal(): String? =
+        detalhes(mensal = true)?.let(::ofertaMensal)?.pricingPhases?.pricingPhaseList?.lastOrNull()?.formattedPrice
+
+    override fun comprar(atividade: Activity, mensal: Boolean) {
         escopo.launch {
-            val detalhes = detalhes() ?: return@launch ouvinte.falhou(
+            val detalhes = detalhes(mensal) ?: return@launch ouvinte.falhou(
                 "A Google Play não respondeu. Confira se a Play Store está atualizada e com a sua conta, e tente de novo.",
             )
             val item = BillingFlowParams.ProductDetailsParams.newBuilder().setProductDetails(detalhes)
-            detalhes.oneTimePurchaseOfferDetailsList?.firstOrNull()?.offerToken?.let(item::setOfferToken)
+            if (mensal) {
+                val oferta = ofertaMensal(detalhes) ?: return@launch ouvinte.falhou("A assinatura mensal ainda não está disponível na Google Play.")
+                item.setOfferToken(oferta.offerToken)
+            } else {
+                detalhes.oneTimePurchaseOfferDetailsList?.firstOrNull()?.offerToken?.let(item::setOfferToken)
+            }
             val resultado = cliente.launchBillingFlow(
                 atividade,
                 BillingFlowParams.newBuilder().setProductDetailsParamsList(listOf(item.build())).build(),
@@ -108,7 +124,7 @@ private class LojaDaPlay(contexto: Context, private val ouvinte: Loja.Ouvinte) :
     }
 
     private suspend fun tratar(compra: Purchase) {
-        if (ReciboDaPlay.PRODUTO !in compra.products) return
+        if (ReciboDaPlay.PRODUTO !in compra.products && ReciboDaPlay.PRODUTO_MENSAL !in compra.products) return
         when (compra.purchaseState) {
             Purchase.PurchaseState.PURCHASED -> {
                 if (!ouvinte.comprou(compra.originalJson, compra.signature)) return
@@ -120,14 +136,26 @@ private class LojaDaPlay(contexto: Context, private val ouvinte: Loja.Ouvinte) :
         }
     }
 
+    /**
+     * Pergunta as duas compras. A Play só devolve assinatura enquanto ela está ativa (inclusive
+     * no período de carência): é assim que o app sabe que a mensal continua valendo.
+     */
     override suspend fun sincronizar() {
         if (!conectar()) return
-        val resposta = cliente.queryPurchasesAsync(
+        val vitalicia = cliente.queryPurchasesAsync(
             QueryPurchasesParams.newBuilder().setProductType(BillingClient.ProductType.INAPP).build(),
         )
-        if (resposta.billingResult.responseCode != BillingResponseCode.OK) return
-        val nossas = resposta.purchasesList.filter { ReciboDaPlay.PRODUTO in it.products }
-        if (nossas.isEmpty()) ouvinte.semCompra() else nossas.forEach { tratar(it) }
+        if (vitalicia.billingResult.responseCode == BillingResponseCode.OK) {
+            val nossas = vitalicia.purchasesList.filter { ReciboDaPlay.PRODUTO in it.products }
+            if (nossas.isEmpty()) ouvinte.semCompra() else nossas.forEach { tratar(it) }
+        }
+        val mensal = cliente.queryPurchasesAsync(
+            QueryPurchasesParams.newBuilder().setProductType(BillingClient.ProductType.SUBS).build(),
+        )
+        if (mensal.billingResult.responseCode == BillingResponseCode.OK) {
+            val ativas = mensal.purchasesList.filter { ReciboDaPlay.PRODUTO_MENSAL in it.products }
+            if (ativas.isEmpty()) ouvinte.semAssinatura() else ativas.forEach { tratar(it) }
+        }
     }
 
     override fun encerrar() {

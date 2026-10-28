@@ -116,6 +116,25 @@ export const PRODUTOS = deepFreeze([
     nota: "Vale em até 3 computadores seus. Todas as atualizações incluídas.",
   },
   {
+    id: "app-mensal",
+    plano: "app",
+    titulo: "Aplicativo para Windows · mensal",
+    centavos: 1990,
+    dias: 31,
+    periodo: "por mês",
+    nota: "31 dias por pagamento, sem renovação automática. A vitalícia se paga em pouco mais de um ano.",
+  },
+  {
+    id: "android-mensal",
+    plano: "android",
+    titulo: "Aplicativo para Android · mensal",
+    // O mesmo da assinatura da Google Play, que arredonda o real para ",99".
+    centavos: 1999,
+    dias: 31,
+    periodo: "por mês",
+    nota: "31 dias por pagamento, sem renovação automática. Na Google Play, é uma assinatura que você cancela na própria Play.",
+  },
+  {
     id: "android-vitalicio",
     plano: "android",
     titulo: "Aplicativo para Android · licença vitalícia",

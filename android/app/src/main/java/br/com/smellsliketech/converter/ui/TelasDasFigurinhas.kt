@@ -285,7 +285,7 @@ private fun DetalheDoPacote(
         if (instalados.isEmpty()) {
             Aviso("O WhatsApp não está instalado neste celular.")
         } else if (!pacote.prontoParaWhatsApp) {
-            Text("Faltam ${pacote.faltam} figurinha${if (pacote.faltam == 1) "" else "s"} para o WhatsApp aceitar o pacote.", color = Cores.amarelo, fontSize = 13.sp)
+            Text("${if (pacote.faltam == 1) "Falta" else "Faltam"} ${pacote.faltam} figurinha${if (pacote.faltam == 1) "" else "s"} para o WhatsApp aceitar o pacote.", color = Cores.amarelo, fontSize = 13.sp)
         }
         instalados.forEach { whatsapp ->
             val jaEsta = remember(pacote.versao, whatsapp) { WhatsApp.jaAdicionado(contexto, whatsapp, pacote) }
@@ -542,9 +542,9 @@ private fun EditorDeFigurinha(modelo: FigurinhasViewModel, pedirSaida: () -> Uni
                             }
                         }
                         Dica("Toda figurinha anima nessa velocidade, sem pular quadros. Se o vídeo tiver movimento demais para os 500 KB do WhatsApp, ela fica mais curta. Mais quadros: mais suave e mais curta.")
-                        Rotulado("Duração da composição: ${modelo.duracaoDaComposicao.toFloat()} s") {
+                        Rotulado("Duração da composição: ${"%.1f".format(modelo.duracaoDaComposicao)} s de ${"%.1f".format(modelo.duracaoDisponivel)} s disponíveis") {
                             DeslizanteComAjusteFino(modelo.duracaoDaComposicao.toFloat(),
-                                modelo::mudarDuracao, limites = 0.2f..10f, passo = .1f, descricao = "Duração")
+                                modelo::mudarDuracao, limites = 0.2f..modelo.duracaoDisponivel.toFloat().coerceAtLeast(0.2f), passo = .1f, descricao = "Duração")
                         }
                         Rotulado("Prévia: ${"%.1f".format(modelo.tempoDaPrevia)} s") {
                             DeslizanteComAjusteFino(modelo.tempoDaPrevia.coerceIn(0f, modelo.duracaoDaComposicao.toFloat()),

@@ -861,6 +861,19 @@ audio.previa__midia { background: transparent; cursor: default; }
 .estudio__previa { position: sticky; top: 16px; display: flex; flex-direction: column; gap: 10px; }
 .estudio__tela { position: relative; display: grid; place-items: center; min-height: 260px; padding: 12px; border: 1px solid var(--stroke); border-radius: 14px; background: #000; }
 .estudio__tela canvas { width: auto; height: auto; max-width: 100%; max-height: 64vh; border-radius: 6px; background: #000; }
+.estudio__quadro { position: relative; max-width: 100%; line-height: 0; touch-action: none; }
+.estudio__quadro--arrastavel canvas { cursor: grab; }
+.estudio__quadro--arrastando canvas { cursor: grabbing; }
+.estudio__guia { position: absolute; background: #ff3d9a; box-shadow: 0 0 6px #ff3d9a; pointer-events: none; animation: estudio-guia-pisca 0.3s steps(2, jump-none) 3; }
+.estudio__guia--vertical { top: 0; bottom: 0; width: 2px; margin-left: -1px; }
+.estudio__guia--horizontal { left: 0; right: 0; height: 2px; margin-top: -1px; }
+.estudio__guia--camada { background: #3dd6ff; box-shadow: 0 0 6px #3dd6ff; }
+@keyframes estudio-guia-pisca { from { opacity: 1; } to { opacity: 0.25; } }
+@media (prefers-reduced-motion: reduce) { .estudio__guia { animation: none; } }
+.estudio__deslizante { display: flex; align-items: center; gap: 6px; }
+.estudio__deslizante input { flex: 1; min-width: 0; }
+.estudio__fino { flex: none; width: 32px; height: 32px; border: 1px solid var(--stroke); border-radius: 8px; background: var(--surface); color: var(--text); font-size: 16px; font-weight: 700; line-height: 1; cursor: pointer; }
+.estudio__fino:disabled { opacity: 0.4; cursor: default; }
 .estudio__vazio { position: absolute; inset: 0; display: grid; place-items: center; margin: 0; color: var(--text-muted); font-size: 14px; pointer-events: none; }
 .estudio__tempo { display: flex; align-items: center; justify-content: space-between; gap: 12px; font: 600 13px var(--font-geist-mono), monospace; }
 .estudio__linha-do-tempo { width: 100%; accent-color: var(--orange); }

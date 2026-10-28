@@ -1,0 +1,251 @@
+{
+  "tolerancia": 0.015,
+  "toleranciaDoGiro": 3,
+  "alinhar": [
+    {
+      "nome": "perto do centro encaixa no centro",
+      "medidas": {
+        "largura": 500,
+        "altura": 500,
+        "quadroW": 1080,
+        "quadroH": 1920
+      },
+      "bruta": {
+        "x": 0.509,
+        "y": 0.495,
+        "escala": 0.5
+      },
+      "referencias": [],
+      "esperado": {
+        "x": 0.5,
+        "y": 0.5,
+        "giro": 0,
+        "reta": true,
+        "guias": [
+          {
+            "vertical": true,
+            "posicao": 0.5,
+            "tipo": "centro"
+          },
+          {
+            "vertical": false,
+            "posicao": 0.5,
+            "tipo": "centro"
+          }
+        ]
+      }
+    },
+    {
+      "nome": "longe de tudo não encaixa",
+      "medidas": {
+        "largura": 500,
+        "altura": 500,
+        "quadroW": 1080,
+        "quadroH": 1920
+      },
+      "bruta": {
+        "x": 0.37,
+        "y": 0.41,
+        "escala": 0.5
+      },
+      "referencias": [],
+      "esperado": {
+        "x": 0.37,
+        "y": 0.41,
+        "giro": 0,
+        "reta": true,
+        "guias": []
+      }
+    },
+    {
+      "nome": "borda esquerda encosta na borda do quadro",
+      "medidas": {
+        "largura": 500,
+        "altura": 500,
+        "quadroW": 1080,
+        "quadroH": 1920
+      },
+      "bruta": {
+        "x": 0.258,
+        "y": 0.3,
+        "escala": 0.5
+      },
+      "referencias": [],
+      "esperado": {
+        "x": 0.25,
+        "y": 0.3,
+        "giro": 0,
+        "reta": true,
+        "guias": [
+          {
+            "vertical": true,
+            "posicao": 0,
+            "tipo": "borda"
+          },
+          {
+            "vertical": true,
+            "posicao": 0.5,
+            "tipo": "centro"
+          }
+        ]
+      }
+    },
+    {
+      "nome": "giro quase reto vira reto",
+      "medidas": {
+        "largura": 1920,
+        "altura": 1080,
+        "quadroW": 1080,
+        "quadroH": 1920
+      },
+      "bruta": {
+        "x": 0.5,
+        "y": 0.5,
+        "giro": 88
+      },
+      "referencias": [],
+      "esperado": {
+        "x": 0.5,
+        "y": 0.5,
+        "giro": 90,
+        "reta": true,
+        "guias": [
+          {
+            "vertical": true,
+            "posicao": 0.5,
+            "tipo": "centro"
+          },
+          {
+            "vertical": false,
+            "posicao": 0.5,
+            "tipo": "centro"
+          }
+        ]
+      }
+    },
+    {
+      "nome": "giro longe do reto continua",
+      "medidas": {
+        "largura": 1920,
+        "altura": 1080,
+        "quadroW": 1080,
+        "quadroH": 1920
+      },
+      "bruta": {
+        "x": 0.5,
+        "y": 0.5,
+        "giro": 80
+      },
+      "referencias": [],
+      "esperado": {
+        "x": 0.5,
+        "y": 0.5,
+        "giro": 80,
+        "reta": false,
+        "guias": [
+          {
+            "vertical": true,
+            "posicao": 0.5,
+            "tipo": "centro"
+          },
+          {
+            "vertical": false,
+            "posicao": 0.5,
+            "tipo": "centro"
+          }
+        ]
+      }
+    },
+    {
+      "nome": "encaixa na borda de outra camada",
+      "medidas": {
+        "largura": 500,
+        "altura": 500,
+        "quadroW": 1080,
+        "quadroH": 1920
+      },
+      "bruta": {
+        "x": 0.758,
+        "y": 0.594,
+        "escala": 0.3
+      },
+      "referencias": [
+        {
+          "esquerda": 0.2,
+          "topo": 0.1,
+          "direita": 0.6,
+          "base": 0.5
+        }
+      ],
+      "esperado": {
+        "x": 0.75,
+        "y": 0.584375,
+        "giro": 0,
+        "reta": true,
+        "guias": [
+          {
+            "vertical": true,
+            "posicao": 0.6,
+            "tipo": "camada"
+          },
+          {
+            "vertical": false,
+            "posicao": 0.5,
+            "tipo": "centro"
+          }
+        ]
+      }
+    },
+    {
+      "nome": "giro 3D entra na caixa",
+      "medidas": {
+        "largura": 500,
+        "altura": 500,
+        "quadroW": 1080,
+        "quadroH": 1920
+      },
+      "bruta": {
+        "x": 0.505,
+        "y": 0.4,
+        "escala": 0.6,
+        "giroY": 40
+      },
+      "referencias": [],
+      "esperado": {
+        "x": 0.50832,
+        "y": 0.4,
+        "giro": 0,
+        "reta": true,
+        "guias": [
+          {
+            "vertical": true,
+            "posicao": 0.5,
+            "tipo": "centro"
+          }
+        ]
+      }
+    }
+  ],
+  "preencher": [
+    {
+      "nome": "paisagem em quadro em pé",
+      "medidas": {
+        "largura": 1920,
+        "altura": 1080,
+        "quadroW": 1080,
+        "quadroH": 1920
+      },
+      "esperado": 3.160494
+    },
+    {
+      "nome": "quadrada em quadro em pé",
+      "medidas": {
+        "largura": 500,
+        "altura": 500,
+        "quadroW": 1080,
+        "quadroH": 1920
+      },
+      "esperado": 1.777778
+    }
+  ]
+}

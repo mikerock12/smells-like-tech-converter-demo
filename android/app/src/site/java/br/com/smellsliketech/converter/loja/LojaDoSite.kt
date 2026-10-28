@@ -10,11 +10,12 @@ fun novaLoja(@Suppress("UNUSED_PARAMETER") contexto: Context, @Suppress("UNUSED_
 
 private object LojaDoSite : Loja {
     private const val PRECOS = "https://converter.smellsliketech.com.br/precos?origem=android"
+    private const val MENSAL = "https://converter.smellsliketech.com.br/precos?origem=android-mensal#android-mensal"
 
     override suspend fun preco(): String? = null
 
-    override fun comprar(atividade: Activity) {
-        runCatching { atividade.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(PRECOS))) }
+    override fun comprar(atividade: Activity, mensal: Boolean) {
+        runCatching { atividade.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(if (mensal) MENSAL else PRECOS))) }
     }
 
     override suspend fun sincronizar() = Unit

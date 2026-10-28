@@ -2,14 +2,21 @@
 
 import { dividirCamada } from "@/packages/converter-core/estudio-criacao.mjs";
 import { useState } from "react";
-import { duracaoTotal, type Projeto, type Camada } from "@/packages/converter-core/estudio.mjs";
+import { camadasNoTempo, duracaoTotal, type Projeto, type Camada } from "@/packages/converter-core/estudio.mjs";
+import { caixaDaCamada, type Caixa, type Medidas } from "@/packages/converter-core/guias.mjs";
+import type { Tamanho } from "@/lib/estudio/medidas";
 import ControlesDeCamada from "./ControlesDeCamada";
+import { CampoDeTempo } from "./Deslizante";
 import SeletorDeStickers from "./SeletorDeStickers";
 
-export default function PainelDeCamadas({ projeto, nomes, mudar, importar, instante = 0 }: {
+export default function PainelDeCamadas({ projeto, nomes, mudar, importar, instante = 0, medidas = {}, aberta = null, abrir }: {
   instante?: number; projeto: Projeto; nomes: ReadonlyMap<string, File>;
   mudar: (mudanca: (p: Projeto) => Projeto) => void; importar: (arquivo: File) => void;
+  medidas?: Readonly<Record<string, Tamanho>>; aberta?: string | null; abrir?: (id: string) => void;
 }) {
+  const medidasDe = (c: Camada): Medidas | null => medidas[c.arquivo] ? { ...medidas[c.arquivo], quadroW: projeto.largura, quadroH: projeto.altura } : null;
+  const referencias = (id: string): Caixa[] => camadasNoTempo(projeto, instante).filter(c => c.id !== id && c.visivel !== false)
+    .flatMap(c => { const m = medidasDe(c); const caixa = m && caixaDaCamada(m, c.transformacao); return caixa ? [caixa] : []; });
   const [erro, setErro] = useState("");
   const [catalogo, setCatalogo] = useState(false);
   const total = duracaoTotal(projeto);
@@ -29,8 +36,8 @@ export default function PainelDeCamadas({ projeto, nomes, mudar, importar, insta
       <label><input type="checkbox" checked={Boolean(projeto.fundo?.corFinal)} onChange={e => mudar(p => ({ ...p, fundo: { cor: p.fundo?.cor ?? "#000000", corFinal: e.target.checked ? "#FF7A18" : undefined } }))} /> Gradiente</label>
       {projeto.fundo?.corFinal && <label className="estudio__campo">Segunda cor<input type="color" value={projeto.fundo.corFinal.slice(0,7)} onChange={e => mudar(p => ({ ...p, fundo: { cor: p.fundo?.cor ?? "#000000", corFinal: e.target.value } }))} /></label>}
     </details>
-    {projeto.camadas?.map(c => <details key={c.id} className="estudio__item" open>
-      <summary>{nomes.get(c.arquivo)?.name ?? "Camada"}</summary>
+    {projeto.camadas?.map(c => <details key={c.id} className="estudio__item" open={aberta === c.id} onToggle={e => { if (e.currentTarget.open) abrir?.(c.id); }}>
+      <summary>{nomes.get(c.arquivo)?.name ?? "Camada"}{aberta === c.id ? " · arraste na prévia" : ""}</summary>
       <div className="estudio__detalhe">
         <div className="estudio__linha">
           <button type="button" className="button" onClick={() => atualizar(c.id, { visivel: c.visivel === false })}>{c.visivel === false ? "Mostrar" : "Ocultar"}</button>
@@ -38,13 +45,15 @@ export default function PainelDeCamadas({ projeto, nomes, mudar, importar, insta
           <button type="button" className="button" onClick={() => mudar(p => ({ ...p, camadas: p.camadas?.filter(item => item.id !== c.id) }))}>Remover</button>
         </div>
         <button type="button" className="button" onClick={()=>{try{const novo=dividirCamada(projeto,c.id,instante,crypto.randomUUID());mudar(()=>novo);setErro("");}catch(e){setErro(e instanceof Error?e.message:"Não foi possível dividir.");}}}>Dividir faixa no cursor</button>
-        <label className="estudio__campo">Entrada livre (s)<input type="number" min={0} max={86400} step={.1} value={c.inicio} onChange={e=>atualizar(c.id,{inicio:Number(e.target.value),fim:Math.max(c.fim,Number(e.target.value)+.1)})}/></label>
-        <label className="estudio__campo">Saída livre (s)<input type="number" min={c.inicio+.1} max={86400} step={.1} value={c.fim} onChange={e=>atualizar(c.id,{fim:Number(e.target.value)})}/></label>
+        <div className="estudio__linha">
+          <CampoDeTempo rotulo="Entrada livre (s)" fps={projeto.fps} min={0} max={86400} valor={c.inicio} mudar={v=>atualizar(c.id,{inicio:v,fim:Math.max(c.fim,v+.1)})} />
+          <CampoDeTempo rotulo="Saída livre (s)" fps={projeto.fps} min={c.inicio+.1} max={86400} valor={c.fim} mudar={v=>atualizar(c.id,{fim:v})} />
+        </div>
         <label className="estudio__campo">Ordem (menor fica atrás)<input type="number" min={-12} max={12} value={c.ordem ?? 1} onChange={e => atualizar(c.id, { ordem: Number(e.target.value) })} /></label>
         <label className="estudio__campo">Aparece em {c.inicio.toFixed(1)} s<input type="range" min={0} max={Math.max(0, c.fim - .1)} step={.1} value={c.inicio} onChange={e => atualizar(c.id, { inicio: Number(e.target.value) })} /></label>
         <label className="estudio__campo">Some em {c.fim.toFixed(1)} s<input type="range" min={c.inicio + .1} max={Math.max(total, c.inicio + .1)} step={.1} value={c.fim} onChange={e => atualizar(c.id, { fim: Number(e.target.value) })} /></label>
         {c.tipo !== "imagem" && <label><input type="checkbox" checked={c.repetir !== false} onChange={e => atualizar(c.id, { repetir: e.target.checked })} /> Repetir animação</label>}
-        <ControlesDeCamada duracao={c.fim-c.inicio} valor={c.transformacao} mudar={transformacao => atualizar(c.id, { transformacao })} />
+        <ControlesDeCamada duracao={c.fim-c.inicio} valor={c.transformacao} medidas={medidasDe(c)} referencias={referencias(c.id)} mudar={transformacao => atualizar(c.id, { transformacao })} />
       </div>
     </details>)}
   </div>;
