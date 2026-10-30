@@ -44,6 +44,9 @@ class PlayerDaCamadaTest {
     private fun amarelo(b: Bitmap?) = b?.let { val c = it.getPixel(it.width / 2, it.height / 2); Color.red(c) > 150 && Color.blue(c) < 80 } ?: false
     private fun nos(n: AccessibilityNodeInfo? = i.uiAutomation.rootInActiveWindow): List<AccessibilityNodeInfo> =
         if (n == null) emptyList() else listOf(n) + (0 until n.childCount).flatMap { nos(n.getChild(it)) }
+    /** A área de ajustes (a rolagem vertical mais alta); a fileira de abas também rola, na horizontal. */
+    private fun painelRolavel(arvore: List<AccessibilityNodeInfo> = nos()): AccessibilityNodeInfo? =
+        arvore.filter { it.isScrollable }.maxByOrNull { no -> android.graphics.Rect().also { no.getBoundsInScreen(it) }.height() }
     private fun videos(v: View): List<VideoView> = when (v) {
         is VideoView -> listOf(v)
         is ViewGroup -> (0 until v.childCount).flatMap { videos(v.getChildAt(it)) }
@@ -60,7 +63,7 @@ class PlayerDaCamadaTest {
                 }
             } }
             if (pronto) return
-            if (!visivel) nos().firstOrNull { it.isScrollable }?.performAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD)
+            if (!visivel) painelRolavel()?.performAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD)
             Thread.sleep(350)
         }
         error("O player não abriu o vídeo de $duracaoMs ms")
@@ -169,7 +172,7 @@ class PlayerDaCamadaTest {
 
     private fun trazer(descricao: String): AccessibilityNodeInfo {
         repeat(15) {
-            if (nos().firstOrNull { it.isScrollable }?.performAction(AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD) != true) return@repeat
+            if (painelRolavel()?.performAction(AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD) != true) return@repeat
             i.waitForIdleSync(); Thread.sleep(200)
         }
         repeat(40) {
@@ -180,7 +183,7 @@ class PlayerDaCamadaTest {
                 if (alvo.isVisibleToUser && b.height() > 0) return alvo
                 alvo.performAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_SHOW_ON_SCREEN.id)
             }
-            arvore.firstOrNull { it.isScrollable }?.performAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD)
+            painelRolavel(arvore)?.performAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD)
             i.waitForIdleSync(); Thread.sleep(300)
         }
         error("Campo não encontrado: $descricao")

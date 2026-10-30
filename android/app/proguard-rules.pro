@@ -18,3 +18,8 @@
 -dontwarn com.gemalto.jp2.**
 -dontwarn org.bouncycastle.**
 -dontwarn org.slf4j.**
+
+# ML Kit (remoção de fundo e OCR): o Firebase Components cria cada registrador por reflexão,
+# pelo nome que está no manifesto, com o construtor sem argumentos. Sem esta regra o R8 tirava
+# o construtor, o ML Kit não iniciava e a remoção automática de fundo dava NullPointerException.
+-keep class * implements com.google.firebase.components.ComponentRegistrar { public <init>(); }

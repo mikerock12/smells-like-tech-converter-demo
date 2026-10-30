@@ -91,9 +91,15 @@ class EditorFixoTest {
         val x = b.centerX().toFloat(); val y = b.centerY().toFloat()
         gesto(x, y); SystemClock.sleep(70); gesto(x, y, x + dx, y + dy)
     }
+    /**
+     * A área de ajustes (a rolagem vertical mais alta). A fileira de abas também rola, na
+     * horizontal, desde que ganhou a aba Recortar: não serve para procurar os controles.
+     */
+    private fun painelRolavel(arvore: List<AccessibilityNodeInfo> = todos()): AccessibilityNodeInfo? =
+        arvore.filter { it.isScrollable }.maxByOrNull { no -> Rect().also { no.getBoundsInScreen(it) }.height() }
     private fun rolarPara(descricao: String) {
         for (volta in 0 until 12) {
-            val area = todos().firstOrNull { it.isScrollable } ?: break
+            val area = painelRolavel() ?: break
             if (!area.performAction(AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD)) break
             i.waitForIdleSync(); Thread.sleep(200)
         }
@@ -106,7 +112,7 @@ class EditorFixoTest {
                 alvo.performAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_SHOW_ON_SCREEN.id)
                 i.waitForIdleSync(); Thread.sleep(300)
             }
-            val rolavel = arvore.first { it.isScrollable }
+            val rolavel = painelRolavel(arvore) ?: error("Sem área rolável")
             val b = Rect(); rolavel.getBoundsInScreen(b)
             gesto(b.left + 4f, b.top + b.height() * .7f, b.left + 4f, b.top + b.height() * .4f)
             i.waitForIdleSync(); Thread.sleep(350)
@@ -171,7 +177,7 @@ class EditorFixoTest {
             rolarPara("Aumentar Inclinação X")
             tocar("Aumentar Inclinação X"); esperar { modelo.edicao.inclinacaoX == 1f }
             tocar("Diminuir Inclinação X"); esperar { modelo.edicao.inclinacaoX == 0f }
-            val rolavel = todos().first { it.isScrollable }
+            val rolavel = painelRolavel() ?: error("Sem área rolável")
             rolavel.performAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD)
             i.waitForIdleSync(); Thread.sleep(350)
             assertEquals(previa, caixa("Prévia da figurinha")); assertEquals(salvar, caixa("Salvar no pacote"))

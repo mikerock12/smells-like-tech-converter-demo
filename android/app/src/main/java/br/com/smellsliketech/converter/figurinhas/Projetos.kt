@@ -40,7 +40,8 @@ data class CamadaSalva(
 
 object Projetos {
     const val ARQUIVO = "projeto.json"
-    private const val VERSAO = 3
+    /** 4: texto como objeto (textura justa), disposição do texto e recorte. */
+    private const val VERSAO = 4
 
     fun gravar(pasta: File, projeto: ProjetoSalvo) {
         val objeto = JSONObject()
@@ -64,6 +65,7 @@ object Projetos {
             val o = JSONObject(arquivo.readText())
             val emojis = o.getJSONArray("emojis")
             val camadas = o.getJSONArray("camadas")
+            val versao = o.optInt("versao", 1)
             ProjetoSalvo(
                 animada = o.getBoolean("animada"),
                 quadrosPorSegundo = o.optInt("quadrosPorSegundo", Regras.QUADROS_POR_SEGUNDO_PADRAO).takeIf { it in Regras.QUADROS_POR_SEGUNDO }
@@ -75,7 +77,8 @@ object Projetos {
                 corFinalDoFundo = if (o.isNull("corFinalDoFundo")) null else o.getInt("corFinalDoFundo"),
                 emojis = (0 until emojis.length()).map { emojis.getString(it) },
                 principal = camadaDeJson(o.getJSONObject("principal")),
-                camadas = (0 until camadas.length()).map { camadaDeJson(camadas.getJSONObject(it)) },
+                camadas = (0 until camadas.length()).map { camadaDeJson(camadas.getJSONObject(it)) }
+                    .map { if (versao < 4 && it.texto) it.copy(edicao = textoAntigoComoObjeto(it.edicao)) else it },
             ).takeIf { projeto -> (listOf(projeto.principal) + projeto.camadas).all { camada -> arquivosExistem(pasta, camada) } }
         }.getOrNull()
     }
@@ -140,6 +143,8 @@ object Projetos {
         .put("contorno", e.contorno)
         .put("corDoContorno", e.corDoContorno)
         .put("larguraDoContorno", e.larguraDoContorno.toDouble())
+        .put("disposicaoDoTexto", e.disposicaoDoTexto.name)
+        .put("recorte", e.recorte?.let { r -> JSONObject().put("forma", r.forma.name).put("pontos", JSONArray(r.pontos.map { it.toDouble() })) } ?: JSONObject.NULL)
 
     /** Campo ausente ou desconhecido volta ao padrão: um projeto antigo continua abrindo. */
     fun edicaoDeJson(o: JSONObject): Edicao {
@@ -171,6 +176,25 @@ object Projetos {
             contorno = o.optBoolean("contorno", p.contorno),
             corDoContorno = o.optInt("corDoContorno", p.corDoContorno),
             larguraDoContorno = f("larguraDoContorno", p.larguraDoContorno),
+            disposicaoDoTexto = DisposicaoDoTexto.entries.firstOrNull { it.name == o.optString("disposicaoDoTexto") } ?: p.disposicaoDoTexto,
+            recorte = o.optJSONObject("recorte")?.let { r ->
+                val forma = FormaDoRecorte.entries.firstOrNull { it.name == r.optString("forma") } ?: return@let null
+                val pontos = r.optJSONArray("pontos") ?: return@let null
+                Recorte(forma, (0 until pontos.length()).map { pontos.optDouble(it, 0.0).toFloat() }).takeIf { it.valido }
+            },
         )
+    }
+
+    /**
+     * Até a versão 3 o texto de uma camada era desenhado num quadro de 512 na altura de
+     * [PosicaoDoTexto] (o topo em `y`), e o zoom e o deslocamento moviam o quadro inteiro. Agora o
+     * texto é um objeto centrado no próprio deslocamento: leva o centro do texto para onde ele
+     * aparecia (uma linha de altura ≈ 1,25 × o tamanho da letra).
+     */
+    fun textoAntigoComoObjeto(e: Edicao): Edicao {
+        val altura = e.tamanhoDoTexto * 1.25f
+        val topo = (Regras.LADO * e.posicaoDoTexto.y).coerceAtMost(Regras.LADO - altura - 8f).coerceAtLeast(8f)
+        val centro = (topo + altura / 2) / Regras.LADO
+        return e.copy(deslocamentoY = e.deslocamentoY + (centro - 0.5f) * e.zoom)
     }
 }

@@ -40,11 +40,15 @@ class Origem(val uri: Uri, val nome: String, val tipo: TipoDaOrigem, val copia: 
  * O gerador de figurinhas: os pacotes guardados no app, o arquivo aberto no editor, a edição
  * e o trabalho de gerar a figurinha. Fica fora da tela para nada se perder ao girar o celular.
  */
+/** Distância do texto até a borda nos atalhos "Em cima" e "Embaixo", em frações do lado. */
+private const val MARGEM_DO_TEXTO = 0.06f
+
 class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) {
     private val contexto = aplicacao
     val pacotes = Pacotes(aplicacao)
     private val renderizador = Renderizador(aplicacao)
-    private val compositor = CompositorDeFigurinhas(aplicacao)
+    // O mesmo renderizador: o cache das texturas de texto vale para a prévia e para as guias.
+    private val compositor = CompositorDeFigurinhas(aplicacao, renderizador)
 
     var lista by mutableStateOf(pacotes.listar())
         private set
@@ -453,16 +457,69 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
         atualizarPrevia()
     }
 
-    fun adicionarTexto(texto: String = "Seu texto", emoji: Boolean = false) {
+    fun adicionarTexto(texto: String = "Seu texto", emoji: Boolean = false, modelo: Edicao? = null) {
         if (camadas.size >= 12) { aviso = "Use até 12 camadas adicionais por figurinha."; return }
         registrar()
+        // O texto é um objeto: começa no meio, no tamanho natural, e se move como uma imagem.
+        val edicaoDoTexto = modelo ?: Edicao(texto = texto, tamanhoDoTexto = if (emoji) 180f else 64f, posicaoDoTexto = PosicaoDoTexto.MEIO,
+            corDoContornoDoTexto = if (emoji) android.graphics.Color.TRANSPARENT else android.graphics.Color.BLACK)
         val camada = CamadaDeFigurinha(nome = if (emoji) "Emoji $texto" else "Texto",
-            imagem = Bitmap.createBitmap(512, 512, Bitmap.Config.ARGB_8888), texto = true,
-            edicao = Edicao(texto = texto, tamanhoDoTexto = if (emoji) 180f else 64f, posicaoDoTexto = PosicaoDoTexto.MEIO,
-                corDoContornoDoTexto = if (emoji) android.graphics.Color.TRANSPARENT else android.graphics.Color.BLACK),
+            imagem = Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888), texto = true,
+            edicao = edicaoDoTexto.copy(zoom = 1f, deslocamentoX = 0f, deslocamentoY = 0f, contorno = false, removerFundo = false, recorte = null),
             ordem = (camadas.maxOfOrNull { it.ordem } ?: 0) + 1)
         camadas = camadas + camada
         camadaSelecionada = camada.id
+        atualizarPrevia()
+    }
+
+    /** A camada selecionada é um texto (as abas mostram os controles do texto como objeto). */
+    val textoSelecionado: Boolean get() = camadas.firstOrNull { it.id == camadaSelecionada }?.texto == true
+
+    /** O texto antigo, desenhado direto na mídia principal (figurinhas de antes desta versão). */
+    val temTextoAntigo: Boolean get() = edicaoPrincipal.texto.isNotBlank()
+
+    /**
+     * O texto antigo vira uma camada de texto que se move como objeto, com a mesma fonte, cor
+     * e tamanho, no mesmo lugar (em cima, no meio ou embaixo).
+     */
+    fun transformarTextoEmObjeto() {
+        val antigo = edicaoPrincipal.takeIf { it.texto.isNotBlank() } ?: return
+        adicionarTexto(modelo = Edicao(texto = antigo.texto, fonte = antigo.fonte, corDoTexto = antigo.corDoTexto,
+            corDoContornoDoTexto = antigo.corDoContornoDoTexto, tamanhoDoTexto = antigo.tamanhoDoTexto, posicaoDoTexto = antigo.posicaoDoTexto))
+        // No mesmo passo de desfazer da criação da camada.
+        edicaoPrincipal = edicaoPrincipal.copy(texto = "")
+        posicionarTexto(antigo.posicaoDoTexto, registrarPasso = false)
+    }
+
+    /**
+     * Atalhos "Em cima", "No meio" e "Embaixo": centraliza na horizontal e encosta o texto a 6%
+     * da borda (ou no centro). Depois a pessoa arrasta como quiser.
+     */
+    fun posicionarTexto(posicao: PosicaoDoTexto, registrarPasso: Boolean = true) {
+        val camada = camadas.firstOrNull { it.id == camadaSelecionada && it.texto } ?: return
+        val base = camada.edicao.copy(deslocamentoX = 0f, deslocamentoY = 0f, posicaoDoTexto = posicao)
+        val (w, h) = medidas(camada, base)
+        val caixa = Guias.caixa(w, h, edicaoNasGuias(camada, base))
+        val meiaAltura = caixa?.let { (it.base - it.topo) / 2 } ?: 0.1f
+        val y = when (posicao) {
+            PosicaoDoTexto.CIMA -> -0.5f + MARGEM_DO_TEXTO + meiaAltura
+            PosicaoDoTexto.MEIO -> 0f
+            PosicaoDoTexto.BAIXO -> 0.5f - MARGEM_DO_TEXTO - meiaAltura
+        }
+        if (registrarPasso) ajustar(base.copy(deslocamentoY = y)) else { edicao = base.copy(deslocamentoY = y); atualizarPrevia() }
+    }
+
+    /** A mídia original da camada selecionada (para desenhar o recorte por cima); nulo no texto. */
+    val imagemParaRecorte: Bitmap? get() = selecionadaNaComposicao()?.takeIf { !it.texto }?.imagem
+
+    /** Recorta a mídia selecionada (nulo tira o recorte). O pedaço passa a caber no lugar da mídia inteira. */
+    fun recortar(recorte: Recorte?) {
+        if (textoSelecionado) return
+        val valido = recorte?.takeIf { it.valido }
+        if (recorte != null && valido == null) { aviso = "Recorte pequeno demais. Marque uma área maior."; return }
+        if (valido == edicao.recorte) return
+        registrar()
+        edicao = edicao.copy(recorte = valido)
         atualizarPrevia()
     }
 
@@ -908,20 +965,30 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
 
     // ---- Guias do enquadramento ----
 
-    /** O tamanho da imagem de uma camada como o renderizador a vê (texto é um quadro de 512). */
-    private fun medidas(camada: CamadaDeFigurinha): Pair<Int, Int> =
-        if (camada.texto) Regras.LADO to Regras.LADO else camada.imagem.width to camada.imagem.height
+    /**
+     * O tamanho da imagem de uma camada como o renderizador a vê: a textura justa do texto, o
+     * pedaço recortado, ou a mídia inteira.
+     */
+    private fun medidas(camada: CamadaDeFigurinha, edicao: Edicao = camada.edicao): Pair<Int, Int> {
+        val recorte = edicao.recorte?.takeIf { it.valido }
+        return when {
+            camada.texto -> renderizador.texturaDoTexto(edicao).let { it.width to it.height }
+            recorte != null -> recorte.medidas(camada.imagem.width, camada.imagem.height)
+            else -> camada.imagem.width to camada.imagem.height
+        }
+    }
+
+    /** A edição como as guias a medem: no texto, o zoom vira o da textura (ver [Renderizador.zoomDoTexto]). */
+    private fun edicaoNasGuias(camada: CamadaDeFigurinha, edicao: Edicao): Edicao =
+        if (!camada.texto) edicao else edicao.copy(zoom = renderizador.zoomDoTexto(renderizador.texturaDoTexto(edicao), edicao))
 
     private fun referencias(): List<Guias.Caixa> {
         val atual = camadaSelecionada ?: "principal"
-        return composicao().filter { it.visivel && !it.texto && it.id != atual }
-            .mapNotNull { camada -> medidas(camada).let { (w, h) -> Guias.caixa(w, h, camada.edicao) } }
+        return composicao().filter { it.visivel && it.id != atual }
+            .mapNotNull { camada -> medidas(camada).let { (w, h) -> Guias.caixa(w, h, edicaoNasGuias(camada, camada.edicao)) } }
     }
 
-    private fun medidasDaSelecionada(): Pair<Int, Int>? {
-        val camada = composicao().firstOrNull { it.id == (camadaSelecionada ?: "principal") } ?: return null
-        return medidas(camada)
-    }
+    private fun selecionadaNaComposicao(): CamadaDeFigurinha? = composicao().firstOrNull { it.id == (camadaSelecionada ?: "principal") }
 
     fun iniciarGesto() {
         iniciarAlteracao()
@@ -931,11 +998,13 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
 
     /** O dedo propôs `bruta`: encaixa nas guias próximas e aplica. `girando`: o gesto já girou a imagem. */
     fun moverPorGesto(bruta: Edicao, girando: Boolean = false) {
-        val (w, h) = medidasDaSelecionada() ?: return mudar(bruta)
-        val alinhamento = Guias.alinhar(bruta, w, h, referencias())
+        val camada = selecionadaNaComposicao() ?: return mudar(bruta)
+        val (w, h) = medidas(camada, bruta)
+        val alinhamento = Guias.alinhar(edicaoNasGuias(camada, bruta), w, h, referencias())
         guias = alinhamento.guias
         giroReto = alinhamento.reta && girando
-        mudar(alinhamento.edicao)
+        // O encaixe só mexe em posição e giro; o zoom continua o do gesto.
+        mudar(alinhamento.edicao.copy(zoom = bruta.zoom))
     }
 
     fun terminarGesto() { terminarAlteracao(); esconderGuiasDepois(700) }
@@ -944,8 +1013,9 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
     fun ajustar(nova: Edicao) {
         val girou = nova.giro != edicao.giro
         mudar(nova)
-        val (w, h) = medidasDaSelecionada() ?: return
-        guias = Guias.caixa(w, h, nova)?.let { Guias.guiasDe(it, referencias()) }.orEmpty()
+        val camada = selecionadaNaComposicao() ?: return
+        val (w, h) = medidas(camada, nova)
+        guias = Guias.caixa(w, h, edicaoNasGuias(camada, nova))?.let { Guias.guiasDe(it, referencias()) }.orEmpty()
         giroReto = girou && nova.giro % 90 == 0
         mostrandoGuias = true
         esconderGuiasDepois(1200)
@@ -962,11 +1032,12 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
 
     /** Preencher: a imagem cobre a figurinha 1×1 inteira, centralizada e reta. Depois dá para ajustar. */
     fun preencher() {
-        val camada = composicao().firstOrNull { it.id == (camadaSelecionada ?: "principal") } ?: return
-        if (camada.texto) return
+        val camada = selecionadaNaComposicao() ?: return
         val (w, h) = medidas(camada)
         val atual = camada.edicao
-        ajustar(atual.copy(zoom = Guias.zoomParaPreencher(w, h, atual), deslocamentoX = 0f, deslocamentoY = 0f,
+        // No texto, o zoom das guias é o da textura: converte de volta para o zoom do objeto.
+        val fator = if (camada.texto) edicaoNasGuias(camada, atual).zoom / atual.zoom else 1f
+        ajustar(atual.copy(zoom = Guias.zoomParaPreencher(w, h, atual) / fator, deslocamentoX = 0f, deslocamentoY = 0f,
             giro = if (atual.giro % 90 == 0) atual.giro else 0, inclinacaoX = 0f, inclinacaoY = 0f))
     }
 

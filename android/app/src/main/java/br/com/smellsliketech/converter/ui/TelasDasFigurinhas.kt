@@ -95,6 +95,9 @@ import br.com.smellsliketech.converter.figurinhas.Regras
 import br.com.smellsliketech.converter.figurinhas.TipoDaOrigem
 import br.com.smellsliketech.converter.figurinhas.WhatsApp
 import br.com.smellsliketech.converter.figurinhas.Mescla
+import br.com.smellsliketech.converter.figurinhas.DisposicaoDoTexto
+import br.com.smellsliketech.converter.figurinhas.FormaDoRecorte
+import br.com.smellsliketech.converter.figurinhas.Recorte
 import kotlin.math.roundToInt
 
 private val CORES = listOf(
@@ -326,7 +329,7 @@ private fun DetalheDoPacote(
     }
 }
 
-private enum class Aba(val rotulo: String) { CAMADAS("Camadas"), ENQUADRAR("Enquadrar"), FUNDO("Fundo"), FILTRO("Filtro"), TEXTO("Texto"), CONTORNO("Contorno"), EMOJI("Emoji") }
+private enum class Aba(val rotulo: String) { CAMADAS("Camadas"), ENQUADRAR("Enquadrar"), RECORTAR("Recortar"), FUNDO("Fundo"), FILTRO("Filtro"), TEXTO("Texto"), CONTORNO("Contorno"), EMOJI("Emoji") }
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -347,6 +350,16 @@ private fun EditorDeFigurinha(modelo: FigurinhasViewModel, pedirSaida: () -> Uni
     var importarComoFundo by remember { mutableStateOf(false) }
     val rolagemDosAjustes = rememberScrollState()
     LaunchedEffect(aba) { rolagemDosAjustes.scrollTo(0) }
+    // O recorte em edição (só vale ao tocar em Aplicar). Recomeça ao trocar de camada ou de aba.
+    var formaDoRecorte by remember { mutableStateOf(FormaDoRecorte.QUADRADO) }
+    var rascunhoDoRecorte by remember { mutableStateOf<Recorte?>(null) }
+    val imagemDoRecorte = if (aba == Aba.RECORTAR) modelo.imagemParaRecorte else null
+    LaunchedEffect(aba, modelo.camadaSelecionada) {
+        if (aba != Aba.RECORTAR) return@LaunchedEffect
+        val existente = edicao.recorte
+        if (existente != null) formaDoRecorte = existente.forma
+        rascunhoDoRecorte = existente ?: modelo.imagemParaRecorte?.let { recortePadrao(formaDoRecorte, it.width, it.height) }
+    }
     val adicionarMidia = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) modelo.adicionarMidia(uri, importarComoFundo)
     }
@@ -355,7 +368,8 @@ private fun EditorDeFigurinha(modelo: FigurinhasViewModel, pedirSaida: () -> Uni
         val ladoDaPrevia = minOf(maxWidth - 16.dp, maxHeight * if (maxHeight < 440.dp) .25f else if (pincel && aba == Aba.FUNDO) .38f else .43f)
         Column(Modifier.fillMaxSize().padding(horizontal = 8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(if (modelo.editando != null) "Editar figurinha" else "Nova figurinha", style = MaterialTheme.typography.titleMedium)
-            PreviaEditavelDaFigurinha(modelo, aba == Aba.FUNDO && pincel, apagar, tamanhoDoPincel, Modifier.size(ladoDaPrevia))
+            if (imagemDoRecorte != null) EditorDeRecorte(imagemDoRecorte, rascunhoDoRecorte, formaDoRecorte, { rascunhoDoRecorte = it }, Modifier.size(ladoDaPrevia))
+            else PreviaEditavelDaFigurinha(modelo, aba == Aba.FUNDO && pincel, apagar, tamanhoDoPincel, Modifier.size(ladoDaPrevia))
             Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.Center) {
                 Aba.entries.forEach { opcao ->
                     AcaoDoEditor(AcaoEditor.valueOf(opcao.name), opcao.rotulo, selecionada = aba == opcao) { aba = opcao }
@@ -424,6 +438,34 @@ private fun EditorDeFigurinha(modelo: FigurinhasViewModel, pedirSaida: () -> Uni
                         }
                         AcaoDoEditor(AcaoEditor.REDEFINIR, "Redefinir posição e giro") { modelo.ajustar(edicao.copy(zoom = 1f, deslocamentoX = 0f, deslocamentoY = 0f, giro = 0, inclinacaoX = 0f, inclinacaoY = 0f)) }
                     }
+                    Aba.RECORTAR -> {
+                        if (imagemDoRecorte == null) {
+                            Dica("O recorte vale para imagens e vídeos. Selecione uma mídia em Camadas; o texto se ajusta em Texto e Enquadrar.")
+                        } else {
+                            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                FormaDoRecorte.entries.forEach { forma ->
+                                    FilterChip(selected = formaDoRecorte == forma, onClick = {
+                                        formaDoRecorte = forma
+                                        rascunhoDoRecorte = edicao.recorte?.takeIf { it.forma == forma }
+                                            ?: recortePadrao(forma, imagemDoRecorte.width, imagemDoRecorte.height)
+                                    }, label = { Text(forma.rotulo) })
+                                }
+                            }
+                            Dica(when (formaDoRecorte) {
+                                FormaDoRecorte.LIVRE -> "Desenhe com o dedo em volta da parte que fica. Ao soltar, o traço se fecha."
+                                else -> "Arraste o ${formaDoRecorte.rotulo.lowercase()} até a parte que fica e puxe a bolinha laranja para mudar o tamanho."
+                            } + if (origemSelecionada?.tipo == TipoDaOrigem.VIDEO) " No vídeo, o recorte vale para todos os quadros." else "")
+                            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                // Depois de aplicar, a prévia volta a mostrar a figurinha, já com o pedaço recortado.
+                                Button(onClick = { modelo.recortar(rascunhoDoRecorte); aba = Aba.ENQUADRAR }, enabled = rascunhoDoRecorte?.valido == true) { Text("Aplicar recorte") }
+                                OutlinedButton(onClick = {
+                                    modelo.recortar(null)
+                                    rascunhoDoRecorte = recortePadrao(formaDoRecorte, imagemDoRecorte.width, imagemDoRecorte.height)
+                                }, enabled = edicao.recorte != null) { Text("Tirar recorte") }
+                            }
+                            if (edicao.recorte != null) Dica("Recorte aplicado: só esse pedaço vira figura. Em Enquadrar, ele se move, aproxima e gira como a mídia inteira.")
+                        }
+                    }
                     Aba.FUNDO -> {
                         Linha("Remover o fundo automaticamente", edicao.removerFundo) { modelo.mudar(edicao.copy(removerFundo = it)) }
                         if (modelo.animada && origemSelecionada?.tipo in listOf(TipoDaOrigem.VIDEO, TipoDaOrigem.GIF)) {
@@ -458,7 +500,24 @@ private fun EditorDeFigurinha(modelo: FigurinhasViewModel, pedirSaida: () -> Uni
                         Rotulado("Contraste") { DeslizanteComAjusteFino(edicao.contraste, { modelo.mudar(edicao.copy(contraste = it)) }, limites = -0.8f..1f, passo = .01f, descricao = "Contraste") }
                         Rotulado("Saturação") { DeslizanteComAjusteFino(edicao.saturacao, { modelo.mudar(edicao.copy(saturacao = it)) }, limites = -1f..1f, passo = .01f, descricao = "Saturação") }
                     }
-                    Aba.TEXTO -> {
+                    Aba.TEXTO -> if (!modelo.textoSelecionado) {
+                        Dica("O texto é um objeto: depois de criado, arraste na prévia para mover; pinça aproxima, torção gira e dois toques com arraste inclinam, como nas imagens.")
+                        AcaoDoEditor(AcaoEditor.TEXTO, "Adicionar texto") { modelo.adicionarTexto() }
+                        val textos = modelo.camadas.filter { it.texto }
+                        if (textos.isNotEmpty()) {
+                            Text("Textos desta figurinha", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                textos.forEach { camada ->
+                                    FilterChip(selected = false, onClick = { modelo.selecionarCamada(camada.id) },
+                                        label = { Text(camada.edicao.texto.ifBlank { camada.nome }.take(20), maxLines = 1) })
+                                }
+                            }
+                        }
+                        if (modelo.temTextoAntigo) {
+                            Dica("Esta figurinha tem um texto fixo, de antes desta versão. Transforme em objeto para mover, girar e inclinar.")
+                            OutlinedButton(onClick = { modelo.transformarTextoEmObjeto() }) { Text("Transformar o texto em objeto") }
+                        }
+                    } else {
                         OutlinedTextField(edicao.texto, { modelo.mudar(edicao.copy(texto = it.take(60))) }, label = { Text("Texto") }, modifier = Modifier.fillMaxWidth())
                         FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                             Fonte.entries.forEach { fonte ->
@@ -469,12 +528,23 @@ private fun EditorDeFigurinha(modelo: FigurinhasViewModel, pedirSaida: () -> Uni
                         SeletorDeCor(CORES, edicao.corDoTexto) { modelo.mudar(edicao.copy(corDoTexto = it)) }
                         Text("Contorno do texto", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         SeletorDeCor(listOf(CorAndroid.TRANSPARENT) + CORES, edicao.corDoContornoDoTexto) { modelo.mudar(edicao.copy(corDoContornoDoTexto = it)) }
-                        Rotulado("Tamanho") { DeslizanteComAjusteFino(edicao.tamanhoDoTexto, { modelo.mudar(edicao.copy(tamanhoDoTexto = it)) }, limites = 28f..120f, passo = 1f, descricao = "Tamanho do texto") }
-                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            PosicaoDoTexto.entries.forEach { posicao ->
-                                FilterChip(selected = edicao.posicaoDoTexto == posicao, onClick = { modelo.mudar(edicao.copy(posicaoDoTexto = posicao)) }, label = { Text(posicao.rotulo, fontSize = 12.sp) })
+                        Rotulado("Tamanho da letra") { DeslizanteComAjusteFino(edicao.tamanhoDoTexto, { modelo.mudar(edicao.copy(tamanhoDoTexto = it)) }, limites = 28f..120f, passo = 1f, descricao = "Tamanho do texto") }
+                        Rotulado("Letras") {
+                            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                DisposicaoDoTexto.entries.forEach { disposicao ->
+                                    FilterChip(selected = edicao.disposicaoDoTexto == disposicao, onClick = { modelo.mudar(edicao.copy(disposicaoDoTexto = disposicao)) },
+                                        label = { Text(disposicao.rotulo, fontSize = 12.sp) })
+                                }
                             }
                         }
+                        Rotulado("Levar para") {
+                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                PosicaoDoTexto.entries.forEach { posicao ->
+                                    FilterChip(selected = false, onClick = { modelo.posicionarTexto(posicao) }, label = { Text(posicao.rotulo, fontSize = 12.sp) })
+                                }
+                            }
+                        }
+                        Dica("Arraste o texto na prévia para mover; pinça aproxima e torção gira. Zoom, giro e inclinação finos ficam em Enquadrar.")
                     }
                     Aba.CONTORNO -> {
                         Linha("Contorno de figurinha", edicao.contorno) { modelo.mudar(edicao.copy(contorno = it)) }

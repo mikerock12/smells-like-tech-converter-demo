@@ -24,8 +24,7 @@ data class CamadaDeFigurinha(
 )
 
 /** Cada camada é recortada/filtrada isoladamente, e só depois é mesclada na composição. */
-class CompositorDeFigurinhas(contexto: Context) {
-    private val renderizador = Renderizador(contexto)
+class CompositorDeFigurinhas(contexto: Context, val renderizador: Renderizador = Renderizador(contexto)) {
 
     fun desenhar(camadas: List<CamadaDeFigurinha>, fundo: Int = Color.TRANSPARENT, fundoFinal: Int? = null): Bitmap {
         val saida = Bitmap.createBitmap(Regras.LADO, Regras.LADO, Bitmap.Config.ARGB_8888)
@@ -38,19 +37,19 @@ class CompositorDeFigurinhas(contexto: Context) {
         }
         camadas.filter { it.visivel }.sortedBy { it.ordem }.forEach { camada ->
             val e = camada.edicao
-            val textura = if (camada.texto) renderizador.desenhar(
-                camada.imagem, null, e.copy(zoom = 1f, deslocamentoX = 0f, deslocamentoY = 0f, giro = 0,
-                    inclinacaoX = 0f, inclinacaoY = 0f, corDeFundo = Color.TRANSPARENT, filtro = Filtro.NENHUM, contorno = false),
-            ) else camada.imagem
-            val desenho = renderizador.desenhar(textura, camada.mascara,
-                e.copy(corDeFundo = Color.TRANSPARENT, texto = if (camada.texto) "" else e.texto))
+            // O texto é um objeto: uma textura justa (em cache, não reciclar), no tamanho natural
+            // vezes o zoom, que se move, gira e inclina como a imagem. O recorte não vale para ele.
+            val desenho = if (camada.texto) {
+                val textura = renderizador.texturaDoTexto(e)
+                renderizador.desenhar(textura, null, e.copy(zoom = renderizador.zoomDoTexto(textura, e),
+                    corDeFundo = Color.TRANSPARENT, texto = "", recorte = null))
+            } else renderizador.desenhar(camada.imagem, camada.mascara, e.copy(corDeFundo = Color.TRANSPARENT))
             val pintura = Paint(Paint.ANTI_ALIAS_FLAG).apply {
                 alpha = (e.opacidade.coerceIn(0f, 1f) * 255).toInt()
                 xfermode = PorterDuffXfermode(e.mescla.modo)
             }
             tela.drawBitmap(desenho, 0f, 0f, pintura)
             desenho.recycle()
-            if (textura !== camada.imagem) textura.recycle()
         }
         return saida
     }
