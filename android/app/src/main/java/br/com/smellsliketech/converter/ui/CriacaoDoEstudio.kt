@@ -23,6 +23,8 @@ fun ProjetosDoEstudio(modelo: EstudioViewModel) {
             Text("O arquivo inclui as mídias e abre no site, Windows e Android. Salve antes de iniciar outro projeto.",style=MaterialTheme.typography.bodySmall)
             TextButton({aberto=!aberto}) {Text("Modelos e contagem regressiva")}
             if(aberto) {
+                Text("Fotos em movimento aplica uma aproximação suave (Ken Burns) às fotos da faixa principal. Não transforma fotos em vídeos gerados por IA.", style=MaterialTheme.typography.bodySmall)
+                Text("Contagem regressiva adiciona números, um por segundo, sobre a composição a partir do cursor. Posicione o cursor antes de adicionar.", style=MaterialTheme.typography.bodySmall)
                 FlowRow(horizontalArrangement=Arrangement.spacedBy(6.dp)) {
                     Criacao.modelos.forEach {(id,nome)->OutlinedButton({modelo.aplicarModelo(id)}) {Text(nome)}}
                 }

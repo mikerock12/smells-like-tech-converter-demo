@@ -17,6 +17,23 @@ object Criacao {
         val textos=(0 until quantidade).map { Texto("contagem-$it",(quantidade-it).toString(),inicio+it,inicio+it+1,x=.5,y=.5,tamanho=.25,fonte="anton") }
         return p.copy(versao=4,textos=p.textos.filter { !it.id.startsWith("contagem-") }+textos)
     }
+    /** Divide a faixa principal mantendo o trecho da origem, a velocidade e a fase da animação. */
+    fun dividirClipe(p: Projeto, id: String, tempo: Double, novoId: String): Projeto {
+        val c = p.clipes.find { it.id == id }
+        val segmento = Estudio.segmentos(p).find { it.id == id }
+        require(c != null && segmento != null && p.clipes.size < 100) { "Selecione um clipe e use até 100 clipes." }
+        val local = tempo - segmento.inicio
+        val duracao = Estudio.duracaoDoClipe(c)
+        require(local > .05 && local < duracao - .05) { "Posicione o cursor dentro do clipe para dividir." }
+        // Dividir durante uma transição mudaria a sobreposição entre os vizinhos.
+        require(!Estudio.temTransicoes(p)) { "Troque as transições por corte seco antes de dividir o clipe." }
+        val t = c.transformacao
+        val depois = if (t?.quadrosChave?.isNotEmpty() == true) t.copy(tempoDaAnimacao = t.tempoDaAnimacao + local) else t
+        val corte = (c.inicio ?: 0.0) + local * Estudio.velocidadeDoClipe(c)
+        val primeiro = if (c.ehImagem) c.copy(duracao=local,transicao=null) else c.copy(fim=corte,transicao=null)
+        val segundo = if (c.ehImagem) c.copy(id=novoId,duracao=duracao-local,transformacao=depois) else c.copy(id=novoId,inicio=corte,transformacao=depois)
+        return p.copy(clipes=p.clipes.flatMap { if(it.id==id) listOf(primeiro,segundo) else listOf(it) })
+    }
     fun dividirCamada(original: Projeto,id: String,tempo: Double,novoId: String): Projeto {
         val p=atualizar(original)
         val c=p.camadas.find {it.id==id}

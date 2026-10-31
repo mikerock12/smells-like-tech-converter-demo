@@ -205,8 +205,8 @@ object Estudio {
     }
 
     /** A receita do FFmpeg: idêntica, caractere por caractere, à do JS e à do Windows. */
-    fun receita(projeto: Projeto, entradas: EntradasDaReceita): Receita {
-        if (projeto.saida !in listOf("audio", "texto") && (usaCamadas(projeto) || temTransicoes(projeto))) return ReceitaDeCamadas.montar(projeto, entradas)
+    fun receita(projeto: Projeto, entradas: EntradasDaReceita, otimizar: Boolean = false): Receita {
+        if (projeto.saida !in listOf("audio", "texto") && (usaCamadas(projeto) || temTransicoes(projeto))) return ReceitaDeCamadas.montar(projeto, entradas, otimizar)
         val w = projeto.largura
         val h = projeto.altura
         val fps = projeto.fps

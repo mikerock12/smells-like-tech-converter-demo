@@ -1,7 +1,11 @@
 package br.com.smellsliketech.converter.ui
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.onClick
+import java.io.File
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -14,15 +18,18 @@ import br.com.smellsliketech.converter.estudio.*
 fun FaixasDoEstudio(modelo: EstudioViewModel,selecionar: (String,String)->Unit) {
     val p=modelo.projeto?:return;val total=modelo.total;if(total<=0)return
     data class Item(val id: String,val nome: String,val tipo: String,val inicio: Double,val fim: Double)
-    val itens=Estudio.segmentos(p).map {Item(it.id,"Principal","clipes",it.inicio,it.fim)}+
-        p.camadas.sortedBy {it.ordem}.map {Item(it.id,"Mídia · ${it.ordem}","camadas",it.inicio,it.fim)}+
+    val itens=Estudio.segmentos(p).map {Item(it.id,"${it.indice+1}. ${modelo.infos[p.clipes[it.indice].arquivo]?.nome ?: File(p.clipes[it.indice].arquivo).name}","clipes",it.inicio,it.fim)}+
+        p.camadas.sortedBy {it.ordem}.map {Item(it.id,"Camada · ${modelo.infos[it.arquivo]?.nome ?: File(it.arquivo).name}","camadas",it.inicio,it.fim)}+
         p.audios.map {Item(it.id,"Áudio","audio",it.entrada?:0.0,(it.entrada?:0.0)+it.fim-it.inicio)}
     Text("Faixas da composição",style=MaterialTheme.typography.titleSmall)
+    Text("Toque na faixa para selecionar a mídia e posicionar o cursor. Cada camada mantém seu próprio trecho.",style=MaterialTheme.typography.bodySmall)
     itens.forEach {item ->
         Column(verticalArrangement=Arrangement.spacedBy(2.dp)) {
             Text("${item.nome}: ${Estudio.numero(item.inicio)}–${Estudio.numero(item.fim)} s",style=MaterialTheme.typography.bodySmall)
             BoxWithConstraints(Modifier.fillMaxWidth().height(28.dp).background(MaterialTheme.colorScheme.surfaceVariant)
-                .clickable {modelo.irPara(item.inicio);selecionar(item.id,item.tipo)}) {
+                .pointerInput(item.id,total) { detectTapGestures { ponto ->
+                    modelo.irPara((ponto.x / size.width * total).coerceIn(0.0,total)); selecionar(item.id,item.tipo)
+                } }.semantics { onClick("Selecionar ${item.nome}") { modelo.irPara(item.inicio); selecionar(item.id,item.tipo); true } }) {
                 Box(Modifier.offset(x=maxWidth*(item.inicio/total).toFloat()).width(maxWidth*((item.fim-item.inicio)/total).toFloat()).fillMaxHeight()
                     .background(if(item.tipo=="audio") Color(0xFF27644B) else Color(0xFF95400D)))
                 Box(Modifier.offset(x=maxWidth*(modelo.instante/total).toFloat()).width(2.dp).fillMaxHeight().background(Color.White))

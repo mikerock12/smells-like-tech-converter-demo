@@ -67,6 +67,17 @@ class EstudioViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) {
         private set
     var resultado by mutableStateOf<Resultado?>(null)
     var videoDaPrevia by mutableStateOf<File?>(null)
+    var tocandoPrevia by mutableStateOf(false)
+    var falhaNoPlayerDireto by mutableStateOf(false)
+    val previaDireta get() = !falhaNoPlayerDireto && projeto?.let(PreviaImediata::aceita) == true
+
+    fun falhouPlayer() { falhaNoPlayerDireto = true; tocandoPrevia = false; atualizarPrevia() }
+
+    fun avancarPlayer(tempo: Double) { instante = tempo.coerceIn(0.0, total) }
+    fun alternarPlayer() {
+        if (instante >= total - .05) instante = 0.0
+        tocandoPrevia = !tocandoPrevia
+    }
     var erro by mutableStateOf<String?>(null)
     private var trabalho: Job? = null
     private var trabalhoDaPrevia: Job? = null
@@ -220,6 +231,10 @@ class EstudioViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) {
         previa = null
         instante = 0.0
         resultado = null
+        videoDaPrevia?.delete()
+        videoDaPrevia = null
+        tocandoPrevia = false
+        falhaNoPlayerDireto = false
         montador.esquecer()
         etapa = Etapa.DESTINO
     }
@@ -293,6 +308,8 @@ class EstudioViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) {
             val clipe = if (imagem) Clipe(novoId("c"), arquivo.absolutePath, "imagem", duracao = Estudio.DURACAO_PADRAO_DA_IMAGEM, ajuste = "caber-desfocado")
             else Clipe(novoId("c"), arquivo.absolutePath, "video", inicio = 0.0, fim = info.duracao ?: 10.0, ajuste = "caber-desfocado", volume = 1.0)
             projeto = projeto?.let { it.copy(clipes = it.clipes + clipe) }
+            clipeAberto = clipe.id
+            falhaNoPlayerDireto = false
         }
         salvar()
         atualizarPrevia()
@@ -414,6 +431,7 @@ class EstudioViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) {
     // ==================== prévia ====================
 
     fun irPara(t: Double) {
+        tocandoPrevia = false
         instante = t.coerceIn(0.0, total)
         atualizarPrevia()
     }
@@ -430,6 +448,8 @@ class EstudioViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) {
     private fun atualizarPrevia() {
         val atual = projeto ?: return
         trabalhoDaPrevia?.cancel()
+        if (previaDireta) return
+        tocandoPrevia = false
         trabalhoDaPrevia = viewModelScope.launch {
             delay(120)
             try { previa = montador.quadro(atual, instante) }
@@ -439,6 +459,7 @@ class EstudioViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) {
     }
 
     fun gerarPreviaEmVideo() = executar("Montando a prévia…") {
+        tocandoPrevia = false
         val atual = projeto ?: return@executar
         videoDaPrevia = Exportador.previa(contexto, atual) { relatar(it) }
     }

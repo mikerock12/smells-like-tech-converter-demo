@@ -11,6 +11,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import br.com.smellsliketech.converter.estudio.*
+import br.com.smellsliketech.converter.conversao.Opcoes
 import java.io.File
 import java.util.Locale
 
@@ -26,30 +27,37 @@ fun ControlesDeTransformacao(
     medidas: GuiasDoEstudio.Medidas? = null, enquadrar: ((String) -> Unit)? = null, mostrarGuias: (Transformacao) -> Unit = {},
     mudarDireto: (Transformacao) -> Unit,
 ) {
-    var aberto by rememberSaveable { mutableStateOf(false) }
+    var secao by rememberSaveable { mutableStateOf("Cor") }
     val t = valor ?: Transformacao()
     // Guias só quando muda onde a camada fica (posição, tamanho ou giro), não com filtro ou brilho.
     val mudar: (Transformacao) -> Unit = {
         mudarDireto(it)
         if (it.x != t.x || it.y != t.y || it.escala != t.escala || it.giro != t.giro || it.giroX != t.giroX || it.giroY != t.giroY) mostrarGuias(it)
     }
-    TextButton(onClick = { aberto = !aberto }) { Text(if (aberto) "▾ Transformar e filtrar" else "▸ Transformar e filtrar") }
-    if (!aberto) return
+    Text("Editar esta mídia", style = MaterialTheme.typography.titleSmall)
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        listOf("Cor", "Posição", "Recorte", "Animação", "Mescla").forEach { nome ->
+            FilterChip(secao == nome, { secao = nome }, label = { Text(nome) })
+        }
+    }
+    if (secao == "Posição" || secao == "Recorte") {
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         OutlinedButton({ enquadrar?.invoke("preencher"); mudar(Animacao.mudarBase(t, if (enquadrar != null) GuiasDoEstudio.caberInteira(t) else GuiasDoEstudio.preencher(t, medidas))) }) { Text("Preencher") }
         OutlinedButton({ enquadrar?.invoke("caber"); mudar(Animacao.mudarBase(t, GuiasDoEstudio.caberInteira(t))) }) { Text("Caber inteira") }
         OutlinedButton({ mudar(Animacao.mudarBase(t, GuiasDoEstudio.centralizar(t))) }) { Text("Centralizar") }
     }
-    Text("Arraste a prévia com um dedo para mover; pinça muda o tamanho. As guias piscam quando encaixa no centro ou nas bordas.", style = MaterialTheme.typography.bodySmall)
+    Text("Arraste para mover; pinça para zoom; dois toques e arraste para inclinar. As guias ajudam a alinhar.", style = MaterialTheme.typography.bodySmall)
+    }
+    if (secao == "Recorte") {
+    Text("Recorte visual: use Preencher e mova a imagem na prévia para escolher o que fica no quadro. Máscaras recortam o formato sem apagar o original.", style = MaterialTheme.typography.bodySmall)
     Text("Máscara")
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         listOf("nenhuma" to "Sem máscara", "circulo" to "Círculo", "oval" to "Oval", "arredondada" to "Cantos arredondados").forEach { (id,nome) ->
             FilterChip(t.mascara==id, { mudar(t.copy(mascara=id)) }, label={Text(nome)})
         }
     }
-    var animar by rememberSaveable { mutableStateOf(false) }
-    TextButton({ animar=!animar }) { Text("Animar posição e zoom") }
-    if(animar) {
+    }
+    if (secao == "Animação") {
         var tempo by rememberSaveable { mutableStateOf(0.0) }
         FlowRow {
             TextButton({ mudar(Animacao.kenBurns(t,duracao)) }) { Text("Ken Burns: aproximar") }
@@ -70,6 +78,7 @@ fun ControlesDeTransformacao(
         }
         TextButton({ mudar(t.copy(quadrosChave=emptyList())) }) { Text("Remover animação") }
     }
+    if (secao == "Posição" || secao == "Recorte") {
     ControleDaCamada("Giro no plano (Z)", t.giro, -360.0..360.0, "°") { mudar(t.copy(giro = it)) }
     ControleDaCamada("Inclinar para frente/trás (X)", t.giroX, -180.0..180.0, "°") { mudar(t.copy(giroX = it)) }
     ControleDaCamada("Inclinar para esquerda/direita (Y)", t.giroY, -180.0..180.0, "°") { mudar(t.copy(giroY = it)) }
@@ -81,12 +90,16 @@ fun ControlesDeTransformacao(
         FilterChip(t.espelharX, { mudar(t.copy(espelharX = !t.espelharX)) }, label = { Text("Espelhar horizontal") })
         FilterChip(t.espelharY, { mudar(t.copy(espelharY = !t.espelharY)) }, label = { Text("Espelhar vertical") })
     }
+    }
+    if (secao == "Mescla") {
     Text("Mesclagem")
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         listOf("normal" to "Normal", "multiplicar" to "Multiplicar", "clarear" to "Clarear", "sobrepor" to "Sobrepor").forEach { (id, nome) ->
             FilterChip(t.mescla == id, { mudar(t.copy(mescla = id)) }, label = { Text(nome) })
         }
     }
+    }
+    if (secao == "Cor") {
     Text("Filtro desta camada")
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         listOf("original" to "Original", "vivido" to "Vívido", "pb" to "Preto e branco", "sepia" to "Sépia", "vintage" to "Retrô", "frio" to "Frio", "quente" to "Quente", "negativo" to "Negativo").forEach { (id,nome) ->
@@ -96,7 +109,8 @@ fun ControlesDeTransformacao(
     ControleDaCamada("Brilho", t.brilho * 100, -100.0..100.0, "%") { mudar(t.copy(brilho = it / 100)) }
     ControleDaCamada("Contraste", t.contraste * 100, -80.0..100.0, "%") { mudar(t.copy(contraste = it / 100)) }
     ControleDaCamada("Saturação", t.saturacao * 100, -100.0..100.0, "%") { mudar(t.copy(saturacao = it / 100)) }
-    if (permitirRecorte) {
+    }
+    if (permitirRecorte && secao == "Recorte") {
         FilterChip(t.removerFundo, { mudar(t.copy(removerFundo = !t.removerFundo)) }, label = { Text("Remover o fundo desta mídia") })
         Text("Processado no celular. Vídeos são recortados quadro a quadro e podem demorar.", style = MaterialTheme.typography.bodySmall)
     }
@@ -120,11 +134,12 @@ fun PainelDeCamadasDoEstudio(modelo: EstudioViewModel) {
         Button({ importar.launch(arrayOf("image/*", "video/*")) }, enabled = p.clipes.isNotEmpty() && p.camadas.size < 12) { Text("Adicionar mídia por cima") }
         OutlinedButton({ catalogo = true }, enabled = p.clipes.isNotEmpty() && p.camadas.size < 12) { Text("Stickers e GIF stickers") }
         Text("Fundo da composição")
+        Text("A cor aparece nas áreas livres e substitui o preenchimento desfocado dos clipes.", style = MaterialTheme.typography.bodySmall)
         FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             listOf("#00000000" to "Transparente", "#000000" to "Preto", "#FFFFFF" to "Branco", "#FF7A18" to "Laranja", "#7536E8" to "Roxo").forEach { (cor, nome) ->
-                FilterChip(p.fundo?.cor == cor && p.fundo.corFinal == null, { modelo.mudarProjeto { it.copy(fundo = FundoDoProjeto(cor)) } }, label = { Text(nome) })
+                FilterChip(p.fundo?.cor == cor && p.fundo.corFinal == null, { modelo.mudarProjeto { it.copy(fundo = FundoDoProjeto(cor), clipes = it.clipes.map { c -> if (c.ajuste == "caber-desfocado") c.copy(ajuste = "caber") else c }) } }, label = { Text(nome) })
             }
-            FilterChip(p.fundo?.corFinal != null, { modelo.mudarProjeto { it.copy(fundo = FundoDoProjeto("#7536E8", "#FF7A18")) } }, label = { Text("Gradiente") })
+            FilterChip(p.fundo?.corFinal != null, { modelo.mudarProjeto { it.copy(fundo = FundoDoProjeto("#7536E8", "#FF7A18"), clipes = it.clipes.map { c -> if (c.ajuste == "caber-desfocado") c.copy(ajuste = "caber") else c }) } }, label = { Text("Gradiente") })
         }
         p.camadas.sortedBy { it.ordem }.forEach { camada ->
             key(camada.id) {
@@ -139,6 +154,17 @@ fun PainelDeCamadasDoEstudio(modelo: EstudioViewModel) {
                             TextButton({ modelo.removerCamada(camada.id) }) { Text("Excluir") }
                         }
                         if (modelo.camadaAberta == camada.id) {
+                            ControlesDeTransformacao(camada.transformacao, duracao=camada.fim-camada.inicio, medidas = modelo.medidasDaCamada(camada.id),
+                                mostrarGuias = { modelo.mostrarGuias(modelo.medidasDaCamada(camada.id), it, modelo.referenciasDaCamada(camada.id)) }) { valor -> modelo.mudarCamada(camada.id) { it.copy(transformacao = valor) } }
+                            if (camada.tipo == "video") {
+                                Text("Trecho desta camada (independente das outras)", style=MaterialTheme.typography.titleSmall)
+                                PreviaDoTrecho(Uri.fromFile(File(camada.arquivo)), true,
+                                    Opcoes("mp4", inicioSegundos=camada.deslocamento, fimSegundos=camada.deslocamento+camada.fim-camada.inicio)) { opcoes ->
+                                    if (opcoes.fimSegundos > opcoes.inicioSegundos) modelo.mudarCamada(camada.id) {
+                                        it.copy(deslocamento=opcoes.inicioSegundos, fim=it.inicio+opcoes.fimSegundos-opcoes.inicioSegundos, repetir=false)
+                                    }
+                                }
+                            }
                             TextButton({ modelo.mudarCamada(camada.id) { it.copy(ordem = if (it.ordem < 0) 1 else -1) } }) {
                                 Text(if (camada.ordem < 0) "Trazer para frente do clipe" else "Usar como fundo")
                             }
@@ -162,8 +188,7 @@ fun PainelDeCamadasDoEstudio(modelo: EstudioViewModel) {
                                     ControleDaCamada("Início no arquivo", camada.deslocamento, 0.0..maxOf(0.0, duracao - .1), " s") { valor -> modelo.mudarCamada(camada.id) { it.copy(deslocamento = valor) } }
                                 }
                             }
-                            ControlesDeTransformacao(camada.transformacao, duracao=camada.fim-camada.inicio, medidas = modelo.medidasDaCamada(camada.id),
-                                mostrarGuias = { modelo.mostrarGuias(modelo.medidasDaCamada(camada.id), it, modelo.referenciasDaCamada(camada.id)) }) { valor -> modelo.mudarCamada(camada.id) { it.copy(transformacao = valor) } }
+
                         }
                     }
                 }

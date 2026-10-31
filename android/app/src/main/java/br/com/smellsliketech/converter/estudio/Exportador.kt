@@ -180,7 +180,7 @@ object Exportador {
                 }
             }
             val preparado = projeto.copy(clipes = clipesPreparados, camadas = camadasPreparadas)
-            val receita = Estudio.receita(preparado, EntradasDaReceita(clipes, textos, audios, camadas))
+            val receita = Estudio.receita(preparado, EntradasDaReceita(clipes, textos, audios, camadas), otimizar = true)
             when (projeto.saida) {
                 "video" -> video(contexto, projeto, receita, pasta, destino, aoAvancar)
                 else -> {

@@ -265,7 +265,6 @@ private fun Editor(modelo: EstudioViewModel, podeExportar: Boolean, abrirLicenca
                 AcaoDoEditor(AcaoEditor.ADICIONAR, "Começar novo projeto") { confirmarNovo = true }
             }
         }
-        item { ProjetosDoEstudio(modelo) }
         item {
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 AbaDoEstudio.entries.forEach { opcao ->
@@ -316,7 +315,7 @@ private fun Editor(modelo: EstudioViewModel, podeExportar: Boolean, abrirLicenca
                 items(projeto.audios, key = { it.id }) { audio -> CartaoDoAudio(modelo, audio) }
             }
             AbaDoEstudio.CAMADAS -> item { PainelDeCamadasDoEstudio(modelo) }
-            AbaDoEstudio.EXPORTAR -> item { PainelDeExportar(modelo, projeto, podeExportar, abrirLicenca, abrirModelos) }
+            AbaDoEstudio.EXPORTAR -> item { ProjetosDoEstudio(modelo); PainelDeExportar(modelo, projeto, podeExportar, abrirLicenca, abrirModelos) }
         }
     }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
@@ -387,6 +386,8 @@ private fun Previa(modelo: EstudioViewModel, projeto: Projeto, altura: Dp, secao
         ) {
             val quadro = modelo.previa
             if (projeto.clipes.isEmpty()) Text("Adicione vídeos ou fotos", color = Cores.textoApagado, fontSize = 13.sp)
+            else if (modelo.previaDireta) PlayerImediatoDoEstudio(modelo, projeto,
+                Modifier.aspectRatio(projeto.largura.toFloat() / projeto.altura, matchHeightConstraintsFirst = projeto.altura > projeto.largura))
             else if (quadro != null) Image(quadro.asImageBitmap(), contentDescription = "Prévia do projeto", contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize())
             GuiasNaPrevia(modelo, projeto)
         }
@@ -397,7 +398,15 @@ private fun Previa(modelo: EstudioViewModel, projeto: Projeto, altura: Dp, secao
                 Text(tempo(total), fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             DeslizanteComAjusteFino(valor = modelo.instante.toFloat(), mudar = { modelo.irPara(it.toDouble()) }, limites = 0f..total.toFloat(), passo = .1f, descricao = "Instante do projeto")
-            AcaoDoEditor(AcaoEditor.TOCAR, "Assistir à prévia em vídeo (baixa resolução)") { modelo.gerarPreviaEmVideo() }
+            if (modelo.previaDireta) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    TextButton({ modelo.alternarPlayer() }) { Text(if (modelo.tocandoPrevia) "Pausar" else "Reproduzir") }
+                    Text("Prévia imediata", style = MaterialTheme.typography.labelSmall)
+                }
+            } else {
+                TextButton({ modelo.gerarPreviaEmVideo() }) { Text("Gerar prévia com todos os efeitos") }
+                Text("Camadas, áudio extra, desfoque e remoção de fundo exigem renderização.", style = MaterialTheme.typography.labelSmall)
+            }
         }
     }
 }
@@ -460,6 +469,12 @@ private fun CartaoDoClipe(modelo: EstudioViewModel, projeto: Projeto, clipe: Cli
             TextButton(onClick = { modelo.removerClipe(clipe.id) }) { Text("✕") }
         }
         if (!aberto) return@Painel
+        TextButton({ runCatching {
+            modelo.mudarProjeto { br.com.smellsliketech.converter.estudio.Criacao.dividirClipe(it, clipe.id, modelo.instante, java.util.UUID.randomUUID().toString()) }
+        }.onFailure { modelo.erro = it.message } }) { Text("Dividir clipe no cursor") }
+        ControlesDeTransformacao(clipe.transformacao, duracao=Estudio.duracaoDoClipe(clipe), medidas = modelo.medidasDoQuadro,
+            enquadrar = { ajuste -> modelo.mudarClipe(clipe.id) { it.copy(ajuste = ajuste) } },
+            mostrarGuias = { modelo.mostrarGuias(modelo.medidasDoQuadro, it) }) { valor -> modelo.mudarClipe(clipe.id) { it.copy(transformacao = valor) } }
         if (clipe.ehImagem) {
             Text("Na tela por ${decimal1(clipe.duracao ?: Estudio.DURACAO_PADRAO_DA_IMAGEM)} s", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             DeslizanteComAjusteFino(valor = (clipe.duracao ?: Estudio.DURACAO_PADRAO_DA_IMAGEM).toFloat(), limites = 0.5f..15f,
@@ -496,9 +511,7 @@ private fun CartaoDoClipe(modelo: EstudioViewModel, projeto: Projeto, clipe: Cli
                 Dica("Limitada à metade dos clipes vizinhos. O áudio acompanha a transição.")
             }
         }
-        ControlesDeTransformacao(clipe.transformacao, duracao=Estudio.duracaoDoClipe(clipe), medidas = modelo.medidasDoQuadro,
-            enquadrar = { ajuste -> modelo.mudarClipe(clipe.id) { it.copy(ajuste = ajuste) } },
-            mostrarGuias = { modelo.mostrarGuias(modelo.medidasDoQuadro, it) }) { valor -> modelo.mudarClipe(clipe.id) { it.copy(transformacao = valor) } }
+
         if (!clipe.ehImagem) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("Som do vídeo", fontSize = 13.sp, modifier = Modifier.weight(1f))

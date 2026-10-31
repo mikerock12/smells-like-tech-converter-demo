@@ -18,6 +18,23 @@ class CriacaoTest {
         assertEquals(.6,ponto.x,1e-8);assertEquals(.4,ponto.y,1e-8);assertEquals(3.0,ponto.escala,1e-8)
         assertEquals("suave",movida.quadrosChave[0].curva)
     }
+    @Test fun `dividir clipe preserva origem velocidade e animacao`() {
+        val animacao=Animacao.kenBurns(duracao=5.0)
+        val original=projeto("a").copy(clipes=listOf(Clipe("v","video.mp4","video",inicio=2.0,fim=12.0,velocidade=2.0,ajuste="caber",transformacao=animacao)))
+        val dividido=Criacao.dividirClipe(original,"v",2.0,"v2")
+        assertEquals(listOf("v","v2"),dividido.clipes.map {it.id})
+        assertEquals(6.0,dividido.clipes[0].fim!!,0.0)
+        assertEquals(6.0,dividido.clipes[1].inicio!!,0.0)
+        assertEquals(12.0,dividido.clipes[1].fim!!,0.0)
+        assertEquals(2.0,Estudio.duracaoDoClipe(dividido.clipes[0]),0.0)
+        assertEquals(3.0,Estudio.duracaoDoClipe(dividido.clipes[1]),0.0)
+        assertEquals(Estudio.duracaoTotal(original),Estudio.duracaoTotal(dividido),0.0)
+        assertEquals(Animacao.noTempo(animacao,3.0).escala,Animacao.noTempo(dividido.clipes[1].transformacao!!,1.0).escala,0.0)
+        assertThrows(IllegalArgumentException::class.java) {Criacao.dividirClipe(original,"v",0.0,"fora")}
+        val comTransicao=original.copy(clipes=original.clipes+Clipe("i","foto.png","imagem",duracao=2.0),)
+        val transicao=dividido.clipes[0].copy(transicao=Transicao("fade"))
+        assertThrows(IllegalArgumentException::class.java) {Criacao.dividirClipe(comTransicao.copy(clipes=listOf(transicao,comTransicao.clipes[1])),"v",2.0,"v2")}
+    }
     @Test fun `contagem modelos corte e migracao preservam a composicao`() {
         val p=projeto("a");val c=Criacao.contagem(p,1.0,3)
         assertEquals(listOf("2"),Estudio.textosNoTempo(c,2.0).map {it.texto});assertTrue(Estudio.textosNoTempo(c,4.0).isEmpty())

@@ -1,5 +1,5 @@
 {
-  "commit": "b8d9962a406c10d84376f3c71ececf167f7d26b7",
+  "commit": "c5310ba09f8bfff7a13161a29db3a9624121758a",
   "repository": "https://github.com/mikerock12/smells-like-tech-converter-demo",
   "originals": [
     {
@@ -34,7 +34,7 @@
     },
     {
       "path": "android/app/build.gradle.kts",
-      "sha256": "89c1dfb3770fdaf8f925d029512e958b4746f3973d54b66acad434061c533eae",
+      "sha256": "6c34306b4508596d5955f5c6ed06437479b252a6608204b4af38f5053bc06643",
       "bytes": 8642
     },
     {
@@ -108,6 +108,16 @@
       "bytes": 10773
     },
     {
+      "path": "android/app/src/androidTest/java/br/com/smellsliketech/converter/estudio/EstudioDesempenhoTest.kt",
+      "sha256": "7794a015fc1f843b10b4b8c4529079b895b93f6233dca921aa34249ae91b4ac6",
+      "bytes": 5585
+    },
+    {
+      "path": "android/app/src/androidTest/java/br/com/smellsliketech/converter/estudio/EstudioEdicaoNoAparelhoTest.kt",
+      "sha256": "b978959b34311703562de8b4ae763f7286dcffc800e6fd28c289b19e25465edf",
+      "bytes": 6051
+    },
+    {
       "path": "android/app/src/androidTest/java/br/com/smellsliketech/converter/estudio/EstudioEtapa3Test.kt",
       "sha256": "addddd0649c8ad7bc14e8ffda56bf92adc5637bb129f393cf87f8b4f366b7373",
       "bytes": 4369
@@ -116,6 +126,16 @@
       "path": "android/app/src/androidTest/java/br/com/smellsliketech/converter/estudio/EstudioExportadorTest.kt",
       "sha256": "01343a38c6a5f1af8850e268fa082469659d6e033b2e50960104a47f74177d90",
       "bytes": 10998
+    },
+    {
+      "path": "android/app/src/androidTest/java/br/com/smellsliketech/converter/estudio/FundoOtimizadoNoAparelhoTest.kt",
+      "sha256": "07b9a1d24774b8674a1c5221f773ad31dcc6661a1bd81cee85d47a2a06a44f5d",
+      "bytes": 3051
+    },
+    {
+      "path": "android/app/src/androidTest/java/br/com/smellsliketech/converter/estudio/PreviaImediataNoAparelhoTest.kt",
+      "sha256": "53c200f8633f96569a8fcca53a65b33e46c34d3d7fe0cca1331fa0d710b04167",
+      "bytes": 9570
     },
     {
       "path": "android/app/src/androidTest/java/br/com/smellsliketech/converter/figurinhas/CenaSelecionadaTest.kt",
@@ -559,8 +579,8 @@
     },
     {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/estudio/Criacao.kt",
-      "sha256": "9f43cb4a599af2432c9641fbe85cd30925915b3f85df7c391b4a93ea9a2b7ceb",
-      "bytes": 3158
+      "sha256": "1589b771f3b6a446e0f9d8bee171664d343539bdf8d4f7b8c4dc253764eb3edb",
+      "bytes": 4591
     },
     {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/estudio/DesenhoDoTexto.kt",
@@ -569,23 +589,23 @@
     },
     {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/estudio/Estudio.kt",
-      "sha256": "5d2038c0d2ac69095724daa657ff859da1e3ac439328c64fae508a1f65c972ed",
-      "bytes": 20172
+      "sha256": "7751d2838c68f172ecafa56ef8ba99f7cdeb0c33e304f3bb7f95b852d9b94ef8",
+      "bytes": 20209
     },
     {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/estudio/EstudioViewModel.kt",
-      "sha256": "d8f7e4d3cb43ae96e4b049833a84ba2e7744e242542abcb517eb7fef345e8351",
-      "bytes": 28552
+      "sha256": "ea2fc8a2b341ab7dcfe00cb6636dffeffbb048c05f4fb85d435438a8cc36ff1f",
+      "bytes": 29376
     },
     {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/estudio/Exportador.kt",
-      "sha256": "9fddd4eefd7757c8b1cd5fd3478a7ca53f9872b8de6c3ab2a88a9e4f48ab63ed",
-      "bytes": 15805
+      "sha256": "c6c253abadd146e7c194d8d39bffc85d245e15b8a57ced521b52c2efee260f32",
+      "bytes": 15822
     },
     {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/estudio/FiltrosDeCamada.kt",
-      "sha256": "9b20f41f9acb7c77b74450610927dcec50357014cdaae66514164cd828dc116e",
-      "bytes": 6919
+      "sha256": "ca0b1503d908016fd83fbc94058317ebfb751bb2eb14de25fec17f0ca3ba92bd",
+      "bytes": 7567
     },
     {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/estudio/GuiasDoEstudio.kt",
@@ -598,14 +618,19 @@
       "bytes": 5383
     },
     {
+      "path": "android/app/src/main/java/br/com/smellsliketech/converter/estudio/PreviaImediata.kt",
+      "sha256": "fc71a59fc3eecfffc304b2c07c3320f562546113d8da10bc48095ac694c4c1ce",
+      "bytes": 886
+    },
+    {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/estudio/Projeto.kt",
       "sha256": "fdbbe845daf3f4e8ec585022552a766b38a90deba708ea7bf999ca17f7a255e0",
       "bytes": 8030
     },
     {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/estudio/ReceitaDeCamadas.kt",
-      "sha256": "87114a1ea16101c85885edfd4f85d4f0287a7c15fcaaeaa42d00de2f30f3c6af",
-      "bytes": 7225
+      "sha256": "1e459da2afdeeaf3284ed94fe758eb34da0d40610dc090b565f75827b3d89d40",
+      "bytes": 7324
     },
     {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/estudio/RecorteDeFundo.kt",
@@ -724,8 +749,8 @@
     },
     {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/ui/CamadasDoEstudio.kt",
-      "sha256": "5f1638c0c6d9b69ce7a375816444f4d512f35cb2427028de9a337137097da2f0",
-      "bytes": 13340
+      "sha256": "08767df48cf9b15c07503c885c2c126561914a5278bb8e0d9bebbdff1abcb863",
+      "bytes": 15027
     },
     {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/ui/Compartilhar.kt",
@@ -739,8 +764,8 @@
     },
     {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/ui/CriacaoDoEstudio.kt",
-      "sha256": "2d8d7743de018a4690b645bd6ab0dcf470114aa75e7a5eca082dd2cc0ff5a274",
-      "bytes": 3460
+      "sha256": "dd293ff5d61978b1c6bc2df6c3e6db8d031f504875d23b39d5d1fc8e442fb0c6",
+      "bytes": 3868
     },
     {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/ui/DeslizanteComAjusteFino.kt",
@@ -754,13 +779,18 @@
     },
     {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/ui/FaixasDoEstudio.kt",
-      "sha256": "95be4c2c75b92a57c009d9e7d1f32b5b40ec004247a7a4e7289cf83ed1968892",
-      "bytes": 1932
+      "sha256": "ab3cf5731dc913dd8af1fee6a0000eb0df09d92cd8f677c409ac76b09b01e559",
+      "bytes": 2662
     },
     {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/ui/OficinaViewModel.kt",
       "sha256": "6f8c38dadd88f7ade53d94d22469c666862426e2a20d43de9fde3ffe77907fd1",
       "bytes": 14394
+    },
+    {
+      "path": "android/app/src/main/java/br/com/smellsliketech/converter/ui/PlayerImediatoDoEstudio.kt",
+      "sha256": "8cbbba85884ac454c400474c01c34d8c4ba98a948a5ae174b687f28b7fe8f2cd",
+      "bytes": 9487
     },
     {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/ui/Previa.kt",
@@ -794,8 +824,8 @@
     },
     {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/ui/TelasDoEstudio.kt",
-      "sha256": "68514174478bc9ec74104895d3ed591484e5bc50e36000fab014823789aae01b",
-      "bytes": 47823
+      "sha256": "3e1cae24008aa840b6679ad7feafac7931dd1e996cadd04a2cc27b346d4a9ad4",
+      "bytes": 48827
     },
     {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/ui/Tema.kt",
@@ -914,8 +944,8 @@
     },
     {
       "path": "android/app/src/test/java/br/com/smellsliketech/converter/estudio/CriacaoTest.kt",
-      "sha256": "6d09a1ffca36b56a2cce3169103cc8f9502625a178028b3ac85012dbac8df5d4",
-      "bytes": 3199
+      "sha256": "3466f49573328bf2e0c0343e018cf8278b052c7db24e969c4cec98409372ee8a",
+      "bytes": 4603
     },
     {
       "path": "android/app/src/test/java/br/com/smellsliketech/converter/estudio/EstudioTest.kt",
@@ -926,6 +956,11 @@
       "path": "android/app/src/test/java/br/com/smellsliketech/converter/estudio/GuiasDoEstudioTest.kt",
       "sha256": "19ca21c7a0aad39a94489d7e3d50105a6c240a1d53689a36c87baf429af52207",
       "bytes": 3509
+    },
+    {
+      "path": "android/app/src/test/java/br/com/smellsliketech/converter/estudio/PreviaEOtimizacaoTest.kt",
+      "sha256": "13080318ce1b585509ffbaa1ea4ba73efc68d0d3072edf3890fa210f62fc355f",
+      "bytes": 2476
     },
     {
       "path": "android/app/src/test/java/br/com/smellsliketech/converter/figurinhas/ControlesDoEditorTest.kt",
@@ -1111,6 +1146,11 @@
       "path": "android/play/ficha-1.0.7.md",
       "sha256": "edb1b2d2af561ea541b9ae8bc092f1476e74cf8b2d858177d2ce252bb66df9a1",
       "bytes": 4757
+    },
+    {
+      "path": "android/play/ficha-1.0.8.md",
+      "sha256": "26ef5a689fb3a83cfebf647adf8e66f40b9b99460655ac9ee35ff8715c65e470",
+      "bytes": 4545
     },
     {
       "path": "android/play/icone-512.png",

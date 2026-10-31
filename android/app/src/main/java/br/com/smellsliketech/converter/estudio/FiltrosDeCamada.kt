@@ -14,7 +14,7 @@ object FiltrosDeCamada {
         val det=a*cof[0]+b*cof[3]+c*cof[6]
         return if(abs(det)<1e-8) null else cof.map { it/det }.toDoubleArray()
     }
-    private fun projecao(t: Transformacao,w: Int,h: Int): DoubleArray? {
+    internal fun projecao(t: Transformacao,w: Int,h: Int): DoubleArray? {
         val a=t.giro*PI/180; val ax=t.giroX*PI/180; val ay=t.giroY*PI/180
         val camera=max(w,h)*3.0
         val p=listOf(0.0 to 0.0,w.toDouble() to 0.0,w.toDouble() to h.toDouble(),0.0 to h.toDouble()).map { (u,v) ->
@@ -56,8 +56,11 @@ object FiltrosDeCamada {
         val c=1+t.contraste; val d=128*(1-c)+t.brilho*100
         return compor(doubleArrayOf(c,0.0,0.0,d,0.0,c,0.0,d,0.0,0.0,c,d),m)
     }
-    fun transformacao(valor: Transformacao?,w: Int,h: Int,deslocamento: Double = 0.0): String {
+    fun transformacao(valor: Transformacao?,w: Int,h: Int,deslocamento: Double = 0.0, otimizar: Boolean = false): String {
         val t=valor?:Transformacao()
+        // Não reamostrar uma identidade: evita bilhões de avaliações de expressão em vídeos longos.
+        // Mesclagem e remoção de fundo são feitas fora deste filtro.
+        if (otimizar && t.copy(mescla="normal", removerFundo=false, tempoDaAnimacao=0.0) == Transformacao()) return "format=rgba"
         val m=inversa(projecao(t,w,h))?:return "format=rgba,colorchannelmixer=aa=0"
         var u="(X+0.5)/W";var v="(Y+0.5)/H";var prefixo=""
         if(t.quadrosChave.isNotEmpty()) {
@@ -93,10 +96,12 @@ object FiltrosDeCamada {
             "[${p}f2][${p}rgb][${p}ba]maskedmerge[${p}mix];[${p}mix][${p}fa]alphamerge[${p}fg];"+
             "[${p}b2][${p}fg]overlay=0:0:format=auto:enable='$ativo'[$saida]"
     }
-    fun fundo(fundo: FundoDoProjeto?,w: Int,h: Int,fps: Int,duracao: Double): String {
+    fun fundo(fundo: FundoDoProjeto?,w: Int,h: Int,fps: Int,duracao: Double, otimizar: Boolean = false): String {
         val a=fundo?.cor?:"#000000"; val b=fundo?.corFinal?:a
         fun rgba(c: String)=listOf(0,2,4,6).map { i -> if(i==6&&c.length==7) 255 else c.substring(i+1,i+3).toInt(16) }
         val inicio=rgba(a); val fim=rgba(b)
+        // LUT preserva os valores RGBA exatos (inclusive alpha), sem conversão RGB → YUV da cor.
+        if (otimizar && inicio == fim) return "color=c=black:s=${w}x$h:r=$fps:d=${d(duracao)},format=rgba,lutrgb=r=${inicio[0]}:g=${inicio[1]}:b=${inicio[2]}:a=${inicio[3]}[cfundo]"
         val canais=listOf("r","g","b","a").mapIndexed { i,c -> "$c='${inicio[i]}+(${fim[i]-inicio[i]})*clip(((X+0.5)*W+(Y+0.5)*H)/(W*W+H*H),0,1)'" }
         return "color=c=black:s=${w}x$h:r=$fps:d=${d(duracao)},format=rgba,geq=${canais.joinToString(":")},format=rgba[cfundo]"
     }

@@ -2,13 +2,13 @@ package br.com.smellsliketech.converter.estudio
 
 /** Composição RGBA, espelho de estudio-camadas.mjs. */
 object ReceitaDeCamadas {
-    fun montar(p: Projeto,entradas: EntradasDaReceita): Receita {
+    fun montar(p: Projeto,entradas: EntradasDaReceita, otimizar: Boolean = false): Receita {
         val audio=Estudio.receita(p.copy(saida="audio",textos=emptyList()),entradas)
         val args=audio.args.toMutableList(); val filtros=mutableListOf(audio.filtro)
         val total=Estudio.duracaoTotal(p); val w=p.largura; val h=p.altura; val fps=p.fps
         var indice=p.clipes.size+p.audios.size; var video="cfundo"; var etapa=0
         val transicoes=Estudio.temTransicoes(p); val lista=Estudio.segmentos(p)
-        if(!transicoes) filtros+=FiltrosDeCamada.fundo(p.fundo,w,h,fps,total)
+        if(!transicoes) filtros+=FiltrosDeCamada.fundo(p.fundo,w,h,fps,total,otimizar)
         fun compor(rotulo: String,t: Transformacao?,inicio: Double,fim: Double) {
             val proximo="cc${etapa++}"
             filtros+=FiltrosDeCamada.sobrepor(video,rotulo,proximo,t?.mescla,inicio,fim); video=proximo
@@ -26,13 +26,13 @@ object ReceitaDeCamadas {
             val pad="tpad=stop_mode=clone:stop_duration=${n(duracao)},trim=duration=${n(duracao)},"
             val animada=c.transformacao?.quadrosChave?.isNotEmpty()==true
             val entrada=indice++; val rotulo="ce$i"
-            filtros+="[$entrada:v]fps=$fps,format=rgba,scale=$w:$h:force_original_aspect_ratio=decrease:force_divisible_by=2,pad=$w:$h:(ow-iw)/2:(oh-ih)/2:color=black@0,setsar=1,${if(animada) pad else ""}${FiltrosDeCamada.transformacao(c.transformacao,w,h)},${if(animada) "" else pad}setpts=PTS-STARTPTS+${n(c.inicio)}/TB[$rotulo]"
+            filtros+="[$entrada:v]fps=$fps,format=rgba,scale=$w:$h:force_original_aspect_ratio=decrease:force_divisible_by=2,pad=$w:$h:(ow-iw)/2:(oh-ih)/2:color=black@0,setsar=1,${if(animada) pad else ""}${FiltrosDeCamada.transformacao(c.transformacao,w,h,otimizar=otimizar)},${if(animada) "" else pad}setpts=PTS-STARTPTS+${n(c.inicio)}/TB[$rotulo]"
             compor(rotulo,c.transformacao,c.inicio,c.fim)
         }
         if(!transicoes) camadas.filter { it.first.ordem<0 }.forEach(::extra)
         fun fundoLocal(i: Int,inicio: Double,duracao: Double): String {
             var base="cbglocal$i";var etapaLocal=0
-            filtros+=FiltrosDeCamada.fundo(p.fundo,w,h,fps,duracao).replace("[cfundo]","[$base]")
+            filtros+=FiltrosDeCamada.fundo(p.fundo,w,h,fps,duracao,otimizar).replace("[cfundo]","[$base]")
             for((c,j) in camadas.filter {it.first.ordem<0}) {
                 val de=maxOf(inicio,c.inicio);val ate=minOf(inicio+duracao,c.fim);if(ate<=de) continue
                 val antes=de-c.inicio;val tempo=ate-de;val necessario=antes+tempo
@@ -40,7 +40,7 @@ object ReceitaDeCamadas {
                 else {if(c.repetir) args+=listOf("-stream_loop","-1");if(c.tipo=="gif") args+=listOf("-ignore_loop","1");args+=listOf("-ss",n(c.deslocamento))}
                 args+=listOf("-t",n(necessario),"-i",entradas.camadas[j])
                 val entrada=indice++;val rotulo="cbl${i}_$j";val proximo="cblbase${i}_${etapaLocal++}"
-                filtros+="[$entrada:v]fps=$fps,tpad=stop_mode=clone:stop_duration=${n(necessario)},trim=start=${n(antes)}:duration=${n(tempo)},setpts=PTS-STARTPTS,format=rgba,scale=$w:$h:force_original_aspect_ratio=decrease:force_divisible_by=2,pad=$w:$h:(ow-iw)/2:(oh-ih)/2:color=black@0,setsar=1,${FiltrosDeCamada.transformacao(c.transformacao,w,h,antes)},setpts=PTS-STARTPTS+${n(de-inicio)}/TB[$rotulo]"
+                filtros+="[$entrada:v]fps=$fps,tpad=stop_mode=clone:stop_duration=${n(necessario)},trim=start=${n(antes)}:duration=${n(tempo)},setpts=PTS-STARTPTS,format=rgba,scale=$w:$h:force_original_aspect_ratio=decrease:force_divisible_by=2,pad=$w:$h:(ow-iw)/2:(oh-ih)/2:color=black@0,setsar=1,${FiltrosDeCamada.transformacao(c.transformacao,w,h,antes,otimizar)},setpts=PTS-STARTPTS+${n(de-inicio)}/TB[$rotulo]"
                 filtros+=FiltrosDeCamada.sobrepor(base,rotulo,proximo,c.transformacao?.mescla,de-inicio,ate-inicio);base=proximo
             }
             return base
@@ -50,7 +50,7 @@ object ReceitaDeCamadas {
             inicio=lista[i].inicio
             val original=Estudio.duracaoDoClipe(c);val duracao=if(i==p.clipes.lastIndex) maxOf(original,total-inicio) else original; val rotulo="cp$i"
             val estender=if(duracao>original) "tpad=stop_mode=clone:stop_duration=${n(duracao-original)},trim=duration=${n(duracao)}," else ""
-            val fim="setsar=1,$estender${FiltrosDeCamada.transformacao(c.transformacao,w,h)},setpts=PTS-STARTPTS${if(transicoes) ",format=gbrap,settb=AVTB" else "+${n(inicio)}/TB"}[$rotulo]"
+            val fim="setsar=1,$estender${FiltrosDeCamada.transformacao(c.transformacao,w,h,otimizar=otimizar)},setpts=PTS-STARTPTS${if(transicoes) ",format=gbrap,settb=AVTB" else "+${n(inicio)}/TB"}[$rotulo]"
             filtros+=when(c.ajuste) {
                 "preencher" -> "[$i:v]${Estudio.filtroDeVelocidade(c)}fps=$fps,format=rgba,scale=$w:$h:force_original_aspect_ratio=increase,crop=$w:$h,$fim"
                 "caber" -> "[$i:v]${Estudio.filtroDeVelocidade(c)}fps=$fps,format=rgba,scale=$w:$h:force_original_aspect_ratio=decrease:force_divisible_by=2,pad=$w:$h:(ow-iw)/2:(oh-ih)/2:color=black@0,$fim"
@@ -78,7 +78,7 @@ object ReceitaDeCamadas {
         p.textos.forEachIndexed { i,t ->
             args+=listOf("-loop","1","-framerate",fps.toString(),"-t",n(total),"-i",entradas.textos[i])
             val entrada=indice++; val rotulo="ct$i"
-            filtros+="[$entrada:v]${FiltrosDeCamada.transformacao(t.transformacao,w,h,-t.inicio)}[$rotulo]"
+            filtros+="[$entrada:v]${FiltrosDeCamada.transformacao(t.transformacao,w,h,-t.inicio,otimizar)}[$rotulo]"
             compor(rotulo,t.transformacao,t.inicio,t.fim+(if((t.id.startsWith("legenda-") || t.id.startsWith("contagem-"))) 0.0 else 1.0/fps))
         }
         if(p.saida=="gif") {
