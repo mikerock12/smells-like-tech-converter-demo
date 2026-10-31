@@ -1,6 +1,9 @@
 # Página da loja: 1.0.8 (31/10/2026)
 
 Atualização autorizada pelo dono no Play Console, sem arrastar o AAB nem enviar para revisão.
+A descrição completa foi conferida pelo campo e salva como rascunho. A versão de produção
+1.0.8 foi criada com as notas abaixo e salva; a página ficou aberta na área de soltar o AAB
+para o dono, sem avançar para a revisão. As seis capturas da ficha anterior foram mantidas.
 
 ## Nome (30)
 

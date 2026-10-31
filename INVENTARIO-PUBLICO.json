@@ -1,5 +1,5 @@
 {
-  "commit": "d8657e5cd6a9f2bdb1556330dc69ed200156e1f4",
+  "commit": "90136d4c96e51363230e7e061a3ee86417f10de9",
   "repository": "https://github.com/mikerock12/smells-like-tech-converter-demo",
   "originals": [
     {
@@ -1159,8 +1159,8 @@
     },
     {
       "path": "android/play/ficha-1.0.8.md",
-      "sha256": "26ef5a689fb3a83cfebf647adf8e66f40b9b99460655ac9ee35ff8715c65e470",
-      "bytes": 4545
+      "sha256": "c3c53783a5e7e4a91779d65ff8aad261b9f757ee765c90ea32b6f74255bb6cf4",
+      "bytes": 4828
     },
     {
       "path": "android/play/icone-512.png",
