@@ -27,10 +27,10 @@ public sealed partial class StudioPage
 
     private FrameworkElement TimelineControls()
     {
-        var panel=new StackPanel {Spacing=5};panel.Children.Add(Muted("Faixas da composição · toque para posicionar o cursor"));
-        var items=StudioRules.Segments(project!).Select(s=>(s.Id,Name:"Principal",s.Start,s.End,Kind:"clipes"))
-            .Concat(project!.Layers.OrderBy(c=>c.Order).Select(c=>(c.Id,Name:$"Mídia · {c.Order}",c.Start,c.End,Kind:"camadas")))
-            .Concat(project.Audios.Select(a=>(a.Id,Name:"Áudio",Start:a.At??0,End:(a.At??0)+a.End-a.Start,Kind:"audio")));
+        var panel=new StackPanel {Spacing=5};panel.Children.Add(Muted("Faixas da composição · toque para selecionar e posicionar o cursor naquele ponto"));
+        var items=StudioRules.Segments(project!).Select(s=>(s.Id,Name:$"{s.Index+1}. {Path.GetFileName(project!.Clips[s.Index].File)}",s.Start,s.End,Kind:"clipes"))
+            .Concat(project!.Layers.OrderBy(c=>c.Order).Select(c=>(c.Id,Name:$"Camada · {Path.GetFileName(c.File)}",c.Start,c.End,Kind:"camadas")))
+            .Concat(project.Audios.Select(a=>(a.Id,Name:$"Áudio · {Path.GetFileName(a.File)}",Start:a.At??0,End:(a.At??0)+a.End-a.Start,Kind:"audio")));
         foreach(var item in items) {
             var row=new StackPanel {Spacing=2};row.Children.Add(Muted($"{item.Name} · {Clock(item.Start)}–{Clock(item.End)}"));
             var grid=new Grid {Height=25,Background=new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255,38,38,38))};
@@ -38,7 +38,9 @@ public sealed partial class StudioPage
             grid.ColumnDefinitions.Add(new ColumnDefinition {Width=new GridLength(Math.Max(.0001,item.End-item.Start),GridUnitType.Star)});
             grid.ColumnDefinitions.Add(new ColumnDefinition {Width=new GridLength(Math.Max(.0001,Total-item.End),GridUnitType.Star)});
             var button=Action($"{item.Start.ToString("0.#",PtBr)} s");button.HorizontalAlignment=HorizontalAlignment.Stretch;button.Padding=new Thickness(2,0,2,0);Grid.SetColumn(button,1);
-            button.Click+=(_,_)=>{TimeSlider.Value=item.Start;openId=item.Id;EditorPivot.SelectedIndex=item.Kind=="camadas"?1:item.Kind=="audio"?3:0;RefreshPanels();};grid.Children.Add(button);row.Children.Add(grid);panel.Children.Add(row);
+            double? clicked=null;
+            button.PointerPressed+=(_,args)=>{if(grid.ActualWidth>0) clicked=args.GetCurrentPoint(grid).Position.X/grid.ActualWidth*Total;};
+            button.Click+=(_,_)=>{TimeSlider.Value=Math.Clamp(clicked??item.Start,0,Total);clicked=null;openId=item.Id;EditorPivot.SelectedIndex=item.Kind=="camadas"?1:item.Kind=="audio"?3:0;RefreshPanels();};grid.Children.Add(button);row.Children.Add(grid);panel.Children.Add(row);
         }
         return new Expander {Header="Linha do tempo e faixas",Content=panel,HorizontalAlignment=HorizontalAlignment.Stretch,HorizontalContentAlignment=HorizontalAlignment.Stretch};
     }
@@ -59,9 +61,11 @@ public sealed partial class StudioPage
             finally {save.IsEnabled=true;}
         };panel.Children.Add(save);
         panel.Children.Add(Muted("O arquivo inclui as mídias e pode ser reaberto no site, Windows e Android. Salve antes de iniciar outro projeto."));
+        panel.Children.Add(Muted("Fotos em movimento aplica uma aproximação suave (Ken Burns) às fotos da faixa principal; não gera vídeo por IA."));
         panel.Children.Add(Choice("Modelo editável",StudioCreation.Templates,"",id=>{
             try {ChangeAndRefresh(p=>StudioCreation.Apply(p,id));}catch(Exception e) {ShowStatus(e.Message,InfoBarSeverity.Error);}
         }));
+        panel.Children.Add(Muted("Contagem regressiva adiciona números editáveis, um por segundo, a partir do cursor. Posicione o cursor antes de adicionar."));
         var count=new NumberBox {Header="Contagem regressiva (1–10 segundos)",Minimum=1,Maximum=10,SmallChange=1,Value=3};panel.Children.Add(count);
         var countdown=Action("Adicionar contagem no cursor");countdown.IsEnabled=project.Clips.Count>0;
         countdown.Click+=(_,_)=>{

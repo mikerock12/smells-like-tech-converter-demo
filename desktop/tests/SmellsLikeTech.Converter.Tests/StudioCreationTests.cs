@@ -1,4 +1,5 @@
 using System.IO.Compression;
+using SmellsLikeTech.Converter.Core;
 using SmellsLikeTech.Converter.Core.Studio;
 using Xunit;
 
@@ -27,6 +28,18 @@ public sealed class StudioCreationTests
         Assert.Equal(StudioAnimation.At(p.Layers[0].Transform!,1.5),StudioAnimation.At(split.Layers[1].Transform!,.5));
         var old=p with {Version=3,Audios=[new() {Id="a",File="m",At=1,Start=2,End=20}]};
         var upgraded=StudioCreation.Upgrade(old);Assert.Equal(5,StudioRules.TotalDuration(upgraded));Assert.Equal(6,upgraded.Audios[0].End);
+    }
+    [Fact] public void SplitClipKeepsSourceSpeedAndAnimation()
+    {
+        var animation=StudioAnimation.KenBurns(null,5);
+        var original=Project("a") with {Clips=[new() {Id="v",File="video.mp4",Kind="video",Start=2,End=12,Speed=2,Fit="caber",Transform=animation}]};
+        var split=StudioCreation.SplitClip(original,"v",2,"v2");
+        Assert.Equal(new[]{"v","v2"},split.Clips.Select(c=>c.Id));Assert.Equal(6,split.Clips[0].End);Assert.Equal(6,split.Clips[1].Start);Assert.Equal(12,split.Clips[1].End);
+        Assert.Equal(2,StudioRules.ClipDuration(split.Clips[0]));Assert.Equal(3,StudioRules.ClipDuration(split.Clips[1]));Assert.Equal(StudioRules.TotalDuration(original),StudioRules.TotalDuration(split));
+        Assert.Equal(StudioAnimation.At(animation,3),StudioAnimation.At(split.Clips[1].Transform!,1));
+        Assert.Throws<ConversionException>(()=>StudioCreation.SplitClip(original,"v",0,"outside"));
+        var transitioned=original with {Clips=[original.Clips[0] with {Transition=new StudioTransition("fade")},original.Clips[0] with {Id="next"}]};
+        Assert.Throws<ConversionException>(()=>StudioCreation.SplitClip(transitioned,"v",2,"v2"));
     }
     [Fact] public void PortableArchiveIncludesMediaAndRejectsPathsOutsideTheProject()
     {

@@ -43,6 +43,6 @@ public sealed partial class StudioPage
         body.Children.Add(Muted("Tempos desde o início desta mídia na composição. Os quadros interpolam posição e zoom após a perspectiva."));
         body.Children.Add(rows);Draw();
         var clear=Action("Remover animação");clear.Click+=(_,_)=>{change(Current() with {Keyframes=[]});Draw();};body.Children.Add(clear);
-        return new Expander {Header="Máscara e animação",Content=body,HorizontalAlignment=HorizontalAlignment.Stretch,HorizontalContentAlignment=HorizontalAlignment.Stretch};
+        return new Expander {Header="Recorte e animação",Content=body,HorizontalAlignment=HorizontalAlignment.Stretch,HorizontalContentAlignment=HorizontalAlignment.Stretch};
     }
 }

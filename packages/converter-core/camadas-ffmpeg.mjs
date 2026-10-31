@@ -13,8 +13,13 @@ export function inversa(m) {
 }
 
 /** GEQ é LGPL, ao contrário de perspective. O mapeamento inverso preserva transparência. */
-export function filtroDaTransformacao(transformacao, w, h, deslocamento = 0) {
+export function filtroDaTransformacao(transformacao, w, h, deslocamento = 0, otimizar = false) {
   const t = { ...TRANSFORMACAO_PADRAO, ...transformacao };
+  if (otimizar) {
+    const candidato = { ...t, mescla: "normal", removerFundo: false, tempoDaAnimacao: 0 };
+    const identidade = Object.keys(TRANSFORMACAO_PADRAO).every(k => JSON.stringify(candidato[k]) === JSON.stringify(TRANSFORMACAO_PADRAO[k]));
+    if (identidade) return "format=rgba";
+  }
   const cantos = cantosDaCamada(w,h,w,h,t).map(p => ({x:p.x/w,y:p.y/h}));
   const m = inversa(homografia(cantos));
   if (!m) return "format=rgba,colorchannelmixer=aa=0";
@@ -56,10 +61,11 @@ export function sobrepor(fundo, frente, saida, mescla, inicio, fim) {
     + `[${p}b2][${p}fg]overlay=0:0:format=auto:enable='${ativo}'[${saida}]`;
 }
 
-export function filtroDoFundo(fundo, w, h, fps, duracao) {
+export function filtroDoFundo(fundo, w, h, fps, duracao, otimizar = false) {
   const a = fundo?.cor ?? "#000000", b = fundo?.corFinal ?? a;
   const rgba = cor => [0,2,4,6].map((i) => i === 6 && cor.length === 7 ? 255 : parseInt(cor.slice(i+1,i+3),16));
   const inicio = rgba(a), fim = rgba(b);
+  if (otimizar && inicio.every((v,i) => v === fim[i])) return `color=c=black:s=${w}x${h}:r=${fps}:d=${decimal(duracao)},format=rgba,lutrgb=r=${inicio[0]}:g=${inicio[1]}:b=${inicio[2]}:a=${inicio[3]}[cfundo]`;
   const canais = ["r","g","b","a"].map((c,i) => `${c}='${inicio[i]}+(${fim[i]-inicio[i]})*clip(((X+0.5)*W+(Y+0.5)*H)/(W*W+H*H),0,1)'`);
   return `color=c=black:s=${w}x${h}:r=${fps}:d=${decimal(duracao)},format=rgba,geq=${canais.join(":")},format=rgba[cfundo]`;
 }

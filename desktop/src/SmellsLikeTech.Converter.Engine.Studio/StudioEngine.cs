@@ -281,7 +281,7 @@ public sealed class StudioEngine(
             }
         }
         var preparedProject = project with { Clips = preparedClips, Layers = preparedLayers };
-        var command = StudioRecipe.ToCommand(optionsAccessor(), preparedProject, new StudioInputs(clips, texts, audios, layers), output, quality);
+        var command = StudioRecipe.ToCommand(optionsAccessor(), preparedProject, new StudioInputs(clips, texts, audios, layers), output, quality, optimize: true);
         // Perspectiva em várias camadas supera o limite de 32 KiB do CreateProcess.
         var arguments = command.Arguments.ToList();
         var filterIndex = arguments.IndexOf("-filter_complex");

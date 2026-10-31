@@ -21,6 +21,19 @@ public static class StudioCreation
         var texts=Enumerable.Range(0,count).Select(i=>new StudioText {Id=$"contagem-{i}",Text=(count-i).ToString(System.Globalization.CultureInfo.InvariantCulture),Start=start+i,End=start+i+1,X=.5,Y=.5,Size=.25,Color="#FFFFFF",Outline="#000000",Font="anton"});
         return p with {Version=4,Texts=[..p.Texts.Where(t=>!t.Id.StartsWith("contagem-")),..texts]};
     }
+    public static StudioProject SplitClip(StudioProject p,string id,double time,string newId)
+    {
+        var c=p.Clips.FirstOrDefault(c=>c.Id==id);var segment=StudioRules.Segments(p).FirstOrDefault(s=>s.Id==id);
+        if(c is null||segment is null||p.Clips.Count>=100) throw new ConversionException("studio_split","Selecione um clipe e use até 100 clipes.");
+        var local=time-segment.Start;var duration=StudioRules.ClipDuration(c);
+        if(local<=.05||local>=duration-.05) throw new ConversionException("studio_split","Posicione o cursor dentro do clipe para dividir.");
+        if(StudioRules.HasTransitions(p)) throw new ConversionException("studio_split","Troque as transições por corte seco antes de dividir o clipe.");
+        var transform=c.Transform is {Keyframes.Count:>0} t?t with {AnimationTime=t.AnimationTime+local}:c.Transform;
+        var cut=(c.Start??0)+local*StudioRules.ClipSpeed(c);
+        var first=c.IsImage?c with {Duration=local,Transition=null}:c with {End=cut,Transition=null};
+        var second=c.IsImage?c with {Id=newId,Duration=duration-local,Transform=transform}:c with {Id=newId,Start=cut,Transform=transform};
+        return p with {Clips=p.Clips.SelectMany(a=>a.Id==id?new[]{first,second}:new[]{a}).ToList()};
+    }
     public static StudioProject SplitLayer(StudioProject p,string id,double time,string newId)
     {
         p=Upgrade(p);

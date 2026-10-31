@@ -17,7 +17,8 @@ public sealed partial class StudioPage
     private FrameworkElement TransformControls(Func<StudioTransform?> read, Action<StudioTransform> change, bool allowRemoval=true,double duration=3,
         Func<StudioMeasures>? measures=null, Action<string>? fit=null, Func<IReadOnlyList<StudioBox>>? references=null)
     {
-        var body=new StackPanel {Spacing=8};
+        var body=new StackPanel {Spacing=8};var cor=new StackPanel {Spacing=8};var posicao=new StackPanel {Spacing=8};
+        var recorte=new StackPanel {Spacing=8};var mescla=new StackPanel {Spacing=8};
         var t=read()??new StudioTransform();
         // Os controles mostram as guias em que a camada ficou, sem encaixar: encaixar prenderia o − e o +.
         void Apply(StudioTransform next)
@@ -41,35 +42,39 @@ public sealed partial class StudioPage
         whole.Click+=(_,_)=>{ fit?.Invoke("caber"); Frame(StudioGuides.FitWhole); };
         var center=Action("Centralizar"); center.Click+=(_,_)=>Frame(StudioGuides.Center);
         framingRow.Children.Add(fill); framingRow.Children.Add(whole); framingRow.Children.Add(center);
-        body.Children.Add(framingRow);
-        body.Children.Add(Muted("Arraste na prévia para mover; a roda do mouse muda o tamanho. As guias piscam quando encaixa no centro ou nas bordas."));
-        void Control(string title,double value,double min,double max,double step,Func<StudioTransform,double,StudioTransform> update) =>
-            body.Children.Add(Slider(title,value,min,max,step,v=>v.ToString("0.#",PtBr),v=>{var before=read()??new StudioTransform();Apply(StudioAnimation.ChangeBase(before,update(before,v)));},null));
-        Control("Giro no plano (Z): {0}°",t.Rotation,-360,360,.1,(v,n)=>v with {Rotation=n});
-        Control("Inclinar para frente/trás (X): {0}°",t.RotationX,-180,180,.1,(v,n)=>v with {RotationX=n});
-        Control("Inclinar para esquerda/direita (Y): {0}°",t.RotationY,-180,180,.1,(v,n)=>v with {RotationY=n});
-        Control("Posição horizontal: {0}%",t.X*100,-200,300,.1,(v,n)=>v with {X=n/100});
-        Control("Posição vertical: {0}%",t.Y*100,-200,300,.1,(v,n)=>v with {Y=n/100});
-        Control("Tamanho: {0}%",t.Scale*100,5,600,.1,(v,n)=>v with {Scale=n/100});
-        Control("Opacidade: {0}%",t.Opacity*100,0,100,.1,(v,n)=>v with {Opacity=n/100});
+        posicao.Children.Add(framingRow);
+        posicao.Children.Add(Muted("Arraste na prévia para mover; a roda do mouse muda o tamanho. As guias piscam quando encaixa no centro ou nas bordas."));
+        void Control(StackPanel panel,string title,double value,double min,double max,double step,Func<StudioTransform,double,StudioTransform> update) =>
+            panel.Children.Add(Slider(title,value,min,max,step,v=>v.ToString("0.#",PtBr),v=>{var before=read()??new StudioTransform();Apply(StudioAnimation.ChangeBase(before,update(before,v)));},null));
+        Control(posicao,"Giro no plano (Z): {0}°",t.Rotation,-360,360,.1,(v,n)=>v with {Rotation=n});
+        Control(posicao,"Inclinar para frente/trás (X): {0}°",t.RotationX,-180,180,.1,(v,n)=>v with {RotationX=n});
+        Control(posicao,"Inclinar para esquerda/direita (Y): {0}°",t.RotationY,-180,180,.1,(v,n)=>v with {RotationY=n});
+        Control(posicao,"Posição horizontal: {0}%",t.X*100,-200,300,.1,(v,n)=>v with {X=n/100});
+        Control(posicao,"Posição vertical: {0}%",t.Y*100,-200,300,.1,(v,n)=>v with {Y=n/100});
+        Control(posicao,"Tamanho: {0}%",t.Scale*100,5,600,.1,(v,n)=>v with {Scale=n/100});
+        Control(posicao,"Opacidade: {0}%",t.Opacity*100,0,100,.1,(v,n)=>v with {Opacity=n/100});
         var mirrorX=new ToggleSwitch {Header="Espelhar horizontal",IsOn=t.MirrorX};
-        mirrorX.Toggled+=(_,_)=>change((read()??new StudioTransform()) with {MirrorX=mirrorX.IsOn}); body.Children.Add(mirrorX);
+        mirrorX.Toggled+=(_,_)=>change((read()??new StudioTransform()) with {MirrorX=mirrorX.IsOn}); posicao.Children.Add(mirrorX);
         var mirrorY=new ToggleSwitch {Header="Espelhar vertical",IsOn=t.MirrorY};
-        mirrorY.Toggled+=(_,_)=>change((read()??new StudioTransform()) with {MirrorY=mirrorY.IsOn}); body.Children.Add(mirrorY);
-        body.Children.Add(Choice("Mesclagem",[("normal","Normal"),("multiplicar","Multiplicar"),("clarear","Clarear"),("sobrepor","Sobrepor")],t.Blend,
+        mirrorY.Toggled+=(_,_)=>change((read()??new StudioTransform()) with {MirrorY=mirrorY.IsOn}); posicao.Children.Add(mirrorY);
+        mescla.Children.Add(Choice("Mesclagem",[("normal","Normal"),("multiplicar","Multiplicar"),("clarear","Clarear"),("sobrepor","Sobrepor")],t.Blend,
             id=>change((read()??new StudioTransform()) with {Blend=id})));
-        body.Children.Add(Choice("Filtro desta camada",[("original","Original"),("vivido","Vívido"),("pb","Preto e branco"),("sepia","Sépia"),("vintage","Retrô"),("frio","Frio"),("quente","Quente"),("negativo","Negativo")],t.Filter,
+        cor.Children.Add(Choice("Filtro desta camada",[("original","Original"),("vivido","Vívido"),("pb","Preto e branco"),("sepia","Sépia"),("vintage","Retrô"),("frio","Frio"),("quente","Quente"),("negativo","Negativo")],t.Filter,
             id=>change((read()??new StudioTransform()) with {Filter=id})));
-        Control("Brilho: {0}%",t.Brightness*100,-100,100,.1,(v,n)=>v with {Brightness=n/100});
-        Control("Contraste: {0}%",t.Contrast*100,-80,100,.1,(v,n)=>v with {Contrast=n/100});
-        Control("Saturação: {0}%",t.Saturation*100,-100,100,.1,(v,n)=>v with {Saturation=n/100});
+        Control(cor,"Brilho: {0}%",t.Brightness*100,-100,100,.1,(v,n)=>v with {Brightness=n/100});
+        Control(cor,"Contraste: {0}%",t.Contrast*100,-80,100,.1,(v,n)=>v with {Contrast=n/100});
+        Control(cor,"Saturação: {0}%",t.Saturation*100,-100,100,.1,(v,n)=>v with {Saturation=n/100});
+        recorte.Children.Add(Muted("Use Preencher em Posição e mova a imagem para escolher o que fica no quadro. Máscaras ficam em Recorte e animação."));
         if(allowRemoval) {
             var remove=new ToggleSwitch {Header="Remover o fundo desta mídia",IsOn=t.RemoveBackground};
-            remove.Toggled+=(_,_)=>change((read()??new StudioTransform()) with {RemoveBackground=remove.IsOn});body.Children.Add(remove);
-            body.Children.Add(Muted("Processado no dispositivo. Vídeos são recortados quadro a quadro e podem demorar."));
+            remove.Toggled+=(_,_)=>change((read()??new StudioTransform()) with {RemoveBackground=remove.IsOn});recorte.Children.Add(remove);
+            recorte.Children.Add(Muted("Processado no dispositivo. Vídeos são recortados quadro a quadro e podem demorar."));
         }
-        body.Children.Add(AnimationControls(read,change,duration));
-        return new Expander {Header="Transformar e filtrar",Content=body,HorizontalAlignment=HorizontalAlignment.Stretch,HorizontalContentAlignment=HorizontalAlignment.Stretch};
+        FrameworkElement Group(string title,UIElement content,bool expanded=false) => new Expander {Header=title,Content=content,IsExpanded=expanded,HorizontalAlignment=HorizontalAlignment.Stretch,HorizontalContentAlignment=HorizontalAlignment.Stretch};
+        body.Children.Add(Muted("Editar esta mídia"));
+        body.Children.Add(Group("Cor",cor,true));body.Children.Add(Group("Posição",posicao));body.Children.Add(Group("Recorte",recorte));
+        body.Children.Add(AnimationControls(read,change,duration));body.Children.Add(Group("Mescla",mescla));
+        return body;
     }
 
     private StudioLayer FindLayer(string id)=>project!.Layers.First(c=>c.Id==id);
@@ -84,8 +89,9 @@ public sealed partial class StudioPage
         LayersPanel.Children.Add(add);
         var catalog=Action("Stickers e GIF stickers"); catalog.IsEnabled=add.IsEnabled;
         catalog.Click+=async(_,_)=>await ShowStickerCatalogAsync(); LayersPanel.Children.Add(catalog);
+        LayersPanel.Children.Add(Muted("A cor aparece nas áreas livres e substitui o preenchimento desfocado dos clipes."));
         LayersPanel.Children.Add(Choice("Fundo",[("#00000000","Transparente"),("#000000","Preto"),("#FFFFFF","Branco"),("#FF7A18","Laranja"),("#7536E8","Roxo"),("gradiente","Gradiente")],project.Background?.EndColor is null?project.Background?.Color:"gradiente",
-            id=>Change(p=>p with {Background=id=="gradiente"?new StudioBackground {Color="#7536E8",EndColor="#FF7A18"}:new StudioBackground {Color=id}})));
+            id=>Change(p=>p with {Background=id=="gradiente"?new StudioBackground {Color="#7536E8",EndColor="#FF7A18"}:new StudioBackground {Color=id},Clips=p.Clips.Select(c=>c.Fit=="caber-desfocado"?c with {Fit="caber"}:c).ToList()})));
         foreach(var layer in project.Layers.OrderBy(c=>c.Order)) LayersPanel.Children.Add(LayerCard(layer));
     }
 

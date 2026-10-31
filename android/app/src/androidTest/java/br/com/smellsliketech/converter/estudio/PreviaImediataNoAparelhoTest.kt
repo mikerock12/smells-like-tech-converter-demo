@@ -50,7 +50,7 @@ class PreviaImediataNoAparelhoTest {
         }
         assertTrue("arquivo de teste existe",arquivo.isFile)
         assertTrue("MediaPlayer preparou",preparado.await(15,TimeUnit.SECONDS))
-        instrumentacao.waitForIdleSync();Thread.sleep(250)
+        instrumentacao.waitForIdleSync();Thread.sleep(1000)
         assertEquals(0,falhas)
         return preparado
     }
@@ -69,7 +69,7 @@ class PreviaImediataNoAparelhoTest {
 
     private fun atualizar(p: Projeto,instante: Double=0.0) {
         tela {player!!.atualizar(p,instante,false)}
-        instrumentacao.waitForIdleSync();Thread.sleep(250)
+        instrumentacao.waitForIdleSync();Thread.sleep(1000)
     }
 
     private fun perto(pixel: Int,cor: Int,tolerancia: Int=45) = listOf(Color.red(pixel)-Color.red(cor),Color.green(pixel)-Color.green(cor),Color.blue(pixel)-Color.blue(cor)).all {kotlin.math.abs(it)<=tolerancia}

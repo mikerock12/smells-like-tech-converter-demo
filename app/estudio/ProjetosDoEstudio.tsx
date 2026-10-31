@@ -22,9 +22,11 @@ export default function ProjetosDoEstudio({projeto,arquivos,instante,mudar,abrir
     }catch(e){falha(e);}finally{setSalvando(false);}
    }}>{salvando?'Preparando projeto…':'Salvar projeto com mídias'}</button>
    <p>O arquivo inclui as mídias e pode ser reaberto no site, Windows e Android. Salve antes de iniciar outro projeto.</p>
+   <p><small>Fotos em movimento aplica uma aproximação suave (Ken Burns) às fotos da faixa principal. Não transforma fotos em vídeos gerados por IA.</small></p>
    <label className="estudio__campo">Aplicar modelo editável<select disabled={ocupado||!projeto.clipes.length} value="" onChange={e=>{const id=e.target.value;try{mudar(p=>aplicarModelo(p,id));}catch(e){falha(e);}}}>
     <option value="" disabled>Escolher modelo</option>{MODELOS_DO_ESTUDIO.map(m=><option key={m.id} value={m.id}>{m.titulo}</option>)}
    </select></label>
+   <p><small>Contagem regressiva adiciona números editáveis, um por segundo, sobre a composição a partir do cursor. Posicione o cursor antes de adicionar.</small></p>
    <label className="estudio__campo">Contagem regressiva (1–10 s)<input type="number" min={1} max={10} value={contagem} onChange={e=>setContagem(Number(e.target.value))}/></label>
    <button type="button" className="button" disabled={ocupado||!projeto.clipes.length} onClick={()=>{try{const novo=adicionarContagem(projeto,instante,contagem);mudar(()=>novo);setErro('');}catch(e){falha(e);}}}>Adicionar contagem no cursor</button>
   </>}

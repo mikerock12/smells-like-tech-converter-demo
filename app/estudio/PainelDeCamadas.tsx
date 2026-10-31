@@ -31,9 +31,10 @@ export default function PainelDeCamadas({ projeto, nomes, mudar, importar, insta
     {!total && <p>Adicione uma imagem ou vídeo na aba Clipes para começar.</p>}
     {catalogo && <SeletorDeStickers adicionar={importar} fechar={() => setCatalogo(false)} />}
     <details className="estudio__detalhe"><summary>Fundo da composição</summary>
-      <label className="estudio__campo">Cor<input type="color" value={(projeto.fundo?.cor ?? "#000000").slice(0,7)} onChange={e => mudar(p => ({ ...p, fundo: { ...p.fundo, cor: e.target.value } }))} /></label>
-      <button type="button" className="button" onClick={() => mudar(p => ({ ...p, fundo: { cor: "#00000000" } }))}>Transparente</button>
-      <label><input type="checkbox" checked={Boolean(projeto.fundo?.corFinal)} onChange={e => mudar(p => ({ ...p, fundo: { cor: p.fundo?.cor ?? "#000000", corFinal: e.target.checked ? "#FF7A18" : undefined } }))} /> Gradiente</label>
+      <p><small>A cor aparece nas áreas livres e substitui o preenchimento desfocado dos clipes.</small></p>
+      <label className="estudio__campo">Cor<input type="color" value={(projeto.fundo?.cor ?? "#000000").slice(0,7)} onChange={e => mudar(p => ({ ...p, fundo: { ...p.fundo, cor: e.target.value }, clipes: p.clipes.map(c => c.ajuste === "caber-desfocado" ? { ...c, ajuste: "caber" as const } : c) }))} /></label>
+      <button type="button" className="button" onClick={() => mudar(p => ({ ...p, fundo: { cor: "#00000000" }, clipes: p.clipes.map(c => c.ajuste === "caber-desfocado" ? { ...c, ajuste: "caber" as const } : c) }))}>Transparente</button>
+      <label><input type="checkbox" checked={Boolean(projeto.fundo?.corFinal)} onChange={e => mudar(p => ({ ...p, fundo: { cor: p.fundo?.cor ?? "#000000", corFinal: e.target.checked ? "#FF7A18" : undefined }, clipes: p.clipes.map(c => c.ajuste === "caber-desfocado" ? { ...c, ajuste: "caber" as const } : c) }))} /> Gradiente</label>
       {projeto.fundo?.corFinal && <label className="estudio__campo">Segunda cor<input type="color" value={projeto.fundo.corFinal.slice(0,7)} onChange={e => mudar(p => ({ ...p, fundo: { cor: p.fundo?.cor ?? "#000000", corFinal: e.target.value } }))} /></label>}
     </details>
     {projeto.camadas?.map(c => <details key={c.id} className="estudio__item" open={aberta === c.id} onToggle={e => { if (e.currentTarget.open) abrir?.(c.id); }}>

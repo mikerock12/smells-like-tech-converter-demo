@@ -29,6 +29,7 @@ import {
 import { conferirEstudio, type BloqueioDoEstudio } from "@/packages/converter-core/estudio-plano.mjs";
 import { camadasNoTempo } from "@/packages/converter-core/estudio.mjs";
 import { mudarBaseDaAnimacao } from "@/packages/converter-core/estudio-animacao.mjs";
+import { dividirClipe } from "@/packages/converter-core/estudio-criacao.mjs";
 import { TRANSFORMACAO_PADRAO, type Transformacao } from "@/packages/converter-core/camadas.mjs";
 import { alinharCamada, caixaDaCamada, TOLERANCIA, type Caixa, type Guia, type Medidas } from "@/packages/converter-core/guias.mjs";
 import { mostrarGuias, useGuiasNaTela } from "@/lib/estudio/guias-na-tela";
@@ -515,6 +516,7 @@ export default function Estudio() {
                   abrir={() => setAberto(aberto === clipe.id ? null : clipe.id)}
                   mudar={(m) => mudarClipe(clipe.id, m)}
                   mover={(passo) => moverClipe(clipe.id, passo)}
+                  dividir={() => { try { mudar(p => dividirClipe(p, clipe.id, instante, novoId("clipe"))); } catch (e) { setErro(e instanceof Error ? e.message : "Não foi possível dividir o clipe."); } }}
                   fps={projeto.fps}
                   quadro={quadro}
                   remover={() => mudar((p) => ({ ...p, clipes: p.clipes.filter((c) => c.id !== clipe.id) }))}
@@ -812,6 +814,7 @@ function CartaoDoClipe({
   abrir,
   mudar,
   mover,
+  dividir,
   remover,
   fps,
   quadro,
@@ -824,6 +827,7 @@ function CartaoDoClipe({
   abrir: () => void;
   mudar: (m: (c: Clipe) => Clipe) => void;
   mover: (passo: number) => void;
+  dividir: () => void;
   remover: () => void;
   fps: number;
   quadro: Medidas;
@@ -845,6 +849,7 @@ function CartaoDoClipe({
       </div>
       {aberto && (
         <div className="estudio__detalhe">
+          <button type="button" className="button" onClick={dividir}>Dividir clipe no cursor</button>
           {clipe.tipo === "imagem" ? (
             <Controle rotulo={`Na tela por ${decimal(clipe.duracao ?? 3)} s`}>
               <Deslizante rotulo="Duração da foto" min={0.5} max={15} passo={0.5} valor={clipe.duracao ?? 3} mudar={(v) => mudar((c) => ({ ...c, duracao: v }))} />

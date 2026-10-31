@@ -279,8 +279,8 @@ export function cabeNoNavegador(projeto) {
  * Saídas: `video` mapeia vídeo e áudio; `gif` e `imagem` só vídeo; `audio` e `texto` só
  * áudio. O GIF já sai com a paleta, no tamanho de `tamanhoDoGif`.
  */
-export function receitaFfmpeg(projeto, entradas) {
-  if (!["audio", "texto"].includes(projeto.saida) && (usaCamadas(projeto) || temTransicoes(projeto))) return receitaComCamadas(projeto, entradas);
+export function receitaFfmpeg(projeto, entradas, otimizar = false) {
+  if (!["audio", "texto"].includes(projeto.saida) && (usaCamadas(projeto) || temTransicoes(projeto))) return receitaComCamadas(projeto, entradas, otimizar);
   const { largura: W, altura: H, fps } = projeto;
   const total = duracaoTotal(projeto);
   const comVideo = projeto.saida !== "audio" && projeto.saida !== "texto";

@@ -27,6 +27,7 @@ export default function ControlesDeCamada({ valor, mudar, permitirRecorte = true
   medidas?: Medidas | null; referencias?: Caixa[]; enquadrar?: (ajuste: "preencher" | "caber") => void;
 }) {
   const [tempo, setTempo] = useState(0);
+  const [secao, setSecao] = useState<"Cor" | "Posição" | "Recorte" | "Animação" | "Mescla">("Cor");
   const t = { ...TRANSFORMACAO_PADRAO, ...valor };
   // Os controles mostram as guias em que a camada ficou, sem encaixar: encaixar prenderia o − e o +.
   const aplicar = (novo: Transformacao) => {
@@ -34,16 +35,43 @@ export default function ControlesDeCamada({ valor, mudar, permitirRecorte = true
     const mexeuNoLugar = (["x", "y", "escala", "giro", "giroX", "giroY"] as const).some((campo) => novo[campo] !== t[campo]);
     if (medidas && mexeuNoLugar) mostrarGuias(guiasDaCamada(medidas, novo, referencias));
   };
-  return <details className="estudio__detalhe"><summary>Posição, giro 3D, filtros e mesclagem</summary>
-    <div className="estudio__linha">
-      <button type="button" className="button" title="Cobre o quadro inteiro, centralizada e reta" onClick={() => { if (enquadrar) { enquadrar("preencher"); aplicar(caberInteira(t)); } else aplicar(preencher(t, medidas)); }}>Preencher</button>
-      <button type="button" className="button" title="Inteira dentro do quadro, centralizada e reta" onClick={() => { enquadrar?.("caber"); aplicar(caberInteira(t)); }}>Caber inteira</button>
-      <button type="button" className="button" onClick={() => aplicar(centralizar(t))}>Centralizar</button>
+  const controles = (nomes: string[]) => faixas.filter(([campo]) => nomes.includes(campo)).map(([campo, nome, min, max, step]) => <div className="estudio__campo" key={campo}>
+    <span>{nome}: {Number(t[campo]).toLocaleString("pt-BR", { maximumFractionDigits: 2 })}{campo.startsWith("giro") ? "°" : ""}</span>
+    <Deslizante rotulo={nome} min={min} max={max} passo={step} valor={Number(t[campo])} mudar={v => aplicar({ ...t, [campo]: v })} />
+  </div>);
+  return <section className="estudio__detalhe" aria-label="Editar esta mídia">
+    <strong>Editar esta mídia</strong>
+    <div className="estudio__linha" role="tablist" aria-label="Grupo de ajustes">{(["Cor", "Posição", "Recorte", "Animação", "Mescla"] as const).map(nome =>
+      <button key={nome} type="button" className={`estudio__chip${secao === nome ? " estudio__chip--ativo" : ""}`} aria-pressed={secao === nome} onClick={() => setSecao(nome)}>{nome}</button>)}
     </div>
-    <label className="estudio__campo">Máscara<select value={t.mascara ?? "nenhuma"} onChange={e => mudar({...t, mascara:e.target.value as Transformacao["mascara"]})}>
-      <option value="nenhuma">Sem máscara</option><option value="circulo">Círculo</option><option value="oval">Oval</option><option value="arredondada">Cantos arredondados</option>
-    </select></label>
-    <details><summary>Animar posição e zoom</summary>
+    {secao === "Cor" && <>
+      <label className="estudio__campo">Filtro<select value={t.filtro} onChange={e => mudar({ ...t, filtro: e.target.value })}>{Object.entries(filtros).map(([id, nome]) => <option key={id} value={id}>{nome}</option>)}</select></label>
+      {controles(["brilho", "contraste", "saturacao"])}
+    </>}
+    {secao === "Posição" && <>
+      <div className="estudio__linha">
+        <button type="button" className="button" title="Cobre o quadro inteiro, centralizada e reta" onClick={() => { if (enquadrar) { enquadrar("preencher"); aplicar(caberInteira(t)); } else aplicar(preencher(t, medidas)); }}>Preencher</button>
+        <button type="button" className="button" title="Inteira dentro do quadro, centralizada e reta" onClick={() => { enquadrar?.("caber"); aplicar(caberInteira(t)); }}>Caber inteira</button>
+        <button type="button" className="button" onClick={() => aplicar(centralizar(t))}>Centralizar</button>
+      </div>
+      <p><small>Arraste para mover, use a roda para zoom. As guias ajudam a alinhar.</small></p>
+      {controles(["x", "y", "escala", "giro", "giroX", "giroY", "opacidade"])}
+      <div className="estudio__linha">
+        <button type="button" className="button" onClick={() => mudar({ ...t, espelharX: !t.espelharX })}>Espelhar na horizontal</button>
+        <button type="button" className="button" onClick={() => mudar({ ...t, espelharY: !t.espelharY })}>Espelhar na vertical</button>
+      </div>
+    </>}
+    {secao === "Recorte" && <>
+      <p><small>Use Preencher em Posição e mova a imagem para escolher o que fica no quadro. Máscaras recortam o formato sem apagar o original.</small></p>
+      <label className="estudio__campo">Máscara<select value={t.mascara ?? "nenhuma"} onChange={e => mudar({...t, mascara:e.target.value as Transformacao["mascara"]})}>
+        <option value="nenhuma">Sem máscara</option><option value="circulo">Círculo</option><option value="oval">Oval</option><option value="arredondada">Cantos arredondados</option>
+      </select></label>
+      {permitirRecorte && <label className="estudio__campo">
+        <span><input type="checkbox" checked={t.removerFundo} onChange={e => mudar({ ...t, removerFundo: e.target.checked })} /> Remover o fundo desta mídia</span>
+        <small>Processado no dispositivo. Em vídeos, a remoção é feita quadro a quadro e pode demorar.</small>
+      </label>}
+    </>}
+    {secao === "Animação" && <>
       <div className="estudio__linha"><button type="button" className="button" onClick={()=>mudar(kenBurns(t,duracao))}>Ken Burns: aproximar</button>
       <button type="button" className="button" onClick={()=>mudar(kenBurns(t,duracao,true))}>Ken Burns: afastar</button></div>
       <label className="estudio__campo">Tempo local do novo quadro (s)<input type="number" min={0} max={duracao} step={.1} value={tempo} onChange={e=>setTempo(Math.max(0,Math.min(duracao,Number(e.target.value))))} /></label>
@@ -55,25 +83,10 @@ export default function ControlesDeCamada({ valor, mudar, permitirRecorte = true
         <button type="button" className="button" onClick={()=>mudar({...t,quadrosChave:t.quadrosChave?.filter((_,j)=>i!==j)})}>Remover quadro</button>
       </fieldset>)}
       <button type="button" className="button" onClick={()=>mudar({...t,quadrosChave:[]})}>Remover animação</button>
-    </details>
-    {faixas.map(([campo, nome, min, max, step]) => <div className="estudio__campo" key={campo}>
-      <span>{nome}: {Number(t[campo]).toLocaleString("pt-BR", { maximumFractionDigits: 2 })}{campo.startsWith("giro") ? "°" : ""}</span>
-      <Deslizante rotulo={nome} min={min} max={max} passo={step} valor={Number(t[campo])} mudar={v => aplicar({ ...t, [campo]: v })} />
-    </div>)}
-    <div className="estudio__linha">
-      <button type="button" className="button" onClick={() => mudar({ ...t, espelharX: !t.espelharX })}>Espelhar na horizontal</button>
-      <button type="button" className="button" onClick={() => mudar({ ...t, espelharY: !t.espelharY })}>Espelhar na vertical</button>
-    </div>
-    <label className="estudio__campo">Filtro
-      <select value={t.filtro} onChange={e => mudar({ ...t, filtro: e.target.value })}>{Object.entries(filtros).map(([id, nome]) => <option key={id} value={id}>{nome}</option>)}</select>
-    </label>
-    <label className="estudio__campo">Mesclagem
+    </>}
+    {secao === "Mescla" && <label className="estudio__campo">Mesclagem
       <select value={t.mescla} onChange={e => mudar({ ...t, mescla: e.target.value })}>{Object.entries(mesclas).map(([id, nome]) => <option key={id} value={id}>{nome}</option>)}</select>
-    </label>
-    {permitirRecorte && <label className="estudio__campo">
-      <span><input type="checkbox" checked={t.removerFundo} onChange={e => mudar({ ...t, removerFundo: e.target.checked })} /> Remover o fundo desta mídia</span>
-      <small>Processado no dispositivo. Em vídeos, a remoção é feita quadro a quadro e pode demorar.</small>
     </label>}
     <button type="button" className="button" onClick={() => mudar({ ...TRANSFORMACAO_PADRAO })}>Redefinir esta camada</button>
-  </details>;
+  </section>;
 }

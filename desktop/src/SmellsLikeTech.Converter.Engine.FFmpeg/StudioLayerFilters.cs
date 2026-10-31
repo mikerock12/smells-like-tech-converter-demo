@@ -63,9 +63,10 @@ public static class StudioLayerFilters
         return Compose([c,0,0,d,0,c,0,d,0,0,c,d],m);
     }
 
-    public static string Transform(StudioTransform? value,int w,int h,double offset=0)
+    public static string Transform(StudioTransform? value,int w,int h,double offset=0,bool optimize=false)
     {
         var t=value??new StudioTransform();
+        if(optimize&&IsIdentity(t)) return "format=rgba";
         var m=Inverse(Projection(t,w,h));
         if (m is null) return "format=rgba,colorchannelmixer=aa=0";
         var u="(X+0.5)/W";var v="(Y+0.5)/H";var prefix="";
@@ -91,6 +92,12 @@ public static class StudioLayerFilters
         return $"format=gbrap,geq={string.Join(":",rgb)}:a='{position}if(between(ld(0),-0.5,W-0.5)*between(ld(1),-0.5,H-0.5),alpha(ld(0),ld(1))*{D(t.Opacity)}{alpha},0)':interpolation=bilinear,format=rgba";
     }
 
+    private static bool IsIdentity(StudioTransform t) =>
+        t.X==.5&&t.Y==.5&&t.Scale==1&&t.Rotation==0&&t.RotationX==0&&t.RotationY==0&&
+        !t.MirrorX&&!t.MirrorY&&t.Opacity==1&&t.Blend=="normal"&&t.Filter=="original"&&
+        t.Brightness==0&&t.Contrast==0&&t.Saturation==0&&!t.RemoveBackground&&t.Mask=="nenhuma"&&
+        t.Keyframes.Count==0&&t.AnimationTime==0;
+
     public static string Overlay(string background,string foreground,string output,string? blend,double start,double end)
     {
         var active=$"gte(t,{D(start)})*lt(t,{D(end)})";
@@ -104,11 +111,12 @@ public static class StudioLayerFilters
             +$"[{p}b2][{p}fg]overlay=0:0:format=auto:enable='{active}'[{output}]";
     }
 
-    public static string Background(StudioBackground? background,int w,int h,int fps,double duration)
+    public static string Background(StudioBackground? background,int w,int h,int fps,double duration,bool optimize = false)
     {
         var a=background?.Color??"#000000"; var b=background?.EndColor??a;
         static int[] Rgba(string c) => new[]{0,2,4,6}.Select(i => i==6&&c.Length==7?255:int.Parse(c.Substring(i+1,2),NumberStyles.HexNumber,CultureInfo.InvariantCulture)).ToArray();
         var start=Rgba(a); var end=Rgba(b);
+        if(optimize&&start.SequenceEqual(end)) return $"color=c=black:s={w}x{h}:r={fps}:d={D(duration)},format=rgba,lutrgb=r={start[0]}:g={start[1]}:b={start[2]}:a={start[3]}[cfundo]";
         var channels=new[]{"r","g","b","a"}.Select((c,i) => $"{c}='{start[i]}+({end[i]-start[i]})*clip(((X+0.5)*W+(Y+0.5)*H)/(W*W+H*H),0,1)'");
         return $"color=c=black:s={w}x{h}:r={fps}:d={D(duration)},format=rgba,geq={string.Join(":",channels)},format=rgba[cfundo]";
     }

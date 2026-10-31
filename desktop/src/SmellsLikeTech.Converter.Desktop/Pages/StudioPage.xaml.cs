@@ -330,6 +330,7 @@ public sealed partial class StudioPage : Page
         if (openId == clip.Id)
         {
             FinishingControls(corpo,clip,index);
+            var split=Action("Dividir clipe no cursor");split.Click+=(_,_)=>{try {var updated=StudioCreation.SplitClip(project!,clip.Id,TimeSlider.Value,NewId("c"));ChangeAndRefresh(_=>updated);}catch(Exception e){ShowStatus(e.Message,InfoBarSeverity.Warning);}};corpo.Children.Add(split);
             if (clip.IsImage)
             {
                 corpo.Children.Add(Slider($"Na tela por {{0}} s", clip.Duration ?? 3, 0.5, 15, 0.5, v => v.ToString("0.#", PtBr),
@@ -782,7 +783,11 @@ public sealed partial class StudioPage : Page
         RequestPreview();
     }
 
-    private void RequestPreview() => previewTimer?.Restart();
+    private void RequestPreview()
+    {
+        VideoPreviewButton.Content = StudioImmediatePreview.Accept(project) ? "Reproduzir prévia imediata" : "Gerar prévia com todos os efeitos";
+        previewTimer?.Restart();
+    }
 
     /// <summary>Um quadro pequeno montado pelo motor do estudio, igual ao que a exportacao faria.</summary>
     private async Task RenderPreviewAsync()
@@ -849,6 +854,10 @@ public sealed partial class StudioPage : Page
         {
             return;
         }
+        if (StudioImmediatePreview.Accept(project) && await ShowImmediatePreviewAsync(project))
+        {
+            return;
+        }
 
         var escala = Math.Min(1.0, 480.0 / Math.Max(project.Width, project.Height));
         var pequeno = project with { Output = "video", Width = StudioRules.Even(project.Width * escala), Height = StudioRules.Even(project.Height * escala) };
@@ -888,6 +897,36 @@ public sealed partial class StudioPage : Page
             VideoPreviewButton.IsEnabled = true;
             TryDeleteFolder(pasta);
         }
+    }
+
+    private async Task<bool> ShowImmediatePreviewAsync(StudioProject atual)
+    {
+        var clip = atual.Clips.Single();
+        var player = new MediaPlayer { AutoPlay = false, Source = MediaSource.CreateFromUri(new Uri(clip.File)) };
+        player.Volume = clip.Muted == true ? 0 : clip.Volume ?? 1;
+        var end = clip.End is { } seconds ? TimeSpan.FromSeconds(seconds) : infos.GetValueOrDefault(clip.File)?.Duration;
+        player.MediaOpened += (_, _) =>
+        {
+            player.Position = TimeSpan.FromSeconds(clip.Start ?? 0);
+            player.Play();
+        };
+        player.PlaybackSession.PositionChanged += (_, _) => { if (end is not null && player.Position >= end) player.Pause(); };
+        var element = new MediaPlayerElement
+        {
+            AreTransportControlsEnabled = true,
+            MaxHeight = 560,
+            Stretch = clip.Fit == "preencher" ? Stretch.UniformToFill : Stretch.Uniform
+        };
+        element.SetMediaPlayer(player);
+        var content = new Grid { Background = new SolidColorBrush(ParseColor(atual.Background?.Color ?? "#000000")) };
+        content.Children.Add(element);
+        var failed = false;
+        var dialog = new ContentDialog { Title = "Prévia imediata", Content = content, CloseButtonText = "Fechar", XamlRoot = XamlRoot };
+        player.MediaFailed += (_, _) => { failed = true; dialog.Hide(); };
+        await dialog.ShowAsync();
+        player.Pause();
+        element.SetMediaPlayer(null);
+        return !failed;
     }
 
     // ==================== peças ====================

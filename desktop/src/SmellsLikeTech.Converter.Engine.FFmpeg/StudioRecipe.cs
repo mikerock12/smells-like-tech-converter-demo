@@ -32,10 +32,10 @@ public static class StudioRecipe
         while(v<.5) {list.Add("atempo=0.5");v*=2;}
         list.Add($"atempo={N(v)}"); return string.Join(",",list)+",";
     }
-    public static StudioCommand Build(StudioProject project, StudioInputs inputs)
+    public static StudioCommand Build(StudioProject project, StudioInputs inputs, bool optimize = false)
     {
         if (project.Output is not ("audio" or "texto") && (StudioRules.UsesLayers(project) || StudioRules.HasTransitions(project)))
-            return StudioLayerRecipe.Build(project, inputs);
+            return StudioLayerRecipe.Build(project, inputs, optimize);
         int w = project.Width, h = project.Height, fps = project.Fps;
         var total = StudioRules.TotalDuration(project);
         var withVideo = project.Output is not ("audio" or "texto");
@@ -168,9 +168,9 @@ public static class StudioRecipe
     /// caminho do conversor (NVENC/AMF/QSV quando houver, senao libx264) e AAC; GIF com a
     /// paleta da receita; imagem PNG do quadro escolhido; MP3; WAV 16 kHz mono para o Whisper.
     /// </summary>
-    public static CommandSpec ToCommand(FfmpegOptions engine, StudioProject project, StudioInputs inputs, string outputPath, int quality)
+    public static CommandSpec ToCommand(FfmpegOptions engine, StudioProject project, StudioInputs inputs, string outputPath, int quality, bool optimize = false)
     {
-        var recipe = Build(project, inputs);
+        var recipe = Build(project, inputs, optimize);
         var arguments = new List<string>
         {
             "-hide_banner", "-nostdin", "-v", "error", "-n",

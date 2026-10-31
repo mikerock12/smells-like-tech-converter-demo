@@ -8,6 +8,10 @@
 # Preserva a API dos motores e os contratos Kotlin chamados pelo APK de testes.
 # A interface Compose e as demais dependências continuam otimizadas pelo R8.
 -keep class br.com.smellsliketech.converter.conversao.** { *; }
+-keep class br.com.smellsliketech.converter.estudio.** { *; }
+-keep class br.com.smellsliketech.converter.ui.PlayerImediato { *; }
+-keep class br.com.smellsliketech.converter.figurinhas.Producao** { *; }
+-keep class br.com.smellsliketech.converter.figurinhas.Regras { *; }
 -keep class kotlin.** { *; }
 -keep class kotlinx.coroutines.** { *; }
 -keep class androidx.tracing.** { *; }

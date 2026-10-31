@@ -1,4 +1,4 @@
-import { duracaoTotal, segmentos, duracaoDoClipe } from './estudio.mjs';
+import { duracaoTotal, segmentos, duracaoDoClipe, temTransicoes, velocidadeDoClipe } from './estudio.mjs';
 import { kenBurns } from './estudio-animacao.mjs';
 
 export const MODELOS_DO_ESTUDIO = Object.freeze([
@@ -25,6 +25,19 @@ export function adicionarContagem(p,inicio=0,quantidade=3) {
   const textos=Array.from({length:quantidade},(_,i)=>({id:`contagem-${i}`,texto:String(quantidade-i),inicio:inicio+i,fim:inicio+i+1,
     x:.5,y:.5,tamanho:.25,cor:'#FFFFFF',contorno:'#000000',caixa:null,fonte:'anton'}));
   return {...p,versao:4,textos:[...p.textos.filter(t=>!t.id.startsWith('contagem-')),...textos]};
+}
+
+export function dividirClipe(p,id,tempo,novoId) {
+  const c=p.clipes.find(c=>c.id===id), segmento=segmentos(p).find(s=>s.id===id);
+  if(!c||!segmento||p.clipes.length>=100) throw new Error('Selecione um clipe e use até 100 clipes.');
+  const local=tempo-segmento.inicio, duracao=duracaoDoClipe(c);
+  if(local<=.05||local>=duracao-.05) throw new Error('Posicione o cursor dentro do clipe para dividir.');
+  if(temTransicoes(p)) throw new Error('Troque as transições por corte seco antes de dividir o clipe.');
+  const t=c.transformacao, depois=t?.quadrosChave?.length?{...t,tempoDaAnimacao:(t.tempoDaAnimacao??0)+local}:t;
+  const corte=(c.inicio??0)+local*velocidadeDoClipe(c);
+  const primeiro=c.tipo==='imagem'?{...c,duracao:local,transicao:null}:{...c,fim:corte,transicao:null};
+  const segundo=c.tipo==='imagem'?{...c,id:novoId,duracao:duracao-local,transformacao:depois}:{...c,id:novoId,inicio:corte,transformacao:depois};
+  return {...p,clipes:p.clipes.flatMap(a=>a.id===id?[primeiro,segundo]:[a])};
 }
 
 /** Cortar uma faixa mantém o relógio da animação e a posição na mídia original. */

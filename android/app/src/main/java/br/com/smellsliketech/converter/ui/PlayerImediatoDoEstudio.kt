@@ -76,7 +76,10 @@ class PlayerImediato(contexto: Context) : FrameLayout(contexto), TextureView.Sur
     private fun exibirQuadroPausado(mp: MediaPlayer) {
         if (!tocar && !buscando && !mp.isPlaying) {
             mp.start()
-            mp.pause()
+            postDelayed({
+                if (!solto && !tocar && !buscando && mp.isPlaying) mp.pause()
+                if (!solto) { aparencia(); invalidate() }
+            }, 50)
         }
     }
 
