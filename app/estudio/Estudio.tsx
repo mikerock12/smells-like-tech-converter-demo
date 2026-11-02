@@ -39,6 +39,7 @@ import { limite as limiteDoPlano } from "@/packages/converter-core/precos.mjs";
 import { ExportacaoCancelada, exportarNoNavegador, type Exportado } from "@/lib/estudio/exportar";
 import { textosDaLegenda } from "@/packages/converter-core/estudio-legendas.mjs";
 import { pedidoParaOPlugin } from "@/lib/estudio/plugin";
+import { salvarProjeto } from "@/lib/estudio/projetos";
 import { PreviaDoEstudio } from "@/lib/estudio/previa";
 import { duracaoDaMidia } from "@/lib/converter/limites";
 import { registrarUso, restanteHoje, usoDeHoje } from "@/lib/plano/contadores";
@@ -48,6 +49,7 @@ import Paywall from "../converter/Paywall";
 import ControlesDeCamada from "./ControlesDeCamada";
 import LinhaDoTempo from "./LinhaDoTempo";
 import ProjetosDoEstudio from "./ProjetosDoEstudio";
+import ResultadoFinal from "./ResultadoFinal";
 import NarracaoDoEstudio from "./NarracaoDoEstudio";
 import PainelDeCamadas from "./PainelDeCamadas";
 import { CampoDeTempo, Deslizante } from "./Deslizante";
@@ -83,6 +85,10 @@ export default function Estudio() {
   const [aberto, setAberto] = useState<string | null>(null);
   const [andamento, setAndamento] = useState<Andamento | null>(null);
   const [resultado, setResultado] = useState<Resultado | null>(null);
+  const [verResultado, setVerResultado] = useState(false);
+  const [confirmarSaida, setConfirmarSaida] = useState(false);
+  const [menuSalvar, setMenuSalvar] = useState(false);
+  const [salvandoProjeto, setSalvandoProjeto] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [bloqueio, setBloqueio] = useState<BloqueioDoEstudio | null>(null);
   const [personalizado, setPersonalizado] = useState({ largura: "1080", altura: "1080" });
@@ -133,6 +139,7 @@ export default function Estudio() {
     setPassos({ desfazer: h.antes.length, refazer: 0 });
     setSujo(true);
     setResultado(null);
+    setVerResultado(false);
   }, []);
 
   const voltarPasso = useCallback((para: "desfazer" | "refazer") => {
@@ -252,8 +259,8 @@ export default function Estudio() {
   };
   const projetos = <ProjetosDoEstudio projeto={projeto} arquivos={arquivos} instante={instante} mudar={mudar} abrir={abrirSalvo} ocupado={!!andamento}/>;
 
-  const comecarDeNovo = () => {
-    if (projeto?.clipes.length && !window.confirm(sujo
+  const comecarDeNovo = (forcar = false) => {
+    if (!forcar && projeto?.clipes.length && !window.confirm(sujo
       ? "Começar outro projeto? As mudanças deste ainda não foram exportadas nem salvas e serão descartadas (os arquivos originais continuam no seu computador)."
       : "Começar outro projeto? Este será descartado (os arquivos originais continuam no seu computador).")) return;
     zerarHistorico();
@@ -262,7 +269,37 @@ export default function Estudio() {
     setInfos({});
     setInstante(0);
     setResultado(null);
+    setVerResultado(false);
     setEtapa("destino");
+  };
+
+  // O arquivo .sltstudio leva as mídias e reabre no site, no Windows e no Android.
+  const salvarProjetoComMidias = async (): Promise<boolean> => {
+    if (!projeto) return false;
+    setSalvandoProjeto(true);
+    setErro(null);
+    try {
+      const blob = await salvarProjeto(projeto, arquivos);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `projeto-${new Date().toISOString().replace(/[:.]/g, "-")}.sltstudio`;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+      return true;
+    } catch (falha) {
+      setErro(falha instanceof Error ? falha.message : "Não foi possível salvar o projeto.");
+      return false;
+    } finally {
+      setSalvandoProjeto(false);
+    }
+  };
+
+  const salvarESair = async () => {
+    if (await salvarProjetoComMidias()) {
+      setConfirmarSaida(false);
+      comecarDeNovo(true);
+    }
   };
 
   // ==================== exportar ====================
@@ -350,12 +387,14 @@ export default function Estudio() {
         if (!pro) registrarUso(projeto.saida === "texto" ? "transcricao" : "estudio", projeto.saida === "texto" ? Math.ceil(total / 60) : 1);
         const arquivo = final.arquivos[0];
         setResultado({ nome: arquivo.nome, url: cliente.enderecoDoArquivo(final.id, arquivo.indice), bytes: arquivo.bytes, doPlugin: true });
+        setVerResultado(true);
         setSujo(false);
       } else {
         const pronto: Exportado = await exportarNoNavegador(projeto, arquivos, atualizar, () => cancelado);
         if (!pro) registrarUso("estudio");
         const url = URL.createObjectURL(new Blob([pronto.bytes], { type: pronto.mime }));
         setResultado({ nome: pronto.nome, url, bytes: pronto.bytes.byteLength, doPlugin: false });
+        setVerResultado(true);
         setSujo(false);
       }
     } catch (falha) {
@@ -474,7 +513,19 @@ export default function Estudio() {
         <div className="estudio__linha">
           <button type="button" className="button" onClick={() => voltarPasso("desfazer")} disabled={!passos.desfazer} title="Desfazer (Ctrl+Z)">↶ Desfazer</button>
           <button type="button" className="button" onClick={() => voltarPasso("refazer")} disabled={!passos.refazer} title="Refazer (Ctrl+Shift+Z)">↷ Refazer</button>
-          <button type="button" className="button" onClick={comecarDeNovo}>Novo projeto</button>
+          <div className="estudio__menu">
+            <button type="button" className="button" disabled={!projeto.clipes.length || salvandoProjeto} onClick={() => setMenuSalvar((v) => !v)}>
+              {salvandoProjeto ? "Preparando projeto…" : "Salvar ▾"}
+            </button>
+            {menuSalvar && (
+              <div className="estudio__menu-lista" role="menu">
+                <button type="button" role="menuitem" onClick={() => { setMenuSalvar(false); void salvarProjetoComMidias(); }}>Salvar projeto com mídias</button>
+                <button type="button" role="menuitem" onClick={() => { setMenuSalvar(false); setAba("exportar"); }}>Exportar {saidaPorId(projeto.saida)?.titulo.toLowerCase() ?? "vídeo"}…</button>
+              </div>
+            )}
+          </div>
+          <button type="button" className="button" onClick={() => comecarDeNovo()}>Novo projeto</button>
+          <button type="button" className="button" title="Fechar ou salvar o projeto" aria-label="Fechar ou salvar o projeto" onClick={() => setConfirmarSaida(true)}>✕</button>
         </div>
       </div>
 
@@ -587,12 +638,13 @@ export default function Estudio() {
 
           {bloqueio && <Paywall bloqueio={bloqueio} />}
           {erro && <p className="estudio__erro" role="alert">{erro}</p>}
-          {resultado && (
+          {resultado && !verResultado && (
             <div className="estudio__resultado">
               <strong>Pronto</strong>
               <span>{resultado.nome} · {(resultado.bytes / 1_048_576).toFixed(1).replace(".", ",")} MB</span>
               <div className="estudio__linha">
-                <a className="button button--primary" href={resultado.url} download={resultado.nome}>Baixar</a>
+                <button type="button" className="button button--primary" onClick={() => setVerResultado(true)}>Ver o resultado de novo</button>
+                <a className="button" href={resultado.url} download={resultado.nome}>Baixar</a>
                 {resultado.doPlugin && <button type="button" className="button" onClick={() => void cliente.abrirPasta()}>Abrir a pasta</button>}
               </div>
             </div>
@@ -601,6 +653,28 @@ export default function Estudio() {
       </div>
 
       {andamento && <DialogoDeAndamento andamento={andamento} />}
+      {resultado && verResultado && (
+        <ResultadoFinal
+          resultado={resultado}
+          preset={preset}
+          abrirPasta={resultado.doPlugin ? () => void cliente.abrirPasta() : undefined}
+          fechar={() => setVerResultado(false)}
+        />
+      )}
+      {confirmarSaida && (
+        <div className="estudio__andamento" role="dialog" aria-modal="true" aria-label="Fechar ou salvar o projeto">
+          <div>
+            <h3>O que fazer com o projeto?</h3>
+            <span>Salve uma cópia portátil antes de sair, descarte o projeto atual ou comece outro sem salvar.</span>
+            <button type="button" className="button button--primary" disabled={salvandoProjeto || !projeto.clipes.length} onClick={() => void salvarESair()}>
+              {salvandoProjeto ? "Preparando projeto…" : "Salvar projeto e sair"}
+            </button>
+            <button type="button" className="button" onClick={() => { setConfirmarSaida(false); comecarDeNovo(true); }}>Sair sem salvar</button>
+            <button type="button" className="button" onClick={() => { setConfirmarSaida(false); comecarDeNovo(true); }}>Começar um novo sem salvar</button>
+            <button type="button" className="button" onClick={() => setConfirmarSaida(false)}>Cancelar</button>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

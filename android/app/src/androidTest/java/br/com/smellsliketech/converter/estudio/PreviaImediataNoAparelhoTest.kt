@@ -164,6 +164,31 @@ class PreviaImediataNoAparelhoTest {
         tela {player!!.liberar()}
     }
 
+    @Test fun reelsComDesfoqueEKenBurnsAbreSemRenderizacao()=runBlocking {
+        val curto=videoDosQuadrantes();val longo=File(pasta,"reels-60.mp4")
+        Ffmpeg.executar(contexto,listOf("-v","error","-y","-stream_loop","29","-i",curto.absolutePath,"-t","60","-c","copy",longo.absolutePath),null)
+        val animacao=Animacao.kenBurns(duracao=60.0)
+        val p=Projeto(largura=1080,altura=1920,fps=30,fundo=FundoDoProjeto("#FF7A18"),
+            clipes=listOf(Clipe("c",longo.absolutePath,"video",inicio=0.0,fim=60.0,ajuste="caber-desfocado",transformacao=animacao)))
+        assertTrue(PreviaImediata.aceita(p))
+        val inicio=System.nanoTime();abrir(longo,p);val milis=(System.nanoTime()-inicio)/1_000_000
+        android.util.Log.i("PreviaImediata","Reels 60 s com desfoque e Ken Burns abriu em $milis ms")
+        assertTrue("abertura direta em $milis ms",milis<10_000)
+        // O player do fundo desfocado prepara em paralelo ao principal; espera ele antes de medir pixels.
+        val fimFundo=android.os.SystemClock.uptimeMillis()+15_000
+        var fundoOk=false
+        while(android.os.SystemClock.uptimeMillis()<fimFundo&&!fundoOk){tela{fundoOk=player!!.fundoPronto};if(!fundoOk)Thread.sleep(200)}
+        assertTrue("fundo desfocado preparou",fundoOk)
+        instrumentacao.waitForIdleSync();Thread.sleep(500)
+        captura().let {b->try {
+            assertTrue("fundo de vídeo presente",Color.alpha(b.getPixel(2,2))>200)
+            assertFalse("não usa apenas a cor sólida",perto(b.getPixel(2,2),Color.rgb(255,122,24),10))
+        } finally {b.recycle()}}
+        atualizar(p,1.0)
+        assertEquals(0,falhas)
+        Unit
+    }
+
     @After fun limpar() {
         tela {player?.liberar();atividade?.finish()};player=null;atividade=null;pasta.deleteRecursively()
     }

@@ -4,6 +4,7 @@ import android.app.Application
 import android.content.Intent
 import android.net.Uri
 import android.os.SystemClock
+import android.util.Log
 import android.view.accessibility.AccessibilityNodeInfo
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -40,6 +41,8 @@ class EstudioEdicaoNoAparelhoTest {
             if(rolavel!=null&&!rolavel.performAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD)) rolavel.performAction(AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD)
             Thread.sleep(200)
         }
+        val visiveis=nos().mapNotNull {it.text?.toString()?:it.contentDescription?.toString()}.filter {it.isNotBlank()}.distinct().take(60)
+        Log.i("EstudioEdicao","Procurando \"$descricao\"; na árvore: ${visiveis.joinToString("|")}")
         error("Controle não encontrado: $descricao")
     }
     private fun tocar(descricao: String) {

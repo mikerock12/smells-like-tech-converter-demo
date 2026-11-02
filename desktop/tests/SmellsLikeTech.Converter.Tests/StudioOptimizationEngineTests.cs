@@ -37,6 +37,22 @@ public sealed class StudioOptimizationEngineTests : IDisposable
         Assert.Equal(128,pb[3]);Assert.Equal(255,pb[(32*64+32)*4+3]);Assert.True(pb[(32*64+32)*4]>240);
     }
 
+    [Fact] public async Task KenBurnsOtimizadoNaoUsaGeqNoFfmpegReal()
+    {
+        if(!Available) return;
+        var source=Path.Combine(root,"origem.png");
+        using(var image=new MagickImage(new MagickColor(255,0,0,255),64,64)) image.Write(source,MagickFormat.Png32);
+        var project=StudioRules.NewProject("personalizado","video",64,64) with {Fps=10,Background=new StudioBackground {Color="#204060"},
+            Clips=[new StudioClip {Id="c",File=source,Kind="imagem",Duration=1,Fit="caber",Transform=StudioAnimation.KenBurns(null,1)}]};
+        var inputs=new StudioInputs([new StudioClipInput(source,false)],[],[]);
+        var output=Path.Combine(root,"kenburns.mp4");var options=FfmpegOptions.Resolve(ffmpeg!,ffprobe!,[],HardwareAcceleration.Cpu);
+        var command=StudioRecipe.ToCommand(options,project,inputs,output,50,true);
+        Assert.DoesNotContain("geq",string.Join(" ",command.Arguments));
+        var result=await runner.RunAsync(command,root,root,cancellationToken:CancellationToken.None);Assert.Equal(0,result.ExitCode);
+        var frame=Path.Combine(root,"kenburns.png");await Run("-ss","0","-i",output,"-frames:v","1",frame);
+        using var imagem=new MagickImage(frame);var pixel=imagem.GetPixels().GetPixel(32,32);Assert.True(pixel.GetChannel(0)>240);
+    }
+
     [Fact] public async Task VideoDe60SegundosAntesEDepois()
     {
         if(!Available||Environment.GetEnvironmentVariable("SLT_BENCHMARK")!="1") return;

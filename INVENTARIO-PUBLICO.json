@@ -1,5 +1,5 @@
 {
-  "commit": "d28e03c67cb21539afe8c253c9719c29b2983cb0",
+  "commit": "96708b8323f9286236b03c48aafa544822afd632",
   "repository": "https://github.com/mikerock12/smells-like-tech-converter-demo",
   "originals": [
     {
@@ -34,7 +34,7 @@
     },
     {
       "path": "android/app/build.gradle.kts",
-      "sha256": "6c34306b4508596d5955f5c6ed06437479b252a6608204b4af38f5053bc06643",
+      "sha256": "14b5df14dae9a6b2a0a5979426865ced4684c1c9ebad1a0473210b8d0a2d97b6",
       "bytes": 8642
     },
     {
@@ -114,8 +114,8 @@
     },
     {
       "path": "android/app/src/androidTest/java/br/com/smellsliketech/converter/estudio/EstudioEdicaoNoAparelhoTest.kt",
-      "sha256": "b978959b34311703562de8b4ae763f7286dcffc800e6fd28c289b19e25465edf",
-      "bytes": 6051
+      "sha256": "c86a2a28960fa41b92d5113782974265b4ad7bbf6062e54c637bfbdef6c7e697",
+      "bytes": 6317
     },
     {
       "path": "android/app/src/androidTest/java/br/com/smellsliketech/converter/estudio/EstudioEtapa3Test.kt",
@@ -134,8 +134,8 @@
     },
     {
       "path": "android/app/src/androidTest/java/br/com/smellsliketech/converter/estudio/PreviaImediataNoAparelhoTest.kt",
-      "sha256": "ebc968dbf66ed66ac74f0474f8aebab799f6852c84e8a308026b34720128db31",
-      "bytes": 9572
+      "sha256": "de49e8b37c2f809a768b65d3de8e1677ddfdebb1fcd3bd64274aec4213e26d5f",
+      "bytes": 11238
     },
     {
       "path": "android/app/src/androidTest/java/br/com/smellsliketech/converter/figurinhas/CenaSelecionadaTest.kt",
@@ -599,13 +599,13 @@
     },
     {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/estudio/Exportador.kt",
-      "sha256": "c6c253abadd146e7c194d8d39bffc85d245e15b8a57ced521b52c2efee260f32",
-      "bytes": 15822
+      "sha256": "8b8464cd945375d310baff465d5458f9536f44bf860ec9afb1c50bb8fabdd366",
+      "bytes": 16204
     },
     {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/estudio/FiltrosDeCamada.kt",
-      "sha256": "ca0b1503d908016fd83fbc94058317ebfb751bb2eb14de25fec17f0ca3ba92bd",
-      "bytes": 7567
+      "sha256": "a300c6d69f54c3b32a55bcfdd6cf95fecc0396ec50a5af96c1c0efb9b6df7f61",
+      "bytes": 8469
     },
     {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/estudio/GuiasDoEstudio.kt",
@@ -619,8 +619,8 @@
     },
     {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/estudio/PreviaImediata.kt",
-      "sha256": "fc71a59fc3eecfffc304b2c07c3320f562546113d8da10bc48095ac694c4c1ce",
-      "bytes": 886
+      "sha256": "a0b32bfc96c80b88c827a36bacd7138d2d071017565662c52bcad70fbdbe5e12",
+      "bytes": 1050
     },
     {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/estudio/Projeto.kt",
@@ -629,8 +629,8 @@
     },
     {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/estudio/ReceitaDeCamadas.kt",
-      "sha256": "1e459da2afdeeaf3284ed94fe758eb34da0d40610dc090b565f75827b3d89d40",
-      "bytes": 7324
+      "sha256": "a6dea155e3bc65fe37bcf66486e89bcf7866f3b6a43062a28cccb72c7cc17c37",
+      "bytes": 7390
     },
     {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/estudio/RecorteDeFundo.kt",
@@ -754,8 +754,8 @@
     },
     {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/ui/Compartilhar.kt",
-      "sha256": "dbe06b643c384528d66b1dcab90f74186274c3f96fc72880b8978eb64c008c87",
-      "bytes": 5778
+      "sha256": "0a85d42925a2d065d9476a49071b67397790ae523c9289a1e89b5f1757c8cd80",
+      "bytes": 6049
     },
     {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/ui/ConfirmarSaidaDaEdicao.kt",
@@ -789,8 +789,8 @@
     },
     {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/ui/PlayerImediatoDoEstudio.kt",
-      "sha256": "31d63c1f00981f03e44c03c0f543957f968bf75cbb6ca35be65c3b033b004f0b",
-      "bytes": 9645
+      "sha256": "52eb8be8212050f9c0dfd8404d5729104a7368502c7b4bb3a721fc7b11fcf83f",
+      "bytes": 15151
     },
     {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/ui/Previa.kt",
@@ -801,6 +801,11 @@
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/ui/PreviaEditavelDaFigurinha.kt",
       "sha256": "0a217e7530bc99a4cc032c423a1df89c0ad38b705ad280347fae3e8e853feab5",
       "bytes": 9962
+    },
+    {
+      "path": "android/app/src/main/java/br/com/smellsliketech/converter/ui/ResultadoFinal.kt",
+      "sha256": "66f686edda91fd821e130d8149b5e3c1105f46d7a189ab756c4c5ad8a488417a",
+      "bytes": 9969
     },
     {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/ui/SeletorDeStickers.kt",
@@ -824,8 +829,8 @@
     },
     {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/ui/TelasDoEstudio.kt",
-      "sha256": "3e1cae24008aa840b6679ad7feafac7931dd1e996cadd04a2cc27b346d4a9ad4",
-      "bytes": 48827
+      "sha256": "b06815df5b96cdcd8f89403e679f24df2e547a9220175acb2ee044efee1e5dab",
+      "bytes": 50698
     },
     {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/ui/Tema.kt",
@@ -959,8 +964,8 @@
     },
     {
       "path": "android/app/src/test/java/br/com/smellsliketech/converter/estudio/PreviaEOtimizacaoTest.kt",
-      "sha256": "13080318ce1b585509ffbaa1ea4ba73efc68d0d3072edf3890fa210f62fc355f",
-      "bytes": 2476
+      "sha256": "3144180753e840887d13595513ed9ca3efee293280f25345d58211e8a9f99002",
+      "bytes": 2904
     },
     {
       "path": "android/app/src/test/java/br/com/smellsliketech/converter/figurinhas/ControlesDoEditorTest.kt",
@@ -1163,6 +1168,11 @@
       "bytes": 4828
     },
     {
+      "path": "android/play/ficha-1.0.9.md",
+      "sha256": "63b156ffda86aa040d7bb1fb5f66b12a36d66ef341f128fadc2a9483952e20a5",
+      "bytes": 4901
+    },
+    {
       "path": "android/play/icone-512.png",
       "sha256": "42961ab1b7f0758c313d7e064d98bb1f716d70ac721362905058677b216edf9f",
       "bytes": 345096
@@ -1329,8 +1339,8 @@
     },
     {
       "path": "app/estudio/Estudio.tsx",
-      "sha256": "924f62cd8a7bdc00c6a8cf9b2120101d2c1315d100424cf5b69b94fece666c64",
-      "bytes": 59933
+      "sha256": "0e408b1d28b76f5a168820f249a375fb6a11231d8cb67a4269dbdef81d25a7d5",
+      "bytes": 63810
     },
     {
       "path": "app/estudio/LinhaDoTempo.tsx",
@@ -1351,6 +1361,11 @@
       "path": "app/estudio/ProjetosDoEstudio.tsx",
       "sha256": "0b16fd5763e3e61750739b951d5543aa7b300c568092b066ed0c4f7037ce4641",
       "bytes": 3273
+    },
+    {
+      "path": "app/estudio/ResultadoFinal.tsx",
+      "sha256": "54bded6f86ac6fa60da45d8ba6d71d535cc9a99838147e2149327e94160621c8",
+      "bytes": 6115
     },
     {
       "path": "app/estudio/SeletorDeStickers.tsx",
@@ -1374,8 +1389,8 @@
     },
     {
       "path": "app/globals.css",
-      "sha256": "aa11e0d16dcabea8af0702fef7644f3d4f07b3ccc1f95f76c96eb2660decf192",
-      "bytes": 76272
+      "sha256": "e395c9c9ba3752c6ac3ffd3a3863a2e004692b25f7b49b01881f75110e9db006",
+      "bytes": 77147
     },
     {
       "path": "app/heic-iphone/page.tsx",
@@ -1494,7 +1509,7 @@
     },
     {
       "path": "desktop/Directory.Build.props",
-      "sha256": "28ab68cbf1119a92334eb15671ead6b23a9b0445e5d80a2faa706fd8846568f6",
+      "sha256": "1955137601792f1aa57f09329aa0ab77d33c32bcfc9968fc6e4a3d99e2a616bc",
       "bytes": 472
     },
     {
@@ -2089,8 +2104,8 @@
     },
     {
       "path": "desktop/src/SmellsLikeTech.Converter.Desktop/Pages/StudioPage.Creation.cs",
-      "sha256": "165c9e3f28fdabc48fe1efa752ec89492c361004b3120267a2091f1b26cbf5df",
-      "bytes": 9712
+      "sha256": "a7941bd48822bef55fcb65f60bef262b0902574f2745a601a6d8c98b610b866a",
+      "bytes": 9027
     },
     {
       "path": "desktop/src/SmellsLikeTech.Converter.Desktop/Pages/StudioPage.Finishing.cs",
@@ -2108,19 +2123,24 @@
       "bytes": 13224
     },
     {
+      "path": "desktop/src/SmellsLikeTech.Converter.Desktop/Pages/StudioPage.Resultado.cs",
+      "sha256": "4fd921f77e06e0ad72c823ddea2be2083c01affc0ec1ee939dfb96589d30d0e7",
+      "bytes": 9237
+    },
+    {
       "path": "desktop/src/SmellsLikeTech.Converter.Desktop/Pages/StudioPage.Stickers.cs",
       "sha256": "f550714643fd44021ee622a3b42f4c88c2c24b0b8cbf51448cb89150e7456a1e",
       "bytes": 4913
     },
     {
       "path": "desktop/src/SmellsLikeTech.Converter.Desktop/Pages/StudioPage.xaml",
-      "sha256": "4e0742963ecdc3c922d3a48af2819c9e507540ad0d78df359283df4395058867",
-      "bytes": 6658
+      "sha256": "5e0291d1cbf754979d58f1511bb0178a7396c3fe308a25ab1dc1366cd5e240c9",
+      "bytes": 7310
     },
     {
       "path": "desktop/src/SmellsLikeTech.Converter.Desktop/Pages/StudioPage.xaml.cs",
-      "sha256": "fa3ead6255cd9db6c9b2f24bb633157baa3bc9a3180641d0b43fd3f74c4e9da3",
-      "bytes": 51618
+      "sha256": "8bb22668f0a0ab035eae0324184ef9e91a4f9006b2ab19624691ab72509934b6",
+      "bytes": 51836
     },
     {
       "path": "desktop/src/SmellsLikeTech.Converter.Desktop/Services/BrandInfo.cs",
@@ -2274,13 +2294,13 @@
     },
     {
       "path": "desktop/src/SmellsLikeTech.Converter.Engine.FFmpeg/StudioLayerFilters.cs",
-      "sha256": "2a274c015edb15d704352cc2ea7c7ef5a9c44c8ec872e8bb6bae96fe9fdb22df",
-      "bytes": 7472
+      "sha256": "d14b23139c05bdb7692f1898f567ff59c4b8fef814e87479301ce5586c6a4f00",
+      "bytes": 8307
     },
     {
       "path": "desktop/src/SmellsLikeTech.Converter.Engine.FFmpeg/StudioLayerRecipe.cs",
-      "sha256": "b80deba96996c467c30fcb0e17edbfdf6006c82e7e22f96682ef1923bfc986e4",
-      "bytes": 7736
+      "sha256": "fd9ab0f0bf0178c687001349520345c5c74dac2e92138b66e0c9054ceecb3964",
+      "bytes": 7796
     },
     {
       "path": "desktop/src/SmellsLikeTech.Converter.Engine.FFmpeg/StudioRecipe.cs",
@@ -2584,13 +2604,13 @@
     },
     {
       "path": "desktop/tests/SmellsLikeTech.Converter.Tests/StudioOptimizationEngineTests.cs",
-      "sha256": "67f13b0d36090b000a1eaed3af9472a483b93f93706f94c1a7e2d9ecd3fa9d8e",
-      "bytes": 5217
+      "sha256": "e716a361c0279f5859204ad92d2d8fe0e6ed336c953242330f4dbd18af4e3a96",
+      "bytes": 6519
     },
     {
       "path": "desktop/tests/SmellsLikeTech.Converter.Tests/StudioOptimizationTests.cs",
-      "sha256": "57ab6bb05d0fcefa4bccb3aa76712ef50365e108bd940e5e7c87ede7364ca67a",
-      "bytes": 2479
+      "sha256": "4feffb86b715f6954c4a2934aa398fb9a9d6f41c89941a19eaa1cbcaae9a61c8",
+      "bytes": 2903
     },
     {
       "path": "desktop/tests/SmellsLikeTech.Converter.Tests/StudioTests.cs",
@@ -2944,8 +2964,8 @@
     },
     {
       "path": "packages/converter-core/camadas-ffmpeg.mjs",
-      "sha256": "ff52c3ff756683c6c109123759aa55a3194927982ef4a1761e6cf77ca0d3b8e7",
-      "bytes": 4849
+      "sha256": "6851e145b91c5af839d690e8f63f8953716a1db8633c9f39ad981475557bcf7e",
+      "bytes": 5856
     },
     {
       "path": "packages/converter-core/camadas.d.mts",
@@ -3009,8 +3029,8 @@
     },
     {
       "path": "packages/converter-core/estudio-camadas.mjs",
-      "sha256": "35598f320a27db4df04295ad0b1cc5f9bfe230eeeb7a7588b9fd436f2f37ed7d",
-      "bytes": 6922
+      "sha256": "37f7c67f86e92d90a523b29c5c47e376bf787b3e4d734723d1df5c44c7bf3d24",
+      "bytes": 6966
     },
     {
       "path": "packages/converter-core/estudio-casos.mjs",
@@ -3324,12 +3344,12 @@
     },
     {
       "path": "public/baixar/app.json",
-      "sha256": "11bd1a799df140188abc0cf533780df426bfcab08bb469f87a8438fe3c5685d8",
+      "sha256": "d15eb0513e7356ce673ba940a6b0adcb20921bc9ac15a22f2f24a1792202b4cc",
       "bytes": 210
     },
     {
       "path": "public/baixar/plugin.json",
-      "sha256": "006a1cce4678f050a20b746e6179eaea4446971197e6435d695a461cced5d821",
+      "sha256": "25530aa346067dcfd13f00afb27e03201a93a74399b9bf3fad3864142f000040",
       "bytes": 207
     },
     {

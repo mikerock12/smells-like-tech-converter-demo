@@ -1,5 +1,7 @@
 package br.com.smellsliketech.converter.estudio
 
+import android.os.Build
+
 /** Só habilita reprodução direta quando todos os efeitos podem ser mostrados pelo player.
  * A prévia renderizada continua disponível para as demais composições; não omitir efeitos.
  */
@@ -7,7 +9,9 @@ object PreviaImediata {
     fun aceita(p: Projeto): Boolean {
         val c = p.clipes.singleOrNull() ?: return false
         val t = c.transformacao ?: Transformacao()
-        return c.tipo == "video" && c.ajuste in listOf("caber", "preencher") &&
+        val enquadramento = c.ajuste in listOf("caber", "preencher") ||
+            (c.ajuste == "caber-desfocado" && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
+        return c.tipo == "video" && enquadramento &&
             (c.volume ?: 1.0) in 0.0..1.0 &&
             p.camadas.none { it.visivel } && p.textos.isEmpty() && p.audios.isEmpty() &&
             !t.removerFundo && t.mescla == "normal" && !Estudio.temTransicoes(p)

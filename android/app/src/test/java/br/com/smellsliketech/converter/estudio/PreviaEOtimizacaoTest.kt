@@ -37,4 +37,13 @@ class PreviaEOtimizacaoTest {
         assertTrue(FiltrosDeCamada.transformacao(Transformacao(),32,32).contains("geq"))
         assertTrue(FiltrosDeCamada.transformacao(Transformacao(brilho=.1),32,32,otimizar=true).contains("geq"))
     }
+
+    @Test fun `ken burns usa escala e overlay em vez de geq`() {
+        val filtro=FiltrosDeCamada.transformacao(Animacao.kenBurns(duracao=60.0),480,854,otimizar=true,rotulo="cp0",fps=30)
+        assertFalse(filtro.contains("geq"))
+        assertTrue(filtro.contains("scale="))
+        assertTrue(filtro.contains("overlay="))
+        assertTrue(filtro.contains("n/30"))
+        assertTrue(filtro.contains("eval=frame"))
+    }
 }

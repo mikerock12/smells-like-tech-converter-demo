@@ -132,6 +132,9 @@ public sealed partial class StudioPage : Page
         EditorView.Visibility = editing ? Visibility.Visible : Visibility.Collapsed;
         DestinationButton.Visibility = project is null ? Visibility.Collapsed : Visibility.Visible;
         NewProjectButton.Visibility = project is null ? Visibility.Collapsed : Visibility.Visible;
+        SaveButton.Visibility = project is null ? Visibility.Collapsed : Visibility.Visible;
+        SaveButton.IsEnabled = project is not null && project.Clips.Count > 0;
+        CloseProjectButton.Visibility = project is null ? Visibility.Collapsed : Visibility.Visible;
         UpdateUndoButtons();
         if (project is not null)
         {
@@ -263,22 +266,7 @@ public sealed partial class StudioPage : Page
             return;
         }
 
-        ReleasePlayer();
-        project = null;
-        ForgetHistory();
-        infos.Clear();
-        choosingOutput = false;
-        WizardPanel.Tag = null;
-        try
-        {
-            File.Delete(ProjectFile);
-        }
-        catch (IOException)
-        {
-        }
-
-        PreviewImage.Source = null;
-        ShowCurrentStep();
+        DiscardProject();
     }
 
     // ==================== painéis ====================
@@ -631,6 +619,12 @@ public sealed partial class StudioPage : Page
         exportar.Click += (_, _) => Export((modelos?.SelectedItem as ComboBoxItem)?.Tag as string ?? "base");
         ExportPanel.Children.Add(exportar);
         ExportPanel.Children.Add(Muted($"O resultado vai para {App.Services.OutputDirectory}, pela fila de conversões."));
+        if (lastResult is not null)
+        {
+            var deNovo = Action("Ver o último resultado");
+            deNovo.Click += (_, _) => ShowFinalResult(lastResult);
+            ExportPanel.Children.Add(deNovo);
+        }
     }
 
     // ==================== ações ====================
@@ -732,6 +726,7 @@ public sealed partial class StudioPage : Page
             };
             App.Services.Queue.Enqueue(job);
             ShowStatus("Exportação enviada para a fila.", InfoBarSeverity.Success);
+            WatchResult(job.Id);
             if (App.MainWindow is MainWindow main)
             {
                 main.ShowQueue();

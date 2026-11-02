@@ -49,17 +49,7 @@ public sealed partial class StudioPage
     {
         var panel=new StackPanel {Spacing=8};
         var save=Action("Salvar projeto com mídias");save.IsEnabled=project!.Clips.Count>0;
-        save.Click+=async(_,_)=>{
-            var original=project;if(original is null)return;
-            var folder=FileDialogs.PickOutputFolder(App.MainWindow);if(folder is null)return;
-            var file=Path.Combine(folder,$"projeto-{DateTime.Now:yyyyMMdd-HHmmss}-{Guid.NewGuid().ToString("N")[..6]}.sltstudio");
-            save.IsEnabled=false;var created=false;
-            try {
-                await Task.Run(()=>{using var stream=new FileStream(file,FileMode.CreateNew,FileAccess.Write);created=true;StudioArchive.Save(original,stream);});
-                ShowStatus($"Projeto salvo com as mídias em {file}",InfoBarSeverity.Success);
-            } catch(Exception e) {if(created) File.Delete(file);ShowStatus(e.Message,InfoBarSeverity.Error);}
-            finally {save.IsEnabled=true;}
-        };panel.Children.Add(save);
+        save.Click+=async(_,_)=>{save.IsEnabled=false;try {await SaveProjectWithMediaAsync();}finally {save.IsEnabled=true;}};panel.Children.Add(save);
         panel.Children.Add(Muted("O arquivo inclui as mídias e pode ser reaberto no site, Windows e Android. Salve antes de iniciar outro projeto."));
         panel.Children.Add(Muted("Fotos em movimento aplica uma aproximação suave (Ken Burns) às fotos da faixa principal; não gera vídeo por IA."));
         panel.Children.Add(Choice("Modelo editável",StudioCreation.Templates,"",id=>{

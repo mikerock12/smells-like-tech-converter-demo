@@ -56,11 +56,20 @@ object FiltrosDeCamada {
         val c=1+t.contraste; val d=128*(1-c)+t.brilho*100
         return compor(doubleArrayOf(c,0.0,0.0,d,0.0,c,0.0,d,0.0,0.0,c,d),m)
     }
-    fun transformacao(valor: Transformacao?,w: Int,h: Int,deslocamento: Double = 0.0, otimizar: Boolean = false): String {
+    fun transformacao(valor: Transformacao?,w: Int,h: Int,deslocamento: Double = 0.0, otimizar: Boolean = false, rotulo: String = "transformacao", fps: Int = 30): String {
         val t=valor?:Transformacao()
         // Não reamostrar uma identidade: evita bilhões de avaliações de expressão em vídeos longos.
         // Mesclagem e remoção de fundo são feitas fora deste filtro.
         if (otimizar && t.copy(mescla="normal", removerFundo=false, tempoDaAnimacao=0.0) == Transformacao()) return "format=rgba"
+        if (otimizar && t.giro == 0.0 && t.giroX == 0.0 && t.giroY == 0.0 && !t.espelharX && !t.espelharY &&
+            t.mascara == "nenhuma" && t.opacidade == 1.0 && t.filtro == "original" &&
+            t.brilho == 0.0 && t.contraste == 0.0 && t.saturacao == 0.0) {
+            val tempo=if(deslocamento!=0.0) "(n/$fps+${d(deslocamento)})" else "(n/$fps)"
+            val ax=Animacao.expressao(t,"x",tempo);val ay=Animacao.expressao(t,"y",tempo);val az=Animacao.expressao(t,"escala",tempo)
+            return "format=rgba,scale=w='max(2,trunc(iw*($az)/2)*2)':h='max(2,trunc(ih*($az)/2)*2)':eval=frame[${rotulo}zoom];"+
+                "color=c=black@0:s=${w}x${h}:r=$fps,format=rgba[${rotulo}base];"+
+                "[${rotulo}base][${rotulo}zoom]overlay=x='(W-w)/2+($ax-0.5)*W':y='(H-h)/2+($ay-0.5)*H':eval=frame:shortest=1,format=rgba"
+        }
         val m=inversa(projecao(t,w,h))?:return "format=rgba,colorchannelmixer=aa=0"
         var u="(X+0.5)/W";var v="(Y+0.5)/H";var prefixo=""
         if(t.quadrosChave.isNotEmpty()) {

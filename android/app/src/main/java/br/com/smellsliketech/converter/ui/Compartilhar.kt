@@ -50,13 +50,17 @@ private const val MAXIMO_DE_ICONES = 7
 
 private class Destino(val componente: ComponentName, val rotulo: String, val icone: ImageBitmap)
 
-/** Ícones dos apps para mandar o resultado direto, mais "Outros". */
+/**
+ * Ícones dos apps para mandar o resultado direto, mais "Outros". Os pacotes de [prioridade]
+ * (a rede escolhida no início) vêm antes dos demais; se nenhum estiver instalado ou aceitar o
+ * tipo, vale a ordem de [PREFERIDOS].
+ */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun BarraDeCompartilhar(resultado: Resultado) {
+fun BarraDeCompartilhar(resultado: Resultado, prioridade: List<String> = emptyList()) {
     val contexto = LocalContext.current
     val destinos by produceState(emptyList<Destino>(), resultado.mime) {
-        value = withContext(Dispatchers.IO) { destinos(contexto, resultado.mime) }
+        value = withContext(Dispatchers.IO) { destinos(contexto, resultado.mime, prioridade) }
     }
     FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         destinos.forEach { destino ->
@@ -85,13 +89,13 @@ private fun Atalho(rotulo: String, onClick: () -> Unit, icone: @Composable () ->
 }
 
 /** Os apps preferidos que aceitam este tipo de arquivo, com o ícone e o nome que o celular mostra. */
-private fun destinos(contexto: Context, mime: String): List<Destino> {
+private fun destinos(contexto: Context, mime: String, prioridade: List<String>): List<Destino> {
     val gerente = contexto.packageManager
     val candidatos: List<ResolveInfo> = runCatching {
         gerente.queryIntentActivities(Intent(Intent.ACTION_SEND).setType(mime), PackageManager.MATCH_DEFAULT_ONLY)
     }.getOrDefault(emptyList())
     val porPacote = candidatos.groupBy { it.activityInfo.packageName }
-    return PREFERIDOS.mapNotNull { pacote ->
+    return (prioridade + PREFERIDOS).distinct().mapNotNull { pacote ->
         // Alguns apps têm vários alvos (feed, story, conversa): o primeiro é o principal.
         val alvo = porPacote[pacote]?.firstOrNull() ?: return@mapNotNull null
         val rotulo = runCatching { gerente.getApplicationLabel(alvo.activityInfo.applicationInfo).toString() }.getOrDefault(pacote)

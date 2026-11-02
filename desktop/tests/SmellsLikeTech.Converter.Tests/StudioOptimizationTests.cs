@@ -32,4 +32,12 @@ public sealed class StudioOptimizationTests
         Assert.False(StudioImmediatePreview.Accept(project with {Layers=[new StudioLayer {Id="l",File="foto.png"}]}));
         Assert.False(StudioImmediatePreview.Accept(project with {Clips=[clip,clip with {Id="c2"}]}));
     }
+
+    [Fact] public void KenBurnsUsesScaleAndOverlayWithoutGeq()
+    {
+        var animation=StudioAnimation.KenBurns(null,60);
+        var filter=StudioLayerFilters.Transform(animation,480,854,optimize:true,label:"cp0",fps:30);
+        Assert.DoesNotContain("geq",filter);Assert.Contains("scale=",filter);Assert.Contains("overlay=",filter);
+        Assert.Contains("n/30",filter);Assert.Contains("eval=frame",filter);
+    }
 }

@@ -92,6 +92,7 @@ object Exportador {
         val pequeno = projeto.copy(
             largura = Estudio.par(projeto.largura * escala),
             altura = Estudio.par(projeto.altura * escala),
+            fps = minOf(projeto.fps, 10),
             saida = "video",
         )
         val arquivo = File(contexto.cacheDir, "estudio-previa.mp4").apply { delete() }
@@ -142,8 +143,9 @@ object Exportador {
                     if (!sondagem.temVideo) throw ErroDeConversao("O clipe ${i + 1} não tem imagem de vídeo.")
                     if (visual && clipe.transformacao?.removerFundo == true) {
                         val recorte = File(pasta, "recorte-clipe-$i.mkv")
-                        RecorteDeFundo.video(contexto, arquivo, recorte, Estudio.par((sondagem.largura ?: projeto.largura).toDouble()),
-                            Estudio.par((sondagem.altura ?: projeto.altura).toDouble()), projeto.fps, clipe.inicio ?: 0.0, Estudio.duracaoDaOrigem(clipe))
+                        val escala = minOf(1.0, projeto.largura.toDouble() / (sondagem.largura ?: projeto.largura), projeto.altura.toDouble() / (sondagem.altura ?: projeto.altura))
+                        RecorteDeFundo.video(contexto, arquivo, recorte, Estudio.par((sondagem.largura ?: projeto.largura) * escala),
+                            Estudio.par((sondagem.altura ?: projeto.altura) * escala), projeto.fps, clipe.inicio ?: 0.0, Estudio.duracaoDaOrigem(clipe))
                         clipesPreparados[i] = clipe.copy(inicio = 0.0, fim = Estudio.duracaoDaOrigem(clipe))
                         EntradaDeClipe(recorte.absolutePath, sondagem.temAudio)
                     } else EntradaDeClipe(arquivo.absolutePath, sondagem.temAudio)
@@ -172,8 +174,9 @@ object Exportador {
                         val recorte = File(pasta, "recorte-camada-$i.mkv")
                         val inicio = if (quadroIsolado) camada.deslocamento else 0.0
                         val duracao = if (quadroIsolado) .1 else minOf(s.duracaoSegundos ?: (camada.deslocamento + camada.fim - camada.inicio), camada.deslocamento + camada.fim - camada.inicio)
-                        RecorteDeFundo.video(contexto, arquivo, recorte, Estudio.par((s.largura ?: projeto.largura).toDouble()),
-                            Estudio.par((s.altura ?: projeto.altura).toDouble()), projeto.fps, inicio, duracao)
+                        val escala = minOf(1.0, projeto.largura.toDouble() / (s.largura ?: projeto.largura), projeto.altura.toDouble() / (s.altura ?: projeto.altura))
+                        RecorteDeFundo.video(contexto, arquivo, recorte, Estudio.par((s.largura ?: projeto.largura) * escala),
+                            Estudio.par((s.altura ?: projeto.altura) * escala), projeto.fps, inicio, duracao)
                         camadasPreparadas[i] = camada.copy(tipo = "video", deslocamento = if (quadroIsolado) 0.0 else camada.deslocamento)
                         recorte.absolutePath
                     } else arquivo.absolutePath

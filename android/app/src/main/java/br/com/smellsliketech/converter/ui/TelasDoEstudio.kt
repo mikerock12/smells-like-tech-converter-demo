@@ -1,5 +1,8 @@
 package br.com.smellsliketech.converter.ui
 
+import android.content.ComponentName
+import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.widget.MediaController
 import android.widget.VideoView
@@ -43,6 +46,8 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.LinearProgressIndicator
@@ -97,6 +102,9 @@ import java.util.Locale
 @Composable
 fun TelaDoEstudio(modelo: EstudioViewModel, podeExportar: Boolean, abrirLicenca: () -> Unit, abrirModelos: () -> Unit, voltar: () -> Unit) {
     var confirmarSaida by rememberSaveable { mutableStateOf(false) }
+    val salvarESair = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
+        uri?.let { modelo.salvarProjeto(it); confirmarSaida = false; voltar() }
+    }
     val pedirSaida = { confirmarSaida = true }
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Box(Modifier.fillMaxSize().safeDrawingPadding()) {
@@ -125,10 +133,18 @@ fun TelaDoEstudio(modelo: EstudioViewModel, podeExportar: Boolean, abrirLicenca:
             )
         }
         modelo.videoDaPrevia?.let { video -> PlayerDaPrevia(video) { modelo.videoDaPrevia = null } }
-        if (confirmarSaida) ConfirmarSaidaDaEdicao(
-            rascunhoAutomatico = true,
-            continuar = { confirmarSaida = false },
-            sair = { confirmarSaida = false; voltar() },
+        if (confirmarSaida) AlertDialog(
+            onDismissRequest = { confirmarSaida = false },
+            title = { Text("O que fazer com o projeto?") },
+            text = { Text("Salve uma cópia portátil antes de sair, descarte o projeto atual ou comece outro sem salvar.") },
+            confirmButton = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(onClick = { salvarESair.launch("projeto.sltstudio") }) { Text("Salvar projeto e sair") }
+                    TextButton(onClick = { confirmarSaida = false; modelo.novoProjeto(); voltar() }) { Text("Sair sem salvar") }
+                    TextButton(onClick = { confirmarSaida = false; modelo.novoProjeto() }) { Text("Começar um novo sem salvar") }
+                }
+            },
+            dismissButton = { TextButton(onClick = { confirmarSaida = false }) { Text("Cancelar") } },
         )
     }
 }
@@ -246,6 +262,7 @@ private fun Editor(modelo: EstudioViewModel, podeExportar: Boolean, abrirLicenca
     val projeto = modelo.projeto ?: return
     var aba by rememberSaveable { mutableStateOf(AbaDoEstudio.CLIPES) }
     var confirmarNovo by remember { mutableStateOf(false) }
+    var menuSalvar by remember { mutableStateOf(false) }
     val preset = Estudio.preset(modelo.presets, projeto.destino)
     val adicionarMidias = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris -> if (uris.isNotEmpty()) modelo.adicionarMidias(uris) }
 
@@ -257,7 +274,7 @@ private fun Editor(modelo: EstudioViewModel, podeExportar: Boolean, abrirLicenca
     LazyColumn(Modifier.weight(1f).fillMaxWidth(), contentPadding = PaddingValues(8.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                AcaoDoEditor(AcaoEditor.CANCELAR, "Voltar ao início") { voltar() }
+                AcaoDoEditor(AcaoEditor.CANCELAR, "Fechar ou salvar o projeto") { voltar() }
                 Column(Modifier.weight(1f).clickable { modelo.etapa = EstudioViewModel.Etapa.DESTINO }, horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(if (preset == null || preset.id == "personalizado") "Personalizado" else preset.titulo, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
                     Text("${projeto.largura}×${projeto.altura} · trocar", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -321,8 +338,14 @@ private fun Editor(modelo: EstudioViewModel, podeExportar: Boolean, abrirLicenca
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
             AcaoDoEditor(AcaoEditor.DESFAZER, "Desfazer alteração", habilitada = modelo.podeDesfazer) { modelo.desfazer() }
             AcaoDoEditor(AcaoEditor.REFAZER, "Refazer alteração", habilitada = modelo.podeRefazer) { modelo.refazer() }
-            AcaoDoEditor(AcaoEditor.CANCELAR, "Fechar editor (projeto mantido)") { voltar() }
-            AcaoDoEditor(AcaoEditor.SALVAR, "Salvar projeto com mídias", habilitada = projeto.clipes.isNotEmpty()) { salvarProjeto.launch("projeto.sltstudio") }
+            AcaoDoEditor(AcaoEditor.CANCELAR, "Fechar ou salvar o projeto") { voltar() }
+            Box {
+                AcaoDoEditor(AcaoEditor.SALVAR, "Salvar ou exportar", habilitada = projeto.clipes.isNotEmpty()) { menuSalvar = true }
+                DropdownMenu(expanded = menuSalvar, onDismissRequest = { menuSalvar = false }) {
+                    DropdownMenuItem(text = { Text("Salvar projeto com mídias") }, onClick = { menuSalvar = false; salvarProjeto.launch("projeto.sltstudio") })
+                    DropdownMenuItem(text = { Text("Exportar vídeo…") }, onClick = { menuSalvar = false; aba = AbaDoEstudio.EXPORTAR })
+                }
+            }
         }
       }
     }
@@ -678,11 +701,10 @@ private fun PainelDeExportar(modelo: EstudioViewModel, projeto: Projeto, podeExp
         Dica("O resultado vai para a pasta Downloads/SmellsLikeTech.")
     }
     modelo.resultado?.let { resultado ->
-        Painel {
-            Rotulo("PRONTO")
-            Text(resultado.nome, fontSize = 14.sp)
-            BarraDeCompartilhar(resultado)
-        }
+        // Abre sozinho ao terminar a exportação; depois de fechar, o botão reabre.
+        var aberto by remember(resultado.uri) { mutableStateOf(true) }
+        if (aberto) ResultadoFinal(resultado, Estudio.preset(modelo.presets, projeto.destino)) { aberto = false }
+        else OutlinedButton(onClick = { aberto = true }, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) { Text("Ver o resultado de novo") }
     }
 }
 

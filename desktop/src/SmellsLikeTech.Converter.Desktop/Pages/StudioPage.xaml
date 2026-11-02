@@ -31,7 +31,16 @@
                 <Button x:Name="UndoButton" Content="↶ Desfazer" Click="OnUndo" IsEnabled="False" Visibility="Collapsed" ToolTipService.ToolTip="Desfazer (Ctrl+Z)" />
                 <Button x:Name="RedoButton" Content="↷ Refazer" Click="OnRedo" IsEnabled="False" Visibility="Collapsed" ToolTipService.ToolTip="Refazer (Ctrl+Y)" />
                 <Button x:Name="OpenProjectButton" Content="Abrir projeto" Click="OnOpenProject" />
+                <DropDownButton x:Name="SaveButton" Content="Salvar" Visibility="Collapsed">
+                    <DropDownButton.Flyout>
+                        <MenuFlyout>
+                            <MenuFlyoutItem Text="Salvar projeto com mídias" Click="OnSaveProjectMenu" />
+                            <MenuFlyoutItem Text="Exportar…" Click="OnExportMenu" />
+                        </MenuFlyout>
+                    </DropDownButton.Flyout>
+                </DropDownButton>
                 <Button x:Name="NewProjectButton" Content="Novo projeto" Click="OnNewProject" Visibility="Collapsed" />
+                <Button x:Name="CloseProjectButton" Content="✕" Click="OnCloseProject" Visibility="Collapsed" ToolTipService.ToolTip="Fechar ou salvar o projeto" />
             </StackPanel>
         </Grid>
 

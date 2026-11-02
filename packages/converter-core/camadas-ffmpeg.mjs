@@ -13,12 +13,22 @@ export function inversa(m) {
 }
 
 /** GEQ é LGPL, ao contrário de perspective. O mapeamento inverso preserva transparência. */
-export function filtroDaTransformacao(transformacao, w, h, deslocamento = 0, otimizar = false) {
+export function filtroDaTransformacao(transformacao, w, h, deslocamento = 0, otimizar = false, rotulo = "transformacao", fps = 30) {
   const t = { ...TRANSFORMACAO_PADRAO, ...transformacao };
   if (otimizar) {
-    const candidato = { ...t, mescla: "normal", removerFundo: false, tempoDaAnimacao: 0 };
-    const identidade = Object.keys(TRANSFORMACAO_PADRAO).every(k => JSON.stringify(candidato[k]) === JSON.stringify(TRANSFORMACAO_PADRAO[k]));
+    const candidato = { ...t, mescla: "normal", removerFundo: false, mascara: t.mascara ?? "nenhuma", quadrosChave: t.quadrosChave ?? [], tempoDaAnimacao: 0 };
+    const padrao = { ...TRANSFORMACAO_PADRAO, mascara: "nenhuma", quadrosChave: [], tempoDaAnimacao: 0 };
+    const identidade = Object.keys(padrao).every(k => JSON.stringify(candidato[k]) === JSON.stringify(padrao[k]));
     if (identidade) return "format=rgba";
+    if (t.giro === 0 && t.giroX === 0 && t.giroY === 0 && !t.espelharX && !t.espelharY &&
+      (t.mascara ?? "nenhuma") === "nenhuma" && t.opacidade === 1 && t.filtro === "original" &&
+      t.brilho === 0 && t.contraste === 0 && t.saturacao === 0) {
+      const tempo = deslocamento ? `(n/${fps}+${decimal(deslocamento)})` : `(n/${fps})`;
+      const ax = expressaoDoMovimento(t,"x",tempo), ay = expressaoDoMovimento(t,"y",tempo), az = expressaoDoMovimento(t,"escala",tempo);
+      return `format=rgba,scale=w='max(2,trunc(iw*(${az})/2)*2)':h='max(2,trunc(ih*(${az})/2)*2)':eval=frame[${rotulo}zoom];`
+        + `color=c=black@0:s=${w}x${h}:r=${fps},format=rgba[${rotulo}base];`
+        + `[${rotulo}base][${rotulo}zoom]overlay=x='(W-w)/2+(${ax}-0.5)*W':y='(H-h)/2+(${ay}-0.5)*H':eval=frame:shortest=1,format=rgba`;
+    }
   }
   const cantos = cantosDaCamada(w,h,w,h,t).map(p => ({x:p.x/w,y:p.y/h}));
   const m = inversa(homografia(cantos));

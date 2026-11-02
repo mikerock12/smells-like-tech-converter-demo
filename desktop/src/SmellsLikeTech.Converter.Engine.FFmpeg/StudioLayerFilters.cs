@@ -63,10 +63,18 @@ public static class StudioLayerFilters
         return Compose([c,0,0,d,0,c,0,d,0,0,c,d],m);
     }
 
-    public static string Transform(StudioTransform? value,int w,int h,double offset=0,bool optimize=false)
+    public static string Transform(StudioTransform? value,int w,int h,double offset=0,bool optimize=false,string label="transformacao",int fps=30)
     {
         var t=value??new StudioTransform();
         if(optimize&&IsIdentity(t)) return "format=rgba";
+        if(optimize&&t.Rotation==0&&t.RotationX==0&&t.RotationY==0&&!t.MirrorX&&!t.MirrorY&&
+            t.Mask=="nenhuma"&&t.Opacity==1&&t.Filter=="original"&&t.Brightness==0&&t.Contrast==0&&t.Saturation==0) {
+            var time=offset!=0?$"(n/{fps}+{D(offset)})":$"(n/{fps})";
+            var ax=StudioAnimation.Expression(t,"x",time);var ay=StudioAnimation.Expression(t,"y",time);var az=StudioAnimation.Expression(t,"escala",time);
+            return $"format=rgba,scale=w='max(2,trunc(iw*({az})/2)*2)':h='max(2,trunc(ih*({az})/2)*2)':eval=frame[{label}zoom];"
+                +$"color=c=black@0:s={w}x{h}:r={fps},format=rgba[{label}base];"
+                +$"[{label}base][{label}zoom]overlay=x='(W-w)/2+({ax}-0.5)*W':y='(H-h)/2+({ay}-0.5)*H':eval=frame:shortest=1,format=rgba";
+        }
         var m=Inverse(Projection(t,w,h));
         if (m is null) return "format=rgba,colorchannelmixer=aa=0";
         var u="(X+0.5)/W";var v="(Y+0.5)/H";var prefix="";
