@@ -25,7 +25,8 @@ public enum JobStage
     Synthesizing = 7,
     WritingOutput = 8,
     Cleaning = 9,
-    Done = 10
+    Done = 10,
+    RemovingBackground = 11
 }
 
 public static class JobStateNames
@@ -55,6 +56,7 @@ public static class JobStateNames
         JobStage.WritingOutput => "gravando saída",
         JobStage.Cleaning => "limpando temporários",
         JobStage.Done => "pronto",
+        JobStage.RemovingBackground => "removendo o fundo",
         _ => stage.ToString()
     };
 

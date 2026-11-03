@@ -23,8 +23,8 @@ class EstudioEdicaoNoAparelhoTest {
     private val instrumentacao=InstrumentationRegistry.getInstrumentation()
     private val contexto=instrumentacao.targetContext
     private fun tela(bloco: ()->Unit)=instrumentacao.runOnMainSync(bloco)
-    private fun esperar(condicao: ()->Boolean) {
-        val fim=SystemClock.uptimeMillis()+20_000
+    private fun esperar(limiteMs: Long=20_000,condicao: ()->Boolean) {
+        val fim=SystemClock.uptimeMillis()+limiteMs
         while(SystemClock.uptimeMillis()<fim) {
             var ok=false;tela {ok=condicao()};if(ok)return
             Thread.sleep(100)
@@ -37,13 +37,15 @@ class EstudioEdicaoNoAparelhoTest {
         // Rolagem real de fallback: a ação de acessibilidade às vezes não move a lista.
         val agora=SystemClock.uptimeMillis()
         val automacao=instrumentacao.uiAutomation
-        val de=if(paraCima) 2000f else 1200f; val ate=if(paraCima) 1200f else 2000f
+        // Abaixo da prévia, dos controles do player e da dica: só a lista de ajustes rola ali.
+        val de=if(paraCima) 2050f else 1450f; val ate=if(paraCima) 1450f else 2050f
         automacao.injectInputEvent(MotionEvent.obtain(agora,agora,MotionEvent.ACTION_DOWN,540f,de,0),true)
         automacao.injectInputEvent(MotionEvent.obtain(agora,agora+250,MotionEvent.ACTION_MOVE,540f,ate,0),true)
         automacao.injectInputEvent(MotionEvent.obtain(agora,agora+300,MotionEvent.ACTION_UP,540f,ate,0),true)
     }
     private fun no(descricao: String): AccessibilityNodeInfo {
-        val fim=SystemClock.uptimeMillis()+20_000
+        // A lista de ajustes fica abaixo da prévia e dos controles fixos do player: mais rolagens.
+        val fim=SystemClock.uptimeMillis()+45_000
         var tentativas=0
         var paraBaixo=true
         var ultimaArvore=""
@@ -93,7 +95,15 @@ class EstudioEdicaoNoAparelhoTest {
             tela {atividade.setContent {TemaDoConverter {TelaDoEstudio(modelo,true,{},{},{})}}}
             tocar("Camadas");tocar("Laranja")
             esperar {modelo.previaDireta}
-            no("Prévia imediata");tocar("Reproduzir");esperar {modelo.instante>.05&&modelo.tocandoPrevia};tocar("Pausar")
+            no("Reprodução direta do vídeo, sem esperar.");tocar("▶ Tocar");esperar {modelo.instante>.05&&modelo.tocandoPrevia};tocar("❚❚ Pausar")
+            // Com texto por cima o player direto não serve: o play monta a prévia leve e toca no lugar
+            // do quadro, com os controles fixos. Clipe encurtado para a prévia sair depressa.
+            val original=modelo.projeto!!
+            tela {modelo.mudarProjeto {p->p.copy(clipes=p.clipes.map {it.copy(fim=6.0)},textos=listOf(Texto("t","Prévia",0.0,6.0)))};modelo.irPara(0.0)}
+            esperar {!modelo.previaDireta};no("Avançar 5 segundos");no("Quadro anterior");no("Ir para o fim")
+            tocar("▶ Tocar");esperar(180_000) {modelo.previaMontada&&modelo.tocandoPrevia&&modelo.instante>.05};tocar("❚❚ Pausar")
+            tela {modelo.mudarProjeto {original}}
+            esperar {modelo.previaDireta}
             tocar("Clipes");no("Brilho");no("Contraste");no("Saturação")
             instrumentacao.uiAutomation.takeScreenshot()?.let {bitmap->
                 File(contexto.filesDir,"estudio-1-0-8-controles.png").outputStream().use {bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG,100,it)};bitmap.recycle()

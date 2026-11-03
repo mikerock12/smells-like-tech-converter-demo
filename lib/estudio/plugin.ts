@@ -1,5 +1,7 @@
 import type { Projeto } from "@/packages/converter-core/estudio.mjs";
 
+import type { Qualidade } from "@/packages/converter-core/estudio-qualidade.mjs";
+
 import type { ArquivosDoProjeto } from "./exportar";
 
 /**
@@ -11,6 +13,7 @@ export function pedidoParaOPlugin(
   projeto: Projeto,
   arquivos: ArquivosDoProjeto,
   modeloDeTranscricao = "base",
+  qualidade: Qualidade | null = null,
 ): { arquivos: File[]; opcoes: Record<string, unknown> } {
   const ordem: string[] = [];
   const indice = (chave: string): string => {
@@ -29,7 +32,9 @@ export function pedidoParaOPlugin(
     opcoes: {
       operation: "studio.export",
       Project: projetoDoPlugin,
-      Quality: 80,
+      // O plugin aplica o tamanho, o CRF e o preset da qualidade (StudioQuality.cs).
+      Quality: qualidade?.qualidadeDoVideo ?? 80,
+      ...(qualidade && projeto.saida !== "audio" && projeto.saida !== "texto" ? { QualityLevel: qualidade.id } : {}),
       TranscriptionModel: modeloDeTranscricao,
       TranscriptionLanguage: "auto",
     },

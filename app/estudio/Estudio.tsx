@@ -39,6 +39,7 @@ import { limite as limiteDoPlano } from "@/packages/converter-core/precos.mjs";
 import { ExportacaoCancelada, exportarNoNavegador, type Exportado } from "@/lib/estudio/exportar";
 import { textosDaLegenda } from "@/packages/converter-core/estudio-legendas.mjs";
 import { pedidoParaOPlugin } from "@/lib/estudio/plugin";
+import { aprenderVelocidade, pesoDaComposicao, SEGUNDOS_POR_QUADRO, QUALIDADES, qualidadePorId, quadrosRecortados, tempoEstimado, tempoLegivel, aplicarQualidade, VELOCIDADE_PADRAO, type Qualidade, type Velocidade } from "@/packages/converter-core/estudio-qualidade.mjs";
 import { salvarProjeto } from "@/lib/estudio/projetos";
 import { PreviaDoEstudio } from "@/lib/estudio/previa";
 import { duracaoDaMidia } from "@/lib/converter/limites";
@@ -92,6 +93,11 @@ export default function Estudio() {
   const [erro, setErro] = useState<string | null>(null);
   const [bloqueio, setBloqueio] = useState<BloqueioDoEstudio | null>(null);
   const [personalizado, setPersonalizado] = useState({ largura: "1080", altura: "1080" });
+  const [qualidade, setQualidade] = useState<Qualidade["id"]>("alta");
+  const [velocidade, setVelocidade] = useState<Velocidade>(lerVelocidade);
+  // Link do site clicado com projeto aberto: a pergunta "salvar ou sair sem salvar" vem antes.
+  const [saidaPara, setSaidaPara] = useState<string | null>(null);
+  const saindo = useRef(false);
 
   const total = projeto ? duracaoTotal(projeto) : 0;
   const medidas = useMedidas(arquivos);
@@ -170,14 +176,27 @@ export default function Estudio() {
     return () => window.removeEventListener("keydown", tecla);
   }, [voltarPasso]);
 
-  // Sair da página com edição não exportada pede confirmação, como o "Sair sem salvar?" dos apps.
-  const temClipes = Boolean(projeto?.clipes.length);
+  // Sair da página com projeto aberto sempre pergunta, como nos apps: um link do site abre a
+  // escolha "salvar e sair / sair sem salvar / continuar"; fechar a aba usa o aviso do navegador.
+  const temConteudo = Boolean(projeto && (projeto.clipes.length || projeto.camadas?.length || projeto.textos.length || projeto.audios.length));
   useEffect(() => {
-    if (!sujo || !temClipes) return;
-    const avisar = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ""; };
+    if (!temConteudo) return;
+    const avisar = (e: BeforeUnloadEvent) => { if (saindo.current) return; e.preventDefault(); e.returnValue = ""; };
+    const clicar = (e: MouseEvent) => {
+      if (e.defaultPrevented || e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;
+      const link = (e.target as Element | null)?.closest?.("a[href]") as HTMLAnchorElement | null;
+      if (!link || link.target === "_blank" || link.hasAttribute("download")) return;
+      const destino = new URL(link.href, location.href);
+      if (destino.origin !== location.origin || destino.pathname === location.pathname) return;
+      e.preventDefault();
+      setSaidaPara(destino.href);
+      setConfirmarSaida(true);
+    };
     window.addEventListener("beforeunload", avisar);
-    return () => window.removeEventListener("beforeunload", avisar);
-  }, [sujo, temClipes]);
+    document.addEventListener("click", clicar, true);
+    return () => { window.removeEventListener("beforeunload", avisar); document.removeEventListener("click", clicar, true); };
+  }, [temConteudo]);
+  const sairDaPagina = () => { if (!saidaPara) return; saindo.current = true; location.assign(saidaPara); };
 
   const adicionarArquivos = async (lista: readonly File[]) => {
     const midias = lista.filter((arquivo) => arquivo.type.startsWith("video/") || arquivo.type.startsWith("image/") || IMAGEM.test(arquivo.name));
@@ -299,6 +318,7 @@ export default function Estudio() {
     if (await salvarProjetoComMidias()) {
       setConfirmarSaida(false);
       comecarDeNovo(true);
+      sairDaPagina();
     }
   };
 
@@ -354,6 +374,8 @@ export default function Estudio() {
     const cancelar = () => {
       cancelado = true;
     };
+    const nivel = qualidadePorId(qualidade);
+    const estimativa = peloPlugin ? tempoEstimado(projeto, nivel, VELOCIDADE_PADRAO) : tempoEstimado(projeto, nivel, velocidade, true);
     let ultimo = "";
     // Uma atualização por ponto percentual (a exportação avisa a cada quadro).
     const atualizar = (etapaAtual: string, fracao: number) => {
@@ -362,13 +384,14 @@ export default function Estudio() {
       if (chave === ultimo) return;
       ultimo = chave;
       const passados = (performance.now() - comeco) / 1000;
-      setAndamento({ etapa: etapaAtual, fracao, restante: fracao > 0.03 ? (passados * (1 - fracao)) / fracao : null, cancelar });
+      // Até 3% vale a estimativa; depois, o próprio andamento diz quanto falta.
+      setAndamento({ etapa: etapaAtual, fracao, restante: fracao > 0.03 ? (passados * (1 - fracao)) / fracao : Math.max(1, estimativa - passados), cancelar });
     };
     atualizar(peloPlugin ? "Enviando ao plugin" : "Preparando", 0);
 
     try {
       if (peloPlugin) {
-        const pedido = pedidoParaOPlugin(projeto, arquivos);
+        const pedido = pedidoParaOPlugin(projeto, arquivos, "base", nivel);
         const trabalho = await cliente.converterArquivos(pedido.arquivos, pedido.opcoes, `estudio-${projeto.destino}`);
         const final = await new Promise<typeof trabalho>((resolva) => {
           const parar = cliente.acompanhar(trabalho.id, (atual) => {
@@ -390,7 +413,15 @@ export default function Estudio() {
         setVerResultado(true);
         setSujo(false);
       } else {
-        const pronto: Exportado = await exportarNoNavegador(projeto, arquivos, atualizar, () => cancelado);
+        const pronto: Exportado = await exportarNoNavegador(projeto, arquivos, atualizar, () => cancelado, nivel);
+        // Aprende a velocidade deste navegador para as próximas estimativas.
+        const feito = aplicarQualidade(projeto, nivel), segundos = (performance.now() - comeco) / 1000;
+        const quadros = duracaoTotal(feito) * feito.fps, megapixels = feito.largura * feito.altura / 1e6;
+        if ((feito.saida === "video" || feito.saida === "gif") && quadros >= 30 && !quadrosRecortados(feito)) {
+          const nova = aprenderVelocidade(velocidade, (segundos / quadros - SEGUNDOS_POR_QUADRO) / (megapixels * pesoDaComposicao(feito) * nivel.custo), null);
+          setVelocidade(nova);
+          guardarVelocidade(nova);
+        }
         if (!pro) registrarUso("estudio");
         const url = URL.createObjectURL(new Blob([pronto.bytes], { type: pronto.mime }));
         setResultado({ nome: pronto.nome, url, bytes: pronto.bytes.byteLength, doPlugin: false });
@@ -514,7 +545,7 @@ export default function Estudio() {
           <button type="button" className="button" onClick={() => voltarPasso("desfazer")} disabled={!passos.desfazer} title="Desfazer (Ctrl+Z)">↶ Desfazer</button>
           <button type="button" className="button" onClick={() => voltarPasso("refazer")} disabled={!passos.refazer} title="Refazer (Ctrl+Shift+Z)">↷ Refazer</button>
           <div className="estudio__menu">
-            <button type="button" className="button" disabled={!projeto.clipes.length || salvandoProjeto} onClick={() => setMenuSalvar((v) => !v)}>
+            <button type="button" className="button" disabled={!temConteudo || salvandoProjeto} onClick={() => setMenuSalvar((v) => !v)}>
               {salvandoProjeto ? "Preparando projeto…" : "Salvar ▾"}
             </button>
             {menuSalvar && (
@@ -525,7 +556,7 @@ export default function Estudio() {
             )}
           </div>
           <button type="button" className="button" onClick={() => comecarDeNovo()}>Novo projeto</button>
-          <button type="button" className="button" title="Fechar ou salvar o projeto" aria-label="Fechar ou salvar o projeto" onClick={() => setConfirmarSaida(true)}>✕</button>
+          <button type="button" className="button" title="Fechar ou salvar o projeto" aria-label="Fechar ou salvar o projeto" onClick={() => { setSaidaPara(null); setConfirmarSaida(true); }}>✕</button>
         </div>
       </div>
 
@@ -633,6 +664,9 @@ export default function Estudio() {
               exportar={exportar}
               ocupado={andamento !== null}
               pro={pro}
+              qualidade={qualidade}
+              escolherQualidade={setQualidade}
+              velocidade={velocidade}
             />
           )}
 
@@ -665,13 +699,15 @@ export default function Estudio() {
         <div className="estudio__andamento" role="dialog" aria-modal="true" aria-label="Fechar ou salvar o projeto">
           <div>
             <h3>O que fazer com o projeto?</h3>
-            <span>Salve uma cópia portátil antes de sair, descarte o projeto atual ou comece outro sem salvar.</span>
-            <button type="button" className="button button--primary" disabled={salvandoProjeto || !projeto.clipes.length} onClick={() => void salvarESair()}>
+            <span>{saidaPara
+              ? "Salve uma cópia portátil, com as mídias, antes de sair desta página. Sem salvar, o projeto atual é descartado."
+              : "Salve uma cópia portátil antes de sair, descarte o projeto atual ou comece outro sem salvar."}</span>
+            <button type="button" className="button button--primary" disabled={salvandoProjeto || !temConteudo} onClick={() => void salvarESair()}>
               {salvandoProjeto ? "Preparando projeto…" : "Salvar projeto e sair"}
             </button>
-            <button type="button" className="button" onClick={() => { setConfirmarSaida(false); comecarDeNovo(true); }}>Sair sem salvar</button>
-            <button type="button" className="button" onClick={() => { setConfirmarSaida(false); comecarDeNovo(true); }}>Começar um novo sem salvar</button>
-            <button type="button" className="button" onClick={() => setConfirmarSaida(false)}>Cancelar</button>
+            <button type="button" className="button" onClick={() => { setConfirmarSaida(false); comecarDeNovo(true); sairDaPagina(); }}>Sair sem salvar</button>
+            {!saidaPara && <button type="button" className="button" onClick={() => { setConfirmarSaida(false); comecarDeNovo(true); }}>Começar um novo sem salvar</button>}
+            <button type="button" className="button" onClick={() => { setConfirmarSaida(false); setSaidaPara(null); }}>{saidaPara ? "Continuar editando" : "Cancelar"}</button>
           </div>
         </div>
       )}
@@ -783,6 +819,13 @@ function Previa({
   const previa = useRef<PreviaDoEstudio | null>(null);
   const [erroDaPrevia, setErroDaPrevia] = useState<string | null>(null);
   const total = duracaoTotal(projeto);
+  const recortaVideo = quadrosRecortados(projeto) > 0;
+  // Pular continua tocando do novo ponto; quadro a quadro pausa para conferir o ponto exato.
+  const pular = (t: number) => {
+    const alvo = Math.max(0, Math.min(t, Math.max(0, total - 1 / projeto.fps)));
+    if (tocando) { tocar(false); irPara(alvo); requestAnimationFrame(() => tocar(true)); } else irPara(alvo);
+  };
+  const quadro = (passo: number) => { tocar(false); irPara(Math.max(0, Math.min(total, (Math.round(instante * projeto.fps) + passo) / projeto.fps))); };
   const escala = Math.min(1, 720 / Math.max(projeto.largura, projeto.altura));
   const largura = Math.round(projeto.largura * escala);
   const altura = Math.round(projeto.altura * escala);
@@ -853,11 +896,20 @@ function Previa({
       {total > 0 && (
         <>
           <div className="estudio__tempo">
-            <button type="button" className="button button--primary" onClick={() => tocar(!tocando)} aria-label={tocando ? "Pausar" : "Tocar"}>
-              {tocando ? "❚❚ Pausar" : "▶ Tocar"}
-            </button>
+            <div className="estudio__controles-do-player">
+              <button type="button" className="button" onClick={() => pular(0)} aria-label="Voltar ao início" title="Voltar ao início">⏮</button>
+              <button type="button" className="button" onClick={() => pular(instante - 5)} aria-label="Voltar 5 segundos" title="Voltar 5 segundos">−5 s</button>
+              <button type="button" className="button" onClick={() => quadro(-1)} aria-label="Quadro anterior" title="Quadro anterior">◀|</button>
+              <button type="button" className="button button--primary" onClick={() => tocar(!tocando)} aria-label={tocando ? "Pausar" : "Tocar"}>
+                {tocando ? "❚❚ Pausar" : "▶ Tocar"}
+              </button>
+              <button type="button" className="button" onClick={() => quadro(1)} aria-label="Próximo quadro" title="Próximo quadro">|▶</button>
+              <button type="button" className="button" onClick={() => pular(instante + 5)} aria-label="Avançar 5 segundos" title="Avançar 5 segundos">+5 s</button>
+              <button type="button" className="button" onClick={() => pular(total)} aria-label="Ir para o fim" title="Ir para o fim">⏭</button>
+            </div>
             <span>{tempo(instante)} / {tempo(total)}</span>
           </div>
+          {recortaVideo && <p className="estudio__dica">Remoção de fundo em vídeo: no navegador, a prévia recorta quadro a quadro e pode pular quadros. A exportação sai completa.</p>}
           <input
             className="estudio__linha-do-tempo"
             type="range"
@@ -1139,6 +1191,9 @@ function PainelDeExportar({
   exportar,
   ocupado,
   pro,
+  qualidade,
+  escolherQualidade,
+  velocidade,
 }: {
   projeto: Projeto;
   instante: number;
@@ -1147,6 +1202,9 @@ function PainelDeExportar({
   exportar: (forcarNavegador?: boolean) => void;
   ocupado: boolean;
   pro: boolean;
+  qualidade: Qualidade["id"];
+  escolherQualidade: (id: Qualidade["id"]) => void;
+  velocidade: Velocidade;
 }) {
   const erros = problemas(projeto);
   const alertas = avisos(projeto);
@@ -1168,6 +1226,25 @@ function PainelDeExportar({
           <span>Quadro em {tempo(projeto.quadro)}</span>
           <button type="button" className="button" onClick={() => mudar((p) => ({ ...p, quadro: instante }))}>Usar o ponto da prévia ({tempo(instante)})</button>
         </div>
+      )}
+      {(projeto.saida === "video" || projeto.saida === "gif" || projeto.saida === "imagem") && (
+        <Controle rotulo="Qualidade">
+          <div className="estudio__chips">
+            {QUALIDADES.map((q) => (
+              <button key={q.id} type="button" className={`estudio__chip${qualidade === q.id ? " estudio__chip--ativo" : ""}`} onClick={() => escolherQualidade(q.id)}>{q.titulo}</button>
+            ))}
+          </div>
+          {QUALIDADES.map((q) => {
+            const final = aplicarQualidade(projeto, q);
+            // Projeto grande com o plugin ligado vai para o FFmpeg: a velocidade é a do PC.
+            const pelaMaquina = ligado && !cabeNoNavegador(final);
+            return (
+              <p key={q.id} className={qualidade === q.id ? "estudio__aviso" : "estudio__dica"}>
+                {q.titulo}: {final.largura}×{final.altura} · {q.descricao} Tempo estimado: {tempoLegivel(pelaMaquina ? tempoEstimado(projeto, q, VELOCIDADE_PADRAO) : tempoEstimado(projeto, q, velocidade, true))}.
+              </p>
+            );
+          })}
+        </Controle>
       )}
       {erros.map((e) => <p key={e} className="estudio__erro">• {e}</p>)}
       {!pro && !precisaDoPlugin && <CotaDoGratis />}
@@ -1261,4 +1338,20 @@ function tempo(segundos: number): string {
 
 function decimal(valor: number): string {
   return Number.isInteger(valor) ? String(valor) : valor.toFixed(1).replace(".", ",");
+}
+
+const CHAVE_DA_VELOCIDADE = "estudio-velocidade-navegador";
+/** Ponto de partida do navegador (canvas + WebCodecs e U²-Net em WASM): mais lento que o FFmpeg. */
+const VELOCIDADE_DO_NAVEGADOR: Velocidade = { segundosPorMegapixelQuadro: 0.03, segundosPorMascara: 0.35 };
+
+function lerVelocidade(): Velocidade {
+  try {
+    const salva = JSON.parse(localStorage.getItem(CHAVE_DA_VELOCIDADE) ?? "null") as Velocidade | null;
+    if (salva && salva.segundosPorMegapixelQuadro > 0 && salva.segundosPorMascara > 0) return salva;
+  } catch { /* sem localStorage: fica a velocidade de partida */ }
+  return VELOCIDADE_DO_NAVEGADOR;
+}
+
+function guardarVelocidade(velocidade: Velocidade) {
+  try { localStorage.setItem(CHAVE_DA_VELOCIDADE, JSON.stringify(velocidade)); } catch { /* sem localStorage */ }
 }

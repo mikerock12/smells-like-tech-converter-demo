@@ -42,7 +42,10 @@ class PreviaEOtimizacaoTest {
         assertFalse(giro.contains("geq"));assertTrue(giro.contains("rotate="))
         val mascara=FiltrosDeCamada.transformacao(Transformacao(mascara="circulo"),32,32,otimizar=true)
         assertTrue(mascara.contains("alphamerge"));assertFalse(mascara.contains("format=gbrap,geq"))
-        assertTrue(FiltrosDeCamada.transformacao(Transformacao(giroX=20.0),32,32,otimizar=true).contains("format=gbrap,geq"))
+        // Giro 3D estático também sai do geq por quadro: mapa de um quadro + remap.
+        val inclinada=FiltrosDeCamada.transformacao(Transformacao(giroX=20.0,mascara="oval"),32,32,otimizar=true)
+        assertFalse(inclinada.contains("format=gbrap,geq"));assertTrue(inclinada.contains("remap=fill=black@0"));assertTrue(inclinada.contains("loop=loop=-1:size=1"))
+        assertTrue(FiltrosDeCamada.transformacao(Transformacao(giroX=20.0),32,32).contains("format=gbrap,geq"))
     }
 
     @Test fun `ken burns usa escala e overlay em vez de geq`() {

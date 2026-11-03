@@ -52,11 +52,14 @@ object Exportador {
 
     suspend fun exportar(
         contexto: Context,
-        projeto: Projeto,
+        original: Projeto,
         modeloWhisper: String,
         idioma: String = "pt",
+        qualidade: Qualidade = Qualidade.porId("alta"),
         aoAvancar: (Int) -> Unit,
     ): Resultado {
+        // Baixa/média/alta: o quadro, o fps e a taxa de bits saem da qualidade escolhida.
+        val projeto = if (original.saida == "audio" || original.saida == "texto") original else qualidade.aplicar(original)
         val extensao = Estudio.saida(projeto.saida)?.extensao ?: "mp4"
         val nome = "estudio-${projeto.destino}-${SimpleDateFormat("yyyyMMdd-HHmmss", Locale.ROOT).format(Date())}.$extensao"
         if (projeto.saida == "texto") {
@@ -76,7 +79,7 @@ object Exportador {
         }
         val arquivo = File.createTempFile("estudio-", ".$extensao", contexto.cacheDir)
         try {
-            gerar(contexto, projeto, arquivo, aoAvancar)
+            gerar(contexto, projeto, arquivo, qualidade.qualidadeDoVideo, aoAvancar)
             return Saida.gravarArquivo(contexto, nome, Mimes.de(extensao), arquivo).also { aoAvancar(100) }
         } finally {
             arquivo.delete()
@@ -84,19 +87,13 @@ object Exportador {
     }
 
     /**
-     * Uma prévia rápida em vídeo, pequena (lado maior de 480 px), para assistir antes de exportar.
-     * Fica no cache; quem chama apaga.
+     * Uma prévia leve em vídeo (lado maior de 480 px, até 12 quadros/s), só para ter uma ideia
+     * dos efeitos antes de exportar. Fica no cache; quem chama apaga.
      */
     suspend fun previa(contexto: Context, projeto: Projeto, aoAvancar: (Int) -> Unit): File {
-        val escala = minOf(1.0, 480.0 / maxOf(projeto.largura, projeto.altura))
-        val pequeno = projeto.copy(
-            largura = Estudio.par(projeto.largura * escala),
-            altura = Estudio.par(projeto.altura * escala),
-            fps = minOf(projeto.fps, 10),
-            saida = "video",
-        )
+        val pequeno = Qualidade.PREVIA.aplicar(projeto).copy(saida = "video")
         val arquivo = File(contexto.cacheDir, "estudio-previa.mp4").apply { delete() }
-        gerar(contexto, pequeno, arquivo, aoAvancar)
+        gerar(contexto, pequeno, arquivo, Qualidade.PREVIA.qualidadeDoVideo, aoAvancar)
         return arquivo
     }
 
@@ -104,7 +101,7 @@ object Exportador {
      * Gera o resultado em `destino`: o vídeo, o GIF, o PNG, o MP3, ou o WAV de 16 kHz (para
      * transcrever) quando a saída é texto.
      */
-    suspend fun gerar(contexto: Context, original: Projeto, destino: File, aoAvancar: (Int) -> Unit) {
+    suspend fun gerar(contexto: Context, original: Projeto, destino: File, qualidadeDoVideo: Int = 80, aoAvancar: (Int) -> Unit) {
         val quadroIsolado = original.saida == "imagem" && original.clipes.isNotEmpty() && !Estudio.temTransicoes(original) &&
             Estudio.duracaoTotal(original)<=(Estudio.segmentos(original).lastOrNull()?.fim?:0.0) &&
             original.clipes.none { it.transformacao?.quadrosChave?.isNotEmpty() == true } &&
@@ -129,6 +126,17 @@ object Exportador {
         try {
             aoAvancar(0)
             val visual = projeto.saida !in listOf("audio", "texto")
+            // O recorte do fundo vem antes da composição e deixava a barra parada em 0%: agora
+            // cada quadro recortado conta, num trecho da barra proporcional ao custo dele.
+            val aRecortar = if (visual) Estimativa.quadrosRecortados(projeto) else 0.0
+            val quadrosDaSaida = maxOf(1.0, (if (projeto.saida == "imagem") .1 else Estudio.duracaoTotal(projeto)) * projeto.fps)
+            val fatia = if (aRecortar == 0.0) 0.0 else aRecortar * PESO_DO_RECORTE / (aRecortar * PESO_DO_RECORTE + quadrosDaSaida)
+            var recortados = 0
+            fun recortou(antes: Int) = { feitos: Int ->
+                recortados = antes + feitos
+                aoAvancar((fatia * 100 * minOf(1.0, recortados / aRecortar)).toInt())
+            }
+            val aoCompor = { p: Int -> aoAvancar((fatia * 100 + (1 - fatia) * p).toInt()) }
             val clipesPreparados = projeto.clipes.toMutableList()
             val clipes = projeto.clipes.mapIndexed { i, clipe ->
                 val arquivo = File(clipe.arquivo)
@@ -145,7 +153,7 @@ object Exportador {
                         val recorte = File(pasta, "recorte-clipe-$i.mkv")
                         val escala = minOf(1.0, projeto.largura.toDouble() / (sondagem.largura ?: projeto.largura), projeto.altura.toDouble() / (sondagem.altura ?: projeto.altura))
                         RecorteDeFundo.video(contexto, arquivo, recorte, Estudio.par((sondagem.largura ?: projeto.largura) * escala),
-                            Estudio.par((sondagem.altura ?: projeto.altura) * escala), projeto.fps, clipe.inicio ?: 0.0, Estudio.duracaoDaOrigem(clipe))
+                            Estudio.par((sondagem.altura ?: projeto.altura) * escala), projeto.fps, clipe.inicio ?: 0.0, Estudio.duracaoDaOrigem(clipe), recortou(recortados))
                         clipesPreparados[i] = clipe.copy(inicio = 0.0, fim = Estudio.duracaoDaOrigem(clipe))
                         EntradaDeClipe(recorte.absolutePath, sondagem.temAudio)
                     } else EntradaDeClipe(arquivo.absolutePath, sondagem.temAudio)
@@ -176,7 +184,7 @@ object Exportador {
                         val duracao = if (quadroIsolado) .1 else minOf(s.duracaoSegundos ?: (camada.deslocamento + camada.fim - camada.inicio), camada.deslocamento + camada.fim - camada.inicio)
                         val escala = minOf(1.0, projeto.largura.toDouble() / (s.largura ?: projeto.largura), projeto.altura.toDouble() / (s.altura ?: projeto.altura))
                         RecorteDeFundo.video(contexto, arquivo, recorte, Estudio.par((s.largura ?: projeto.largura) * escala),
-                            Estudio.par((s.altura ?: projeto.altura) * escala), projeto.fps, inicio, duracao)
+                            Estudio.par((s.altura ?: projeto.altura) * escala), projeto.fps, inicio, duracao, recortou(recortados))
                         camadasPreparadas[i] = camada.copy(tipo = "video", deslocamento = if (quadroIsolado) 0.0 else camada.deslocamento)
                         recorte.absolutePath
                     } else arquivo.absolutePath
@@ -185,7 +193,7 @@ object Exportador {
             val preparado = projeto.copy(clipes = clipesPreparados, camadas = camadasPreparadas)
             val receita = Estudio.receita(preparado, EntradasDaReceita(clipes, textos, audios, camadas), otimizar = true)
             when (projeto.saida) {
-                "video" -> video(contexto, projeto, receita, pasta, destino, aoAvancar)
+                "video" -> video(contexto, projeto, receita, pasta, destino, aoCompor, qualidadeDoVideo)
                 else -> {
                     val fim = when (projeto.saida) {
                         "gif" -> listOf("-loop", "0")
@@ -194,7 +202,7 @@ object Exportador {
                         else -> listOf("-c:a", "libmp3lame", "-b:a", "192k")
                     }
                     val total = if (projeto.saida == "imagem") max(0.1, projeto.quadro) else receita.duracao
-                    Ffmpeg.executar(contexto, comProgresso(receita, pasta) + fim + destino.absolutePath, total, aoAvancar = aoAvancar)
+                    Ffmpeg.executar(contexto, comProgresso(receita, pasta) + fim + destino.absolutePath, total, aoAvancar = aoCompor)
                 }
             }
             if (destino.length() == 0L) throw ErroDeConversao("O estúdio não produziu nenhum arquivo.")
@@ -204,7 +212,7 @@ object Exportador {
     }
 
     /** H.264 do celular (quadros crus pelo pipe + AAC à parte, depois juntos); senão MPEG-4 do FFmpeg. */
-    private suspend fun video(contexto: Context, projeto: Projeto, receita: Receita, pasta: File, saida: File, aoAvancar: (Int) -> Unit) {
+    private suspend fun video(contexto: Context, projeto: Projeto, receita: Receita, pasta: File, saida: File, aoAvancar: (Int) -> Unit, qualidadeDoVideo: Int) {
         val quadros = Quadros(projeto.largura, projeto.altura, projeto.fps)
         val (mapaDoVideo, mapaDoAudio) = receita.mapas[1] to receita.mapas[3]
         if (CodificadorDoCelular.aceita(quadros)) {
@@ -213,20 +221,23 @@ object Exportador {
             val argumentos = inicio() + receita.args + filtroEmArquivo(receita, pasta) +
                 listOf("-map", mapaDoVideo, "-r", projeto.fps.toString(), "-fps_mode", "cfr", "-f", "rawvideo", "-pix_fmt", "yuv420p", "pipe:1") +
                 listOf("-map", mapaDoAudio, "-c:a", "aac", "-b:a", "192k", audio.absolutePath)
-            val bitrate = Comandos.bitrateDoVideo(quadros.largura, quadros.altura, quadros.porSegundo.toDouble(), 80)
+            val bitrate = Comandos.bitrateDoVideo(quadros.largura, quadros.altura, quadros.porSegundo.toDouble(), qualidadeDoVideo)
             val total = (receita.duracao * projeto.fps).roundToInt()
             CodificadorDoCelular.codificar(contexto, argumentos, quadros, bitrate, video, total) { aoAvancar(it * 95 / 100) }
             Ffmpeg.executar(contexto, Comandos.juntar(video.absolutePath, audio.takeIf { it.length() > 0 }?.absolutePath, saida.absolutePath, "mp4"), null)
         } else {
             Ffmpeg.executar(
                 contexto,
-                comProgresso(receita, pasta) + listOf("-c:v", "mpeg4", "-q:v", "3", "-pix_fmt", "yuv420p", "-r", projeto.fps.toString(),
+                comProgresso(receita, pasta) + listOf("-c:v", "mpeg4", "-q:v", (if (qualidadeDoVideo >= 80) 3 else if (qualidadeDoVideo >= 65) 4 else 6).toString(), "-pix_fmt", "yuv420p", "-r", projeto.fps.toString(),
                     "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart", saida.absolutePath),
                 receita.duracao,
                 aoAvancar = aoAvancar,
             )
         }
     }
+
+    /** Um quadro recortado custa cerca de seis quadros compostos (como no Windows). */
+    private const val PESO_DO_RECORTE = 6.0
 
     private fun inicio() = listOf("-hide_banner", "-nostdin", "-v", "error", "-y")
 

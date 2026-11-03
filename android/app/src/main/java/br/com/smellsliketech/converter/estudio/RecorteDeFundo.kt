@@ -27,7 +27,8 @@ object RecorteDeFundo {
             try {arquivo.outputStream().use {recortada.compress(Bitmap.CompressFormat.PNG,100,it)}} finally {recortada.recycle()}
         } finally {original.recycle()}
     }
-    suspend fun video(contexto: Context,origem: File,destino: File,w: Int,h: Int,fps: Int,inicio: Double,duracao: Double) = withContext(Dispatchers.IO) {
+    /** [aoQuadro] recebe quantos quadros já saíram, para a barra andar durante o recorte. */
+    suspend fun video(contexto: Context,origem: File,destino: File,w: Int,h: Int,fps: Int,inicio: Double,duracao: Double,aoQuadro: (Int) -> Unit = {}) = withContext(Dispatchers.IO) {
         val decodificar=Ffmpeg.iniciar(contexto,listOf("-v","error","-nostdin","-ss",Estudio.numero(inicio),"-t",Estudio.numero(duracao),"-i",origem.absolutePath,
             "-vf","fps=$fps,scale=$w:$h","-an","-f","rawvideo","-pix_fmt","argb","pipe:1"))
         try {
@@ -56,6 +57,7 @@ object RecorteDeFundo {
                     buffer.clear();buffer.asIntBuffer().put(pontos)
                     runInterruptible {codificar.entrada.write(bytes)}
                     quadros++
+                    aoQuadro(quadros)
                 }
                 codificar.entrada.close()
                 runInterruptible {decodificar.fim();codificar.fim()}

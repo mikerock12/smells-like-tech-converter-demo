@@ -13,14 +13,16 @@ public sealed class StudioOptimizationTests
         Assert.Contains("geq",StudioLayerFilters.Background(new StudioBackground {Color="#01020380"},32,32,10,2));
         Assert.Equal("format=rgba",StudioLayerFilters.Transform(new StudioTransform(),32,32,optimize:true));
         Assert.Contains("geq",StudioLayerFilters.Transform(new StudioTransform(),32,32));
-        // Cor, giro planar e máscara também saem do geq; 3D continua nele.
+        // Cor, giro planar, máscara e giro 3D estático saem do geq por quadro.
         var color=StudioLayerFilters.Transform(new StudioTransform {Brightness=.1},32,32,optimize:true);
         Assert.DoesNotContain("geq",color);Assert.Contains("lutrgb=",color);
         var rotate=StudioLayerFilters.Transform(new StudioTransform {Rotation=37},32,32,optimize:true);
         Assert.DoesNotContain("geq",rotate);Assert.Contains("rotate=",rotate);
         var mask=StudioLayerFilters.Transform(new StudioTransform {Mask="circulo"},32,32,optimize:true);
         Assert.Contains("alphamerge",mask);Assert.DoesNotContain("format=gbrap,geq",mask);
-        Assert.Contains("format=gbrap,geq",StudioLayerFilters.Transform(new StudioTransform {RotationX=20},32,32,optimize:true));
+        var tilt=StudioLayerFilters.Transform(new StudioTransform {RotationX=20,Mask="oval"},32,32,optimize:true);
+        Assert.DoesNotContain("format=gbrap,geq",tilt);Assert.Contains("remap=fill=black@0",tilt);Assert.Contains("loop=loop=-1:size=1",tilt);
+        Assert.Contains("format=gbrap,geq",StudioLayerFilters.Transform(new StudioTransform {RotationX=20},32,32));
     }
 
     [Fact] public void ImmediatePreviewOnlyAcceptsProjectsItCanRepresent()

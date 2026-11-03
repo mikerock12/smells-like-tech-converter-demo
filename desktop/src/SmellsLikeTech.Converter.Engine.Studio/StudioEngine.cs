@@ -2,6 +2,7 @@ using ImageMagick;
 using SmellsLikeTech.Converter.Core;
 using SmellsLikeTech.Converter.Core.Abstractions;
 using SmellsLikeTech.Converter.Core.Jobs;
+using SmellsLikeTech.Converter.Core.Media;
 using SmellsLikeTech.Converter.Core.Operations;
 using SmellsLikeTech.Converter.Core.Options;
 using SmellsLikeTech.Converter.Core.Studio;
@@ -37,7 +38,9 @@ public sealed class StudioEngine(
         }
 
         options.Validate();
-        var project = options.Project;
+        // Baixa/média/alta: o quadro, o fps, o CRF e o esforço do x264 saem da qualidade.
+        var level = options.QualityLevel is null ? null : StudioQuality.Find(options.QualityLevel);
+        var project = level?.Apply(options.Project) ?? options.Project;
         var job = context.Job;
         var inputs = new List<string>();
         if (job.InputPath is not null)
@@ -58,11 +61,12 @@ public sealed class StudioEngine(
             context.Workspace.WorkDirectory,
             context.Workspace.TempDirectory,
             output,
-            options.Quality,
+            level?.VideoQuality ?? options.Quality,
             context.Progress.Report,
             ceiling,
             $"{job.Id:N}",
-            cancellationToken);
+            cancellationToken,
+            level: level);
 
         if (project.Output != "texto")
         {
@@ -132,6 +136,16 @@ public sealed class StudioEngine(
         throw new ConversionException("missing_input", $"O arquivo “{Path.GetFileName(reference)}” do projeto não veio junto.");
     }
 
+    /// <summary>Quantos quadros de vídeo vão passar pelo recorte do fundo nesta montagem.</summary>
+    private static double RemovalFrames(StudioProject project, bool singleFrame)
+    {
+        var frames = project.Clips.Where(c => !c.IsImage && c.Transform?.RemoveBackground == true)
+            .Sum(c => Math.Ceiling(StudioRules.SourceDuration(c) * project.Fps));
+        frames += project.Layers.Where(l => l.Visible && l.Kind != "imagem" && l.Transform?.RemoveBackground == true)
+            .Sum(l => Math.Ceiling((singleFrame ? .1 : l.Offset + l.End - l.Start) * project.Fps));
+        return frames;
+    }
+
     /// <summary>Foto do celular em pe, HEIC ou AVIF: o Magick endireita e entrega um PNG que o FFmpeg le.</summary>
     private static string PrepareImage(string path, string output)
     {
@@ -168,9 +182,14 @@ public sealed class StudioEngine(
         Action<JobProgress> progress,
         double ceiling = 1.0,
         string label = "previa",
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        string? cacheDirectory = null,
+        StudioQuality? level = null)
     {
         Directory.CreateDirectory(workDirectory);
+        var started = System.Diagnostics.Stopwatch.StartNew();
+        double removalSeconds = 0, removalMasks = 0;
+        var maskEvery = level?.MaskEvery(project.Fps) ?? 1;
         progress(JobProgress.Step(JobStage.Probing));
         // Um PNG precisa só do instante escolhido, inclusive ao segmentar um vídeo longo.
         var singleFrame = project.Output == "imagem" && project.Clips.Count > 0 && !StudioRules.HasTransitions(project) &&
@@ -203,6 +222,51 @@ public sealed class StudioEngine(
             };
         }
         var visual = project.Output is not ("audio" or "texto");
+        // O recorte do fundo vem antes da composição e era a etapa "parada" da barra: agora
+        // cada quadro recortado conta, num trecho da barra proporcional ao custo dele.
+        var removalFrames = visual ? RemovalFrames(project, singleFrame) : 0;
+        var outputFrames = Math.Max(1, (project.Output == "imagem" ? .1 : StudioRules.TotalDuration(project)) * project.Fps);
+        // A fatia da barra de cada etapa sai da velocidade medida nesta máquina.
+        var removalCost = removalFrames * ((Speed.SecondsPerMask / maskEvery) + .01);
+        var compositionCost = outputFrames * (StudioSpeed.SecondsPerFrame + ((project.Width * (double)project.Height / 1e6) * Speed.SecondsPerMegapixelFrame * StudioEstimate.CompositionWeight(project) * (level?.EncodeCost ?? 1)));
+        var removalShare = removalFrames == 0 ? 0 : removalCost / (removalCost + compositionCost);
+        var removedFrames = 0;
+        async Task<string> RemoveVideoAsync(string path, MediaInfo info, double start, double duration, string name)
+        {
+            // Nunca maior que o quadro do projeto: o modelo enxerga 320×320 de qualquer jeito.
+            var sourceWidth = info.Width ?? project.Width;
+            var sourceHeight = info.Height ?? project.Height;
+            var scale = Math.Min(1.0, Math.Min((double)project.Width / sourceWidth, (double)project.Height / sourceHeight));
+            var width = StudioRules.Even(sourceWidth * scale);
+            var height = StudioRules.Even(sourceHeight * scale);
+            var cached = cacheDirectory is null ? null : RemovalCache.PathFor(cacheDirectory, path, start, duration, width, height, project.Fps, maskEvery);
+            var prepared = cached ?? Path.Combine(workDirectory, name);
+            var before = removedFrames;
+            if (cached is null || !File.Exists(cached))
+            {
+                var removing = System.Diagnostics.Stopwatch.StartNew();
+                var partial = prepared + ".parcial.mkv";
+                using var cleanup = cancellationToken.Register(() => { try { File.Delete(partial); } catch (IOException) { } });
+                await BackgroundVideo.RemoveAsync(optionsAccessor().FfmpegPath, path, partial, width, height, project.Fps, start, duration, cancellationToken, maskEvery: maskEvery, onFrame:
+                    count =>
+                    {
+                        removedFrames = before + count;
+                        progress(new JobProgress
+                        {
+                            Stage = JobStage.RemovingBackground,
+                            Percent = Math.Min(removalShare, removalShare * removedFrames / Math.Max(1.0, removalFrames)) * ceiling
+                        });
+                    });
+                File.Move(partial, prepared, overwrite: true);
+                removalSeconds += removing.Elapsed.TotalSeconds;
+                removalMasks += Math.Ceiling(Math.Ceiling(duration * project.Fps) / maskEvery);
+                if (cacheDirectory is not null) RemovalCache.Trim(cacheDirectory, prepared);
+            }
+
+            removedFrames = before + (int)Math.Ceiling(duration * project.Fps);
+            return prepared;
+        }
+
         var preparedClips = project.Clips.ToArray();
         var clips = new List<StudioClipInput>();
         for (var i = 0; i < project.Clips.Count; i++)
@@ -226,11 +290,7 @@ public sealed class StudioEngine(
 
             if (visual && clip.Transform?.RemoveBackground == true)
             {
-                var prepared = Path.Combine(workDirectory, $"recorte-clipe-{i}.mkv");
-                await BackgroundVideo.RemoveAsync(optionsAccessor().FfmpegPath, path, prepared,
-                    StudioRules.Even(info.Width ?? project.Width), StudioRules.Even(info.Height ?? project.Height), project.Fps,
-                    clip.Start ?? 0, StudioRules.SourceDuration(clip), cancellationToken);
-                path = prepared;
+                path = await RemoveVideoAsync(path, info, clip.Start ?? 0, StudioRules.SourceDuration(clip), $"recorte-clipe-{i}.mkv");
                 preparedClips[i] = clip with { Start = 0, End = StudioRules.SourceDuration(clip) };
             }
             clips.Add(new StudioClipInput(path, info.HasAudio));
@@ -269,19 +329,17 @@ public sealed class StudioEngine(
                 else if (layer.Transform?.RemoveBackground == true)
                 {
                     var info = await inspector.InspectAsync(path, cancellationToken);
-                    var prepared = Path.Combine(workDirectory, $"recorte-camada-{i}.mkv");
                     var start = singleFrame ? layer.Offset : 0;
                     var duration = singleFrame ? .1 : Math.Min(info.Duration?.TotalSeconds ?? layer.Offset + layer.End - layer.Start, layer.Offset + layer.End - layer.Start);
-                    await BackgroundVideo.RemoveAsync(optionsAccessor().FfmpegPath, path, prepared,
-                        StudioRules.Even(info.Width ?? project.Width), StudioRules.Even(info.Height ?? project.Height), project.Fps, start, duration, cancellationToken);
-                    path = prepared;
+                    path = await RemoveVideoAsync(path, info, start, duration, $"recorte-camada-{i}.mkv");
                     preparedLayers[i] = layer with { Kind = "video", Offset = singleFrame ? 0 : layer.Offset };
                 }
                 layers.Add(path);
             }
         }
         var preparedProject = project with { Clips = preparedClips, Layers = preparedLayers };
-        var command = StudioRecipe.ToCommand(optionsAccessor(), preparedProject, new StudioInputs(clips, texts, audios, layers), output, quality, optimize: true);
+        var composing = started.Elapsed;
+        var command = StudioRecipe.ToCommand(optionsAccessor(), preparedProject, new StudioInputs(clips, texts, audios, layers), output, quality, optimize: true, preset: level?.Preset);
         // Perspectiva em várias camadas supera o limite de 32 KiB do CreateProcess.
         var arguments = command.Arguments.ToList();
         var filterIndex = arguments.IndexOf("-filter_complex");
@@ -298,7 +356,7 @@ public sealed class StudioEngine(
         log.Write(LogChannel.Ffmpeg, $"{label} · estúdio · {SafeDiagnostics.FromEngine(command.Describe(), workDirectory, string.Empty)}");
         var reader = new FfmpegProgressReader(TimeSpan.FromSeconds(total), (percent, speed) => progress(new JobProgress
         {
-            Percent = percent is null ? null : percent.Value * ceiling,
+            Percent = percent is null ? null : (removalShare + ((1 - removalShare) * percent.Value)) * ceiling,
             Stage = JobStage.Encoding,
             SpeedFactor = speed
         }));
@@ -321,5 +379,15 @@ public sealed class StudioEngine(
         {
             throw new ConversionException("empty_output", "O estúdio não produziu nenhum arquivo.");
         }
+
+        // Aprende a velocidade desta máquina para o tempo estimado das próximas montagens.
+        var composedFrames = project.Output is "video" or "gif" ? total * project.Fps : 0;
+        var megapixels = project.Width * (double)project.Height / 1e6;
+        var composed = (started.Elapsed - composing).TotalSeconds;
+        Speed = Speed.Learn(composedFrames >= 30 ? ((composed / composedFrames) - StudioSpeed.SecondsPerFrame) / (megapixels * StudioEstimate.CompositionWeight(project) * (level?.EncodeCost ?? 1)) : null,
+            removalMasks >= 10 ? removalSeconds / removalMasks : null);
     }
+
+    /// <summary>A velocidade medida nas últimas montagens (alimenta o tempo estimado).</summary>
+    public StudioSpeed Speed { get; set; } = StudioSpeed.Default;
 }

@@ -168,7 +168,7 @@ public static class StudioRecipe
     /// caminho do conversor (NVENC/AMF/QSV quando houver, senao libx264) e AAC; GIF com a
     /// paleta da receita; imagem PNG do quadro escolhido; MP3; WAV 16 kHz mono para o Whisper.
     /// </summary>
-    public static CommandSpec ToCommand(FfmpegOptions engine, StudioProject project, StudioInputs inputs, string outputPath, int quality, bool optimize = false)
+    public static CommandSpec ToCommand(FfmpegOptions engine, StudioProject project, StudioInputs inputs, string outputPath, int quality, bool optimize = false, string? preset = null)
     {
         var recipe = Build(project, inputs, optimize);
         var arguments = new List<string>
@@ -187,6 +187,9 @@ public static class StudioRecipe
                 var encoder = FfmpegCommandPlanner.SelectEncoder(VideoCodecChoice.H264, engine.Preference, engine);
                 arguments.AddRange(["-c:v", encoder]);
                 FfmpegCommandPlanner.AddQualityArguments(arguments, encoder, quality);
+                // A qualidade escolhida também decide o quanto o x264 se esforça (prévia: ultrafast).
+                var presetIndex = arguments.LastIndexOf("-preset");
+                if (preset is not null && encoder == "libx264" && presetIndex >= 0) arguments[presetIndex + 1] = preset;
                 arguments.AddRange(["-pix_fmt", "yuv420p", "-r", project.Fps.ToString(CultureInfo.InvariantCulture),
                     "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart"]);
                 break;

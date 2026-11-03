@@ -37,12 +37,17 @@ public sealed partial class StudioPage : Page
     private TrimPlayer? trimControl;
     private bool releasing;
     private CancellationTokenSource? previewCancellation;
+    private string exportLevel = "alta";
     private DispatcherQueueTimerWrapper? previewTimer;
 
     public StudioPage()
     {
         InitializeComponent();
-        Unloaded += (_, _) => ReleasePlayer();
+        Unloaded += (_, _) =>
+        {
+            ReleasePlayer();
+            ReleasePreviewPlayer();
+        };
         Loaded += async (_, _) => await LoadAsync();
     }
 
@@ -55,6 +60,7 @@ public sealed partial class StudioPage : Page
     private async Task LoadAsync()
     {
         previewTimer = new DispatcherQueueTimerWrapper(DispatcherQueue, TimeSpan.FromMilliseconds(300), () => _ = RenderPreviewAsync());
+        LoadSpeed();
         try
         {
             if (File.Exists(ProjectFile))
@@ -108,10 +114,32 @@ public sealed partial class StudioPage : Page
         }
 
         Save();
+        if (playing)
+        {
+            // A prévia que está tocando ficou velha: volta ao quadro parado, já com a mudança.
+            StopPlayback(keepPosition: true);
+        }
+
         TimeSlider.Maximum = Math.Max(0.1, Total);
         TotalText.Text = Clock(Total);
+        UpdateToolbar();
         RequestPreview();
     }
+
+    /// <summary>
+    /// Salvar e desfazer seguem o projeto a cada mudança. Antes, o Salvar só era recalculado ao
+    /// abrir o editor: num projeto novo ele ficava desativado até sair e entrar de novo.
+    /// </summary>
+    private void UpdateToolbar()
+    {
+        SaveButton.IsEnabled = project is not null;
+        UpdateUndoButtons();
+        UpdatePlayerInfo();
+    }
+
+    /// <summary>Há algo que se perderia ao sair: mídia, texto ou áudio no projeto aberto.</summary>
+    public bool HasProjectContent => project is not null &&
+        (project.Clips.Count > 0 || project.Layers.Count > 0 || project.Texts.Count > 0 || project.Audios.Count > 0);
 
     private void ChangeAndRefresh(Func<StudioProject, StudioProject> mudanca)
     {
@@ -133,9 +161,8 @@ public sealed partial class StudioPage : Page
         DestinationButton.Visibility = project is null ? Visibility.Collapsed : Visibility.Visible;
         NewProjectButton.Visibility = project is null ? Visibility.Collapsed : Visibility.Visible;
         SaveButton.Visibility = project is null ? Visibility.Collapsed : Visibility.Visible;
-        SaveButton.IsEnabled = project is not null && project.Clips.Count > 0;
         CloseProjectButton.Visibility = project is null ? Visibility.Collapsed : Visibility.Visible;
-        UpdateUndoButtons();
+        UpdateToolbar();
         if (project is not null)
         {
             var preset = StudioRules.FindPreset(project.Destination);
@@ -614,11 +641,33 @@ public sealed partial class StudioPage : Page
             ExportPanel.Children.Add(Muted("• " + aviso));
         }
 
+        if (atual.Output is "video" or "gif" or "imagem")
+        {
+            // Cada qualidade com o tamanho final e o tempo estimado nesta máquina.
+            var velocidade = App.Services.Studio.Speed;
+            ExportPanel.Children.Add(Choice("Qualidade", StudioQuality.Levels.Select(q => (q.Id, q.Title)).ToList(), exportLevel, id =>
+            {
+                exportLevel = id;
+                BuildExport();
+            }));
+            foreach (var nivel in StudioQuality.Levels)
+            {
+                var tamanho = nivel.Apply(atual);
+                var linha = Muted($"{nivel.Title}: {tamanho.Width}×{tamanho.Height} · {nivel.Description} Tempo estimado: {StudioEstimate.Readable(StudioEstimate.Estimate(atual, nivel, velocidade))}.");
+                if (nivel.Id == exportLevel)
+                {
+                    linha.Foreground = (Brush)Application.Current.Resources["BrandYellowBrush"];
+                }
+
+                ExportPanel.Children.Add(linha);
+            }
+        }
+
         var exportar = Action($"Exportar {saida?.Title.ToLowerInvariant()}");
         exportar.IsEnabled = StudioRules.Problems(atual).Count == 0 && (atual.Output != "texto" || modelos is not null);
         exportar.Click += (_, _) => Export((modelos?.SelectedItem as ComboBoxItem)?.Tag as string ?? "base");
         ExportPanel.Children.Add(exportar);
-        ExportPanel.Children.Add(Muted($"O resultado vai para {App.Services.OutputDirectory}, pela fila de conversões."));
+        ExportPanel.Children.Add(Muted($"O resultado vai para {App.Services.OutputDirectory}. O andamento aparece no alto do estúdio e também na fila."));
         if (lastResult is not null)
         {
             var deNovo = Action("Ver o último resultado");
@@ -713,7 +762,16 @@ public sealed partial class StudioPage : Page
                 return;
             }
 
-            var opcoes = new StudioExportOptions { Project = project, Quality = 80, TranscriptionModel = modelo, TranscriptionLanguage = "auto" };
+            var visual = project.Output is "video" or "gif" or "imagem";
+            var nivel = StudioQuality.Find(exportLevel);
+            var opcoes = new StudioExportOptions
+            {
+                Project = project,
+                Quality = visual ? nivel.VideoQuality : 80,
+                QualityLevel = visual ? nivel.Id : null,
+                TranscriptionModel = modelo,
+                TranscriptionLanguage = "auto"
+            };
             opcoes.Validate();
             var entradas = Inputs();
             var job = new ConversionJob
@@ -725,12 +783,9 @@ public sealed partial class StudioPage : Page
                 OutputBaseName = SafeFileName.Sanitize($"estudio_{project.Destination}_{DateTime.Now:yyyyMMdd_HHmmss}")
             };
             App.Services.Queue.Enqueue(job);
-            ShowStatus("Exportação enviada para a fila.", InfoBarSeverity.Success);
+            // Fica no estúdio: a barra com porcentagem e tempo restante aparece no alto.
+            ShowExportProgress(job.Id, visual ? StudioEstimate.Estimate(project, nivel, App.Services.Studio.Speed) : null);
             WatchResult(job.Id);
-            if (App.MainWindow is MainWindow main)
-            {
-                main.ShowQueue();
-            }
         }
         catch (ConversionException exception)
         {
@@ -775,13 +830,27 @@ public sealed partial class StudioPage : Page
     private void OnTimeChanged(object sender, RangeBaseValueChangedEventArgs e)
     {
         TimeText.Text = Clock(e.NewValue);
+        if (syncingSlider)
+        {
+            return;
+        }
+
+        if (playing)
+        {
+            // Arrastar a barra durante a reprodução leva o player junto.
+            SeekPlayer(e.NewValue);
+            return;
+        }
+
         RequestPreview();
     }
 
     private void RequestPreview()
     {
-        VideoPreviewButton.Content = StudioImmediatePreview.Accept(project) ? "Reproduzir prévia imediata" : "Gerar prévia com todos os efeitos";
-        previewTimer?.Restart();
+        if (!playing)
+        {
+            previewTimer?.Restart();
+        }
     }
 
     /// <summary>Um quadro pequeno montado pelo motor do estudio, igual ao que a exportacao faria.</summary>
@@ -841,87 +910,6 @@ public sealed partial class StudioPage : Page
 
             TryDeleteFolder(pasta);
         }
-    }
-
-    private async void OnPreviewVideo(object sender, RoutedEventArgs e)
-    {
-        if (project is null || project.Clips.Count == 0)
-        {
-            return;
-        }
-        if (StudioImmediatePreview.Accept(project) && await ShowImmediatePreviewAsync(project))
-        {
-            return;
-        }
-
-        var escala = Math.Min(1.0, 480.0 / Math.Max(project.Width, project.Height));
-        var pequeno = project with { Output = "video", Width = StudioRules.Even(project.Width * escala), Height = StudioRules.Even(project.Height * escala) };
-        var pasta = Path.Combine(App.Services.Paths.Temp, "estudio-previa", Guid.NewGuid().ToString("N"));
-        var arquivo = Path.Combine(pasta, "previa.mp4");
-        VideoPreviewButton.IsEnabled = false;
-        var botaoTexto = VideoPreviewButton.Content;
-        try
-        {
-            await App.Services.Studio.RenderAsync(pequeno, Inputs(), pasta, pasta, arquivo, 50, progresso =>
-            {
-                if (progresso.Percent is { } p)
-                {
-                    DispatcherQueue.TryEnqueue(() => VideoPreviewButton.Content = $"Montando a prévia… {Math.Round(p * 100)}%");
-                }
-            });
-            var tocador = new MediaPlayerElement
-            {
-                Source = MediaSource.CreateFromUri(new Uri(arquivo)),
-                AreTransportControlsEnabled = true,
-                AutoPlay = true,
-                MaxHeight = 560,
-                Stretch = Stretch.Uniform
-            };
-            var dialogo = new ContentDialog { Title = "Prévia", Content = tocador, CloseButtonText = "Fechar", XamlRoot = XamlRoot };
-            await dialogo.ShowAsync();
-            tocador.MediaPlayer?.Pause();
-            tocador.SetMediaPlayer(null);
-        }
-        catch (ConversionException exception)
-        {
-            ShowStatus($"Não deu para montar a prévia: {exception.Message}", InfoBarSeverity.Warning);
-        }
-        finally
-        {
-            VideoPreviewButton.Content = botaoTexto;
-            VideoPreviewButton.IsEnabled = true;
-            TryDeleteFolder(pasta);
-        }
-    }
-
-    private async Task<bool> ShowImmediatePreviewAsync(StudioProject atual)
-    {
-        var clip = atual.Clips.Single();
-        var player = new MediaPlayer { AutoPlay = false, Source = MediaSource.CreateFromUri(new Uri(clip.File)) };
-        player.Volume = clip.Muted == true ? 0 : clip.Volume ?? 1;
-        var end = clip.End is { } seconds ? TimeSpan.FromSeconds(seconds) : infos.GetValueOrDefault(clip.File)?.Duration;
-        player.MediaOpened += (_, _) =>
-        {
-            player.Position = TimeSpan.FromSeconds(clip.Start ?? 0);
-            player.Play();
-        };
-        player.PlaybackSession.PositionChanged += (_, _) => { if (end is not null && player.Position >= end) player.Pause(); };
-        var element = new MediaPlayerElement
-        {
-            AreTransportControlsEnabled = true,
-            MaxHeight = 560,
-            Stretch = clip.Fit == "preencher" ? Stretch.UniformToFill : Stretch.Uniform
-        };
-        element.SetMediaPlayer(player);
-        var content = new Grid { Background = new SolidColorBrush(ParseColor(atual.Background?.Color ?? "#000000")) };
-        content.Children.Add(element);
-        var failed = false;
-        var dialog = new ContentDialog { Title = "Prévia imediata", Content = content, CloseButtonText = "Fechar", XamlRoot = XamlRoot };
-        player.MediaFailed += (_, _) => { failed = true; dialog.Hide(); };
-        await dialog.ShowAsync();
-        player.Pause();
-        element.SetMediaPlayer(null);
-        return !failed;
     }
 
     // ==================== peças ====================
@@ -1178,11 +1166,11 @@ public sealed partial class StudioPage : Page
     {
         private readonly Microsoft.UI.Dispatching.DispatcherQueueTimer timer;
 
-        public DispatcherQueueTimerWrapper(Microsoft.UI.Dispatching.DispatcherQueue fila, TimeSpan espera, Action acao)
+        public DispatcherQueueTimerWrapper(Microsoft.UI.Dispatching.DispatcherQueue fila, TimeSpan espera, Action acao, bool repeating = false)
         {
             timer = fila.CreateTimer();
             timer.Interval = espera;
-            timer.IsRepeating = false;
+            timer.IsRepeating = repeating;
             timer.Tick += (_, _) => acao();
         }
 
@@ -1191,5 +1179,9 @@ public sealed partial class StudioPage : Page
             timer.Stop();
             timer.Start();
         }
+
+        public void Start() => timer.Start();
+
+        public void Stop() => timer.Stop();
     }
 }

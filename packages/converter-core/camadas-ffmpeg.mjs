@@ -12,6 +12,34 @@ export function inversa(m) {
   return Math.abs(det) < 1e-8 ? null : cof.map(v => v/det);
 }
 
+/**
+ * Cor, opacidade e máscara no espaço da própria mídia (antes de girar), sem geq por pixel:
+ * mixer/LUT para a cor e um quadro de máscara + alphamerge. Devolve o trecho que continua a
+ * entrada; os segmentos auxiliares vão para `partes`. Espelho de StudioLayerFilters.cs.
+ */
+function corEMascaraNaOrigem(t, w, h, fps, rotulo, partes) {
+  const cor = matrizDeCor(t);
+  const cruzado = [1,2,4,6,8,9].some(i => cor[i] !== 0);
+  let atual = "format=rgba";
+  if (cruzado) {
+    atual += `,colorchannelmixer=rr=${decimal(cor[0])}:rg=${decimal(cor[1])}:rb=${decimal(cor[2])}:gr=${decimal(cor[4])}:gg=${decimal(cor[5])}:gb=${decimal(cor[6])}:br=${decimal(cor[8])}:bg=${decimal(cor[9])}:bb=${decimal(cor[10])}:aa=${decimal(t.opacidade)}`;
+    if (cor[3] !== 0 || cor[7] !== 0 || cor[11] !== 0) atual += `,lutrgb=r='clip(val+${decimal(cor[3])},0,255)':g='clip(val+${decimal(cor[7])},0,255)':b='clip(val+${decimal(cor[11])},0,255)'`;
+  } else if (cor[0] !== 1 || cor[5] !== 1 || cor[10] !== 1 || cor[3] !== 0 || cor[7] !== 0 || cor[11] !== 0 || t.opacidade !== 1) {
+    const alfa = t.opacidade !== 1 ? `:a='clip(val*${decimal(t.opacidade)},0,255)'` : "";
+    atual += `,lutrgb=r='clip(${decimal(cor[0])}*val+${decimal(cor[3])},0,255)':g='clip(${decimal(cor[5])}*val+${decimal(cor[7])},0,255)':b='clip(${decimal(cor[10])}*val+${decimal(cor[11])},0,255)'${alfa}`;
+  }
+  if ((t.mascara ?? "nenhuma") !== "nenhuma") {
+    const expr = t.mascara === "circulo" ? "lte(pow((X+0.5-W/2)/(min(W,H)/2),2)+pow((Y+0.5-H/2)/(min(W,H)/2),2),1)"
+      : t.mascara === "oval" ? "lte(pow((X+0.5-W/2)/(W/2),2)+pow((Y+0.5-H/2)/(H/2),2),1)"
+      : "lte(pow(max(abs(X+0.5-W/2)-(W/2-min(W,H)*0.15),0),2)+pow(max(abs(Y+0.5-H/2)-(H/2-min(W,H)*0.15),0),2),pow(min(W,H)*0.15,2))";
+    partes.push(`${atual}[${rotulo}pre]`);
+    // Um quadro de máscara basta: ao fim dele, o alphamerge repete o último.
+    partes.push(`color=c=black:s=${w}x${h}:r=${fps}:d=${decimal(1/fps)},format=gray,geq=lum='255*(${expr})',format=gray[${rotulo}m]`);
+    atual = `[${rotulo}pre][${rotulo}m]alphamerge`;
+  }
+  return atual;
+}
+
 /** GEQ é LGPL, ao contrário de perspective. O mapeamento inverso preserva transparência. */
 export function filtroDaTransformacao(transformacao, w, h, deslocamento = 0, otimizar = false, rotulo = "transformacao", fps = 30) {
   const t = { ...TRANSFORMACAO_PADRAO, ...transformacao };
@@ -30,29 +58,30 @@ export function filtroDaTransformacao(transformacao, w, h, deslocamento = 0, oti
         + `[${rotulo}base][${rotulo}zoom]overlay=x='(W-w)/2+(${ax}-0.5)*W':y='(H-h)/2+(${ay}-0.5)*H':eval=frame:shortest=1,format=rgba`;
     }
   }
+  if (otimizar && !(t.quadrosChave?.length) && (t.giroX !== 0 || t.giroY !== 0)) {
+    // Giro 3D estático: cor e máscara no espaço da mídia, como no geq, e a perspectiva por um
+    // mapa de coordenadas calculado num quadro só. Cada quadro vira uma consulta por pixel
+    // (remap, LGPL), e não mais uma expressão por pixel e canal.
+    const cantos = cantosDaCamada(w,h,w,h,t).map(p => ({x:p.x/w,y:p.y/h}));
+    const m = inversa(homografia(cantos));
+    if (!m) return "format=rgba,colorchannelmixer=aa=0";
+    const partes = [];
+    partes.push(`${corEMascaraNaOrigem(t, w, h, fps, rotulo, partes)}[${rotulo}src]`);
+    const termo = j => `(${decimal(m[j])}*(X+0.5)/${w}+${decimal(m[j+1])}*(Y+0.5)/${h}+${decimal(m[j+2])})`;
+    const posicao = `st(0,${w}*${termo(0)}/${termo(6)}-0.5);st(1,${h}*${termo(3)}/${termo(6)}-0.5);`;
+    const dentro = `between(ld(0),-0.5,${w}-0.5)*between(ld(1),-0.5,${h}-0.5)`;
+    const mapa = (eixo, ultimo, nome) =>
+      `color=c=black:s=${w}x${h}:r=${fps}:d=${decimal(1/fps)},format=gray16le,geq=lum='${posicao}if(${dentro},clip(round(ld(${eixo})),0,${ultimo}),65535)',loop=loop=-1:size=1[${rotulo}${nome}]`;
+    partes.push(mapa(0, w - 1, "mx"));
+    partes.push(mapa(1, h - 1, "my"));
+    partes.push(`[${rotulo}src][${rotulo}mx][${rotulo}my]remap=fill=black@0,format=rgba`);
+    return partes.join(";");
+  }
   if (otimizar && !(t.quadrosChave?.length) && t.giroX === 0 && t.giroY === 0) {
     // Transformação estática sem 3D: cor por mixer/LUT, máscara por um quadro + alphamerge,
     // giro planar pelo rotate e posição por overlay — tudo LGPL, sem geq por pixel.
-    const cor = matrizDeCor(t);
-    const cruzado = [1,2,4,6,8,9].some(i => cor[i] !== 0);
     const partes = [];
-    let atual = "format=rgba";
-    if (cruzado) {
-      atual += `,colorchannelmixer=rr=${decimal(cor[0])}:rg=${decimal(cor[1])}:rb=${decimal(cor[2])}:gr=${decimal(cor[4])}:gg=${decimal(cor[5])}:gb=${decimal(cor[6])}:br=${decimal(cor[8])}:bg=${decimal(cor[9])}:bb=${decimal(cor[10])}:aa=${decimal(t.opacidade)}`;
-      if (cor[3] !== 0 || cor[7] !== 0 || cor[11] !== 0) atual += `,lutrgb=r='clip(val+${decimal(cor[3])},0,255)':g='clip(val+${decimal(cor[7])},0,255)':b='clip(val+${decimal(cor[11])},0,255)'`;
-    } else if (cor[0] !== 1 || cor[5] !== 1 || cor[10] !== 1 || cor[3] !== 0 || cor[7] !== 0 || cor[11] !== 0 || t.opacidade !== 1) {
-      const alfa = t.opacidade !== 1 ? `:a='clip(val*${decimal(t.opacidade)},0,255)'` : "";
-      atual += `,lutrgb=r='clip(${decimal(cor[0])}*val+${decimal(cor[3])},0,255)':g='clip(${decimal(cor[5])}*val+${decimal(cor[7])},0,255)':b='clip(${decimal(cor[10])}*val+${decimal(cor[11])},0,255)'${alfa}`;
-    }
-    if ((t.mascara ?? "nenhuma") !== "nenhuma") {
-      const expr = t.mascara === "circulo" ? "lte(pow((X+0.5-W/2)/(min(W,H)/2),2)+pow((Y+0.5-H/2)/(min(W,H)/2),2),1)"
-        : t.mascara === "oval" ? "lte(pow((X+0.5-W/2)/(W/2),2)+pow((Y+0.5-H/2)/(H/2),2),1)"
-        : "lte(pow(max(abs(X+0.5-W/2)-(W/2-min(W,H)*0.15),0),2)+pow(max(abs(Y+0.5-H/2)-(H/2-min(W,H)*0.15),0),2),pow(min(W,H)*0.15,2))";
-      partes.push(`${atual}[${rotulo}pre]`);
-      // Um quadro de máscara basta: ao fim dele, o alphamerge repete o último.
-      partes.push(`color=c=black:s=${w}x${h}:r=${fps}:d=${decimal(1/fps)},format=gray,geq=lum='255*(${expr})',format=gray[${rotulo}m]`);
-      atual = `[${rotulo}pre][${rotulo}m]alphamerge`;
-    }
+    const atual = corEMascaraNaOrigem(t, w, h, fps, rotulo, partes);
     // O rotate já escreve no tamanho da tela (ow/oh); sem giro, o pad recoloca o conteúdo
     // redimensionado no centro da tela. O overlay só entra fora do centro.
     let cauda = atual;

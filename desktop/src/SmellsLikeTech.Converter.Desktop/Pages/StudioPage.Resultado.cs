@@ -45,7 +45,7 @@ public sealed partial class StudioPage
             XamlRoot = XamlRoot
         };
         var salvarESair = Action("Salvar projeto e sair");
-        salvarESair.IsEnabled = project.Clips.Count > 0;
+        salvarESair.IsEnabled = HasProjectContent;
         salvarESair.Click += async (_, _) =>
         {
             dialogo.Hide();
@@ -78,6 +78,7 @@ public sealed partial class StudioPage
     private void DiscardProject()
     {
         ReleasePlayer();
+        ReleasePreviewPlayer();
         project = null;
         lastResult = null;
         ForgetHistory();
@@ -98,7 +99,55 @@ public sealed partial class StudioPage
 
     // ==================== salvar ====================
 
-    private async void OnSaveProjectMenu(object sender, RoutedEventArgs e) => await SaveProjectWithMediaAsync();
+    private async void OnSaveProjectMenu(object sender, RoutedEventArgs e)
+    {
+        if (!HasProjectContent)
+        {
+            ShowStatus("Adicione um vídeo, foto, texto ou áudio antes de salvar o projeto.", InfoBarSeverity.Informational);
+            return;
+        }
+
+        await SaveProjectWithMediaAsync();
+    }
+
+    /// <summary>
+    /// Sair do estúdio (outra tela do menu ou fechar o aplicativo) sempre pergunta: salvar o
+    /// projeto com as mídias, sair sem salvar ou continuar editando. Devolve se pode sair.
+    /// </summary>
+    public async Task<bool> ConfirmLeaveAsync()
+    {
+        if (!HasProjectContent)
+        {
+            return true;
+        }
+
+        var dialogo = new ContentDialog
+        {
+            Title = "Salvar o projeto antes de sair?",
+            Content = Muted("O projeto é salvo com as mídias num arquivo .sltstudio, que abre de novo no Windows, no site e no Android. Sem salvar, ele é descartado. Uma exportação em andamento continua na fila."),
+            PrimaryButtonText = "Salvar e sair",
+            SecondaryButtonText = "Sair sem salvar",
+            CloseButtonText = "Continuar editando",
+            DefaultButton = ContentDialogButton.Primary,
+            XamlRoot = XamlRoot
+        };
+        switch (await dialogo.ShowAsync())
+        {
+            case ContentDialogResult.Primary:
+                if (!await SaveProjectWithMediaAsync())
+                {
+                    return false;
+                }
+
+                DiscardProject();
+                return true;
+            case ContentDialogResult.Secondary:
+                DiscardProject();
+                return true;
+            default:
+                return false;
+        }
+    }
 
     private void OnExportMenu(object sender, RoutedEventArgs e) => EditorPivot.SelectedIndex = 4;
 
@@ -170,17 +219,93 @@ public sealed partial class StudioPage
                 return;
             }
 
+            UpdateExportProgress(item.Snapshot);
             if (item.Snapshot.Status == JobStatus.Completed && item.FirstOutput is { } saida)
             {
                 avisado = true;
+                HideExportProgress(id);
+                SaveSpeed();
                 ShowFinalResult(saida);
             }
             else if (item.Snapshot.Status == JobStatus.Failed)
             {
                 avisado = true;
+                HideExportProgress(id);
                 ShowStatus($"A exportação falhou: {item.Snapshot.ErrorMessage ?? item.Snapshot.ErrorCode}", InfoBarSeverity.Error);
             }
+            else if (item.Snapshot.Status == JobStatus.Cancelled)
+            {
+                avisado = true;
+                HideExportProgress(id);
+                ShowStatus("Exportação cancelada.", InfoBarSeverity.Informational);
+            }
         };
+    }
+
+    // ==================== andamento da exportação ====================
+
+    private Guid? exportJob;
+    private TimeSpan? exportEstimate;
+    private DateTime exportStarted;
+
+    private void ShowExportProgress(Guid id, TimeSpan? estimativa)
+    {
+        exportJob = id;
+        exportEstimate = estimativa;
+        exportStarted = DateTime.UtcNow;
+        ExportProgressBar.Value = 0;
+        ExportProgressBar.IsIndeterminate = true;
+        ExportProgressText.Text = estimativa is { } e
+            ? $"Exportando na qualidade {StudioQuality.Find(exportLevel).Title.ToLowerInvariant()}… tempo estimado: {StudioEstimate.Readable(e)}"
+            : "Exportando…";
+        ExportProgressPanel.Visibility = Visibility.Visible;
+    }
+
+    private void UpdateExportProgress(JobSnapshot snapshot)
+    {
+        if (exportJob != snapshot.Id)
+        {
+            return;
+        }
+
+        if (snapshot.Status == JobStatus.Queued)
+        {
+            ExportProgressText.Text = "Exportação aguardando a vez na fila…";
+            return;
+        }
+
+        var etapa = snapshot.Stage == JobStage.RemovingBackground ? "Removendo o fundo" : "Exportando";
+        if (snapshot.Progress is not { } fracao)
+        {
+            ExportProgressBar.IsIndeterminate = true;
+            ExportProgressText.Text = $"{etapa}…";
+            return;
+        }
+
+        ExportProgressBar.IsIndeterminate = false;
+        ExportProgressBar.Value = Math.Round(fracao * 100);
+        var resto = snapshot.Eta ?? (exportEstimate is { } e ? e - (DateTime.UtcNow - exportStarted) : null);
+        var falta = resto is { TotalSeconds: > 1 } r ? $" · faltam {StudioEstimate.Readable(r)}" : "";
+        ExportProgressText.Text = $"{etapa}… {Math.Round(fracao * 100)}%{falta}";
+    }
+
+    private void HideExportProgress(Guid id)
+    {
+        if (exportJob == id)
+        {
+            exportJob = null;
+            ExportProgressPanel.Visibility = Visibility.Collapsed;
+        }
+    }
+
+    private void OnExportShowQueue(object sender, RoutedEventArgs e) => (App.MainWindow as MainWindow)?.ShowQueue();
+
+    private void OnExportCancel(object sender, RoutedEventArgs e)
+    {
+        if (exportJob is { } id)
+        {
+            App.Services.Queue.Cancel(id);
+        }
     }
 
     /// <summary>O resultado toca aqui mesmo; dá para abrir a pasta ou mandar o feedback obrigatório.</summary>

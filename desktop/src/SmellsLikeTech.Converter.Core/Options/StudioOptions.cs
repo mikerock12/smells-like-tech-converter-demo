@@ -19,6 +19,9 @@ public sealed record StudioExportOptions : JobOptions
     /// <summary>Qualidade do video, 0 a 100 (vira CRF/CQ como no conversor).</summary>
     public int Quality { get; init; } = 80;
 
+    /// <summary>"baixa", "media" ou "alta" (<see cref="StudioQuality"/>); nulo é a alta de antes.</summary>
+    public string? QualityLevel { get; init; }
+
     /// <summary>Modelo Whisper da saida "texto".</summary>
     public string TranscriptionModel { get; init; } = "base";
 
@@ -44,6 +47,11 @@ public sealed record StudioExportOptions : JobOptions
             throw new ConversionException("invalid_quality", "A qualidade vai de 0 a 100.");
         }
 
+        if (QualityLevel is not null && StudioQuality.Levels.All(q => q.Id != QualityLevel))
+        {
+            throw new ConversionException("invalid_quality", "Qualidade desconhecida: use baixa, média ou alta.");
+        }
+
         if (Project.Output == "texto")
         {
             new TranscribeOptions { Model = TranscriptionModel, Language = TranscriptionLanguage, OutputFormat = TranscriptionFormat }.Validate();
@@ -57,6 +65,7 @@ public sealed record StudioExportOptions : JobOptions
         var destination = preset is null || preset.Id == "personalizado"
             ? $"{Project.Width}×{Project.Height}"
             : preset.Title;
-        return $"Estúdio · {destination} · {output} · {StudioRules.ReadableDuration(StudioRules.TotalDuration(Project))}";
+        var quality = QualityLevel is null ? "" : $" · qualidade {StudioQuality.Find(QualityLevel).Title.ToLowerInvariant()}";
+        return $"Estúdio · {destination} · {output}{quality} · {StudioRules.ReadableDuration(StudioRules.TotalDuration(Project))}";
     }
 }

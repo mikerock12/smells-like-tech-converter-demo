@@ -4,7 +4,6 @@ import android.content.ComponentName
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
-import android.widget.MediaController
 import android.widget.VideoView
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -31,6 +30,7 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -60,6 +60,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -77,9 +78,9 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import br.com.smellsliketech.converter.conversao.ModeloWhisper
 import br.com.smellsliketech.converter.conversao.ModelosWhisper
 import br.com.smellsliketech.converter.conversao.Opcoes
@@ -87,11 +88,14 @@ import br.com.smellsliketech.converter.conversao.textoDoAndamento
 import br.com.smellsliketech.converter.estudio.AudioExtra
 import br.com.smellsliketech.converter.estudio.Clipe
 import br.com.smellsliketech.converter.estudio.DesenhoDoTexto
+import br.com.smellsliketech.converter.estudio.Estimativa
 import br.com.smellsliketech.converter.estudio.Estudio
 import br.com.smellsliketech.converter.estudio.EstudioViewModel
 import br.com.smellsliketech.converter.estudio.Preset
 import br.com.smellsliketech.converter.estudio.Projeto
+import br.com.smellsliketech.converter.estudio.Qualidade
 import br.com.smellsliketech.converter.estudio.Texto
+import kotlinx.coroutines.delay
 import java.io.File
 import java.util.Locale
 
@@ -132,7 +136,6 @@ fun TelaDoEstudio(modelo: EstudioViewModel, podeExportar: Boolean, abrirLicenca:
                 text = { Text(mensagem) },
             )
         }
-        modelo.videoDaPrevia?.let { video -> PlayerDaPrevia(video) { modelo.videoDaPrevia = null } }
         if (confirmarSaida) AlertDialog(
             onDismissRequest = { confirmarSaida = false },
             title = { Text("O que fazer com o projeto?") },
@@ -340,7 +343,7 @@ private fun Editor(modelo: EstudioViewModel, podeExportar: Boolean, abrirLicenca
             AcaoDoEditor(AcaoEditor.REFAZER, "Refazer alteração", habilitada = modelo.podeRefazer) { modelo.refazer() }
             AcaoDoEditor(AcaoEditor.CANCELAR, "Fechar ou salvar o projeto") { voltar() }
             Box {
-                AcaoDoEditor(AcaoEditor.SALVAR, "Salvar ou exportar", habilitada = projeto.clipes.isNotEmpty()) { menuSalvar = true }
+                AcaoDoEditor(AcaoEditor.SALVAR, "Salvar ou exportar", habilitada = projeto.clipes.isNotEmpty() || projeto.camadas.isNotEmpty() || projeto.textos.isNotEmpty() || projeto.audios.isNotEmpty()) { menuSalvar = true }
                 DropdownMenu(expanded = menuSalvar, onDismissRequest = { menuSalvar = false }) {
                     DropdownMenuItem(text = { Text("Salvar projeto com mídias") }, onClick = { menuSalvar = false; salvarProjeto.launch("projeto.sltstudio") })
                     DropdownMenuItem(text = { Text("Exportar vídeo…") }, onClick = { menuSalvar = false; aba = AbaDoEstudio.EXPORTAR })
@@ -411,6 +414,9 @@ private fun Previa(modelo: EstudioViewModel, projeto: Projeto, altura: Dp, secao
             if (projeto.clipes.isEmpty()) Text("Adicione vídeos ou fotos", color = Cores.textoApagado, fontSize = 13.sp)
             else if (modelo.previaDireta) PlayerImediatoDoEstudio(modelo, projeto,
                 Modifier.aspectRatio(projeto.largura.toFloat() / projeto.altura, matchHeightConstraintsFirst = projeto.altura > projeto.largura))
+            else if (modelo.tocandoPrevia && modelo.previaMontada) modelo.videoDaPrevia?.let { video ->
+                PlayerDaPreviaNaTela(modelo, video, Modifier.aspectRatio(projeto.largura.toFloat() / projeto.altura, matchHeightConstraintsFirst = projeto.altura > projeto.largura))
+            }
             else if (quadro != null) Image(quadro.asImageBitmap(), contentDescription = "Prévia do projeto", contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize())
             GuiasNaPrevia(modelo, projeto)
         }
@@ -421,15 +427,27 @@ private fun Previa(modelo: EstudioViewModel, projeto: Projeto, altura: Dp, secao
                 Text(tempo(total), fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             DeslizanteComAjusteFino(valor = modelo.instante.toFloat(), mudar = { modelo.irPara(it.toDouble()) }, limites = 0f..total.toFloat(), passo = .1f, descricao = "Instante do projeto")
-            if (modelo.previaDireta) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    TextButton({ modelo.alternarPlayer() }) { Text(if (modelo.tocandoPrevia) "Pausar" else "Reproduzir") }
-                    Text("Prévia imediata", style = MaterialTheme.typography.labelSmall)
-                }
-            } else {
-                TextButton({ modelo.gerarPreviaEmVideo() }) { Text("Gerar prévia com todos os efeitos") }
-                Text("Camadas, áudio extra, desfoque e remoção de fundo exigem renderização.", style = MaterialTheme.typography.labelSmall)
+            // Player sempre à vista: início, −5 s, quadro anterior, tocar/pausar, próximo quadro, +5 s e
+            // fim. Botões compactos (sem a largura mínima de 58 dp) para caber os sete num celular.
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                val fps = projeto.fps.toDouble()
+                BotaoDoPlayer("⏮", "Voltar ao início") { modelo.pular(0.0) }
+                BotaoDoPlayer("−5s", "Voltar 5 segundos") { modelo.pular(modelo.instante - 5) }
+                BotaoDoPlayer("◀|", "Quadro anterior") { modelo.quadro(-1) }
+                Button({ modelo.tocarOuPausar() }, contentPadding = PaddingValues(horizontal = 12.dp),
+                    modifier = Modifier.defaultMinSize(minWidth = 1.dp, minHeight = 36.dp)) { Text(if (modelo.tocandoPrevia) "❚❚ Pausar" else "▶ Tocar", fontSize = 14.sp) }
+                BotaoDoPlayer("|▶", "Próximo quadro") { modelo.quadro(1) }
+                BotaoDoPlayer("+5s", "Avançar 5 segundos") { modelo.pular(modelo.instante + 5) }
+                BotaoDoPlayer("⏭", "Ir para o fim") { modelo.pular(total - 1 / fps) }
             }
+            Text(
+                when {
+                    modelo.previaDireta -> "Reprodução direta do vídeo, sem esperar."
+                    modelo.previaMontada -> "Prévia leve pronta (baixa resolução): é só tocar."
+                    else -> "Com efeitos, o play monta antes uma prévia leve (baixa resolução): ${Estimativa.legivel(Estimativa.segundos(projeto, Qualidade.PREVIA, modelo.velocidade))}."
+                },
+                style = MaterialTheme.typography.labelSmall,
+            )
         }
     }
 }
@@ -690,6 +708,18 @@ private fun PainelDeExportar(modelo: EstudioViewModel, projeto: Projeto, podeExp
                 }
             }
         }
+        if (projeto.saida in listOf("video", "gif", "imagem")) {
+            // Cada qualidade com o tamanho final e o tempo estimado neste celular.
+            Text("Qualidade", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Qualidade.TODAS.forEach { q -> FilterChip(selected = modelo.qualidade == q.id, onClick = { modelo.qualidade = q.id }, label = { Text(q.titulo, fontSize = 12.sp) }) }
+            }
+            Qualidade.TODAS.forEach { q ->
+                val final = q.aplicar(projeto)
+                Text("${q.titulo}: ${final.largura}×${final.altura} · ${q.descricao} Tempo estimado: ${Estimativa.legivel(Estimativa.segundos(projeto, q, modelo.velocidade))}.",
+                    fontSize = 12.sp, color = if (modelo.qualidade == q.id) Cores.amarelo else MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
         problemas.forEach { Text("• $it", fontSize = 13.sp, color = Cores.amarelo) }
         avisos.forEach { Text("• $it", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant) }
         val pronto = problemas.isEmpty() && (projeto.saida != "texto" || escolhido != null)
@@ -751,22 +781,39 @@ private fun Ocupado(texto: String, progresso: Int?, restante: Int?, cancelar: ()
 
 /** A prévia em vídeo, num diálogo com os controles do próprio Android, repetindo. */
 @Composable
-private fun PlayerDaPrevia(video: File, fechar: () -> Unit) {
-    Dialog(onDismissRequest = fechar, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        Surface(Modifier.fillMaxWidth().padding(12.dp), shape = RoundedCornerShape(14.dp), color = Color.Black) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                AndroidView(
-                    factory = { contexto ->
-                        VideoView(contexto).apply {
-                            setVideoURI(Uri.fromFile(video))
-                            setMediaController(MediaController(contexto).also { it.setAnchorView(this) })
-                            setOnPreparedListener { tocador -> tocador.isLooping = true; start() }
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth().heightIn(max = 560.dp),
-                )
-                TextButton(onClick = fechar) { Text("Fechar") }
+private fun BotaoDoPlayer(texto: String, descricao: String, acao: () -> Unit) =
+    TextButton(acao, contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp),
+        modifier = Modifier.defaultMinSize(minWidth = 1.dp, minHeight = 36.dp).semantics { contentDescription = descricao }) { Text(texto, fontSize = 14.sp) }
+
+/**
+ * A prévia leve tocando no lugar do quadro, a partir do instante do projeto; os controles
+ * de baixo comandam o player e o instante acompanha a reprodução.
+ */
+@Composable
+private fun PlayerDaPreviaNaTela(modelo: EstudioViewModel, video: File, modifier: Modifier) {
+    var player by remember { mutableStateOf<VideoView?>(null) }
+    AndroidView(
+        factory = { contexto ->
+            VideoView(contexto).apply {
+                setOnPreparedListener { seekTo((modelo.instante * 1000).toInt()); start() }
+                setOnCompletionListener { modelo.tocandoPrevia = false }
+                setOnErrorListener { _, _, _ -> modelo.tocandoPrevia = false; true }
+                setVideoURI(Uri.fromFile(video))
+                player = this
             }
+        },
+        onRelease = { it.stopPlayback(); player = null },
+        modifier = modifier,
+    )
+    // O instante segue o player; um salto (±5 s, início, fim) leva o player junto.
+    LaunchedEffect(player) {
+        var ultimo = modelo.instante
+        while (true) {
+            val v = player ?: break
+            if (kotlin.math.abs(modelo.instante - ultimo) > .3) v.seekTo((modelo.instante * 1000).toInt())
+            else if (v.isPlaying) modelo.avancarPlayer(v.currentPosition / 1000.0)
+            ultimo = modelo.instante
+            delay(100)
         }
     }
 }

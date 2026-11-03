@@ -13,6 +13,8 @@ namespace SmellsLikeTech.Converter.Desktop;
 public sealed partial class MainWindow : Window
 {
     private DispatcherTimer? statusTimer;
+    private bool leavingStudio;
+    private bool closeConfirmed;
 
     public MainWindow()
     {
@@ -36,6 +38,7 @@ public sealed partial class MainWindow : Window
         WindowPlacement.Apply(AppWindow, App.Services.Settings);
 
         RootGrid.Loaded += OnLoaded;
+        AppWindow.Closing += OnClosing;
         Closed += OnClosed;
     }
 
@@ -101,9 +104,53 @@ public sealed partial class MainWindow : Window
             _ => typeof(HomePage)
         };
 
-        if (ContentFrame.CurrentSourcePageType != page)
+        if (ContentFrame.CurrentSourcePageType == page || leavingStudio)
         {
-            ContentFrame.Navigate(page);
+            return;
+        }
+
+        if (ContentFrame.Content is StudioPage studio && studio.HasProjectContent)
+        {
+            _ = LeaveStudioAsync(studio, page);
+            return;
+        }
+
+        ContentFrame.Navigate(page);
+    }
+
+    /// <summary>Sair do estúdio pergunta antes: salvar, sair sem salvar ou continuar editando.</summary>
+    private async Task LeaveStudioAsync(StudioPage studio, Type page)
+    {
+        leavingStudio = true;
+        try
+        {
+            if (await studio.ConfirmLeaveAsync())
+            {
+                ContentFrame.Navigate(page);
+                return;
+            }
+
+            Select("studio");
+        }
+        finally
+        {
+            leavingStudio = false;
+        }
+    }
+
+    /// <summary>Fechar o aplicativo com um projeto aberto no estúdio também pergunta.</summary>
+    private async void OnClosing(Microsoft.UI.Windowing.AppWindow sender, Microsoft.UI.Windowing.AppWindowClosingEventArgs args)
+    {
+        if (closeConfirmed || ContentFrame.Content is not StudioPage studio || !studio.HasProjectContent)
+        {
+            return;
+        }
+
+        args.Cancel = true;
+        if (await studio.ConfirmLeaveAsync())
+        {
+            closeConfirmed = true;
+            Close();
         }
     }
 

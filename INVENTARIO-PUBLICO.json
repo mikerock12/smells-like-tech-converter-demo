@@ -1,5 +1,5 @@
 {
-  "commit": "0f677a2a9fdb0d125814bbb88957a836051da299",
+  "commit": "de137d8ff0389f565867394079cfc218ded9a6d6",
   "repository": "https://github.com/mikerock12/smells-like-tech-converter-demo",
   "originals": [
     {
@@ -34,7 +34,7 @@
     },
     {
       "path": "android/app/build.gradle.kts",
-      "sha256": "0c64d836acecbf1bf1917df08410eaa04fa75ec7860c5a3b41c2e7df25fd8646",
+      "sha256": "59ba89391a82691adf4460d33e65452db656251355c3491103a92e67c9fc8f8e",
       "bytes": 8643
     },
     {
@@ -114,8 +114,8 @@
     },
     {
       "path": "android/app/src/androidTest/java/br/com/smellsliketech/converter/estudio/EstudioEdicaoNoAparelhoTest.kt",
-      "sha256": "79f5f0bec4f2487427bc5457860212d66ffdfc4094d0e639f1fed8d2ae22674c",
-      "bytes": 7415
+      "sha256": "ff9dbbaefe82d5853dd2d4b7729586f15dd1c40f5f909a090c5466b25a76b881",
+      "bytes": 8409
     },
     {
       "path": "android/app/src/androidTest/java/br/com/smellsliketech/converter/estudio/EstudioEtapa3Test.kt",
@@ -594,18 +594,18 @@
     },
     {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/estudio/EstudioViewModel.kt",
-      "sha256": "ea2fc8a2b341ab7dcfe00cb6636dffeffbb048c05f4fb85d435438a8cc36ff1f",
-      "bytes": 29376
+      "sha256": "3117c47ee2e1db606d3a7038c5a18daf8ed86b77b226899d584bcd49adff38c2",
+      "bytes": 33109
     },
     {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/estudio/Exportador.kt",
-      "sha256": "8b8464cd945375d310baff465d5458f9536f44bf860ec9afb1c50bb8fabdd366",
-      "bytes": 16204
+      "sha256": "13c62d40c8411b8928ccf233c448b039fc5ebb8e439285fb2619db69acb42e76",
+      "bytes": 17530
     },
     {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/estudio/FiltrosDeCamada.kt",
-      "sha256": "29457d30fb929f51223629a060a610e938fe802d69b36e4c1b043e96dae6d3c1",
-      "bytes": 11718
+      "sha256": "f336f7e60be2f4d4ff7758d1d1f259f66c187f1b440f71bf6f56b23082bd8817",
+      "bytes": 13532
     },
     {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/estudio/GuiasDoEstudio.kt",
@@ -628,14 +628,19 @@
       "bytes": 8030
     },
     {
+      "path": "android/app/src/main/java/br/com/smellsliketech/converter/estudio/Qualidade.kt",
+      "sha256": "5327c4684cb054a406d996c51f6ccce5cc5bfe0ee3090dc207c6118b09723ce2",
+      "bytes": 4885
+    },
+    {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/estudio/ReceitaDeCamadas.kt",
       "sha256": "a6dea155e3bc65fe37bcf66486e89bcf7866f3b6a43062a28cccb72c7cc17c37",
       "bytes": 7390
     },
     {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/estudio/RecorteDeFundo.kt",
-      "sha256": "73090b523f69b81dcc753e384cd7c8a194203309ebee1ea251111c66c47a2920",
-      "bytes": 3834
+      "sha256": "f17ded4786b1ee73d9f684fcfae3e9b38f5c82e7fb9797356de41071bca56f6e",
+      "bytes": 3997
     },
     {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/estudio/Transformacao.kt",
@@ -829,8 +834,8 @@
     },
     {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/ui/TelasDoEstudio.kt",
-      "sha256": "b06815df5b96cdcd8f89403e679f24df2e547a9220175acb2ee044efee1e5dab",
-      "bytes": 50698
+      "sha256": "568652a3c3e2b31fa86eb6a09daea78383624d065ed88f4731b0c86e03f6101a",
+      "bytes": 53973
     },
     {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/ui/Tema.kt",
@@ -964,8 +969,13 @@
     },
     {
       "path": "android/app/src/test/java/br/com/smellsliketech/converter/estudio/PreviaEOtimizacaoTest.kt",
-      "sha256": "ca7b36112e5f06cae9aace4ff727c2b7eb1486571bd92367af3f4d162e2dfe27",
-      "bytes": 3542
+      "sha256": "edff644b03e2f3d139937fd59fbdaf9b66dbf0bacb90624e9b303a6a75fd5a9a",
+      "bytes": 3896
+    },
+    {
+      "path": "android/app/src/test/java/br/com/smellsliketech/converter/estudio/QualidadeTest.kt",
+      "sha256": "b835c7a98236146fbb45c607e76e3a89f9790231548d1486c2a4a1bf34265da5",
+      "bytes": 2350
     },
     {
       "path": "android/app/src/test/java/br/com/smellsliketech/converter/figurinhas/ControlesDoEditorTest.kt",
@@ -1344,8 +1354,8 @@
     },
     {
       "path": "app/estudio/Estudio.tsx",
-      "sha256": "0e408b1d28b76f5a168820f249a375fb6a11231d8cb67a4269dbdef81d25a7d5",
-      "bytes": 63810
+      "sha256": "df9f8b49a53856df4afdd9cd4246142c8160145392236ce6c00aa18fff70e111",
+      "bytes": 70563
     },
     {
       "path": "app/estudio/LinhaDoTempo.tsx",
@@ -1394,8 +1404,8 @@
     },
     {
       "path": "app/globals.css",
-      "sha256": "e395c9c9ba3752c6ac3ffd3a3863a2e004692b25f7b49b01881f75110e9db006",
-      "bytes": 77147
+      "sha256": "d4fd7ca28b32d76c1158373b4beb1beaa545fa57dc49829a2a347f178ed3da86",
+      "bytes": 77342
     },
     {
       "path": "app/heic-iphone/page.tsx",
@@ -1514,7 +1524,7 @@
     },
     {
       "path": "desktop/Directory.Build.props",
-      "sha256": "433b4d595c8cfd134cf785e934e4302f496d64575685b531a34cf986a8ac14bc",
+      "sha256": "6cbef03db05dfa94adf605fd1198c358496c5169861546b7b1f6c2342005248d",
       "bytes": 472
     },
     {
@@ -1684,8 +1694,8 @@
     },
     {
       "path": "desktop/src/SmellsLikeTech.Converter.Core/Jobs/JobStatus.cs",
-      "sha256": "ca7999063144759600510f51b0607a53d2cf1849a2b13aa55bb762a343cfa00e",
-      "bytes": 1855
+      "sha256": "0875bdc28412e5202dbb4fa458b94f8488c5affaa47cfd2d93792e486640b5c6",
+      "bytes": 1944
     },
     {
       "path": "desktop/src/SmellsLikeTech.Converter.Core/Jobs/SafeFileName.cs",
@@ -1759,8 +1769,8 @@
     },
     {
       "path": "desktop/src/SmellsLikeTech.Converter.Core/Options/StudioOptions.cs",
-      "sha256": "8165f90f36ddaf031d2f2a092742018790f4f4cd53e9748e949ae53037ebe1f9",
-      "bytes": 2502
+      "sha256": "3b55199db1faf4cd1be66a4380e356ab5cfad9004b8c4b629fac172d34586379",
+      "bytes": 3027
     },
     {
       "path": "desktop/src/SmellsLikeTech.Converter.Core/Options/TrimTime.cs",
@@ -1836,6 +1846,11 @@
       "path": "desktop/src/SmellsLikeTech.Converter.Core/Studio/StudioProject.cs",
       "sha256": "b3ebf7edc9a080fb5e67c6cae55ee88572f9f8d0deadaeb904a4d7d408d75923",
       "bytes": 6449
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Core/Studio/StudioQuality.cs",
+      "sha256": "302ac65816b5fdec5e6cc1a44534af4a9f73fc343d365ccb6ed4bec62240434b",
+      "bytes": 5917
     },
     {
       "path": "desktop/src/SmellsLikeTech.Converter.Core/Studio/StudioRules.cs",
@@ -2029,8 +2044,8 @@
     },
     {
       "path": "desktop/src/SmellsLikeTech.Converter.Desktop/MainWindow.xaml.cs",
-      "sha256": "349fe1ec9e0d047dee5b8dd90ceb02acd983c84847f8d6b347b2920f20c10cee",
-      "bytes": 5894
+      "sha256": "4e391d99acd99f5ae84654ca49e96ce64b22a72d919ed7b7878897e5a15176a4",
+      "bytes": 7244
     },
     {
       "path": "desktop/src/SmellsLikeTech.Converter.Desktop/Pages/BatchPage.xaml",
@@ -2119,8 +2134,8 @@
     },
     {
       "path": "desktop/src/SmellsLikeTech.Converter.Desktop/Pages/StudioPage.Guides.cs",
-      "sha256": "c315923eebb51279ab387b5624f92d08e5cea19363113ae1edc839c279bfe8ed",
-      "bytes": 9853
+      "sha256": "ce9fc96bd83a3421e33dbf11f55a7bfc4f9083a5483f7cac3b543682f8ff4157",
+      "bytes": 9926
     },
     {
       "path": "desktop/src/SmellsLikeTech.Converter.Desktop/Pages/StudioPage.Layers.cs",
@@ -2128,9 +2143,14 @@
       "bytes": 13224
     },
     {
+      "path": "desktop/src/SmellsLikeTech.Converter.Desktop/Pages/StudioPage.Player.cs",
+      "sha256": "b48814d96467a1f741ee0c1e5af5023ce3323b11e95b0e87f0dde07c7823ed07",
+      "bytes": 16296
+    },
+    {
       "path": "desktop/src/SmellsLikeTech.Converter.Desktop/Pages/StudioPage.Resultado.cs",
-      "sha256": "4fd921f77e06e0ad72c823ddea2be2083c01affc0ec1ee939dfb96589d30d0e7",
-      "bytes": 9237
+      "sha256": "4b18b5c362a368f0de120d94385e1f2b47308c97f55c195f000721206428902c",
+      "bytes": 13568
     },
     {
       "path": "desktop/src/SmellsLikeTech.Converter.Desktop/Pages/StudioPage.Stickers.cs",
@@ -2139,13 +2159,13 @@
     },
     {
       "path": "desktop/src/SmellsLikeTech.Converter.Desktop/Pages/StudioPage.xaml",
-      "sha256": "5e0291d1cbf754979d58f1511bb0178a7396c3fe308a25ab1dc1366cd5e240c9",
-      "bytes": 7310
+      "sha256": "7884cc60533a88e651f6b1030fbd798b4640161dd29c7d211f8335d90c9c2b63",
+      "bytes": 11913
     },
     {
       "path": "desktop/src/SmellsLikeTech.Converter.Desktop/Pages/StudioPage.xaml.cs",
-      "sha256": "8bb22668f0a0ab035eae0324184ef9e91a4f9006b2ab19624691ab72509934b6",
-      "bytes": 51836
+      "sha256": "8bb558a34070bf3b2459818af23ac06ece398a147689b64af80232698856a5a6",
+      "bytes": 50761
     },
     {
       "path": "desktop/src/SmellsLikeTech.Converter.Desktop/Services/BrandInfo.cs",
@@ -2299,8 +2319,8 @@
     },
     {
       "path": "desktop/src/SmellsLikeTech.Converter.Engine.FFmpeg/StudioLayerFilters.cs",
-      "sha256": "a55def8fae72a59c5f9ff7702b8613857b4f30bcb81189d42c5984986f0d3122",
-      "bytes": 11673
+      "sha256": "ba090d545898810f6db7da43a213c55c9959e66a76b7d849788fdb949f53eff7",
+      "bytes": 13595
     },
     {
       "path": "desktop/src/SmellsLikeTech.Converter.Engine.FFmpeg/StudioLayerRecipe.cs",
@@ -2309,8 +2329,8 @@
     },
     {
       "path": "desktop/src/SmellsLikeTech.Converter.Engine.FFmpeg/StudioRecipe.cs",
-      "sha256": "3f95de51bc912f49331d690a676a7836b0733de23a92afd3a1c7b809b0a145e1",
-      "bytes": 10963
+      "sha256": "df23c7bee46fb377cd13d216c540dcf5424399ec699bf5c8d1642c33a426acb2",
+      "bytes": 11281
     },
     {
       "path": "desktop/src/SmellsLikeTech.Converter.Engine.Image/MagickImageEngine.cs",
@@ -2384,13 +2404,18 @@
     },
     {
       "path": "desktop/src/SmellsLikeTech.Converter.Engine.Studio/BackgroundRemover.cs",
-      "sha256": "0bdf7284271e31ed29ed41fed5f0a04ab3022ff9544a9cbbc8113341fe9f7295",
-      "bytes": 3544
+      "sha256": "e6c1e804ad688810bdeb85257d16d34df3f86406128cf312d7e223424a034d52",
+      "bytes": 5118
     },
     {
       "path": "desktop/src/SmellsLikeTech.Converter.Engine.Studio/BackgroundVideo.cs",
-      "sha256": "9d6f8fd7851c983a19cec74a618c592e157484c45591b2d19e04321e56071deb",
-      "bytes": 3440
+      "sha256": "b0e95ef1b9d573667a675c2e69c132921bd8fb839e89a554cae0d0c88f363e53",
+      "bytes": 5356
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Engine.Studio/RemovalCache.cs",
+      "sha256": "7291dceb6dc06d66aac3c7a900dc97fdeb04f79f3ea65a574cd431e71f04b382",
+      "bytes": 2462
     },
     {
       "path": "desktop/src/SmellsLikeTech.Converter.Engine.Studio/SmellsLikeTech.Converter.Engine.Studio.csproj",
@@ -2399,8 +2424,8 @@
     },
     {
       "path": "desktop/src/SmellsLikeTech.Converter.Engine.Studio/StudioEngine.cs",
-      "sha256": "83579ae271d9025dfebbf9b284562e224185a271996ae44242ba7ff3be8bd0e1",
-      "bytes": 15805
+      "sha256": "cb3cb572af584b66ba79cda405467aea8aa0f3e60a4a526fb15a373c4acecff0",
+      "bytes": 20460
     },
     {
       "path": "desktop/src/SmellsLikeTech.Converter.Engine.Studio/StudioTextRenderer.cs",
@@ -2609,13 +2634,23 @@
     },
     {
       "path": "desktop/tests/SmellsLikeTech.Converter.Tests/StudioOptimizationEngineTests.cs",
-      "sha256": "e716a361c0279f5859204ad92d2d8fe0e6ed336c953242330f4dbd18af4e3a96",
-      "bytes": 6519
+      "sha256": "84ff15c308779a349d2687a7ef83472c6be6884b39c32044de7b4a9dedc2202b",
+      "bytes": 11711
     },
     {
       "path": "desktop/tests/SmellsLikeTech.Converter.Tests/StudioOptimizationTests.cs",
-      "sha256": "f0c2736bfb4991404816d6cd9057e38d70198fba2e2cf253136a437202bfe944",
-      "bytes": 3554
+      "sha256": "2cc4d59177fd8be985987d8c51aff9241a44aeb235d540bbcb3813c27c5038df",
+      "bytes": 3802
+    },
+    {
+      "path": "desktop/tests/SmellsLikeTech.Converter.Tests/StudioPerformanceTests.cs",
+      "sha256": "96b045475d0a8de64478303b9a841fab91c597874bc92cedd42dafed6364095d",
+      "bytes": 7856
+    },
+    {
+      "path": "desktop/tests/SmellsLikeTech.Converter.Tests/StudioQualityTests.cs",
+      "sha256": "ea12c8d9dfcc0956ef2ac1b149b5be6f453a759a9e742b0f6cdaa594164fd5d9",
+      "bytes": 3759
     },
     {
       "path": "desktop/tests/SmellsLikeTech.Converter.Tests/StudioTests.cs",
@@ -2784,8 +2819,8 @@
     },
     {
       "path": "lib/estudio/exportar.ts",
-      "sha256": "49b13ebdb8a8e9e91e8ef0da89b2fa7c9d4a30366ea92b64d4ff02739c3674d1",
-      "bytes": 16066
+      "sha256": "e5ab9dd49316511b659ac58b0d9827c8d0f1539376c627add3a5b519d7de47f9",
+      "bytes": 16623
     },
     {
       "path": "lib/estudio/guias-na-tela.ts",
@@ -2804,8 +2839,8 @@
     },
     {
       "path": "lib/estudio/plugin.ts",
-      "sha256": "b36f112333f60c6042620e7ddb63690945d9ed06dfdfc5a857ed52165da72b02",
-      "bytes": 1476
+      "sha256": "35e6ead05207cda550cbd14f8b6341a1572d81611532cdb67e621c569999bae5",
+      "bytes": 1832
     },
     {
       "path": "lib/estudio/previa.ts",
@@ -2969,8 +3004,8 @@
     },
     {
       "path": "packages/converter-core/camadas-ffmpeg.mjs",
-      "sha256": "5d15b7ed438c84a4ebf0e2d9ab2f5d75fbe54009ce192952fc42e138dbf82025",
-      "bytes": 8920
+      "sha256": "61fd3772227983f36adeae1c63a372e63be4ed649e3975c0ad8c0b0da373defc",
+      "bytes": 10677
     },
     {
       "path": "packages/converter-core/camadas.d.mts",
@@ -3151,6 +3186,16 @@
       "path": "packages/converter-core/estudio-presets.json",
       "sha256": "894df6b894a74775a0c2986330db367511a9a12a969e6f3302a829da681efda0",
       "bytes": 2543
+    },
+    {
+      "path": "packages/converter-core/estudio-qualidade.d.mts",
+      "sha256": "1abcf6127f28089828d03c707db71a476a1091882f9d3e13e0916157c9396032",
+      "bytes": 1550
+    },
+    {
+      "path": "packages/converter-core/estudio-qualidade.mjs",
+      "sha256": "6320c57245be556380f1091d5c87324d9c90dd1f99efe696c99a78872630654b",
+      "bytes": 5895
     },
     {
       "path": "packages/converter-core/estudio.d.mts",
@@ -3349,12 +3394,12 @@
     },
     {
       "path": "public/baixar/app.json",
-      "sha256": "0553a346a8adbd2e576a40adb9dd234cc58f9387c784e99e4ed13cb46253fe40",
+      "sha256": "01ac94ff7865f202f1cc56c2970a739044c1234f951bc76784c0dc34c43dd033",
       "bytes": 210
     },
     {
       "path": "public/baixar/plugin.json",
-      "sha256": "53e5791953d2ccfdce9a2574d60553b0ea9387a99b8b44111220543d0eae17f3",
+      "sha256": "f03533cd27f1153445553e6a0c7dfe3e61b219d3a39a5eff2ebe3666ff45ad90",
       "bytes": 207
     },
     {

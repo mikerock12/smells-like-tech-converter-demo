@@ -57,6 +57,7 @@ public sealed partial class StudioPage
         var from = back ? undoSteps : redoSteps;
         var to = back ? redoSteps : undoSteps;
         if (project is null || from.Count == 0) return;
+        if (playing) StopPlayback(keepPosition: true);
         to.Add(project);
         project = from[^1];
         from.RemoveAt(from.Count - 1);
@@ -66,7 +67,7 @@ public sealed partial class StudioPage
         TotalText.Text = Clock(Total);
         RefreshPanels();
         RequestPreview();
-        UpdateUndoButtons();
+        UpdateToolbar();
     }
 
     private void OnUndo(object sender, RoutedEventArgs e) => Step(back: true);
@@ -154,7 +155,7 @@ public sealed partial class StudioPage
 
     private void OnPreviewPointerPressed(object sender, PointerRoutedEventArgs e)
     {
-        if (project is null || openId is not { } id) return;
+        if (project is null || openId is not { } id || playing) return;
         dragTransform = project.Clips.FirstOrDefault(c => c.Id == id)?.Transform ?? (project.Clips.Any(c => c.Id == id) ? new StudioTransform() : null);
         dragTransform ??= project.Layers.FirstOrDefault(c => c.Id == id) is { } layer ? layer.Transform ?? new StudioTransform() : null;
         if (dragTransform is null)
@@ -208,7 +209,7 @@ public sealed partial class StudioPage
     /// <summary>A roda do mouse muda o tamanho do que está aberto no painel.</summary>
     private void OnPreviewWheel(object sender, PointerRoutedEventArgs e)
     {
-        if (project is null || openId is not { } id) return;
+        if (project is null || openId is not { } id || playing) return;
         var factor = Math.Exp(e.GetCurrentPoint(PreviewArea).Properties.MouseWheelDelta * 0.0015);
         StudioTransform Zoom(StudioTransform? t)
         {

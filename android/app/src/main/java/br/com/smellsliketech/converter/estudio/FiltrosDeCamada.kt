@@ -56,6 +56,35 @@ object FiltrosDeCamada {
         val c=1+t.contraste; val d=128*(1-c)+t.brilho*100
         return compor(doubleArrayOf(c,0.0,0.0,d,0.0,c,0.0,d,0.0,0.0,c,d),m)
     }
+    /**
+     * Cor, opacidade e máscara no espaço da própria mídia (antes de girar), sem geq por pixel:
+     * mixer/LUT para a cor e um quadro de máscara + alphamerge. Devolve o trecho que continua a
+     * entrada; os segmentos auxiliares vão para [partes]. Espelho de camadas-ffmpeg.mjs.
+     */
+    private fun corEMascaraNaOrigem(t: Transformacao, w: Int, h: Int, fps: Int, rotulo: String, partes: MutableList<String>): String {
+        val cor = matrizDeCor(t)
+        val cruzado = listOf(1,2,4,6,8,9).any { cor[it] != 0.0 }
+        var atual = "format=rgba"
+        if (cruzado) {
+            atual += ",colorchannelmixer=rr=${d(cor[0])}:rg=${d(cor[1])}:rb=${d(cor[2])}:gr=${d(cor[4])}:gg=${d(cor[5])}:gb=${d(cor[6])}:br=${d(cor[8])}:bg=${d(cor[9])}:bb=${d(cor[10])}:aa=${d(t.opacidade)}"
+            if (cor[3] != 0.0 || cor[7] != 0.0 || cor[11] != 0.0) atual += ",lutrgb=r='clip(val+${d(cor[3])},0,255)':g='clip(val+${d(cor[7])},0,255)':b='clip(val+${d(cor[11])},0,255)'"
+        } else if (cor[0] != 1.0 || cor[5] != 1.0 || cor[10] != 1.0 || cor[3] != 0.0 || cor[7] != 0.0 || cor[11] != 0.0 || t.opacidade != 1.0) {
+            val alfa = if (t.opacidade != 1.0) ":a='clip(val*${d(t.opacidade)},0,255)'" else ""
+            atual += ",lutrgb=r='clip(${d(cor[0])}*val+${d(cor[3])},0,255)':g='clip(${d(cor[5])}*val+${d(cor[7])},0,255)':b='clip(${d(cor[10])}*val+${d(cor[11])},0,255)'$alfa"
+        }
+        if (t.mascara != "nenhuma") {
+            val expr = when (t.mascara) {
+                "circulo" -> "lte(pow((X+0.5-W/2)/(min(W,H)/2),2)+pow((Y+0.5-H/2)/(min(W,H)/2),2),1)"
+                "oval" -> "lte(pow((X+0.5-W/2)/(W/2),2)+pow((Y+0.5-H/2)/(H/2),2),1)"
+                else -> "lte(pow(max(abs(X+0.5-W/2)-(W/2-min(W,H)*0.15),0),2)+pow(max(abs(Y+0.5-H/2)-(H/2-min(W,H)*0.15),0),2),pow(min(W,H)*0.15,2))"
+            }
+            partes += "$atual[${rotulo}pre]"
+            // Um quadro de máscara basta: ao fim dele, o alphamerge repete o último.
+            partes += "color=c=black:s=${w}x${h}:r=$fps:d=${d(1.0/fps)},format=gray,geq=lum='255*($expr)',format=gray[${rotulo}m]"
+            atual = "[${rotulo}pre][${rotulo}m]alphamerge"
+        }
+        return atual
+    }
     fun transformacao(valor: Transformacao?,w: Int,h: Int,deslocamento: Double = 0.0, otimizar: Boolean = false, rotulo: String = "transformacao", fps: Int = 30): String {
         val t=valor?:Transformacao()
         // Não reamostrar uma identidade: evita bilhões de avaliações de expressão em vídeos longos.
@@ -70,31 +99,28 @@ object FiltrosDeCamada {
                 "color=c=black@0:s=${w}x${h}:r=$fps,format=rgba[${rotulo}base];"+
                 "[${rotulo}base][${rotulo}zoom]overlay=x='(W-w)/2+($ax-0.5)*W':y='(H-h)/2+($ay-0.5)*H':eval=frame:shortest=1,format=rgba"
         }
+        // Giro 3D estático: cor e máscara no espaço da mídia, como no geq, e a perspectiva por um
+        // mapa de coordenadas calculado num quadro só. Cada quadro vira uma consulta por pixel
+        // (remap, LGPL), e não mais uma expressão por pixel e canal.
+        if (otimizar && t.quadrosChave.isEmpty() && (t.giroX != 0.0 || t.giroY != 0.0)) {
+            val m = inversa(projecao(t, w, h)) ?: return "format=rgba,colorchannelmixer=aa=0"
+            val partes = mutableListOf<String>()
+            partes += "${corEMascaraNaOrigem(t, w, h, fps, rotulo, partes)}[${rotulo}src]"
+            fun termo(j: Int) = "(${d(m[j])}*(X+0.5)/$w+${d(m[j+1])}*(Y+0.5)/$h+${d(m[j+2])})"
+            val posicao = "st(0,$w*${termo(0)}/${termo(6)}-0.5);st(1,$h*${termo(3)}/${termo(6)}-0.5);"
+            val dentro = "between(ld(0),-0.5,$w-0.5)*between(ld(1),-0.5,$h-0.5)"
+            fun mapa(eixo: Int, ultimo: Int, nome: String) =
+                "color=c=black:s=${w}x$h:r=$fps:d=${d(1.0/fps)},format=gray16le,geq=lum='${posicao}if($dentro,clip(round(ld($eixo)),0,$ultimo),65535)',loop=loop=-1:size=1[$rotulo$nome]"
+            partes += mapa(0, w - 1, "mx")
+            partes += mapa(1, h - 1, "my")
+            partes += "[${rotulo}src][${rotulo}mx][${rotulo}my]remap=fill=black@0,format=rgba"
+            return partes.joinToString(";")
+        }
         // Transformação estática sem 3D: cor por mixer/LUT, máscara por um quadro + alphamerge,
         // giro planar pelo rotate e posição por overlay — tudo LGPL, sem geq por pixel.
         if (otimizar && t.quadrosChave.isEmpty() && t.giroX == 0.0 && t.giroY == 0.0) {
-            val cor = matrizDeCor(t)
-            val cruzado = listOf(1,2,4,6,8,9).any { cor[it] != 0.0 }
             val partes = mutableListOf<String>()
-            var atual = "format=rgba"
-            if (cruzado) {
-                atual += ",colorchannelmixer=rr=${d(cor[0])}:rg=${d(cor[1])}:rb=${d(cor[2])}:gr=${d(cor[4])}:gg=${d(cor[5])}:gb=${d(cor[6])}:br=${d(cor[8])}:bg=${d(cor[9])}:bb=${d(cor[10])}:aa=${d(t.opacidade)}"
-                if (cor[3] != 0.0 || cor[7] != 0.0 || cor[11] != 0.0) atual += ",lutrgb=r='clip(val+${d(cor[3])},0,255)':g='clip(val+${d(cor[7])},0,255)':b='clip(val+${d(cor[11])},0,255)'"
-            } else if (cor[0] != 1.0 || cor[5] != 1.0 || cor[10] != 1.0 || cor[3] != 0.0 || cor[7] != 0.0 || cor[11] != 0.0 || t.opacidade != 1.0) {
-                val alfa = if (t.opacidade != 1.0) ":a='clip(val*${d(t.opacidade)},0,255)'" else ""
-                atual += ",lutrgb=r='clip(${d(cor[0])}*val+${d(cor[3])},0,255)':g='clip(${d(cor[5])}*val+${d(cor[7])},0,255)':b='clip(${d(cor[10])}*val+${d(cor[11])},0,255)'$alfa"
-            }
-            if (t.mascara != "nenhuma") {
-                val expr = when (t.mascara) {
-                    "circulo" -> "lte(pow((X+0.5-W/2)/(min(W,H)/2),2)+pow((Y+0.5-H/2)/(min(W,H)/2),2),1)"
-                    "oval" -> "lte(pow((X+0.5-W/2)/(W/2),2)+pow((Y+0.5-H/2)/(H/2),2),1)"
-                    else -> "lte(pow(max(abs(X+0.5-W/2)-(W/2-min(W,H)*0.15),0),2)+pow(max(abs(Y+0.5-H/2)-(H/2-min(W,H)*0.15),0),2),pow(min(W,H)*0.15,2))"
-                }
-                partes += "$atual[${rotulo}pre]"
-                // Um quadro de máscara basta: ao fim dele, o alphamerge repete o último.
-                partes += "color=c=black:s=${w}x${h}:r=$fps:d=${d(1.0/fps)},format=gray,geq=lum='255*($expr)',format=gray[${rotulo}m]"
-                atual = "[${rotulo}pre][${rotulo}m]alphamerge"
-            }
+            val atual = corEMascaraNaOrigem(t, w, h, fps, rotulo, partes)
             // O rotate já escreve no tamanho da tela (ow/oh); sem giro, o pad recoloca o
             // conteúdo redimensionado no centro da tela. O overlay só entra fora do centro.
             var cauda = atual

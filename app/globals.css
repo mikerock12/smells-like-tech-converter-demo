@@ -875,7 +875,9 @@ audio.previa__midia { background: transparent; cursor: default; }
 .estudio__fino { flex: none; width: 32px; height: 32px; border: 1px solid var(--stroke); border-radius: 8px; background: var(--surface); color: var(--text); font-size: 16px; font-weight: 700; line-height: 1; cursor: pointer; }
 .estudio__fino:disabled { opacity: 0.4; cursor: default; }
 .estudio__vazio { position: absolute; inset: 0; display: grid; place-items: center; margin: 0; color: var(--text-muted); font-size: 14px; pointer-events: none; }
-.estudio__tempo { display: flex; align-items: center; justify-content: space-between; gap: 12px; font: 600 13px var(--font-geist-mono), monospace; }
+.estudio__tempo { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; font: 600 13px var(--font-geist-mono), monospace; }
+.estudio__controles-do-player { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.estudio__controles-do-player .button { min-width: 44px; padding-inline: 10px; }
 .estudio__linha-do-tempo { width: 100%; accent-color: var(--orange); }
 .estudio__painel { display: flex; flex-direction: column; gap: 14px; }
 .estudio__abas { display: flex; flex-wrap: wrap; gap: 8px; }

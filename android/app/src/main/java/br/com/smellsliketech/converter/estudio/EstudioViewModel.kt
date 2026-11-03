@@ -67,7 +67,21 @@ class EstudioViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) {
         private set
     var resultado by mutableStateOf<Resultado?>(null)
     var videoDaPrevia by mutableStateOf<File?>(null)
+    /** O projeto exatamente como estava quando a prévia leve foi montada: editar a invalida. */
+    private var projetoDaPrevia by mutableStateOf<Projeto?>(null)
+    val previaMontada get() = videoDaPrevia?.isFile == true && projetoDaPrevia != null && projetoDaPrevia == projeto
     var tocandoPrevia by mutableStateOf(false)
+
+    /** Qualidade escolhida para exportar (baixa, média ou alta). */
+    var qualidade by mutableStateOf("alta")
+    private val preferencias = aplicacao.getSharedPreferences("estudio", android.content.Context.MODE_PRIVATE)
+    /** A velocidade medida neste celular, que alimenta os tempos estimados. */
+    var velocidade by mutableStateOf(Velocidade(
+        preferencias.getFloat("segundosPorMegapixelQuadro", Velocidade().segundosPorMegapixelQuadro.toFloat()).toDouble(),
+        preferencias.getFloat("segundosPorMascara", Velocidade().segundosPorMascara.toFloat()).toDouble()))
+        private set
+    private var estimativa: Double? = null
+    private var comecoDoTrabalho = 0L
     var falhaNoPlayerDireto by mutableStateOf(false)
     val previaDireta get() = !falhaNoPlayerDireto && projeto?.let(PreviaImediata::aceita) == true
 
@@ -233,6 +247,7 @@ class EstudioViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) {
         resultado = null
         videoDaPrevia?.delete()
         videoDaPrevia = null
+        projetoDaPrevia = null
         tocandoPrevia = false
         falhaNoPlayerDireto = false
         montador.esquecer()
@@ -436,6 +451,29 @@ class EstudioViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) {
         atualizarPrevia()
     }
 
+    /**
+     * O play do player fixo: vídeo simples toca direto; com efeitos, monta antes a prévia leve
+     * (com barra, porcentagem e tempo restante) e então toca no mesmo lugar.
+     */
+    fun tocarOuPausar() {
+        val atual = projeto ?: return
+        if (atual.clipes.isEmpty()) return
+        if (previaDireta || tocandoPrevia || previaMontada) { alternarPlayer(); return }
+        gerarPreviaEmVideo(tocarDepois = true)
+    }
+
+    /** ±5 s, início e fim: tocando, continua tocando do novo ponto. */
+    fun pular(t: Double) {
+        instante = t.coerceIn(0.0, maxOf(0.0, total - 1.0 / (projeto?.fps ?: 30)))
+        if (!tocandoPrevia) atualizarPrevia()
+    }
+
+    /** Quadro a quadro pausa, para conferir um ponto exato. */
+    fun quadro(passo: Int) {
+        val fps = projeto?.fps ?: return
+        irPara((Math.round(instante * fps) + passo).toDouble() / fps)
+    }
+
     fun mostrarInstanteDoClipe(id: String, segundosNaOrigem: Double) {
         if (!segundosNaOrigem.isFinite()) return
         val p = projeto ?: return
@@ -458,10 +496,29 @@ class EstudioViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) {
         }
     }
 
-    fun gerarPreviaEmVideo() = executar("Montando a prévia…") {
+    fun gerarPreviaEmVideo(tocarDepois: Boolean = false) = executar("Montando a prévia leve (baixa resolução)…") {
         tocandoPrevia = false
         val atual = projeto ?: return@executar
-        videoDaPrevia = Exportador.previa(contexto, atual) { relatar(it) }
+        estimativa = Estimativa.segundos(atual, Qualidade.PREVIA, velocidade)
+        val video = Exportador.previa(contexto, atual) { relatar(it) }
+        aprender(Qualidade.PREVIA.aplicar(atual).copy(saida = "video"), Qualidade.PREVIA)
+        videoDaPrevia?.takeIf { it != video }?.delete()
+        videoDaPrevia = video
+        projetoDaPrevia = atual
+        if (tocarDepois && projeto == atual) {
+            if (instante >= total - .05) instante = 0.0
+            tocandoPrevia = true
+        }
+    }
+
+    /** Aprende a velocidade deste celular com a montagem que acabou (só sem recorte de fundo). */
+    private fun aprender(p: Projeto, nivel: Qualidade) {
+        val segundos = (System.nanoTime() / 1_000_000 - comecoDoTrabalho) / 1000.0
+        val quadros = Estudio.duracaoTotal(p) * p.fps
+        if (p.saida !in listOf("video", "gif") || quadros < 30 || Estimativa.quadrosRecortados(p) > 0) return
+        velocidade = velocidade.aprender((segundos / quadros - Velocidade.SEGUNDOS_POR_QUADRO) / (p.largura * p.altura / 1e6 * Estimativa.pesoDaComposicao(p) * nivel.custo), null)
+        preferencias.edit().putFloat("segundosPorMegapixelQuadro", velocidade.segundosPorMegapixelQuadro.toFloat())
+            .putFloat("segundosPorMascara", velocidade.segundosPorMascara.toFloat()).apply()
     }
 
     // ==================== exportar ====================
@@ -484,7 +541,10 @@ class EstudioViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) {
             else -> "Montando o vídeo…"
         }
         ocupado = etapa
-        resultado = Exportador.exportar(contexto, atual, modeloWhisper) { relatar(it) }
+        val nivel = Qualidade.porId(qualidade)
+        estimativa = Estimativa.segundos(atual, nivel, velocidade)
+        resultado = Exportador.exportar(contexto, atual, modeloWhisper, qualidade = nivel) { relatar(it) }
+        if (atual.saida != "audio" && atual.saida != "texto") aprender(nivel.aplicar(atual), nivel)
     }
 
     fun cancelar() {
@@ -495,7 +555,9 @@ class EstudioViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) {
 
     private fun relatar(porcentagem: Int) {
         progresso = maxOf(progresso ?: 0, porcentagem.coerceIn(0, 99))
-        restante = andamento.registrar(progresso!!)
+        // Enquanto o andamento não dá para medir, vale a estimativa feita antes de começar.
+        val decorrido = (System.nanoTime() / 1_000_000 - comecoDoTrabalho) / 1000.0
+        restante = andamento.registrar(progresso!!) ?: estimativa?.let { maxOf(1.0, it - decorrido).toInt() }
     }
 
     private fun executar(texto: String, bloco: suspend () -> Unit) {
@@ -505,6 +567,8 @@ class EstudioViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) {
             progresso = 0
             restante = null
             andamento = Andamento()
+            estimativa = null
+            comecoDoTrabalho = System.nanoTime() / 1_000_000
             try {
                 bloco()
             } catch (cancelado: CancellationException) {

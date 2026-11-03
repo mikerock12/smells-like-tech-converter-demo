@@ -75,36 +75,31 @@ public static class StudioLayerFilters
                 +$"color=c=black@0:s={w}x{h}:r={fps},format=rgba[{label}base];"
                 +$"[{label}base][{label}zoom]overlay=x='(W-w)/2+({ax}-0.5)*W':y='(H-h)/2+({ay}-0.5)*H':eval=frame:shortest=1,format=rgba";
         }
+        if (optimize && t.Keyframes.Count == 0 && (t.RotationX != 0 || t.RotationY != 0))
+        {
+            // Giro 3D estático: cor e máscara no espaço da mídia, como no geq, e a perspectiva
+            // por um mapa de coordenadas calculado num quadro só. Cada quadro vira uma consulta
+            // por pixel (remap, LGPL), e não mais uma expressão por pixel e canal.
+            var projection = Inverse(Projection(t, w, h));
+            if (projection is null) return "format=rgba,colorchannelmixer=aa=0";
+            var parts = new List<string>();
+            parts.Add($"{SourceColorAndMask(t, w, h, fps, label, parts)}[{label}src]");
+            string MapTerm(int j) => $"({D(projection[j])}*(X+0.5)/{w}+{D(projection[j + 1])}*(Y+0.5)/{h}+{D(projection[j + 2])})";
+            var source = $"st(0,{w}*{MapTerm(0)}/{MapTerm(6)}-0.5);st(1,{h}*{MapTerm(3)}/{MapTerm(6)}-0.5);";
+            var inside = $"between(ld(0),-0.5,{w}-0.5)*between(ld(1),-0.5,{h}-0.5)";
+            string Map(int axis, int last, string name) =>
+                $"color=c=black:s={w}x{h}:r={fps}:d={D(1.0 / fps)},format=gray16le,geq=lum='{source}if({inside},clip(round(ld({axis})),0,{last}),65535)',loop=loop=-1:size=1[{label}{name}]";
+            parts.Add(Map(0, w - 1, "mx"));
+            parts.Add(Map(1, h - 1, "my"));
+            parts.Add($"[{label}src][{label}mx][{label}my]remap=fill=black@0,format=rgba");
+            return string.Join(";", parts);
+        }
         if (optimize && t.Keyframes.Count == 0 && t.RotationX == 0 && t.RotationY == 0)
         {
             // Transformação estática sem 3D: cor por mixer/LUT, máscara por um quadro +
             // alphamerge, giro planar pelo rotate e posição por overlay — sem geq por pixel.
-            var matrix = ColorMatrix(t);
-            var cross = new[] { 1, 2, 4, 6, 8, 9 }.Any(i => matrix[i] != 0);
             var parts = new List<string>();
-            var current = "format=rgba";
-            if (cross)
-            {
-                current += $",colorchannelmixer=rr={D(matrix[0])}:rg={D(matrix[1])}:rb={D(matrix[2])}:gr={D(matrix[4])}:gg={D(matrix[5])}:gb={D(matrix[6])}:br={D(matrix[8])}:bg={D(matrix[9])}:bb={D(matrix[10])}:aa={D(t.Opacity)}";
-                if (matrix[3] != 0 || matrix[7] != 0 || matrix[11] != 0) current += $",lutrgb=r='clip(val+{D(matrix[3])},0,255)':g='clip(val+{D(matrix[7])},0,255)':b='clip(val+{D(matrix[11])},0,255)'";
-            }
-            else if (matrix[0] != 1 || matrix[5] != 1 || matrix[10] != 1 || matrix[3] != 0 || matrix[7] != 0 || matrix[11] != 0 || t.Opacity != 1)
-            {
-                var ganho = t.Opacity != 1 ? $":a='clip(val*{D(t.Opacity)},0,255)'" : "";
-                current += $",lutrgb=r='clip({D(matrix[0])}*val+{D(matrix[3])},0,255)':g='clip({D(matrix[5])}*val+{D(matrix[7])},0,255)':b='clip({D(matrix[10])}*val+{D(matrix[11])},0,255)'{ganho}";
-            }
-            if (t.Mask != "nenhuma")
-            {
-                var expr = t.Mask switch {
-                    "circulo" => "lte(pow((X+0.5-W/2)/(min(W,H)/2),2)+pow((Y+0.5-H/2)/(min(W,H)/2),2),1)",
-                    "oval" => "lte(pow((X+0.5-W/2)/(W/2),2)+pow((Y+0.5-H/2)/(H/2),2),1)",
-                    _ => "lte(pow(max(abs(X+0.5-W/2)-(W/2-min(W,H)*0.15),0),2)+pow(max(abs(Y+0.5-H/2)-(H/2-min(W,H)*0.15),0),2),pow(min(W,H)*0.15,2))"
-                };
-                parts.Add($"{current}[{label}pre]");
-                // Um quadro de máscara basta: ao fim dele, o alphamerge repete o último.
-                parts.Add($"color=c=black:s={w}x{h}:r={fps}:d={D(1.0/fps)},format=gray,geq=lum='255*({expr})',format=gray[{label}m]");
-                current = $"[{label}pre][{label}m]alphamerge";
-            }
+            var current = SourceColorAndMask(t, w, h, fps, label, parts);
             // O rotate já escreve no tamanho da tela (ow/oh); sem giro, o pad recoloca o
             // conteúdo redimensionado no centro da tela. O overlay só entra fora do centro.
             var tail = current;
@@ -146,6 +141,41 @@ public static class StudioLayerFilters
             _=>"1"};
         var alpha=t.Mask!="nenhuma"?$"*{mask}":"";
         return $"format=gbrap,geq={string.Join(":",rgb)}:a='{position}if(between(ld(0),-0.5,W-0.5)*between(ld(1),-0.5,H-0.5),alpha(ld(0),ld(1))*{D(t.Opacity)}{alpha},0)':interpolation=bilinear,format=rgba";
+    }
+
+    /// <summary>
+    /// Cor, opacidade e máscara no espaço da própria mídia (antes de girar), sem geq por pixel:
+    /// mixer/LUT para a cor e um quadro de máscara + alphamerge. Devolve o trecho da cadeia que
+    /// continua a entrada; os segmentos auxiliares vão para <paramref name="parts"/>.
+    /// </summary>
+    private static string SourceColorAndMask(StudioTransform t, int w, int h, int fps, string label, List<string> parts)
+    {
+        var matrix = ColorMatrix(t);
+        var cross = new[] { 1, 2, 4, 6, 8, 9 }.Any(i => matrix[i] != 0);
+        var current = "format=rgba";
+        if (cross)
+        {
+            current += $",colorchannelmixer=rr={D(matrix[0])}:rg={D(matrix[1])}:rb={D(matrix[2])}:gr={D(matrix[4])}:gg={D(matrix[5])}:gb={D(matrix[6])}:br={D(matrix[8])}:bg={D(matrix[9])}:bb={D(matrix[10])}:aa={D(t.Opacity)}";
+            if (matrix[3] != 0 || matrix[7] != 0 || matrix[11] != 0) current += $",lutrgb=r='clip(val+{D(matrix[3])},0,255)':g='clip(val+{D(matrix[7])},0,255)':b='clip(val+{D(matrix[11])},0,255)'";
+        }
+        else if (matrix[0] != 1 || matrix[5] != 1 || matrix[10] != 1 || matrix[3] != 0 || matrix[7] != 0 || matrix[11] != 0 || t.Opacity != 1)
+        {
+            var ganho = t.Opacity != 1 ? $":a='clip(val*{D(t.Opacity)},0,255)'" : "";
+            current += $",lutrgb=r='clip({D(matrix[0])}*val+{D(matrix[3])},0,255)':g='clip({D(matrix[5])}*val+{D(matrix[7])},0,255)':b='clip({D(matrix[10])}*val+{D(matrix[11])},0,255)'{ganho}";
+        }
+        if (t.Mask != "nenhuma")
+        {
+            var expr = t.Mask switch {
+                "circulo" => "lte(pow((X+0.5-W/2)/(min(W,H)/2),2)+pow((Y+0.5-H/2)/(min(W,H)/2),2),1)",
+                "oval" => "lte(pow((X+0.5-W/2)/(W/2),2)+pow((Y+0.5-H/2)/(H/2),2),1)",
+                _ => "lte(pow(max(abs(X+0.5-W/2)-(W/2-min(W,H)*0.15),0),2)+pow(max(abs(Y+0.5-H/2)-(H/2-min(W,H)*0.15),0),2),pow(min(W,H)*0.15,2))"
+            };
+            parts.Add($"{current}[{label}pre]");
+            // Um quadro de máscara basta: ao fim dele, o alphamerge repete o último.
+            parts.Add($"color=c=black:s={w}x{h}:r={fps}:d={D(1.0/fps)},format=gray,geq=lum='255*({expr})',format=gray[{label}m]");
+            current = $"[{label}pre][{label}m]alphamerge";
+        }
+        return current;
     }
 
     private static bool IsIdentity(StudioTransform t) =>

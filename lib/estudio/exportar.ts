@@ -9,6 +9,8 @@ import {
   Mp4OutputFormat,
   Output,
   QUALITY_HIGH,
+  QUALITY_LOW,
+  QUALITY_MEDIUM,
   getFirstEncodableAudioCodec,
   getFirstEncodableVideoCodec,
 } from "mediabunny";
@@ -30,6 +32,7 @@ import {
 } from "@/packages/converter-core/estudio.mjs";
 
 import { mudarTempo } from "@/packages/converter-core/audio-tempo.mjs";
+import { aplicarQualidade, qualidadePorId, type Qualidade } from "@/packages/converter-core/estudio-qualidade.mjs";
 import { codificarMp3 } from "@/lib/converter/motores/audio-codificar";
 
 import { carregarFontes, desenharQuadro } from "./desenho";
@@ -54,12 +57,16 @@ const TAXA = 48_000;
 export class ExportacaoCancelada extends Error {}
 
 export async function exportarNoNavegador(
-  projeto: Projeto,
+  original: Projeto,
   arquivos: ArquivosDoProjeto,
   andamento: Andamento,
   cancelado: () => boolean,
+  qualidade: Qualidade = qualidadePorId("alta"),
 ): Promise<Exportado> {
-  const erros = problemas(projeto);
+  const erros = problemas(original);
+  // Baixa/média/alta: o quadro e o fps saem da qualidade; textos e camadas são proporcionais.
+  const projeto = original.saida === "audio" || original.saida === "texto" ? original : aplicarQualidade(original, qualidade);
+  const taxa = qualidade.id === "baixa" ? QUALITY_LOW : qualidade.id === "media" ? QUALITY_MEDIUM : QUALITY_HIGH;
   if (erros.length) throw new Error(erros.join(" "));
   if (projeto.saida === "texto") throw new Error("A transcrição do estúdio é feita pelo plugin.");
   await carregarFontes();
@@ -92,14 +99,14 @@ export async function exportarNoNavegador(
     case "gif":
       return { nome: `${nome}.gif`, mime: "image/gif", bytes: await gif(projeto, arquivos, andamento, cancelado, camadas) };
     default:
-      return { nome: `${nome}.mp4`, mime: "video/mp4", bytes: await video(projeto, arquivos, andamento, cancelado, camadas) };
+      return { nome: `${nome}.mp4`, mime: "video/mp4", bytes: await video(projeto, arquivos, andamento, cancelado, camadas, taxa) };
   }
   } finally { camadas.liberar(); }
 }
 
 // ==================== vídeo ====================
 
-async function video(projeto: Projeto, arquivos: ArquivosDoProjeto, andamento: Andamento, cancelado: () => boolean, camadas: MidiasDasCamadas): Promise<ArrayBuffer> {
+async function video(projeto: Projeto, arquivos: ArquivosDoProjeto, andamento: Andamento, cancelado: () => boolean, camadas: MidiasDasCamadas, taxa = QUALITY_HIGH): Promise<ArrayBuffer> {
   const { largura, altura, fps } = projeto;
   const formato = new Mp4OutputFormat({ fastStart: "in-memory" });
   const codec = await getFirstEncodableVideoCodec(["avc", ...formato.getSupportedVideoCodecs().filter((c) => c !== "avc")], { width: largura, height: altura });
@@ -111,7 +118,7 @@ async function video(projeto: Projeto, arquivos: ArquivosDoProjeto, andamento: A
   const ctx = contexto(tela);
   const alvo = new BufferTarget();
   const saida = new Output({ format: formato, target: alvo });
-  const fonte = new CanvasSource(tela, { codec, bitrate: QUALITY_HIGH });
+  const fonte = new CanvasSource(tela, { codec, bitrate: taxa });
   saida.addVideoTrack(fonte, { frameRate: fps });
   const som = codecDoAudio && mistura ? new AudioBufferSource({ codec: codecDoAudio, quality: QUALITY_HIGH }) : null;
   if (som) saida.addAudioTrack(som);

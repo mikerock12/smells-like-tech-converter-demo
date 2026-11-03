@@ -8,6 +8,7 @@
         <KeyboardAccelerator Modifiers="Control" Key="Z" Invoked="OnUndoAccelerator" />
         <KeyboardAccelerator Modifiers="Control,Shift" Key="Z" Invoked="OnUndoAccelerator" />
         <KeyboardAccelerator Modifiers="Control" Key="Y" Invoked="OnUndoAccelerator" />
+        <KeyboardAccelerator Modifiers="Control" Key="Space" Invoked="OnPlayAccelerator" />
     </Page.KeyboardAccelerators>
 
     <Grid Padding="20">
@@ -44,7 +45,26 @@
             </StackPanel>
         </Grid>
 
-        <InfoBar x:Name="StatusBar" Grid.Row="1" IsOpen="False" IsClosable="True" Margin="0,0,0,10" />
+        <StackPanel Grid.Row="1">
+            <InfoBar x:Name="StatusBar" IsOpen="False" IsClosable="True" Margin="0,0,0,10" />
+            <!-- Exportação em andamento: a barra fica aqui, sem precisar ir à fila. -->
+            <Border x:Name="ExportProgressPanel" Style="{StaticResource CardBorderStyle}" Margin="0,0,0,10" Padding="14,10" Visibility="Collapsed">
+                <Grid ColumnSpacing="12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Spacing="6">
+                        <TextBlock x:Name="ExportProgressText" FontSize="13" TextWrapping="WrapWholeWords" />
+                        <ProgressBar x:Name="ExportProgressBar" Minimum="0" Maximum="100" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                        <Button x:Name="ExportQueueButton" Content="Ver na fila" Click="OnExportShowQueue" />
+                        <Button x:Name="ExportCancelButton" Content="Cancelar" Click="OnExportCancel" />
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </StackPanel>
 
         <!-- Assistente: destino e saída. -->
         <ScrollViewer x:Name="WizardView" Grid.Row="2" VerticalScrollBarVisibility="Auto">
@@ -73,9 +93,30 @@
                               PointerReleased="OnPreviewPointerReleased" PointerCanceled="OnPreviewPointerReleased"
                               PointerWheelChanged="OnPreviewWheel">
                             <Image x:Name="PreviewImage" Stretch="Uniform" />
+                            <!-- O player fica no lugar do quadro, na proporção do projeto. -->
+                            <Viewbox x:Name="PlayerBox" Stretch="Uniform" Visibility="Collapsed">
+                                <Grid x:Name="PlayerFrame" Background="Black">
+                                    <MediaPlayerElement x:Name="PreviewPlayer" AreTransportControlsEnabled="False" Stretch="Uniform" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" />
+                                </Grid>
+                            </Viewbox>
                             <Canvas x:Name="GuidesCanvas" IsHitTestVisible="False" />
                             <TextBlock x:Name="EmptyText" Text="Adicione vídeos ou fotos na aba Clipes" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{StaticResource BrandTextMutedBrush}" />
                             <ProgressRing x:Name="PreviewRing" IsActive="False" Width="28" Height="28" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="10" />
+                            <!-- Montagem da prévia leve: porcentagem, tempo restante e cancelar. -->
+                            <Border x:Name="PreviewProgressPanel" VerticalAlignment="Bottom" Margin="12" Padding="12,10" CornerRadius="8"
+                                    Background="#E6111116" Visibility="Collapsed">
+                                <Grid ColumnSpacing="10">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Spacing="6">
+                                        <TextBlock x:Name="PreviewProgressText" FontSize="13" TextWrapping="WrapWholeWords" />
+                                        <ProgressBar x:Name="PreviewProgressBar" Minimum="0" Maximum="100" />
+                                    </StackPanel>
+                                    <Button Grid.Column="1" Content="Cancelar" VerticalAlignment="Center" Click="OnCancelPreviewBuild" />
+                                </Grid>
+                            </Border>
                         </Grid>
                     </Border>
                     <Grid Grid.Row="1">
@@ -83,7 +124,19 @@
                         <TextBlock x:Name="TotalText" FontFamily="Consolas" FontSize="13" HorizontalAlignment="Right" Foreground="{StaticResource BrandTextMutedBrush}" />
                     </Grid>
                     <Slider x:Name="TimeSlider" Grid.Row="2" Minimum="0" StepFrequency="0.05" ValueChanged="OnTimeChanged" />
-                    <Button x:Name="VideoPreviewButton" Grid.Row="3" Content="Assistir à prévia em vídeo (baixa resolução)" HorizontalAlignment="Stretch" Click="OnPreviewVideo" />
+                    <!-- Controles do player: sempre à vista, abaixo da prévia. -->
+                    <StackPanel Grid.Row="3" Spacing="6">
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="6">
+                            <Button x:Name="PlayerStartButton" Content="⏮" Width="44" Click="OnPlayerStart" ToolTipService.ToolTip="Voltar ao início" />
+                            <Button x:Name="PlayerBackButton" Content="−5 s" Width="56" Click="OnPlayerBack" ToolTipService.ToolTip="Voltar 5 segundos" />
+                            <Button x:Name="PlayerFrameBackButton" Content="◀|" Width="44" Click="OnPlayerFrameBack" ToolTipService.ToolTip="Quadro anterior" />
+                            <Button x:Name="PlayButton" Content="▶ Reproduzir" MinWidth="140" Style="{StaticResource BrandActionButtonStyle}" Click="OnPlayPause" ToolTipService.ToolTip="Reproduzir ou pausar (Ctrl+Espaço)" />
+                            <Button x:Name="PlayerFrameForwardButton" Content="|▶" Width="44" Click="OnPlayerFrameForward" ToolTipService.ToolTip="Próximo quadro" />
+                            <Button x:Name="PlayerForwardButton" Content="+5 s" Width="56" Click="OnPlayerForward" ToolTipService.ToolTip="Avançar 5 segundos" />
+                            <Button x:Name="PlayerEndButton" Content="⏭" Width="44" Click="OnPlayerEnd" ToolTipService.ToolTip="Ir para o fim" />
+                        </StackPanel>
+                        <TextBlock x:Name="PlayerInfoText" FontSize="12" HorizontalAlignment="Center" TextWrapping="WrapWholeWords" TextAlignment="Center" Foreground="{StaticResource BrandTextMutedBrush}" />
+                    </StackPanel>
                 </Grid>
             </Border>
 
