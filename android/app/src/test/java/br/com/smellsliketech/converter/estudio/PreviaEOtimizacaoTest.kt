@@ -35,7 +35,14 @@ class PreviaEOtimizacaoTest {
         assertTrue(FiltrosDeCamada.fundo(FundoDoProjeto("#01020304"),32,32,10,2.0).contains("geq"))
         assertEquals("format=rgba",FiltrosDeCamada.transformacao(Transformacao(),32,32,otimizar=true))
         assertTrue(FiltrosDeCamada.transformacao(Transformacao(),32,32).contains("geq"))
-        assertTrue(FiltrosDeCamada.transformacao(Transformacao(brilho=.1),32,32,otimizar=true).contains("geq"))
+        // Cor, giro planar e máscara também saem do geq; 3D continua nele.
+        val cor=FiltrosDeCamada.transformacao(Transformacao(brilho=.1),32,32,otimizar=true)
+        assertFalse(cor.contains("geq"));assertTrue(cor.contains("lutrgb="))
+        val giro=FiltrosDeCamada.transformacao(Transformacao(giro=37.0),32,32,otimizar=true)
+        assertFalse(giro.contains("geq"));assertTrue(giro.contains("rotate="))
+        val mascara=FiltrosDeCamada.transformacao(Transformacao(mascara="circulo"),32,32,otimizar=true)
+        assertTrue(mascara.contains("alphamerge"));assertFalse(mascara.contains("format=gbrap,geq"))
+        assertTrue(FiltrosDeCamada.transformacao(Transformacao(giroX=20.0),32,32,otimizar=true).contains("format=gbrap,geq"))
     }
 
     @Test fun `ken burns usa escala e overlay em vez de geq`() {

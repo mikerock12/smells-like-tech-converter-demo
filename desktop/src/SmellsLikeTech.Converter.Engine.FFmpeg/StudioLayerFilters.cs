@@ -75,6 +75,54 @@ public static class StudioLayerFilters
                 +$"color=c=black@0:s={w}x{h}:r={fps},format=rgba[{label}base];"
                 +$"[{label}base][{label}zoom]overlay=x='(W-w)/2+({ax}-0.5)*W':y='(H-h)/2+({ay}-0.5)*H':eval=frame:shortest=1,format=rgba";
         }
+        if (optimize && t.Keyframes.Count == 0 && t.RotationX == 0 && t.RotationY == 0)
+        {
+            // Transformação estática sem 3D: cor por mixer/LUT, máscara por um quadro +
+            // alphamerge, giro planar pelo rotate e posição por overlay — sem geq por pixel.
+            var matrix = ColorMatrix(t);
+            var cross = new[] { 1, 2, 4, 6, 8, 9 }.Any(i => matrix[i] != 0);
+            var parts = new List<string>();
+            var current = "format=rgba";
+            if (cross)
+            {
+                current += $",colorchannelmixer=rr={D(matrix[0])}:rg={D(matrix[1])}:rb={D(matrix[2])}:gr={D(matrix[4])}:gg={D(matrix[5])}:gb={D(matrix[6])}:br={D(matrix[8])}:bg={D(matrix[9])}:bb={D(matrix[10])}:aa={D(t.Opacity)}";
+                if (matrix[3] != 0 || matrix[7] != 0 || matrix[11] != 0) current += $",lutrgb=r='clip(val+{D(matrix[3])},0,255)':g='clip(val+{D(matrix[7])},0,255)':b='clip(val+{D(matrix[11])},0,255)'";
+            }
+            else if (matrix[0] != 1 || matrix[5] != 1 || matrix[10] != 1 || matrix[3] != 0 || matrix[7] != 0 || matrix[11] != 0 || t.Opacity != 1)
+            {
+                var ganho = t.Opacity != 1 ? $":a='clip(val*{D(t.Opacity)},0,255)'" : "";
+                current += $",lutrgb=r='clip({D(matrix[0])}*val+{D(matrix[3])},0,255)':g='clip({D(matrix[5])}*val+{D(matrix[7])},0,255)':b='clip({D(matrix[10])}*val+{D(matrix[11])},0,255)'{ganho}";
+            }
+            if (t.Mask != "nenhuma")
+            {
+                var expr = t.Mask switch {
+                    "circulo" => "lte(pow((X+0.5-W/2)/(min(W,H)/2),2)+pow((Y+0.5-H/2)/(min(W,H)/2),2),1)",
+                    "oval" => "lte(pow((X+0.5-W/2)/(W/2),2)+pow((Y+0.5-H/2)/(H/2),2),1)",
+                    _ => "lte(pow(max(abs(X+0.5-W/2)-(W/2-min(W,H)*0.15),0),2)+pow(max(abs(Y+0.5-H/2)-(H/2-min(W,H)*0.15),0),2),pow(min(W,H)*0.15,2))"
+                };
+                parts.Add($"{current}[{label}pre]");
+                // Um quadro de máscara basta: ao fim dele, o alphamerge repete o último.
+                parts.Add($"color=c=black:s={w}x{h}:r={fps}:d={D(1.0/fps)},format=gray,geq=lum='255*({expr})',format=gray[{label}m]");
+                current = $"[{label}pre][{label}m]alphamerge";
+            }
+            // O rotate já escreve no tamanho da tela (ow/oh); sem giro, o pad recoloca o
+            // conteúdo redimensionado no centro da tela. O overlay só entra fora do centro.
+            var tail = current;
+            if (t.Scale != 1) tail += $",scale=w='max(2,trunc(iw*({D(t.Scale)})/2)*2)':h='max(2,trunc(ih*({D(t.Scale)})/2)*2)'";
+            if (t.MirrorX) tail += ",hflip";
+            if (t.MirrorY) tail += ",vflip";
+            if (t.Rotation != 0) tail += $",rotate=a={D(t.Rotation*Math.PI/180)}:ow={w}:oh={h}:fillcolor=black@0.0";
+            else if (t.Scale != 1) tail += $",pad={w}:{h}:(ow-iw)/2:(oh-ih)/2:color=black@0";
+            if (t.X == .5 && t.Y == .5)
+            {
+                parts.Add($"{tail},format=rgba");
+                return string.Join(";", parts);
+            }
+            parts.Add($"{tail}[{label}z]");
+            parts.Add($"color=c=black@0:s={w}x{h}:r={fps},format=rgba[{label}b]");
+            parts.Add($"[{label}b][{label}z]overlay=x={D((t.X-.5)*w)}:y={D((t.Y-.5)*h)}:shortest=1,format=rgba");
+            return string.Join(";", parts);
+        }
         var m=Inverse(Projection(t,w,h));
         if (m is null) return "format=rgba,colorchannelmixer=aa=0";
         var u="(X+0.5)/W";var v="(Y+0.5)/H";var prefix="";

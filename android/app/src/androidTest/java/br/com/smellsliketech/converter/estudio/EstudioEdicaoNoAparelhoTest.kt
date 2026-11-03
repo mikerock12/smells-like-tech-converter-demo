@@ -4,6 +4,7 @@ import android.app.Application
 import android.content.Intent
 import android.net.Uri
 import android.os.SystemClock
+import android.view.MotionEvent
 import android.util.Log
 import android.view.accessibility.AccessibilityNodeInfo
 import androidx.activity.ComponentActivity
@@ -32,13 +33,29 @@ class EstudioEdicaoNoAparelhoTest {
     }
     private fun nos(raiz: AccessibilityNodeInfo?=instrumentacao.uiAutomation.rootInActiveWindow): List<AccessibilityNodeInfo> =
         if(raiz==null) emptyList() else listOf(raiz)+(0 until raiz.childCount).flatMap {nos(raiz.getChild(it))}
+    private fun deslizar(paraCima: Boolean) {
+        // Rolagem real de fallback: a ação de acessibilidade às vezes não move a lista.
+        val agora=SystemClock.uptimeMillis()
+        val automacao=instrumentacao.uiAutomation
+        val de=if(paraCima) 2000f else 1200f; val ate=if(paraCima) 1200f else 2000f
+        automacao.injectInputEvent(MotionEvent.obtain(agora,agora,MotionEvent.ACTION_DOWN,540f,de,0),true)
+        automacao.injectInputEvent(MotionEvent.obtain(agora,agora+250,MotionEvent.ACTION_MOVE,540f,ate,0),true)
+        automacao.injectInputEvent(MotionEvent.obtain(agora,agora+300,MotionEvent.ACTION_UP,540f,ate,0),true)
+    }
     private fun no(descricao: String): AccessibilityNodeInfo {
         val fim=SystemClock.uptimeMillis()+20_000
+        var tentativas=0
+        var paraBaixo=true
+        var ultimaArvore=""
         while(SystemClock.uptimeMillis()<fim) {
             val arvore=nos()
             arvore.firstOrNull {it.contentDescription?.toString()==descricao||it.text?.toString()==descricao}?.let {return it}
             val rolavel=arvore.filter {it.isScrollable}.maxByOrNull {no->android.graphics.Rect().also {no.getBoundsInScreen(it)}.height()}
-            if(rolavel!=null&&!rolavel.performAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD)) rolavel.performAction(AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD)
+            // Sem movimento (árvore parada), alterna a direção: o alvo pode estar acima ou abaixo.
+            val textos=arvore.mapNotNull {it.text?.toString()?:it.contentDescription?.toString()}.joinToString("|")
+            if(textos==ultimaArvore) paraBaixo=!paraBaixo else ultimaArvore=textos
+            rolavel?.performAction(if(paraBaixo) AccessibilityNodeInfo.ACTION_SCROLL_FORWARD else AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD)
+            if(++tentativas%4==0) deslizar(paraBaixo)
             Thread.sleep(200)
         }
         val visiveis=nos().mapNotNull {it.text?.toString()?:it.contentDescription?.toString()}.filter {it.isNotBlank()}.distinct().take(60)

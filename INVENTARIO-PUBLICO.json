@@ -1,5 +1,5 @@
 {
-  "commit": "96708b8323f9286236b03c48aafa544822afd632",
+  "commit": "0f677a2a9fdb0d125814bbb88957a836051da299",
   "repository": "https://github.com/mikerock12/smells-like-tech-converter-demo",
   "originals": [
     {
@@ -34,8 +34,8 @@
     },
     {
       "path": "android/app/build.gradle.kts",
-      "sha256": "14b5df14dae9a6b2a0a5979426865ced4684c1c9ebad1a0473210b8d0a2d97b6",
-      "bytes": 8642
+      "sha256": "0c64d836acecbf1bf1917df08410eaa04fa75ec7860c5a3b41c2e7df25fd8646",
+      "bytes": 8643
     },
     {
       "path": "android/app/proguard-rules.pro",
@@ -109,13 +109,13 @@
     },
     {
       "path": "android/app/src/androidTest/java/br/com/smellsliketech/converter/estudio/EstudioDesempenhoTest.kt",
-      "sha256": "7794a015fc1f843b10b4b8c4529079b895b93f6233dca921aa34249ae91b4ac6",
-      "bytes": 5585
+      "sha256": "8e3d5f36c64a5e00e6fece0be5e50cc3e8c531bfc4ff4b29dd67dde75a6934e3",
+      "bytes": 8820
     },
     {
       "path": "android/app/src/androidTest/java/br/com/smellsliketech/converter/estudio/EstudioEdicaoNoAparelhoTest.kt",
-      "sha256": "c86a2a28960fa41b92d5113782974265b4ad7bbf6062e54c637bfbdef6c7e697",
-      "bytes": 6317
+      "sha256": "79f5f0bec4f2487427bc5457860212d66ffdfc4094d0e639f1fed8d2ae22674c",
+      "bytes": 7415
     },
     {
       "path": "android/app/src/androidTest/java/br/com/smellsliketech/converter/estudio/EstudioEtapa3Test.kt",
@@ -604,8 +604,8 @@
     },
     {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/estudio/FiltrosDeCamada.kt",
-      "sha256": "a300c6d69f54c3b32a55bcfdd6cf95fecc0396ec50a5af96c1c0efb9b6df7f61",
-      "bytes": 8469
+      "sha256": "29457d30fb929f51223629a060a610e938fe802d69b36e4c1b043e96dae6d3c1",
+      "bytes": 11718
     },
     {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/estudio/GuiasDoEstudio.kt",
@@ -964,8 +964,8 @@
     },
     {
       "path": "android/app/src/test/java/br/com/smellsliketech/converter/estudio/PreviaEOtimizacaoTest.kt",
-      "sha256": "3144180753e840887d13595513ed9ca3efee293280f25345d58211e8a9f99002",
-      "bytes": 2904
+      "sha256": "ca7b36112e5f06cae9aace4ff727c2b7eb1486571bd92367af3f4d162e2dfe27",
+      "bytes": 3542
     },
     {
       "path": "android/app/src/test/java/br/com/smellsliketech/converter/figurinhas/ControlesDoEditorTest.kt",
@@ -1151,6 +1151,11 @@
       "path": "android/play/destaque-1024x500.png",
       "sha256": "da130b0d071e050edcfe4487a4b5a15eae0f9e0b2ed1ec19809999e8e077a7ed",
       "bytes": 504765
+    },
+    {
+      "path": "android/play/ficha-1.0.10.md",
+      "sha256": "8fbb5427ae547de8f20c4b3d0c032be271d19e8c9f95dd63a04c913bad2e17ce",
+      "bytes": 5210
     },
     {
       "path": "android/play/ficha-1.0.6.md",
@@ -1509,7 +1514,7 @@
     },
     {
       "path": "desktop/Directory.Build.props",
-      "sha256": "1955137601792f1aa57f09329aa0ab77d33c32bcfc9968fc6e4a3d99e2a616bc",
+      "sha256": "433b4d595c8cfd134cf785e934e4302f496d64575685b531a34cf986a8ac14bc",
       "bytes": 472
     },
     {
@@ -2294,8 +2299,8 @@
     },
     {
       "path": "desktop/src/SmellsLikeTech.Converter.Engine.FFmpeg/StudioLayerFilters.cs",
-      "sha256": "d14b23139c05bdb7692f1898f567ff59c4b8fef814e87479301ce5586c6a4f00",
-      "bytes": 8307
+      "sha256": "a55def8fae72a59c5f9ff7702b8613857b4f30bcb81189d42c5984986f0d3122",
+      "bytes": 11673
     },
     {
       "path": "desktop/src/SmellsLikeTech.Converter.Engine.FFmpeg/StudioLayerRecipe.cs",
@@ -2609,8 +2614,8 @@
     },
     {
       "path": "desktop/tests/SmellsLikeTech.Converter.Tests/StudioOptimizationTests.cs",
-      "sha256": "4feffb86b715f6954c4a2934aa398fb9a9d6f41c89941a19eaa1cbcaae9a61c8",
-      "bytes": 2903
+      "sha256": "f0c2736bfb4991404816d6cd9057e38d70198fba2e2cf253136a437202bfe944",
+      "bytes": 3554
     },
     {
       "path": "desktop/tests/SmellsLikeTech.Converter.Tests/StudioTests.cs",
@@ -2964,8 +2969,8 @@
     },
     {
       "path": "packages/converter-core/camadas-ffmpeg.mjs",
-      "sha256": "6851e145b91c5af839d690e8f63f8953716a1db8633c9f39ad981475557bcf7e",
-      "bytes": 5856
+      "sha256": "5d15b7ed438c84a4ebf0e2d9ab2f5d75fbe54009ce192952fc42e138dbf82025",
+      "bytes": 8920
     },
     {
       "path": "packages/converter-core/camadas.d.mts",
@@ -3344,12 +3349,12 @@
     },
     {
       "path": "public/baixar/app.json",
-      "sha256": "d15eb0513e7356ce673ba940a6b0adcb20921bc9ac15a22f2f24a1792202b4cc",
+      "sha256": "0553a346a8adbd2e576a40adb9dd234cc58f9387c784e99e4ed13cb46253fe40",
       "bytes": 210
     },
     {
       "path": "public/baixar/plugin.json",
-      "sha256": "25530aa346067dcfd13f00afb27e03201a93a74399b9bf3fad3864142f000040",
+      "sha256": "53e5791953d2ccfdce9a2574d60553b0ea9387a99b8b44111220543d0eae17f3",
       "bytes": 207
     },
     {

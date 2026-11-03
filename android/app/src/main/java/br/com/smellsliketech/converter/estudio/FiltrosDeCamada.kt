@@ -70,6 +70,48 @@ object FiltrosDeCamada {
                 "color=c=black@0:s=${w}x${h}:r=$fps,format=rgba[${rotulo}base];"+
                 "[${rotulo}base][${rotulo}zoom]overlay=x='(W-w)/2+($ax-0.5)*W':y='(H-h)/2+($ay-0.5)*H':eval=frame:shortest=1,format=rgba"
         }
+        // Transformação estática sem 3D: cor por mixer/LUT, máscara por um quadro + alphamerge,
+        // giro planar pelo rotate e posição por overlay — tudo LGPL, sem geq por pixel.
+        if (otimizar && t.quadrosChave.isEmpty() && t.giroX == 0.0 && t.giroY == 0.0) {
+            val cor = matrizDeCor(t)
+            val cruzado = listOf(1,2,4,6,8,9).any { cor[it] != 0.0 }
+            val partes = mutableListOf<String>()
+            var atual = "format=rgba"
+            if (cruzado) {
+                atual += ",colorchannelmixer=rr=${d(cor[0])}:rg=${d(cor[1])}:rb=${d(cor[2])}:gr=${d(cor[4])}:gg=${d(cor[5])}:gb=${d(cor[6])}:br=${d(cor[8])}:bg=${d(cor[9])}:bb=${d(cor[10])}:aa=${d(t.opacidade)}"
+                if (cor[3] != 0.0 || cor[7] != 0.0 || cor[11] != 0.0) atual += ",lutrgb=r='clip(val+${d(cor[3])},0,255)':g='clip(val+${d(cor[7])},0,255)':b='clip(val+${d(cor[11])},0,255)'"
+            } else if (cor[0] != 1.0 || cor[5] != 1.0 || cor[10] != 1.0 || cor[3] != 0.0 || cor[7] != 0.0 || cor[11] != 0.0 || t.opacidade != 1.0) {
+                val alfa = if (t.opacidade != 1.0) ":a='clip(val*${d(t.opacidade)},0,255)'" else ""
+                atual += ",lutrgb=r='clip(${d(cor[0])}*val+${d(cor[3])},0,255)':g='clip(${d(cor[5])}*val+${d(cor[7])},0,255)':b='clip(${d(cor[10])}*val+${d(cor[11])},0,255)'$alfa"
+            }
+            if (t.mascara != "nenhuma") {
+                val expr = when (t.mascara) {
+                    "circulo" -> "lte(pow((X+0.5-W/2)/(min(W,H)/2),2)+pow((Y+0.5-H/2)/(min(W,H)/2),2),1)"
+                    "oval" -> "lte(pow((X+0.5-W/2)/(W/2),2)+pow((Y+0.5-H/2)/(H/2),2),1)"
+                    else -> "lte(pow(max(abs(X+0.5-W/2)-(W/2-min(W,H)*0.15),0),2)+pow(max(abs(Y+0.5-H/2)-(H/2-min(W,H)*0.15),0),2),pow(min(W,H)*0.15,2))"
+                }
+                partes += "$atual[${rotulo}pre]"
+                // Um quadro de máscara basta: ao fim dele, o alphamerge repete o último.
+                partes += "color=c=black:s=${w}x${h}:r=$fps:d=${d(1.0/fps)},format=gray,geq=lum='255*($expr)',format=gray[${rotulo}m]"
+                atual = "[${rotulo}pre][${rotulo}m]alphamerge"
+            }
+            // O rotate já escreve no tamanho da tela (ow/oh); sem giro, o pad recoloca o
+            // conteúdo redimensionado no centro da tela. O overlay só entra fora do centro.
+            var cauda = atual
+            if (t.escala != 1.0) cauda += ",scale=w='max(2,trunc(iw*(${d(t.escala)})/2)*2)':h='max(2,trunc(ih*(${d(t.escala)})/2)*2)'"
+            if (t.espelharX) cauda += ",hflip"
+            if (t.espelharY) cauda += ",vflip"
+            if (t.giro != 0.0) cauda += ",rotate=a=${d(t.giro*PI/180)}:ow=$w:oh=$h:fillcolor=black@0.0"
+            else if (t.escala != 1.0) cauda += ",pad=$w:$h:(ow-iw)/2:(oh-ih)/2:color=black@0"
+            if (t.x == 0.5 && t.y == 0.5) {
+                partes += "$cauda,format=rgba"
+                return partes.joinToString(";")
+            }
+            partes += "$cauda[${rotulo}z]"
+            partes += "color=c=black@0:s=${w}x${h}:r=$fps,format=rgba[${rotulo}b]"
+            partes += "[${rotulo}b][${rotulo}z]overlay=x=${d((t.x-0.5)*w)}:y=${d((t.y-0.5)*h)}:shortest=1,format=rgba"
+            return partes.joinToString(";")
+        }
         val m=inversa(projecao(t,w,h))?:return "format=rgba,colorchannelmixer=aa=0"
         var u="(X+0.5)/W";var v="(Y+0.5)/H";var prefixo=""
         if(t.quadrosChave.isNotEmpty()) {

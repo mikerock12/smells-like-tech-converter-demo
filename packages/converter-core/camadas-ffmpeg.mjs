@@ -30,6 +30,46 @@ export function filtroDaTransformacao(transformacao, w, h, deslocamento = 0, oti
         + `[${rotulo}base][${rotulo}zoom]overlay=x='(W-w)/2+(${ax}-0.5)*W':y='(H-h)/2+(${ay}-0.5)*H':eval=frame:shortest=1,format=rgba`;
     }
   }
+  if (otimizar && !(t.quadrosChave?.length) && t.giroX === 0 && t.giroY === 0) {
+    // Transformação estática sem 3D: cor por mixer/LUT, máscara por um quadro + alphamerge,
+    // giro planar pelo rotate e posição por overlay — tudo LGPL, sem geq por pixel.
+    const cor = matrizDeCor(t);
+    const cruzado = [1,2,4,6,8,9].some(i => cor[i] !== 0);
+    const partes = [];
+    let atual = "format=rgba";
+    if (cruzado) {
+      atual += `,colorchannelmixer=rr=${decimal(cor[0])}:rg=${decimal(cor[1])}:rb=${decimal(cor[2])}:gr=${decimal(cor[4])}:gg=${decimal(cor[5])}:gb=${decimal(cor[6])}:br=${decimal(cor[8])}:bg=${decimal(cor[9])}:bb=${decimal(cor[10])}:aa=${decimal(t.opacidade)}`;
+      if (cor[3] !== 0 || cor[7] !== 0 || cor[11] !== 0) atual += `,lutrgb=r='clip(val+${decimal(cor[3])},0,255)':g='clip(val+${decimal(cor[7])},0,255)':b='clip(val+${decimal(cor[11])},0,255)'`;
+    } else if (cor[0] !== 1 || cor[5] !== 1 || cor[10] !== 1 || cor[3] !== 0 || cor[7] !== 0 || cor[11] !== 0 || t.opacidade !== 1) {
+      const alfa = t.opacidade !== 1 ? `:a='clip(val*${decimal(t.opacidade)},0,255)'` : "";
+      atual += `,lutrgb=r='clip(${decimal(cor[0])}*val+${decimal(cor[3])},0,255)':g='clip(${decimal(cor[5])}*val+${decimal(cor[7])},0,255)':b='clip(${decimal(cor[10])}*val+${decimal(cor[11])},0,255)'${alfa}`;
+    }
+    if ((t.mascara ?? "nenhuma") !== "nenhuma") {
+      const expr = t.mascara === "circulo" ? "lte(pow((X+0.5-W/2)/(min(W,H)/2),2)+pow((Y+0.5-H/2)/(min(W,H)/2),2),1)"
+        : t.mascara === "oval" ? "lte(pow((X+0.5-W/2)/(W/2),2)+pow((Y+0.5-H/2)/(H/2),2),1)"
+        : "lte(pow(max(abs(X+0.5-W/2)-(W/2-min(W,H)*0.15),0),2)+pow(max(abs(Y+0.5-H/2)-(H/2-min(W,H)*0.15),0),2),pow(min(W,H)*0.15,2))";
+      partes.push(`${atual}[${rotulo}pre]`);
+      // Um quadro de máscara basta: ao fim dele, o alphamerge repete o último.
+      partes.push(`color=c=black:s=${w}x${h}:r=${fps}:d=${decimal(1/fps)},format=gray,geq=lum='255*(${expr})',format=gray[${rotulo}m]`);
+      atual = `[${rotulo}pre][${rotulo}m]alphamerge`;
+    }
+    // O rotate já escreve no tamanho da tela (ow/oh); sem giro, o pad recoloca o conteúdo
+    // redimensionado no centro da tela. O overlay só entra fora do centro.
+    let cauda = atual;
+    if (t.escala !== 1) cauda += `,scale=w='max(2,trunc(iw*(${decimal(t.escala)})/2)*2)':h='max(2,trunc(ih*(${decimal(t.escala)})/2)*2)'`;
+    if (t.espelharX) cauda += ",hflip";
+    if (t.espelharY) cauda += ",vflip";
+    if (t.giro !== 0) cauda += `,rotate=a=${decimal(t.giro*Math.PI/180)}:ow=${w}:oh=${h}:fillcolor=black@0.0`;
+    else if (t.escala !== 1) cauda += `,pad=${w}:${h}:(ow-iw)/2:(oh-ih)/2:color=black@0`;
+    if (t.x === 0.5 && t.y === 0.5) {
+      partes.push(`${cauda},format=rgba`);
+      return partes.join(";");
+    }
+    partes.push(`${cauda}[${rotulo}z]`);
+    partes.push(`color=c=black@0:s=${w}x${h}:r=${fps},format=rgba[${rotulo}b]`);
+    partes.push(`[${rotulo}b][${rotulo}z]overlay=x=${decimal((t.x-0.5)*w)}:y=${decimal((t.y-0.5)*h)}:shortest=1,format=rgba`);
+    return partes.join(";");
+  }
   const cantos = cantosDaCamada(w,h,w,h,t).map(p => ({x:p.x/w,y:p.y/h}));
   const m = inversa(homografia(cantos));
   if (!m) return "format=rgba,colorchannelmixer=aa=0";
