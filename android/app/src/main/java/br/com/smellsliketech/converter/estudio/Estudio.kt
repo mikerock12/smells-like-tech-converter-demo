@@ -32,7 +32,7 @@ object Estudio {
 
     fun usaCamadas(projeto: Projeto) = projeto.fundo != null || projeto.camadas.isNotEmpty() ||
         projeto.clipes.any { it.transformacao != null } || projeto.textos.any { it.transformacao != null }
-    const val VERSAO_DO_PROJETO = 4
+    const val VERSAO_DO_PROJETO = 5
     const val DURACAO_PADRAO_DA_IMAGEM = 3.0
     const val DURACAO_MINIMA = 0.1
     const val LADO_DO_GIF = 480
@@ -146,7 +146,7 @@ object Estudio {
     /** Problemas que impedem exportar, nos mesmos textos do site e do Windows. */
     fun problemas(projeto: Projeto): List<String> {
         val lista = mutableListOf<String>()
-        if (projeto.versao !in listOf(1, 2, 3, VERSAO_DO_PROJETO)) lista += "Projeto de uma versão que este app não conhece."
+        if (projeto.versao !in listOf(1, 2, 3, 4, VERSAO_DO_PROJETO)) lista += "Projeto de uma versão que este app não conhece."
         if (!(projeto.largura >= 16 && projeto.altura >= 16 && projeto.largura <= 4096 && projeto.altura <= 4096)) {
             lista += "O tamanho do quadro precisa ficar entre 16 e 4096 pixels."
         }

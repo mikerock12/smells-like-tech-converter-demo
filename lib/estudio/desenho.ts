@@ -11,6 +11,7 @@ import {
   type Projeto,
   type Texto,
 } from "@/packages/converter-core/estudio.mjs";
+import { letrasVisiveis, usaMaquina } from "@/packages/converter-core/estudio-efeitos.mjs";
 import { desenharCamada } from "./camadas";
 
 /**
@@ -73,7 +74,7 @@ function quebrar(ctx: Contexto2D, texto: string, larguraMaxima: number): string[
 }
 
 /** Desenha um texto num quadro de `largura` × `altura` (o contexto já na escala do projeto). */
-export function desenharTexto(ctx: Contexto2D, texto: Texto, largura: number, altura: number): void {
+export function desenharTexto(ctx: Contexto2D, texto: Texto, largura: number, altura: number, letras: number | null = null): void {
   const conteudo = texto.texto.trim();
   if (!conteudo) return;
   const tamanho = Math.max(4, texto.tamanho * altura);
@@ -97,15 +98,25 @@ export function desenharTexto(ctx: Contexto2D, texto: Texto, largura: number, al
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   ctx.lineJoin = "round";
+  let restantes = letras;
   linhas.forEach((linha, i) => {
     const y = topo + (i + 0.5) * alturaDaLinha;
+    // Máquina de escrever: as letras aparecem no lugar final, sem a linha dançar ao centralizar.
+    let visivel = linha, x = centroX;
+    if (restantes !== null) {
+      const partes = Array.from(linha);
+      visivel = partes.slice(0, Math.max(0, restantes)).join("");
+      restantes -= partes.length + 1;
+      x = centroX - ctx.measureText(linha).width / 2;
+      ctx.textAlign = "left";
+    }
     if (texto.contorno) {
       ctx.strokeStyle = texto.contorno;
       ctx.lineWidth = tamanho * LAYOUT_DO_TEXTO.contorno * 2;
-      ctx.strokeText(linha, centroX, y);
+      ctx.strokeText(visivel, x, y);
     }
     ctx.fillStyle = texto.cor;
-    ctx.fillText(linha, centroX, y);
+    ctx.fillText(visivel, x, y);
   });
   ctx.restore();
 }
@@ -145,20 +156,21 @@ export function desenharQuadro(ctx: Contexto2D, projeto: Projeto, t: number, ima
   const camadas = camadasNoTempo(projeto, t);
   const desenharExtra = (camada: typeof camadas[number]) => {
     const fonte = midias.get(camada.id);
-    if (fonte) desenharCamada(ctx, fonte, largura, altura, camada.transformacao, t - camada.inicio);
+    if (fonte) desenharCamada(ctx, fonte, largura, altura, camada.transformacao, t - camada.inicio, camada.fim - camada.inicio);
   };
   camadas.filter(c => (c.ordem ?? 1) < 0).forEach(desenharExtra);
   const primeiro = clipeNoTempo(projeto,t)?.clipe;
   const transicao = transicaoNoTempo(projeto,t);
   const lista = segmentos(projeto);
   const tempoDoClipe = (id: string) => t - (lista.find(s => s.id === id)?.inicio ?? 0);
+  const duracaoDoClipe = (id: string) => lista.find(s => s.id === id)?.duracao ?? 0;
   const textura = (fonte: Imagem | null, clipe: Projeto["clipes"][number] | undefined) => {
     const tela=new OffscreenCanvas(largura,altura), c=tela.getContext("2d")!;
     c.drawImage(ctx.canvas,0,0,largura,altura);
     if(fonte && clipe) {
       const enquadrada=new OffscreenCanvas(largura,altura);
       enquadrar(enquadrada.getContext("2d")!,fonte,clipe.ajuste,largura,altura);
-      desenharCamada(c,enquadrada,largura,altura,clipe.transformacao, tempoDoClipe(clipe.id));
+      desenharCamada(c,enquadrada,largura,altura,clipe.transformacao, tempoDoClipe(clipe.id), duracaoDoClipe(clipe.id));
     }
     return tela;
   };
@@ -188,7 +200,7 @@ export function desenharQuadro(ctx: Contexto2D, projeto: Projeto, t: number, ima
     if(primeiro.transformacao) {
       const tela=new OffscreenCanvas(largura,altura);
       enquadrar(tela.getContext("2d")!,imagem,ajuste,largura,altura);
-      desenharCamada(ctx,tela,largura,altura,primeiro.transformacao, tempoDoClipe(primeiro.id));
+      desenharCamada(ctx,tela,largura,altura,primeiro.transformacao, tempoDoClipe(primeiro.id), duracaoDoClipe(primeiro.id));
     }
     else enquadrar(ctx,imagem,ajuste,largura,altura);
   }
@@ -196,8 +208,9 @@ export function desenharQuadro(ctx: Contexto2D, projeto: Projeto, t: number, ima
   for (const texto of textosNoTempo(projeto, t)) {
     if (texto.transformacao) {
       const textura = new OffscreenCanvas(largura, altura);
-      desenharTexto(textura.getContext("2d")!, texto, largura, altura);
-      desenharCamada(ctx, textura, largura, altura, texto.transformacao, t - texto.inicio);
+      desenharTexto(textura.getContext("2d")!, texto, largura, altura, usaMaquina(texto) ? letrasVisiveis(texto, t - texto.inicio, projeto.fps) : null);
+      const pivo = { x: texto.x + (texto.transformacao.x ?? .5) - .5, y: texto.y + (texto.transformacao.y ?? .5) - .5 };
+      desenharCamada(ctx, textura, largura, altura, texto.transformacao, t - texto.inicio, texto.fim - texto.inicio, pivo);
     } else desenharTexto(ctx, texto, largura, altura);
   }
 }

@@ -12,7 +12,7 @@ namespace SmellsLikeTech.Converter.Core.Studio;
 /// </summary>
 public static class StudioRules
 {
-    public const int ProjectVersion = 4;
+    public const int ProjectVersion = 5;
     public const double DefaultImageDuration = 3;
     public const double MinimumDuration = 0.1;
     public const int GifShortSide = 480;
@@ -142,7 +142,7 @@ public static class StudioRules
     public static IReadOnlyList<string> Problems(StudioProject project)
     {
         var list = new List<string>();
-        if (project.Version is not (1 or 2 or 3 or ProjectVersion))
+        if (project.Version is not (1 or 2 or 3 or 4 or ProjectVersion))
         {
             list.Add("Projeto de uma versão que este app não conhece.");
         }

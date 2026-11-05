@@ -23,6 +23,11 @@ public sealed record StudioTransform
     [JsonPropertyName("tempoDaAnimacao")] public double AnimationTime { get; init; }
     [JsonPropertyName("mascara")] public string Mask { get; init; } = "nenhuma";
     [JsonPropertyName("quadrosChave")] public IReadOnlyList<StudioKeyframe> Keyframes { get; init; } = [];
+    [JsonPropertyName("efeitoEntrada")] public string EntryEffect { get; init; } = "nenhum";
+    [JsonPropertyName("duracaoEntrada")] public double EntryDuration { get; init; } = StudioEffects.DefaultDuration;
+    [JsonPropertyName("efeitoSaida")] public string ExitEffect { get; init; } = "nenhum";
+    [JsonPropertyName("duracaoSaida")] public double ExitDuration { get; init; } = StudioEffects.DefaultDuration;
+    [JsonPropertyName("efeitoContinuo")] public string LoopEffect { get; init; } = "nenhum";
 
     public string? Problem()
     {
@@ -37,7 +42,7 @@ public sealed record StudioTransform
             if (!double.IsFinite(value) || value < min || value > max) return $"Ajuste inválido da camada: {name}.";
         if (Blend is not ("normal" or "multiplicar" or "clarear" or "sobrepor")) return "Modo de mesclagem desconhecido.";
         if (Filter is not ("original" or "vivido" or "pb" or "sepia" or "vintage" or "frio" or "quente" or "negativo")) return "Filtro desconhecido.";
-        return StudioAnimation.Problem(this);
+        return StudioAnimation.Problem(this) ?? StudioEffects.Problem(this);
     }
 }
 

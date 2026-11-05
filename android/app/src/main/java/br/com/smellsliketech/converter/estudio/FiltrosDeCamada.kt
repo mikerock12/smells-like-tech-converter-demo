@@ -89,7 +89,7 @@ object FiltrosDeCamada {
         val t=valor?:Transformacao()
         // Não reamostrar uma identidade: evita bilhões de avaliações de expressão em vídeos longos.
         // Mesclagem e remoção de fundo são feitas fora deste filtro.
-        if (otimizar && t.copy(mescla="normal", removerFundo=false, tempoDaAnimacao=0.0) == Transformacao()) return "format=rgba"
+        if (otimizar && t.semEfeitos().copy(mescla="normal", removerFundo=false, tempoDaAnimacao=0.0) == Transformacao()) return "format=rgba"
         if (otimizar && t.giro == 0.0 && t.giroX == 0.0 && t.giroY == 0.0 && !t.espelharX && !t.espelharY &&
             t.mascara == "nenhuma" && t.opacidade == 1.0 && t.filtro == "original" &&
             t.brilho == 0.0 && t.contraste == 0.0 && t.saturacao == 0.0) {

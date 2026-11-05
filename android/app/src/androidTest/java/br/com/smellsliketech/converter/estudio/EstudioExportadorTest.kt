@@ -44,6 +44,39 @@ class EstudioExportadorTest {
         quadro = 1.0,
     )
 
+    /** O FFmpeg LGPL do app tem de ter todos os filtros dos efeitos. */
+    @Test fun todosOsEfeitosExportamNoAparelho() = runBlocking {
+        assumeTrue("FFmpeg do app", Ffmpeg.disponivel(contexto))
+        val pasta = File(contexto.cacheDir, "efeitos").apply { mkdirs() }
+        try {
+            fun foto(nome: String, cor: Int) = File(pasta, nome).also { arquivo ->
+                val imagem = android.graphics.Bitmap.createBitmap(32, 32, android.graphics.Bitmap.Config.ARGB_8888).apply { eraseColor(cor) }
+                arquivo.outputStream().use { imagem.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
+                imagem.recycle()
+            }
+            val base = foto("base.png", android.graphics.Color.BLUE)
+            val extra = foto("extra.png", android.graphics.Color.RED)
+            val entradas = Efeitos.ENTRADAS.map { it.first }.filter { it != "nenhum" && it != "maquina" }
+            val saidas = Efeitos.SAIDAS.map { it.first }.filter { it != "nenhum" }
+            val continuos = Efeitos.CONTINUOS.map { it.first }.filter { it != "nenhum" }
+            val casos = entradas.mapIndexed { i, id -> Transformacao(escala = .5, efeitoEntrada = id, duracaoEntrada = .4, efeitoSaida = saidas[i % saidas.size], duracaoSaida = .4, efeitoContinuo = continuos[i % continuos.size]) }
+            for (t in casos) {
+                val projeto = Projeto(largura = 128, altura = 96, fps = 10, saida = "video",
+                    clipes = listOf(Clipe("base", base.absolutePath, "imagem", duracao = 1.2, ajuste = "caber")),
+                    camadas = listOf(Camada("extra", extra.absolutePath, inicio = 0.0, fim = 1.2, transformacao = t)),
+                    textos = listOf(Texto("t", "Digitando", 0.1, 1.1, tamanho = .15, transformacao = Transformacao(efeitoEntrada = "maquina", duracaoEntrada = .5, efeitoSaida = "fade", duracaoSaida = .2))))
+                val video = File(pasta, "efeito.mp4").apply { delete() }
+                Exportador.gerar(contexto, projeto, video) {}
+                val sondagem = Ffmpeg.sondar(contexto, video)
+                assertTrue("vídeo com ${t.efeitoEntrada}/${t.efeitoSaida}/${t.efeitoContinuo}", sondagem.temVideo && (sondagem.duracaoSegundos ?: 0.0) in 1.1..1.4)
+                // O quadro parado usa o efeito congelado.
+                val quadro = File(pasta, "efeito.png").apply { delete() }
+                Exportador.gerar(contexto, projeto.copy(saida = "imagem", quadro = .2), quadro) {}
+                assertTrue("quadro parado", quadro.length() > 0)
+            }
+        } finally { pasta.deleteRecursively() }
+    }
+
     @Test fun exportaVideoGifImagemEAudio() = runBlocking {
         assumeTrue("FFmpeg do app", Ffmpeg.disponivel(contexto))
         val video = trazer("estudio-video.mp4")

@@ -11,7 +11,7 @@ import dados from "./estudio-presets.json" with { type: "json" };
 import { validarTransformacao } from "./camadas.mjs";
 import { receitaComCamadas } from "./estudio-camadas.mjs";
 
-export const VERSAO_DO_PROJETO = 4;
+export const VERSAO_DO_PROJETO = 5;
 export const TRANSICOES = Object.freeze([
   {id:"corte",titulo:"Corte seco"}, {id:"fade",titulo:"Fade pelo preto"},
   {id:"dissolver",titulo:"Dissolver"}, {id:"deslizar",titulo:"Deslizar"}, {id:"zoom",titulo:"Zoom"},
@@ -202,7 +202,7 @@ export function tamanhoDoGif(largura, altura) {
 /** Problemas que impedem exportar, em português, prontos para mostrar. */
 export function problemas(projeto) {
   const lista = [];
-  if (![1, 2, 3, VERSAO_DO_PROJETO].includes(projeto.versao)) lista.push("Projeto de uma versão que este app não conhece.");
+  if (![1, 2, 3, 4, VERSAO_DO_PROJETO].includes(projeto.versao)) lista.push("Projeto de uma versão que este app não conhece.");
   if (!(projeto.largura >= 16 && projeto.altura >= 16 && projeto.largura <= 4096 && projeto.altura <= 4096)) {
     lista.push("O tamanho do quadro precisa ficar entre 16 e 4096 pixels.");
   }

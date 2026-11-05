@@ -6,6 +6,7 @@ export type Transformacao = {
   x: number; y: number; escala: number; giro: number; giroX: number; giroY: number;
   espelharX: boolean; espelharY: boolean; opacidade: number; mescla: string;
   filtro: string; brilho: number; contraste: number; saturacao: number; removerFundo: boolean;
+  efeitoEntrada?: string; duracaoEntrada?: number; efeitoSaida?: string; duracaoSaida?: number; efeitoContinuo?: string;
 };
 export declare const TRANSFORMACAO_PADRAO: Readonly<Transformacao>;
 export declare const FILTROS_DE_CAMADA: string[];

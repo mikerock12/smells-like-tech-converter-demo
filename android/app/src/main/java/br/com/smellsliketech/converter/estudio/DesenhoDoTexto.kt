@@ -8,8 +8,10 @@ import android.graphics.Paint
 import android.graphics.RectF
 import android.graphics.Typeface
 import android.text.Layout
+import android.text.SpannableString
 import android.text.StaticLayout
 import android.text.TextPaint
+import android.text.style.ForegroundColorSpan
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -27,8 +29,13 @@ class DesenhoDoTexto(private val contexto: Context) {
 
     /** Desenha em `tela`, que representa um quadro de `largura` × `altura`. */
     fun desenhar(tela: Canvas, texto: Texto, largura: Int, altura: Int) {
-        val conteudo = texto.texto.trim()
-        if (conteudo.isEmpty()) return
+        val aparado = texto.texto.trim()
+        if (aparado.isEmpty()) return
+        // Máquina de escrever: as letras seguintes ficam transparentes, para a linha não dançar ao centralizar.
+        val conteudo: CharSequence = texto.letrasVisiveis?.let { letras ->
+            val corte = aparado.offsetByCodePoints(0, letras.coerceIn(0, aparado.codePointCount(0, aparado.length)))
+            SpannableString(aparado).apply { setSpan(ForegroundColorSpan(Color.TRANSPARENT), corte, aparado.length, 0) }
+        } ?: aparado
         val tamanho = maxOf(4.0, texto.tamanho * altura).toFloat()
         val tipo = tipo(texto.fonte)
         val maxima = (largura * Estudio.LARGURA_MAXIMA_DO_TEXTO).toInt().coerceAtLeast(1)

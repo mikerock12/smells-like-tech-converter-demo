@@ -136,6 +136,23 @@ public sealed class StudioEngine(
         throw new ConversionException("missing_input", $"O arquivo “{Path.GetFileName(reference)}” do projeto não veio junto.");
     }
 
+    /// <summary>O texto de um quadro parado: efeito congelado e, na máquina de escrever, só as letras já digitadas.</summary>
+    private static StudioText FreezeText(StudioText text, double time, int width, int height, int fps)
+    {
+        var frozen = text with { Start = 0, End = .1 };
+        if (!StudioEffects.Has(text.Transform))
+        {
+            return frozen;
+        }
+
+        var t = text.Transform!;
+        return frozen with
+        {
+            Transform = StudioEffects.Freeze(t, time - text.Start, text.End - text.Start, width, height, text.X + t.X - .5, text.Y + t.Y - .5),
+            VisibleLetters = StudioEffects.UsesTypewriter(text) ? StudioEffects.VisibleLetters(text, time - text.Start, fps) : null
+        };
+    }
+
     /// <summary>Quantos quadros de vídeo vão passar pelo recorte do fundo nesta montagem.</summary>
     private static double RemovalFrames(StudioProject project, bool singleFrame)
     {
@@ -200,6 +217,16 @@ public sealed class StudioEngine(
             var time = Math.Clamp(project.Frame, 0, Math.Max(0, StudioRules.TotalDuration(project) - 1.0 / project.Fps));
             var at = StudioRules.ClipAt(project, time)!.Value;
             var clip = at.Clip;
+            // O quadro parado mostra o efeito daquele instante sem renderizar a linha do tempo.
+            var width = project.Width;
+            var height = project.Height;
+            var fps = project.Fps;
+            if (StudioEffects.Has(clip.Transform))
+            {
+                var segment = StudioRules.Segments(project).First(s => s.Id == clip.Id);
+                clip = clip with { Transform = StudioEffects.Freeze(clip.Transform!, time - segment.Start, segment.End - segment.Start, width, height) };
+            }
+
             var layersAtFrame = new List<StudioLayer>();
             foreach (var layer in StudioRules.LayersAt(project, time))
             {
@@ -210,14 +237,15 @@ public sealed class StudioEngine(
                     if (info.Duration?.TotalSeconds is > 0 and var duration)
                         offset = layer.Repeat ? offset % duration : Math.Min(offset, Math.Max(0, duration - 1.0 / project.Fps));
                 }
-                layersAtFrame.Add(layer with { Start = 0, End = .1, Offset = offset, Repeat = false });
+                var frozen = StudioEffects.Has(layer.Transform) ? StudioEffects.Freeze(layer.Transform!, time - layer.Start, layer.End - layer.Start, width, height) : layer.Transform;
+                layersAtFrame.Add(layer with { Start = 0, End = .1, Offset = offset, Repeat = false, Transform = frozen });
             }
             project = project with
             {
                 Frame = 0,
                 Clips = [clip.IsImage ? clip with { Duration = .1, Transition = null } : clip with { Start = at.TimeInFile, End = at.TimeInFile + .1, Speed = 1, Transition = null }],
                 Layers = layersAtFrame,
-                Texts = project.Texts.Where(t => time >= t.Start && ((t.Id.StartsWith("legenda-") || t.Id.StartsWith("contagem-")) ? time < t.End : time <= t.End)).Select(t => t with { Start = 0, End = .1 }).ToList(),
+                Texts = project.Texts.Where(t => time >= t.Start && ((t.Id.StartsWith("legenda-") || t.Id.StartsWith("contagem-")) ? time < t.End : time <= t.End)).Select(t => FreezeText(t, time, width, height, fps)).ToList(),
                 Audios = []
             };
         }
@@ -305,6 +333,19 @@ public sealed class StudioEngine(
             var renderer = new StudioTextRenderer(fontsDirectory);
             for (var j = 0; j < project.Texts.Count; j++)
             {
+                if (StudioEffects.UsesTypewriter(project.Texts[j]))
+                {
+                    // Uma imagem por passo da digitação; a receita lê a sequência.
+                    var (letters, steps, _, _) = StudioEffects.TypewriterSteps(project.Texts[j], project.Fps);
+                    for (var k = 1; k <= steps; k++)
+                    {
+                        renderer.Render(project.Texts[j] with { VisibleLetters = StudioEffects.LettersAtStep(letters, steps, k) }, project.Width, project.Height, Path.Combine(workDirectory, $"texto-{j}-{k:0000}.png"));
+                    }
+
+                    texts.Add(Path.Combine(workDirectory, $"texto-{j}-%04d.png"));
+                    continue;
+                }
+
                 var png = Path.Combine(workDirectory, $"texto-{j}.png");
                 renderer.Render(project.Texts[j], project.Width, project.Height, png);
                 texts.Add(png);

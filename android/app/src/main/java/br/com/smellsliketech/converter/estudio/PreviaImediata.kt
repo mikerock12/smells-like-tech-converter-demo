@@ -14,7 +14,7 @@ object PreviaImediata {
         return c.tipo == "video" && enquadramento &&
             (c.volume ?: 1.0) in 0.0..1.0 &&
             p.camadas.none { it.visivel } && p.textos.isEmpty() && p.audios.isEmpty() &&
-            !t.removerFundo && t.mescla == "normal" && !Estudio.temTransicoes(p)
+            !t.removerFundo && t.mescla == "normal" && !Estudio.temTransicoes(p) && !Efeitos.tem(t)
     }
 
     fun tempoNaOrigem(c: Clipe, instante: Double): Double =

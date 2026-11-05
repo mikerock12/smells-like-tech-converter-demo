@@ -16,5 +16,5 @@ public static class StudioImmediatePreview
         t.X == .5 && t.Y == .5 && t.Scale == 1 && t.Rotation == 0 && t.RotationX == 0 && t.RotationY == 0 &&
         !t.MirrorX && !t.MirrorY && t.Opacity == 1 && t.Blend == "normal" && t.Filter == "original" &&
         t.Brightness == 0 && t.Contrast == 0 && t.Saturation == 0 && !t.RemoveBackground &&
-        t.Mask == "nenhuma" && t.Keyframes.Count == 0 && t.AnimationTime == 0;
+        t.Mask == "nenhuma" && t.Keyframes.Count == 0 && t.AnimationTime == 0 && !StudioEffects.Has(t);
 }

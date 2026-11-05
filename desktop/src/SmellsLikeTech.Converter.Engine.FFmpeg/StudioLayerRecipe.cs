@@ -28,9 +28,10 @@ public static class StudioLayerRecipe
             }
             args.AddRange(["-t",N(duration),"-i",inputs.Layers![i]]);
             var pad=$"tpad=stop_mode=clone:stop_duration={N(duration)},trim=duration={N(duration)},";
-            var animated=c.Transform?.Keyframes.Count>0;
+            // Quadros-chave e efeitos contam o tempo da mídia: o fluxo já tem de ter a duração final.
+            var animated=c.Transform?.Keyframes.Count>0||StudioEffects.Has(c.Transform);
             var n=index++; var label=$"ce{i}";
-            filters.Add($"[{n}:v]fps={fps},format=rgba,scale={w}:{h}:force_original_aspect_ratio=decrease:force_divisible_by=2,pad={w}:{h}:(ow-iw)/2:(oh-ih)/2:color=black@0,setsar=1,{(animated?pad:"")}{StudioLayerFilters.Transform(c.Transform,w,h,optimize:optimize,label:label,fps:fps)},{(animated?"":pad)}setpts=PTS-STARTPTS+{N(c.Start)}/TB[{label}]");
+            filters.Add($"[{n}:v]fps={fps},format=rgba,scale={w}:{h}:force_original_aspect_ratio=decrease:force_divisible_by=2,pad={w}:{h}:(ow-iw)/2:(oh-ih)/2:color=black@0,setsar=1,{(animated?pad:"")}{StudioLayerFilters.Transform(c.Transform,w,h,optimize:optimize,label:label,fps:fps)}{StudioEffects.Filter(c.Transform,w,h,fps,duration,label)},{(animated?"":pad)}setpts=PTS-STARTPTS+{N(c.Start)}/TB[{label}]");
             Compose(label,c.Transform,c.Start,c.End);
         }
         if(!transitions) foreach(var layer in layers.Where(v=>v.C.Order<0)) Extra(layer);
@@ -54,7 +55,7 @@ public static class StudioLayerRecipe
             start=timeline[i].Start;
             var c=p.Clips[i];var original=StudioRules.ClipDuration(c);var duration=i==p.Clips.Count-1?Math.Max(original,total-start):original;var label=$"cp{i}";
             var extend=duration>original?$"tpad=stop_mode=clone:stop_duration={N(duration-original)},trim=duration={N(duration)},":"";
-            var end=$"setsar=1,{extend}{StudioLayerFilters.Transform(c.Transform,w,h,optimize:optimize,label:label,fps:fps)},setpts=PTS-STARTPTS{(transitions?",format=gbrap,settb=AVTB":"+"+N(start)+"/TB")}[{label}]";
+            var end=$"setsar=1,{extend}{StudioLayerFilters.Transform(c.Transform,w,h,optimize:optimize,label:label,fps:fps)}{StudioEffects.Filter(c.Transform,w,h,fps,duration,label)},setpts=PTS-STARTPTS{(transitions?",format=gbrap,settb=AVTB":"+"+N(start)+"/TB")}[{label}]";
             if(c.Fit=="preencher") filters.Add($"[{i}:v]{StudioRecipe.SpeedFilter(c)}fps={fps},format=rgba,scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h},{end}");
             else if(c.Fit=="caber") filters.Add($"[{i}:v]{StudioRecipe.SpeedFilter(c)}fps={fps},format=rgba,scale={w}:{h}:force_original_aspect_ratio=decrease:force_divisible_by=2,pad={w}:{h}:(ow-iw)/2:(oh-ih)/2:color=black@0,{end}");
             else filters.Add($"[{i}:v]{StudioRecipe.SpeedFilter(c)}fps={fps},format=rgba,split[cb{i}][cf{i}];[cb{i}]scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h},scale={StudioRules.Even(w/8.0)}:{StudioRules.Even(h/8.0)},gblur=sigma=3,scale={w}:{h}[cblur{i}];[cf{i}]scale={w}:{h}:force_original_aspect_ratio=decrease:force_divisible_by=2[cfit{i}];[cblur{i}][cfit{i}]overlay=(W-w)/2:(H-h)/2:format=auto,{end}");
@@ -79,10 +80,22 @@ public static class StudioLayerRecipe
         foreach(var layer in layers.Where(v=>v.C.Order>=0)) Extra(layer);
         for(var i=0;i<p.Texts.Count;i++) {
             var t=p.Texts[i];
-            args.AddRange(["-loop","1","-framerate",fps.ToString(System.Globalization.CultureInfo.InvariantCulture),"-t",N(total),"-i",inputs.Texts[i]]);
             var n=index++; var label=$"ct{i}";
-            filters.Add($"[{n}:v]{StudioLayerFilters.Transform(t.Transform,w,h,-t.Start,optimize,label,fps)}[{label}]");
-            Compose(label,t.Transform,t.Start,t.End+((t.Id.StartsWith("legenda-") || t.Id.StartsWith("contagem-"))?0:1.0/fps));
+            var end=t.End+((t.Id.StartsWith("legenda-") || t.Id.StartsWith("contagem-"))?0:1.0/fps);
+            if(StudioEffects.Has(t.Transform)) {
+                // O texto com efeito corre no tempo dele; a máquina de escrever chega como sequência de imagens.
+                var duration=end-t.Start;var typewriter=StudioEffects.UsesTypewriter(t);
+                if(typewriter) args.AddRange(["-framerate",N(StudioEffects.TypewriterSteps(t,fps).Rate),"-i",inputs.Texts[i]]);
+                else args.AddRange(["-loop","1","-framerate",fps.ToString(System.Globalization.CultureInfo.InvariantCulture),"-t",N(total),"-i",inputs.Texts[i]]);
+                var prepare=typewriter
+                    ?$"fps={fps},format=rgba,tpad=stop_mode=clone:stop_duration={N(duration)},trim=duration={N(duration)},setpts=PTS-STARTPTS"
+                    :$"trim=start={N(t.Start)}:duration={N(duration)},setpts=PTS-STARTPTS";
+                filters.Add($"[{n}:v]{prepare},{StudioLayerFilters.Transform(t.Transform,w,h,0,optimize,label,fps)}{StudioEffects.Filter(t.Transform,w,h,fps,duration,label,t.X+t.Transform!.X-.5,t.Y+t.Transform.Y-.5)},setpts=PTS-STARTPTS+{N(t.Start)}/TB[{label}]");
+            } else {
+                args.AddRange(["-loop","1","-framerate",fps.ToString(System.Globalization.CultureInfo.InvariantCulture),"-t",N(total),"-i",inputs.Texts[i]]);
+                filters.Add($"[{n}:v]{StudioLayerFilters.Transform(t.Transform,w,h,-t.Start,optimize,label,fps)}[{label}]");
+            }
+            Compose(label,t.Transform,t.Start,end);
         }
         if(p.Output=="gif") {
             var(gw,gh)=StudioRules.GifSize(w,h);

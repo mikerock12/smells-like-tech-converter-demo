@@ -52,7 +52,7 @@ class CriacaoTest {
             val original=File(pasta,"original.png").apply {writeBytes(byteArrayOf(1,2,3,4))};val zip=File(pasta,"projeto.sltstudio")
             zip.outputStream().use {ArquivoDoProjeto.salvar(projeto(original.absolutePath),it)}
             val aberto=zip.inputStream().use {ArquivoDoProjeto.abrir(it,File(pasta,"reaberto"),File(pasta,"entrada.zip"))}
-            assertArrayEquals(original.readBytes(),File(aberto.clipes[0].arquivo).readBytes());assertEquals(4,aberto.versao)
+            assertArrayEquals(original.readBytes(),File(aberto.clipes[0].arquivo).readBytes());assertEquals(Estudio.VERSAO_DO_PROJETO,aberto.versao)
             val ruim=File(pasta,"ruim.zip");ZipOutputStream(ruim.outputStream()).use {it.putNextEntry(ZipEntry("../fora.txt"));it.write(byteArrayOf(1));it.closeEntry()}
             assertThrows(IllegalArgumentException::class.java) {ruim.inputStream().use {ArquivoDoProjeto.abrir(it,File(pasta,"recusado"),File(pasta,"temporario.zip"))}}
             assertFalse(File(pasta,"recusado").exists());assertFalse(File(pasta,"fora.txt").exists())

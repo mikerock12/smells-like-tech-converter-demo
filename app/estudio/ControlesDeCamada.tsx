@@ -1,6 +1,7 @@
 "use client";
 
 import { kenBurns, mudarBaseDaAnimacao } from "@/packages/converter-core/estudio-animacao.mjs";
+import { EFEITOS_CONTINUOS, EFEITOS_DE_ENTRADA, EFEITOS_DE_SAIDA } from "@/packages/converter-core/estudio-efeitos.mjs";
 import { useState } from "react";
 import { TRANSFORMACAO_PADRAO, type Transformacao } from "@/packages/converter-core/camadas.mjs";
 import { caberInteira, centralizar, guiasDaCamada, preencher, type Caixa, type Medidas } from "@/packages/converter-core/guias.mjs";
@@ -27,7 +28,7 @@ export default function ControlesDeCamada({ valor, mudar, permitirRecorte = true
   medidas?: Medidas | null; referencias?: Caixa[]; enquadrar?: (ajuste: "preencher" | "caber") => void;
 }) {
   const [tempo, setTempo] = useState(0);
-  const [secao, setSecao] = useState<"Cor" | "Posição" | "Recorte" | "Animação" | "Mescla">("Cor");
+  const [secao, setSecao] = useState<"Cor" | "Posição" | "Recorte" | "Efeitos" | "Animação" | "Mescla">("Cor");
   const t = { ...TRANSFORMACAO_PADRAO, ...valor };
   // Os controles mostram as guias em que a camada ficou, sem encaixar: encaixar prenderia o − e o +.
   const aplicar = (novo: Transformacao) => {
@@ -41,7 +42,7 @@ export default function ControlesDeCamada({ valor, mudar, permitirRecorte = true
   </div>);
   return <section className="estudio__detalhe" aria-label="Editar esta mídia">
     <strong>Editar esta mídia</strong>
-    <div className="estudio__linha" role="tablist" aria-label="Grupo de ajustes">{(["Cor", "Posição", "Recorte", "Animação", "Mescla"] as const).map(nome =>
+    <div className="estudio__linha" role="tablist" aria-label="Grupo de ajustes">{(["Cor", "Posição", "Recorte", "Efeitos", "Animação", "Mescla"] as const).map(nome =>
       <button key={nome} type="button" className={`estudio__chip${secao === nome ? " estudio__chip--ativo" : ""}`} aria-pressed={secao === nome} onClick={() => setSecao(nome)}>{nome}</button>)}
     </div>
     {secao === "Cor" && <>
@@ -70,6 +71,24 @@ export default function ControlesDeCamada({ valor, mudar, permitirRecorte = true
         <span><input type="checkbox" checked={t.removerFundo} onChange={e => mudar({ ...t, removerFundo: e.target.checked })} /> Remover o fundo desta mídia</span>
         <small>Processado no dispositivo. Em vídeos, a remoção é feita quadro a quadro e pode demorar.</small>
       </label>}
+    </>}
+    {secao === "Efeitos" && <>
+      <p><small>{permitirRecorte ? "Para a mídia entrar, sair ou se mexer sozinha. Fica ainda mais divertido com o fundo removido, num rosto ou personagem." : "Para o texto entrar, sair ou se mexer sozinho."}</small></p>
+      <label className="estudio__campo">Entrada<select value={t.efeitoEntrada ?? "nenhum"} onChange={e => mudar({ ...t, efeitoEntrada: e.target.value })}>
+        {/* A máquina de escrever só faz sentido em texto. */}
+        {EFEITOS_DE_ENTRADA.filter(e => e.id !== "maquina" || !permitirRecorte).map(e => <option key={e.id} value={e.id}>{e.titulo}</option>)}
+      </select></label>
+      <div className="estudio__campo"><span>Duração da entrada: {(t.duracaoEntrada ?? .6).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} s</span>
+        <Deslizante rotulo="Duração da entrada" min={.1} max={10} passo={.1} valor={t.duracaoEntrada ?? .6} mudar={v => mudar({ ...t, duracaoEntrada: v })} /></div>
+      <label className="estudio__campo">Saída<select value={t.efeitoSaida ?? "nenhum"} onChange={e => mudar({ ...t, efeitoSaida: e.target.value })}>
+        {EFEITOS_DE_SAIDA.map(e => <option key={e.id} value={e.id}>{e.titulo}</option>)}
+      </select></label>
+      <div className="estudio__campo"><span>Duração da saída: {(t.duracaoSaida ?? .6).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} s</span>
+        <Deslizante rotulo="Duração da saída" min={.1} max={10} passo={.1} valor={t.duracaoSaida ?? .6} mudar={v => mudar({ ...t, duracaoSaida: v })} /></div>
+      <label className="estudio__campo">Enquanto aparece<select value={t.efeitoContinuo ?? "nenhum"} onChange={e => mudar({ ...t, efeitoContinuo: e.target.value })}>
+        {EFEITOS_CONTINUOS.map(e => <option key={e.id} value={e.id}>{e.titulo}</option>)}
+      </select></label>
+      <p><small>Toque em Tocar para ver o efeito em movimento.</small></p>
     </>}
     {secao === "Animação" && <>
       <div className="estudio__linha"><button type="button" className="button" onClick={()=>mudar(kenBurns(t,duracao))}>Ken Burns: aproximar</button>

@@ -109,17 +109,22 @@ object Exportador {
             original.textos.none { it.transformacao?.quadrosChave?.isNotEmpty() == true }
         val projeto = if (quadroIsolado) {
             val tempo = original.quadro.coerceIn(0.0, maxOf(0.0, Estudio.duracaoTotal(original) - 1.0 / original.fps))
-            val (_, clipe, ponto) = Estudio.clipeNoTempo(original, tempo)!!
+            val (_, clipeOriginal, ponto) = Estudio.clipeNoTempo(original, tempo)!!
+            // O quadro parado mostra o efeito daquele instante sem renderizar a linha do tempo.
+            val clipe = if (Efeitos.tem(clipeOriginal.transformacao)) Estudio.segmentos(original).first { it.id == clipeOriginal.id }.let { s ->
+                clipeOriginal.copy(transformacao = Efeitos.congelar(clipeOriginal.transformacao!!, tempo - s.inicio, s.fim - s.inicio, original.largura, original.altura))
+            } else clipeOriginal
             val camadas = Estudio.camadasNoTempo(original, tempo).map { c ->
                 var deslocamento = tempo - c.inicio + c.deslocamento
                 if (c.tipo != "imagem") {
                     val duracao = Ffmpeg.sondar(contexto, File(c.arquivo)).duracaoSegundos
                     if (duracao != null && duracao > 0) deslocamento = if (c.repetir) deslocamento % duracao else minOf(deslocamento, maxOf(0.0, duracao - 1.0 / original.fps))
                 }
-                c.copy(inicio = 0.0, fim = .1, deslocamento = deslocamento, repetir = false)
+                val congelada = if (Efeitos.tem(c.transformacao)) Efeitos.congelar(c.transformacao!!, tempo - c.inicio, c.fim - c.inicio, original.largura, original.altura) else c.transformacao
+                c.copy(inicio = 0.0, fim = .1, deslocamento = deslocamento, repetir = false, transformacao = congelada)
             }
             original.copy(quadro = 0.0, clipes = listOf(if (clipe.ehImagem) clipe.copy(duracao = .1, transicao = null) else clipe.copy(inicio = ponto, fim = ponto + .1, velocidade = 1.0, transicao = null)),
-                camadas = camadas, textos = Estudio.textosNoTempo(original, tempo).map { it.copy(inicio = 0.0, fim = .1) }, audios = emptyList())
+                camadas = camadas, textos = Estudio.textosNoTempo(original, tempo).map { congelarTexto(it, tempo, original) }, audios = emptyList())
         } else original
         Estudio.problemas(projeto).takeIf { it.isNotEmpty() }?.let { throw ErroDeConversao(it.joinToString(" ")) }
         val pasta = File(contexto.cacheDir, "estudio-exportar-${System.nanoTime()}").apply { mkdirs() }
@@ -165,7 +170,13 @@ object Exportador {
             val textos = if (projeto.saida == "audio" || projeto.saida == "texto") emptyList() else {
                 val desenho = DesenhoDoTexto(contexto)
                 projeto.textos.mapIndexed { j, texto ->
-                    File(pasta, "texto-$j.png").also { png -> salvarPng(desenho.imagem(texto, projeto.largura, projeto.altura), png) }.absolutePath
+                    if (Efeitos.usaMaquina(texto)) {
+                        // Uma imagem por passo da digitação; a receita lê a sequência.
+                        val p = Efeitos.passosDaMaquina(texto, projeto.fps)
+                        for (k in 1..p.passos) salvarPng(desenho.imagem(texto.copy(letrasVisiveis = Efeitos.letrasNoPasso(p.letras, p.passos, k)), projeto.largura, projeto.altura),
+                            File(pasta, "texto-$j-${k.toString().padStart(4, '0')}.png"))
+                        File(pasta, "texto-$j-%04d.png").absolutePath
+                    } else File(pasta, "texto-$j.png").also { png -> salvarPng(desenho.imagem(texto, projeto.largura, projeto.altura), png) }.absolutePath
                 }
             }
             val camadasPreparadas = projeto.camadas.toMutableList()
@@ -209,6 +220,16 @@ object Exportador {
         } finally {
             pasta.deleteRecursively()
         }
+    }
+
+    /** O texto de um quadro parado: efeito congelado e, na máquina de escrever, só as letras já digitadas. */
+    private fun congelarTexto(texto: Texto, tempo: Double, projeto: Projeto): Texto {
+        val parado = texto.copy(inicio = 0.0, fim = .1)
+        val t = texto.transformacao?.takeIf(Efeitos::tem) ?: return parado
+        return parado.copy(
+            transformacao = Efeitos.congelar(t, tempo - texto.inicio, texto.fim - texto.inicio, projeto.largura, projeto.altura, texto.x + t.x - .5, texto.y + t.y - .5),
+            letrasVisiveis = if (Efeitos.usaMaquina(texto)) Efeitos.letrasVisiveis(texto, tempo - texto.inicio, projeto.fps) else null,
+        )
     }
 
     /** H.264 do celular (quadros crus pelo pipe + AAC à parte, depois juntos); senão MPEG-4 do FFmpeg. */

@@ -48,7 +48,7 @@ public sealed class StudioCreationTests
             var file=Path.Combine(directory,"original.png");File.WriteAllBytes(file,[1,2,3,4]);
             using var memory=new MemoryStream();StudioArchive.Save(Project(file),memory);memory.Position=0;
             var opened=StudioArchive.Open(memory,Path.Combine(directory,"reaberto"));Assert.Equal(new byte[]{1,2,3,4},File.ReadAllBytes(opened.Clips[0].File));
-            Assert.Equal(4,opened.Version);
+            Assert.Equal(StudioRules.ProjectVersion,opened.Version);
             using var bad=new MemoryStream();using(var zip=new ZipArchive(bad,ZipArchiveMode.Create,true)) {using var writer=new StreamWriter(zip.CreateEntry("../fora.txt").Open());writer.Write("fora");}
             bad.Position=0;Assert.Throws<IOException>(()=>StudioArchive.Open(bad,Path.Combine(directory,"recusado")));
             Assert.False(Directory.Exists(Path.Combine(directory,"recusado")));Assert.False(File.Exists(Path.Combine(directory,"fora.txt")));

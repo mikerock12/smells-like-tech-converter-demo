@@ -44,7 +44,8 @@ function corEMascaraNaOrigem(t, w, h, fps, rotulo, partes) {
 export function filtroDaTransformacao(transformacao, w, h, deslocamento = 0, otimizar = false, rotulo = "transformacao", fps = 30) {
   const t = { ...TRANSFORMACAO_PADRAO, ...transformacao };
   if (otimizar) {
-    const candidato = { ...t, mescla: "normal", removerFundo: false, mascara: t.mascara ?? "nenhuma", quadrosChave: t.quadrosChave ?? [], tempoDaAnimacao: 0 };
+    const candidato = { ...t, mescla: "normal", removerFundo: false, mascara: t.mascara ?? "nenhuma", quadrosChave: t.quadrosChave ?? [], tempoDaAnimacao: 0,
+      efeitoEntrada: "nenhum", duracaoEntrada: TRANSFORMACAO_PADRAO.duracaoEntrada, efeitoSaida: "nenhum", duracaoSaida: TRANSFORMACAO_PADRAO.duracaoSaida, efeitoContinuo: "nenhum" };
     const padrao = { ...TRANSFORMACAO_PADRAO, mascara: "nenhuma", quadrosChave: [], tempoDaAnimacao: 0 };
     const identidade = Object.keys(padrao).every(k => JSON.stringify(candidato[k]) === JSON.stringify(padrao[k]));
     if (identidade) return "format=rgba";

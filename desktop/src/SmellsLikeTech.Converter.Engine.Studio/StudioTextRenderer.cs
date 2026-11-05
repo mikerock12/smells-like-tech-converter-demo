@@ -45,27 +45,46 @@ public sealed class StudioTextRenderer(string fontsDirectory)
 
         var fill = Color(text.Color) ?? MagickColors.White;
         var outline = Color(text.Outline);
+        var remaining = text.VisibleLetters;
         for (var i = 0; i < lines.Count; i++)
         {
             // Linha centralizada na sua faixa de altura: a base fica abaixo do topo pela subida da letra.
             var baseline = top + (i * lineHeight) + ((lineHeight - (ascent + descent)) / 2) + ascent;
-            if (outline is not null)
+            // Máquina de escrever: as letras aparecem no lugar final, sem a linha dançar ao centralizar.
+            var line = lines[i];
+            var x = centerX;
+            var alignment = TextAlignment.Center;
+            if (remaining is { } visible)
             {
-                Draw(image, font, size, lines[i], centerX, baseline, MagickColors.Transparent, outline, size * StudioRules.TextOutline * 2);
+                var runes = line.EnumerateRunes().ToList();
+                var shown = Math.Clamp(visible, 0, runes.Count);
+                remaining = visible - runes.Count - 1;
+                line = string.Concat(runes.Take(shown).Select(r => r.ToString()));
+                x = centerX - (widths[i] / 2);
+                alignment = TextAlignment.Left;
+                if (line.Length == 0)
+                {
+                    continue;
+                }
             }
 
-            Draw(image, font, size, lines[i], centerX, baseline, fill, null, 0);
+            if (outline is not null)
+            {
+                Draw(image, font, size, line, x, baseline, MagickColors.Transparent, outline, size * StudioRules.TextOutline * 2, alignment);
+            }
+
+            Draw(image, font, size, line, x, baseline, fill, null, 0, alignment);
         }
 
         image.Write(outputPath, MagickFormat.Png32);
     }
 
-    private static void Draw(MagickImage image, string font, double size, string line, double x, double y, IMagickColor<byte> fill, IMagickColor<byte>? stroke, double strokeWidth)
+    private static void Draw(MagickImage image, string font, double size, string line, double x, double y, IMagickColor<byte> fill, IMagickColor<byte>? stroke, double strokeWidth, TextAlignment alignment)
     {
         var drawables = new Drawables()
             .Font(font)
             .FontPointSize(size)
-            .TextAlignment(TextAlignment.Center)
+            .TextAlignment(alignment)
             .FillColor(fill);
         if (stroke is not null)
         {

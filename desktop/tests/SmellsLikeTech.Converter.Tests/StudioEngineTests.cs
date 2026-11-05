@@ -222,6 +222,39 @@ public sealed class StudioEngineTests : IDisposable
         Assert.InRange(info.Duration!.Value.TotalSeconds,1.5,1.8);
     }
 
+    [Fact]
+    public async Task ExportaEfeitosEMaquinaDeEscrever()
+    {
+        if (!Available)
+        {
+            return;
+        }
+
+        var (video, foto, _) = await CreateSamplesAsync();
+        var project = StudioRules.NewProject("personalizado", "video", 320, 240) with
+        {
+            Fps = 15,
+            Clips = [new StudioClip { Id = "c", File = video, Kind = "video", Start = 0, End = 3, Fit = "caber", Volume = 1,
+                Transform = new StudioTransform { EntryEffect = "zoom", EntryDuration = .4, ExitEffect = "desintegrar", ExitDuration = .5 } }],
+            Layers = [new StudioLayer { Id = "l", File = foto, Kind = "imagem", Start = .5, End = 2.5,
+                Transform = new StudioTransform { Scale = .4, EntryEffect = "quicar", EntryDuration = .5, ExitEffect = "estilhacos", ExitDuration = .5, LoopEffect = "balancar" } }],
+            Texts = [new StudioText { Id = "t", Text = "Digitando 🦝", Start = .2, End = 2.5, Y = .2, Size = .1, Color = "#FFFF00", Outline = "#000000", Font = "bangers",
+                Transform = new StudioTransform { EntryEffect = "maquina", EntryDuration = 1, ExitEffect = "cima", ExitDuration = .4 } }]
+        };
+        var result = await ExportAsync(project, [video, foto]);
+        var info = await Probe(result.OutputFiles[0]);
+        Assert.True(info.HasVideo && info.HasAudio);
+        Assert.InRange(info.Duration!.Value.TotalSeconds, 2.9, 3.2);
+
+        // O quadro parado monta o efeito daquele instante, sem renderizar a linha do tempo.
+        foreach (var frame in new[] { .1, .7, 1.5, 2.4 })
+        {
+            var still = await ExportAsync(project with { Output = "imagem", Frame = frame }, [video, foto]);
+            using var image = new MagickImage(still.OutputFiles[0]);
+            Assert.Equal((320u, 240u), (image.Width, image.Height));
+        }
+    }
+
     private async Task<EngineResult> ExportAsync(StudioProject project, IReadOnlyList<string> inputs)
     {
         var engineOptions = FfmpegOptions.Resolve(ffmpeg!, ffprobe!, [], HardwareAcceleration.Cpu);

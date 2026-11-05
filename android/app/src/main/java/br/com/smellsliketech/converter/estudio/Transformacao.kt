@@ -13,13 +13,20 @@ data class Transformacao(
     val saturacao: Double = 0.0, val removerFundo: Boolean = false,
     val mascara: String = "nenhuma", val quadrosChave: List<QuadroChave> = emptyList(),
     val tempoDaAnimacao: Double = 0.0,
+    val efeitoEntrada: String = "nenhum", val duracaoEntrada: Double = Efeitos.DURACAO_PADRAO,
+    val efeitoSaida: String = "nenhum", val duracaoSaida: Double = Efeitos.DURACAO_PADRAO,
+    val efeitoContinuo: String = "nenhum",
 ) {
+    fun semEfeitos() = copy(efeitoEntrada = "nenhum", duracaoEntrada = Efeitos.DURACAO_PADRAO, efeitoSaida = "nenhum", duracaoSaida = Efeitos.DURACAO_PADRAO, efeitoContinuo = "nenhum")
+
     fun paraJson() = JSONObject().put("x", x).put("y", y).put("escala", escala)
         .put("giro", giro).put("giroX", giroX).put("giroY", giroY)
         .put("espelharX", espelharX).put("espelharY", espelharY)
         .put("opacidade", opacidade).put("mescla", mescla).put("filtro", filtro)
         .put("brilho", brilho).put("contraste", contraste).put("saturacao", saturacao).put("removerFundo", removerFundo)
         .put("tempoDaAnimacao",tempoDaAnimacao).put("mascara", mascara).put("quadrosChave", JSONArray(quadrosChave.map { it.paraJson() }))
+        .put("efeitoEntrada", efeitoEntrada).put("duracaoEntrada", duracaoEntrada).put("efeitoSaida", efeitoSaida)
+        .put("duracaoSaida", duracaoSaida).put("efeitoContinuo", efeitoContinuo)
 
     fun problema(): String? {
         val limites = listOf(
@@ -30,7 +37,7 @@ data class Transformacao(
         for ((nome, valor, intervalo) in limites) if (!valor.isFinite() || valor !in intervalo) return "Ajuste inválido da camada: $nome."
         if (mescla !in listOf("normal", "multiplicar", "clarear", "sobrepor")) return "Modo de mesclagem desconhecido."
         if (filtro !in listOf("original", "vivido", "pb", "sepia", "vintage", "frio", "quente", "negativo")) return "Filtro desconhecido."
-        return Animacao.problema(this)
+        return Animacao.problema(this) ?: Efeitos.problema(this)
     }
     companion object {
         fun deJson(j: JSONObject) = Transformacao(j.optDouble("x", .5), j.optDouble("y", .5), j.optDouble("escala", 1.0),
@@ -38,7 +45,9 @@ data class Transformacao(
             j.optBoolean("espelharX"), j.optBoolean("espelharY"), j.optDouble("opacidade", 1.0),
             j.optString("mescla", "normal"), j.optString("filtro", "original"), j.optDouble("brilho", 0.0),
             j.optDouble("contraste", 0.0), j.optDouble("saturacao", 0.0), j.optBoolean("removerFundo"), j.optString("mascara", "nenhuma"),
-            j.optJSONArray("quadrosChave")?.let { a -> (0 until a.length()).map { QuadroChave.deJson(a.getJSONObject(it)) } } ?: emptyList(), j.optDouble("tempoDaAnimacao",0.0))
+            j.optJSONArray("quadrosChave")?.let { a -> (0 until a.length()).map { QuadroChave.deJson(a.getJSONObject(it)) } } ?: emptyList(), j.optDouble("tempoDaAnimacao",0.0),
+            j.optString("efeitoEntrada", "nenhum"), j.optDouble("duracaoEntrada", Efeitos.DURACAO_PADRAO),
+            j.optString("efeitoSaida", "nenhum"), j.optDouble("duracaoSaida", Efeitos.DURACAO_PADRAO), j.optString("efeitoContinuo", "nenhum"))
     }
 }
 

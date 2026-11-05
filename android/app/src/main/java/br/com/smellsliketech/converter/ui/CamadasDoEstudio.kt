@@ -36,7 +36,7 @@ fun ControlesDeTransformacao(
     }
     Text("Editar esta mídia", style = MaterialTheme.typography.titleSmall)
     FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-        listOf("Cor", "Posição", "Recorte", "Animação", "Mescla").forEach { nome ->
+        listOf("Cor", "Posição", "Recorte", "Efeitos", "Animação", "Mescla").forEach { nome ->
             FilterChip(secao == nome, { secao = nome }, label = { Text(nome) })
         }
     }
@@ -56,6 +56,25 @@ fun ControlesDeTransformacao(
             FilterChip(t.mascara==id, { mudar(t.copy(mascara=id)) }, label={Text(nome)})
         }
     }
+    }
+    if (secao == "Efeitos") {
+        Text(if (permitirRecorte) "Para a mídia entrar, sair ou se mexer sozinha. Fica ainda mais divertido com o fundo removido, num rosto ou personagem." else "Para o texto entrar, sair ou se mexer sozinho.", style = MaterialTheme.typography.bodySmall)
+        Text("Entrada")
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            // A máquina de escrever só faz sentido em texto.
+            Efeitos.ENTRADAS.filter { it.first != "maquina" || !permitirRecorte }.forEach { (id, nome) -> FilterChip(t.efeitoEntrada == id, { mudar(t.copy(efeitoEntrada = id)) }, label = { Text(nome) }) }
+        }
+        ControleDaCamada("Duração da entrada", t.duracaoEntrada, .1..10.0, " s") { mudar(t.copy(duracaoEntrada = it)) }
+        Text("Saída")
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            Efeitos.SAIDAS.forEach { (id, nome) -> FilterChip(t.efeitoSaida == id, { mudar(t.copy(efeitoSaida = id)) }, label = { Text(nome) }) }
+        }
+        ControleDaCamada("Duração da saída", t.duracaoSaida, .1..10.0, " s") { mudar(t.copy(duracaoSaida = it)) }
+        Text("Enquanto aparece")
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            Efeitos.CONTINUOS.forEach { (id, nome) -> FilterChip(t.efeitoContinuo == id, { mudar(t.copy(efeitoContinuo = id)) }, label = { Text(nome) }) }
+        }
+        Text("Toque em Tocar para ver o efeito em movimento; o quadro parado mostra como ele está naquele instante.", style = MaterialTheme.typography.bodySmall)
     }
     if (secao == "Animação") {
         var tempo by rememberSaveable { mutableStateOf(0.0) }

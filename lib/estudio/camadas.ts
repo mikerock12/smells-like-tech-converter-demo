@@ -1,4 +1,5 @@
 import { movimentoNoTempo } from "@/packages/converter-core/estudio-animacao.mjs";
+import { blocosDoQuadro, estadoDoEfeito, pedacosDoQuadro, ruidoDoBloco } from "@/packages/converter-core/estudio-efeitos.mjs";
 import { cantosDaCamada, homografia, matrizDeCor, TRANSFORMACAO_PADRAO, type Transformacao } from "@/packages/converter-core/camadas.mjs";
 
 type Contexto = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
@@ -70,7 +71,22 @@ class Projetor {
 }
 
 let projetor: Projetor | null = null;
-export function desenharCamada(ctx: Contexto, imagem: Imagem, largura: number, altura: number, transformacao: Partial<Transformacao> = {}, tempo = 0): void {
+/** Desintegrar: só os blocos sorteados até `q` continuam, como na máscara da exportação. */
+function comParticulas(fonte: OffscreenCanvas, largura: number, altura: number, q: number): OffscreenCanvas {
+  const { mw, mh } = blocosDoQuadro(largura, altura);
+  const mascara = new OffscreenCanvas(mw, mh), pontos = new ImageData(mw, mh);
+  for (let y = 0; y < mh; y++) for (let x = 0; x < mw; x++)
+    if (ruidoDoBloco(x, y) * .7 + x / mw * .3 < q) pontos.data[(y * mw + x) * 4 + 3] = 255;
+  mascara.getContext("2d")!.putImageData(pontos, 0, 0);
+  const tela = new OffscreenCanvas(largura, altura), c = tela.getContext("2d")!;
+  c.drawImage(fonte, 0, 0);
+  c.globalCompositeOperation = "destination-in";
+  c.imageSmoothingEnabled = false;
+  c.drawImage(mascara, 0, 0, largura, altura);
+  return tela;
+}
+
+export function desenharCamada(ctx: Contexto, imagem: Imagem, largura: number, altura: number, transformacao: Partial<Transformacao> = {}, tempo = 0, duracao = 0, pivo: { x: number; y: number } | null = null): void {
   const t = { ...TRANSFORMACAO_PADRAO, ...transformacao };
   if (t.mascara && t.mascara !== "nenhuma") {
     const tela = new OffscreenCanvas(largura,altura), c = tela.getContext("2d")!;
@@ -83,9 +99,31 @@ export function desenharCamada(ctx: Contexto, imagem: Imagem, largura: number, a
   }
   const desenho = (projetor ??= new Projetor()).desenhar(imagem, largura, altura, t, tempo);
   if (!desenho) return;
+  // Efeitos: as fórmulas de estudio-efeitos.mjs, as mesmas da exportação pelo FFmpeg.
+  const e = estadoDoEfeito(t, tempo, duracao);
+  const px = (pivo?.x ?? t.x) * largura, py = (pivo?.y ?? t.y) * altura;
+  const fonte = e.particulas < 1 ? comParticulas(desenho, largura, altura, e.particulas) : desenho;
   ctx.save();
-  ctx.globalAlpha = t.opacidade;
+  ctx.globalAlpha = t.opacidade * e.alfa;
   ctx.globalCompositeOperation = mesclas[t.mescla] ?? "source-over";
-  ctx.drawImage(desenho, 0, 0);
+  if (e.matiz) ctx.filter = `hue-rotate(${e.matiz % 360}deg)`;
+  if (e.pedacos > 0) {
+    for (const p of pedacosDoQuadro(largura, altura, px, py).lista) {
+      if (!p) continue;
+      ctx.save();
+      ctx.translate(p.cx + p.vx * e.pedacos, p.cy + p.vy * e.pedacos);
+      ctx.rotate(p.volta * e.pedacos);
+      ctx.drawImage(fonte, p.x0, p.y0, p.cw, p.ch, -p.cw / 2, -p.ch / 2, p.cw, p.ch);
+      ctx.restore();
+    }
+  } else {
+    if (e.dx || e.dy || e.giro || e.sx !== 1 || e.sy !== 1) {
+      ctx.translate(px + e.dx * largura, py + e.dy * altura);
+      ctx.rotate(e.giro);
+      ctx.scale(e.sx, e.sy);
+      ctx.translate(-px, -py);
+    }
+    ctx.drawImage(fonte, 0, 0);
+  }
   ctx.restore();
 }

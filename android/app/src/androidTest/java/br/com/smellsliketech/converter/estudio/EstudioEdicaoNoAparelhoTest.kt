@@ -110,6 +110,7 @@ class EstudioEdicaoNoAparelhoTest {
             }
             tocar("Posição");no("Giro no plano (Z)");no("Inclinar para frente/trás (X)");no("Tamanho")
             tocar("Recorte");no("Sem máscara");no("Círculo");no("Cantos arredondados")
+            tocar("Efeitos");no("Surgir de cima");no("Estilhaçar");no("Gelatina")
             tocar("Animação");no("Ken Burns: aproximar")
             tela {modelo.irPara(1.0)}
             tocar("Dividir clipe no cursor")

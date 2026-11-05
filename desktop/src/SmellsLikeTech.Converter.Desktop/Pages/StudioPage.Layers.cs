@@ -70,9 +70,25 @@ public sealed partial class StudioPage
             remove.Toggled+=(_,_)=>change((read()??new StudioTransform()) with {RemoveBackground=remove.IsOn});recorte.Children.Add(remove);
             recorte.Children.Add(Muted("Processado no dispositivo. Vídeos são recortados quadro a quadro e podem demorar."));
         }
+        var efeitos=new StackPanel {Spacing=8};
+        efeitos.Children.Add(Muted(allowRemoval?"Para a mídia entrar, sair ou se mexer sozinha. Fica ainda mais divertido com o fundo removido, num rosto ou personagem.":"Para o texto entrar, sair ou se mexer sozinho."));
+        void EffectChoice(string title,IEnumerable<(string Id,string Title)> options,string current,Func<StudioTransform,string,StudioTransform> update) {
+            var box=new ComboBox {Header=title,HorizontalAlignment=HorizontalAlignment.Stretch};
+            foreach(var (id,name) in options) {box.Items.Add(new ComboBoxItem {Content=name,Tag=id});if(id==current) box.SelectedIndex=box.Items.Count-1;}
+            box.SelectionChanged+=(_,_)=>{if(box.SelectedItem is ComboBoxItem {Tag:string id}) change(update(read()??new StudioTransform(),id));};
+            efeitos.Children.Add(box);
+        }
+        // A máquina de escrever só faz sentido em texto.
+        EffectChoice("Entrada",StudioEffects.Entries.Where(e=>e.Id!="maquina"||!allowRemoval),t.EntryEffect,(v,id)=>v with {EntryEffect=id});
+        efeitos.Children.Add(Slider("Duração da entrada: {0} s",t.EntryDuration,.1,10,.1,v=>v.ToString("0.0",PtBr),v=>change((read()??new StudioTransform()) with {EntryDuration=v}),null));
+        EffectChoice("Saída",StudioEffects.Exits,t.ExitEffect,(v,id)=>v with {ExitEffect=id});
+        efeitos.Children.Add(Slider("Duração da saída: {0} s",t.ExitDuration,.1,10,.1,v=>v.ToString("0.0",PtBr),v=>change((read()??new StudioTransform()) with {ExitDuration=v}),null));
+        EffectChoice("Enquanto aparece",StudioEffects.Loops,t.LoopEffect,(v,id)=>v with {LoopEffect=id});
+        efeitos.Children.Add(Muted("Toque em Reproduzir para ver o efeito em movimento; o quadro parado mostra como ele está naquele instante."));
         FrameworkElement Group(string title,UIElement content,bool expanded=false) => new Expander {Header=title,Content=content,IsExpanded=expanded,HorizontalAlignment=HorizontalAlignment.Stretch,HorizontalContentAlignment=HorizontalAlignment.Stretch};
         body.Children.Add(Muted("Editar esta mídia"));
         body.Children.Add(Group("Cor",cor,true));body.Children.Add(Group("Posição",posicao));body.Children.Add(Group("Recorte",recorte));
+        body.Children.Add(Group("Efeitos",efeitos));
         body.Children.Add(AnimationControls(read,change,duration));body.Children.Add(Group("Mescla",mescla));
         return body;
     }

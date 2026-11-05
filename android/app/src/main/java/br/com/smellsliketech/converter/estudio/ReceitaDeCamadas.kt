@@ -24,9 +24,10 @@ object ReceitaDeCamadas {
             }
             args+=listOf("-t",n(duracao),"-i",entradas.camadas[i])
             val pad="tpad=stop_mode=clone:stop_duration=${n(duracao)},trim=duration=${n(duracao)},"
-            val animada=c.transformacao?.quadrosChave?.isNotEmpty()==true
+            // Quadros-chave e efeitos contam o tempo da mídia: o fluxo já tem de ter a duração final.
+            val animada=c.transformacao?.quadrosChave?.isNotEmpty()==true||Efeitos.tem(c.transformacao)
             val entrada=indice++; val rotulo="ce$i"
-            filtros+="[$entrada:v]fps=$fps,format=rgba,scale=$w:$h:force_original_aspect_ratio=decrease:force_divisible_by=2,pad=$w:$h:(ow-iw)/2:(oh-ih)/2:color=black@0,setsar=1,${if(animada) pad else ""}${FiltrosDeCamada.transformacao(c.transformacao,w,h,otimizar=otimizar,rotulo=rotulo,fps=fps)},${if(animada) "" else pad}setpts=PTS-STARTPTS+${n(c.inicio)}/TB[$rotulo]"
+            filtros+="[$entrada:v]fps=$fps,format=rgba,scale=$w:$h:force_original_aspect_ratio=decrease:force_divisible_by=2,pad=$w:$h:(ow-iw)/2:(oh-ih)/2:color=black@0,setsar=1,${if(animada) pad else ""}${FiltrosDeCamada.transformacao(c.transformacao,w,h,otimizar=otimizar,rotulo=rotulo,fps=fps)}${Efeitos.filtro(c.transformacao,w,h,fps,duracao,rotulo)},${if(animada) "" else pad}setpts=PTS-STARTPTS+${n(c.inicio)}/TB[$rotulo]"
             compor(rotulo,c.transformacao,c.inicio,c.fim)
         }
         if(!transicoes) camadas.filter { it.first.ordem<0 }.forEach(::extra)
@@ -50,7 +51,7 @@ object ReceitaDeCamadas {
             inicio=lista[i].inicio
             val original=Estudio.duracaoDoClipe(c);val duracao=if(i==p.clipes.lastIndex) maxOf(original,total-inicio) else original; val rotulo="cp$i"
             val estender=if(duracao>original) "tpad=stop_mode=clone:stop_duration=${n(duracao-original)},trim=duration=${n(duracao)}," else ""
-            val fim="setsar=1,$estender${FiltrosDeCamada.transformacao(c.transformacao,w,h,otimizar=otimizar,rotulo=rotulo,fps=fps)},setpts=PTS-STARTPTS${if(transicoes) ",format=gbrap,settb=AVTB" else "+${n(inicio)}/TB"}[$rotulo]"
+            val fim="setsar=1,$estender${FiltrosDeCamada.transformacao(c.transformacao,w,h,otimizar=otimizar,rotulo=rotulo,fps=fps)}${Efeitos.filtro(c.transformacao,w,h,fps,duracao,rotulo)},setpts=PTS-STARTPTS${if(transicoes) ",format=gbrap,settb=AVTB" else "+${n(inicio)}/TB"}[$rotulo]"
             filtros+=when(c.ajuste) {
                 "preencher" -> "[$i:v]${Estudio.filtroDeVelocidade(c)}fps=$fps,format=rgba,scale=$w:$h:force_original_aspect_ratio=increase,crop=$w:$h,$fim"
                 "caber" -> "[$i:v]${Estudio.filtroDeVelocidade(c)}fps=$fps,format=rgba,scale=$w:$h:force_original_aspect_ratio=decrease:force_divisible_by=2,pad=$w:$h:(ow-iw)/2:(oh-ih)/2:color=black@0,$fim"
@@ -76,10 +77,21 @@ object ReceitaDeCamadas {
         }
         camadas.filter { it.first.ordem>=0 }.forEach(::extra)
         p.textos.forEachIndexed { i,t ->
-            args+=listOf("-loop","1","-framerate",fps.toString(),"-t",n(total),"-i",entradas.textos[i])
             val entrada=indice++; val rotulo="ct$i"
-            filtros+="[$entrada:v]${FiltrosDeCamada.transformacao(t.transformacao,w,h,-t.inicio,otimizar,rotulo,fps)}[$rotulo]"
-            compor(rotulo,t.transformacao,t.inicio,t.fim+(if((t.id.startsWith("legenda-") || t.id.startsWith("contagem-"))) 0.0 else 1.0/fps))
+            val fim=t.fim+(if((t.id.startsWith("legenda-") || t.id.startsWith("contagem-"))) 0.0 else 1.0/fps)
+            if(Efeitos.tem(t.transformacao)) {
+                // O texto com efeito corre no tempo dele; a máquina de escrever chega como sequência de imagens.
+                val duracao=fim-t.inicio; val maquina=Efeitos.usaMaquina(t); val tr=t.transformacao!!
+                if(maquina) args+=listOf("-framerate",n(Efeitos.passosDaMaquina(t,fps).taxa),"-i",entradas.textos[i])
+                else args+=listOf("-loop","1","-framerate",fps.toString(),"-t",n(total),"-i",entradas.textos[i])
+                val preparo=if(maquina) "fps=$fps,format=rgba,tpad=stop_mode=clone:stop_duration=${n(duracao)},trim=duration=${n(duracao)},setpts=PTS-STARTPTS"
+                    else "trim=start=${n(t.inicio)}:duration=${n(duracao)},setpts=PTS-STARTPTS"
+                filtros+="[$entrada:v]$preparo,${FiltrosDeCamada.transformacao(tr,w,h,0.0,otimizar,rotulo,fps)}${Efeitos.filtro(tr,w,h,fps,duracao,rotulo,t.x+tr.x-.5,t.y+tr.y-.5)},setpts=PTS-STARTPTS+${n(t.inicio)}/TB[$rotulo]"
+            } else {
+                args+=listOf("-loop","1","-framerate",fps.toString(),"-t",n(total),"-i",entradas.textos[i])
+                filtros+="[$entrada:v]${FiltrosDeCamada.transformacao(t.transformacao,w,h,-t.inicio,otimizar,rotulo,fps)}[$rotulo]"
+            }
+            compor(rotulo,t.transformacao,t.inicio,fim)
         }
         if(p.saida=="gif") {
             val(gw,gh)=Estudio.tamanhoDoGif(w,h)

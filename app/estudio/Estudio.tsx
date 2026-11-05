@@ -27,7 +27,7 @@ import {
   type Texto,
 } from "@/packages/converter-core/estudio.mjs";
 import { conferirEstudio, type BloqueioDoEstudio } from "@/packages/converter-core/estudio-plano.mjs";
-import { camadasNoTempo } from "@/packages/converter-core/estudio.mjs";
+import { camadasNoTempo, VERSAO_DO_PROJETO } from "@/packages/converter-core/estudio.mjs";
 import { mudarBaseDaAnimacao } from "@/packages/converter-core/estudio-animacao.mjs";
 import { dividirClipe } from "@/packages/converter-core/estudio-criacao.mjs";
 import { TRANSFORMACAO_PADRAO, type Transformacao } from "@/packages/converter-core/camadas.mjs";
@@ -38,6 +38,7 @@ import { limite as limiteDoPlano } from "@/packages/converter-core/precos.mjs";
 
 import { ExportacaoCancelada, exportarNoNavegador, type Exportado } from "@/lib/estudio/exportar";
 import { textosDaLegenda } from "@/packages/converter-core/estudio-legendas.mjs";
+import { temEfeitos } from "@/packages/converter-core/estudio-efeitos.mjs";
 import { pedidoParaOPlugin } from "@/lib/estudio/plugin";
 import { aprenderVelocidade, pesoDaComposicao, SEGUNDOS_POR_QUADRO, QUALIDADES, qualidadePorId, quadrosRecortados, tempoEstimado, tempoLegivel, aplicarQualidade, VELOCIDADE_PADRAO, type Qualidade, type Velocidade } from "@/packages/converter-core/estudio-qualidade.mjs";
 import { salvarProjeto } from "@/lib/estudio/projetos";
@@ -241,7 +242,7 @@ export default function Estudio() {
     const tipo = arquivo.type === "image/gif" || /\.gif$/i.test(arquivo.name) ? "gif" : arquivo.type.startsWith("video/") ? "video" : "imagem";
     const chave = novoId("a"), id = novoId("camada");
     setArquivos(atuais => new Map(atuais).set(chave, arquivo));
-    mudar(p => ({ ...p, versao: 4, camadas: [...(p.camadas ?? []), {
+    mudar(p => ({ ...p, versao: VERSAO_DO_PROJETO, camadas: [...(p.camadas ?? []), {
       id, arquivo: chave, tipo, inicio: Math.min(instante, Math.max(0, total - .1)), fim: total,
       ordem: (p.camadas?.length ?? 0) + 1, transformacao: { escala: .5 },
     }] }));
@@ -364,6 +365,8 @@ export default function Estudio() {
     setResultado(null);
     const peloPlugin = !forcarNavegador && ligado && (projeto.saida === "texto" || !cabeNoNavegador(projeto));
     if(peloPlugin&&projeto.versao>=4&&(apresentacao?.versaoDoEstudio??1)<4) {setErro("Atualize o plugin para exportar projetos da Etapa 3.");return;}
+    const comEfeitos=[...projeto.clipes,...(projeto.camadas??[]),...projeto.textos].some(m=>temEfeitos(m.transformacao));
+    if(peloPlugin&&comEfeitos&&(apresentacao?.versaoDoEstudio??1)<5) {setErro("Atualize o plugin para exportar projetos com efeitos.");return;}
     const travou = conferirEstudio(projeto, pro ? "pro" : plano, { exportacoesHoje: usoDeHoje("estudio"), transcricaoRestante: restanteHoje(plano, "transcricao") });
     if (travou) {
       setBloqueio(travou);

@@ -1,5 +1,5 @@
 import { zipSync, unzipSync, strToU8, strFromU8 } from 'fflate';
-import { problemas } from './estudio.mjs';
+import { problemas, VERSAO_DO_PROJETO } from './estudio.mjs';
 import { arquivosDoProjeto, trocarArquivos, atualizarProjeto } from './estudio-criacao.mjs';
 
 const LIMITE = 512 * 1024 * 1024;
@@ -18,7 +18,7 @@ export async function salvarProjeto(p,arquivos) {
     const nome=`midias/${String(i).padStart(3,'0')}.${ext}`;nomes.set(ref,nome);
     zip[nome]=new Uint8Array(await f.arrayBuffer());
   }
-  zip['projeto.json']=strToU8(JSON.stringify(trocarArquivos({...p,versao:4},ref=>nomes.get(ref))));
+  zip['projeto.json']=strToU8(JSON.stringify(trocarArquivos({...p,versao:VERSAO_DO_PROJETO},ref=>nomes.get(ref))));
   const bytes=zipSync(zip,{level:0});return new Blob([new Uint8Array(bytes).buffer],{type:'application/zip'});
 }
 

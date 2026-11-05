@@ -112,6 +112,8 @@ data class Texto(
     val caixa: String? = null,
     val fonte: String = "padrao",
     val transformacao: Transformacao? = null,
+    /** Máquina de escrever: quantas letras desenhar nesta imagem. Não vai para o projeto. */
+    val letrasVisiveis: Int? = null,
 ) {
     fun paraJson(): JSONObject = JSONObject().put("id", id).put("texto", texto).put("inicio", inicio).put("fim", fim)
         .put("x", x).put("y", y).put("tamanho", tamanho).put("cor", cor)

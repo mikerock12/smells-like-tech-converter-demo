@@ -1,5 +1,6 @@
 import { receitaFfmpeg, duracaoDoClipe, duracaoTotal, tamanhoDoGif, FPS_DO_GIF, numero, temTransicoes, segmentos, duracaoDaTransicao, filtroDeVelocidade } from "./estudio.mjs";
 import { filtroDaTransformacao, filtroDoFundo, sobrepor } from "./camadas-ffmpeg.mjs";
+import { filtroDosEfeitos, passosDaMaquina, temEfeitos, usaMaquina } from "./estudio-efeitos.mjs";
 
 /** Caminho RGBA da receita; a receita antiga continua atendendo projetos sem camadas. */
 export function receitaComCamadas(p, entradas, otimizar = false) {
@@ -26,9 +27,10 @@ export function receitaComCamadas(p, entradas, otimizar = false) {
     }
     args.push("-t",numero(duracao),"-i",entradas.camadas[i]);
     const pad = `tpad=stop_mode=clone:stop_duration=${numero(duracao)},trim=duration=${numero(duracao)},`;
-    const animada = Boolean(c.transformacao?.quadrosChave?.length);
+    // Quadros-chave e efeitos contam o tempo da mídia: o fluxo já tem de ter a duração final.
+    const animada = Boolean(c.transformacao?.quadrosChave?.length) || temEfeitos(c.transformacao);
     const n = indice++, rotulo = `ce${i}`;
-    filtros.push(`[${n}:v]fps=${fps},format=rgba,scale=${w}:${h}:force_original_aspect_ratio=decrease:force_divisible_by=2,pad=${w}:${h}:(ow-iw)/2:(oh-ih)/2:color=black@0,setsar=1,${animada?pad:""}${filtroDaTransformacao(c.transformacao,w,h,0,otimizar,rotulo,fps)},${animada?"":pad}setpts=PTS-STARTPTS+${numero(c.inicio)}/TB[${rotulo}]`);
+    filtros.push(`[${n}:v]fps=${fps},format=rgba,scale=${w}:${h}:force_original_aspect_ratio=decrease:force_divisible_by=2,pad=${w}:${h}:(ow-iw)/2:(oh-ih)/2:color=black@0,setsar=1,${animada?pad:""}${filtroDaTransformacao(c.transformacao,w,h,0,otimizar,rotulo,fps)}${filtroDosEfeitos(c.transformacao,w,h,fps,duracao,rotulo)},${animada?"":pad}setpts=PTS-STARTPTS+${numero(c.inicio)}/TB[${rotulo}]`);
     compor(rotulo,c.transformacao,c.inicio,c.fim);
   };
   if(!transicoes) camadas.filter(({c}) => (c.ordem ?? 1) < 0).forEach(extra);
@@ -54,7 +56,7 @@ export function receitaComCamadas(p, entradas, otimizar = false) {
     inicio=lista[i].inicio;
     const original = duracaoDoClipe(c), duracao = i === p.clipes.length-1 ? Math.max(original,total-inicio) : original, rotulo = `cp${i}`;
     const estender = duracao > original ? `tpad=stop_mode=clone:stop_duration=${numero(duracao-original)},trim=duration=${numero(duracao)},` : "";
-    const fim = `setsar=1,${estender}${filtroDaTransformacao(c.transformacao,w,h,0,otimizar,rotulo,fps)},setpts=PTS-STARTPTS${transicoes?",format=gbrap,settb=AVTB":"+"+numero(inicio)+"/TB"}[${rotulo}]`;
+    const fim = `setsar=1,${estender}${filtroDaTransformacao(c.transformacao,w,h,0,otimizar,rotulo,fps)}${filtroDosEfeitos(c.transformacao,w,h,fps,duracao,rotulo)},setpts=PTS-STARTPTS${transicoes?",format=gbrap,settb=AVTB":"+"+numero(inicio)+"/TB"}[${rotulo}]`;
     if (c.ajuste === "preencher") filtros.push(`[${i}:v]${filtroDeVelocidade(c)}fps=${fps},format=rgba,scale=${w}:${h}:force_original_aspect_ratio=increase,crop=${w}:${h},${fim}`);
     else if (c.ajuste === "caber") filtros.push(`[${i}:v]${filtroDeVelocidade(c)}fps=${fps},format=rgba,scale=${w}:${h}:force_original_aspect_ratio=decrease:force_divisible_by=2,pad=${w}:${h}:(ow-iw)/2:(oh-ih)/2:color=black@0,${fim}`);
     else filtros.push(`[${i}:v]${filtroDeVelocidade(c)}fps=${fps},format=rgba,split[cb${i}][cf${i}];[cb${i}]scale=${w}:${h}:force_original_aspect_ratio=increase,crop=${w}:${h},scale=${Math.max(2,Math.round(w/16)*2)}:${Math.max(2,Math.round(h/16)*2)},gblur=sigma=3,scale=${w}:${h}[cblur${i}];[cf${i}]scale=${w}:${h}:force_original_aspect_ratio=decrease:force_divisible_by=2[cfit${i}];[cblur${i}][cfit${i}]overlay=(W-w)/2:(H-h)/2:format=auto,${fim}`);
@@ -79,10 +81,23 @@ export function receitaComCamadas(p, entradas, otimizar = false) {
   }
   camadas.filter(({c}) => (c.ordem ?? 1) >= 0).forEach(extra);
   p.textos.forEach((t,i) => {
-    args.push("-loop","1","-framerate",String(fps),"-t",numero(total),"-i",entradas.textos[i]);
     const n = indice++, rotulo = `ct${i}`;
-    filtros.push(`[${n}:v]${filtroDaTransformacao(t.transformacao,w,h,-t.inicio,otimizar,rotulo,fps)}[${rotulo}]`);
-    compor(rotulo,t.transformacao,t.inicio,t.fim+((t.id.startsWith("legenda-") || t.id.startsWith("contagem-"))?0:1/fps));
+    const fim = t.fim+((t.id.startsWith("legenda-") || t.id.startsWith("contagem-"))?0:1/fps);
+    if (temEfeitos(t.transformacao)) {
+      // O texto com efeito corre no tempo dele; a máquina de escrever chega como sequência de imagens.
+      const duracao = fim-t.inicio, maquina = usaMaquina(t);
+      if (maquina) args.push("-framerate",numero(passosDaMaquina(t,fps).taxa),"-i",entradas.textos[i]);
+      else args.push("-loop","1","-framerate",String(fps),"-t",numero(total),"-i",entradas.textos[i]);
+      const preparo = maquina
+        ? `fps=${fps},format=rgba,tpad=stop_mode=clone:stop_duration=${numero(duracao)},trim=duration=${numero(duracao)},setpts=PTS-STARTPTS`
+        : `trim=start=${numero(t.inicio)}:duration=${numero(duracao)},setpts=PTS-STARTPTS`;
+      const pivo = { x: t.x + (t.transformacao.x ?? .5) - .5, y: t.y + (t.transformacao.y ?? .5) - .5 };
+      filtros.push(`[${n}:v]${preparo},${filtroDaTransformacao(t.transformacao,w,h,0,otimizar,rotulo,fps)}${filtroDosEfeitos(t.transformacao,w,h,fps,duracao,rotulo,pivo)},setpts=PTS-STARTPTS+${numero(t.inicio)}/TB[${rotulo}]`);
+    } else {
+      args.push("-loop","1","-framerate",String(fps),"-t",numero(total),"-i",entradas.textos[i]);
+      filtros.push(`[${n}:v]${filtroDaTransformacao(t.transformacao,w,h,-t.inicio,otimizar,rotulo,fps)}[${rotulo}]`);
+    }
+    compor(rotulo,t.transformacao,t.inicio,fim);
   });
   if (p.saida === "gif") {
     const gif = tamanhoDoGif(w,h);

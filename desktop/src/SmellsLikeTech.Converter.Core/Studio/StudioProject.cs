@@ -65,6 +65,8 @@ public sealed record StudioClip
 /// <summary>Um texto por cima do video, com tempo e posicao.</summary>
 public sealed record StudioText
 {
+    /// <summary>Máquina de escrever: quantas letras desenhar nesta imagem. Não vai para o projeto.</summary>
+    [JsonIgnore] public int? VisibleLetters { get; init; }
     [JsonPropertyName("transformacao")] public StudioTransform? Transform { get; init; }
     [JsonPropertyName("id")] public string Id { get; init; } = "";
     [JsonPropertyName("texto")] public string Text { get; init; } = "";

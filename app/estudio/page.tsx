@@ -6,7 +6,7 @@ import Estudio from "./Estudio";
 export const metadata: Metadata = {
   title: "Estúdio: crie vídeo, GIF e imagem para Instagram, TikTok e YouTube, sem upload — Smells Like Tech Converter",
   description:
-    "Junte vídeos e fotos, corte, ponha texto e música e exporte no tamanho certo para Reels, Stories, TikTok, Shorts, Kwai, WhatsApp e outras redes. Tudo no seu navegador, sem enviar arquivo.",
+    "Junte vídeos e fotos, corte, ponha texto, música e efeitos animados e exporte no tamanho certo para Reels, Stories, TikTok, Shorts, Kwai, WhatsApp e outras redes. Tudo no seu navegador, sem enviar arquivo.",
 };
 
 export default function EstudioPage() {
