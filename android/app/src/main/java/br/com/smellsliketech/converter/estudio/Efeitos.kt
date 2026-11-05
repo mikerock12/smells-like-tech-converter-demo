@@ -83,17 +83,19 @@ object Efeitos {
         }
     }
 
-    fun estado(t: Transformacao, tempo: Double, duracao: Double): EstadoDoEfeito {
+    /** `tempoContinuo` é o relógio do efeito contínuo: a figurinha o ajusta para fechar o laço. */
+    fun estado(t: Transformacao, tempo: Double, duracao: Double, tempoContinuo: Double = tempo): EstadoDoEfeito {
         if (!tem(t)) return EstadoDoEfeito()
+        val c = tempoContinuo
         val e = when (t.efeitoContinuo) {
-            "girar" -> EstadoDoEfeito(giro = PI * tempo)
-            "balancar" -> EstadoDoEfeito(giro = .26 * sin(5.0265 * tempo))
-            "pulsar" -> (1 + .1 * sin(7.5398 * tempo)).let { EstadoDoEfeito(sx = it, sy = it) }
-            "coracao" -> (1 + .18 * max(0.0, sin(6.2832 * tempo)).pow(4)).let { EstadoDoEfeito(sx = it, sy = it) }
-            "tremer" -> EstadoDoEfeito(dx = .012 * sin(56.5487 * tempo), dy = .012 * sin(69.115 * tempo + 1))
-            "flutuar" -> EstadoDoEfeito(dy = .025 * sin(3.7699 * tempo))
-            "gelatina" -> (.14 * sin(9.4248 * tempo)).let { EstadoDoEfeito(sx = 1 + it, sy = 1 - it) }
-            "arcoiris" -> EstadoDoEfeito(matiz = 120 * tempo)
+            "girar" -> EstadoDoEfeito(giro = PI * c)
+            "balancar" -> EstadoDoEfeito(giro = .26 * sin(5.0265 * c))
+            "pulsar" -> (1 + .1 * sin(7.5398 * c)).let { EstadoDoEfeito(sx = it, sy = it) }
+            "coracao" -> (1 + .18 * max(0.0, sin(6.2832 * c)).pow(4)).let { EstadoDoEfeito(sx = it, sy = it) }
+            "tremer" -> EstadoDoEfeito(dx = .012 * sin(56.5487 * c), dy = .012 * sin(69.115 * c + 1))
+            "flutuar" -> EstadoDoEfeito(dy = .025 * sin(3.7699 * c))
+            "gelatina" -> (.14 * sin(9.4248 * c)).let { EstadoDoEfeito(sx = 1 + it, sy = 1 - it) }
+            "arcoiris" -> EstadoDoEfeito(matiz = 120 * c)
             else -> EstadoDoEfeito()
         }
         val (entrada, saida) = janelas(t, duracao)
@@ -128,18 +130,21 @@ object Efeitos {
     /** Máquina de escrever: quantas imagens o texto tem e a taxa delas. */
     fun passosDaMaquina(texto: Texto, fps: Int): Passos {
         val conteudo = texto.texto.trim()
-        val letras = conteudo.codePointCount(0, conteudo.length)
-        val duracao = max(.1, min(texto.transformacao?.duracaoEntrada ?: DURACAO_PADRAO, texto.fim - texto.inicio))
+        return passosDaMaquina(conteudo.codePointCount(0, conteudo.length), texto.transformacao?.duracaoEntrada ?: DURACAO_PADRAO, texto.fim - texto.inicio, fps)
+    }
+
+    fun passosDaMaquina(letras: Int, entrada: Double, total: Double, fps: Int): Passos {
+        val duracao = max(.1, min(entrada, total))
         val passos = max(1, minOf(letras, floor(duracao * fps + .5).toInt(), PASSOS_MAXIMOS))
         return Passos(letras, passos, duracao, passos / duracao)
     }
 
     fun letrasNoPasso(letras: Int, passos: Int, passo: Int) = ceil(passo.toDouble() * letras / passos).toInt()
 
-    fun letrasVisiveis(texto: Texto, tempo: Double, fps: Int): Int {
-        val p = passosDaMaquina(texto, fps)
-        return letrasNoPasso(p.letras, p.passos, floor(tempo * p.taxa).toInt().plus(1).coerceIn(1, p.passos))
-    }
+    fun letrasVisiveis(texto: Texto, tempo: Double, fps: Int) = letrasVisiveis(passosDaMaquina(texto, fps), tempo)
+
+    fun letrasVisiveis(p: Passos, tempo: Double) =
+        letrasNoPasso(p.letras, p.passos, floor(tempo * p.taxa).toInt().plus(1).coerceIn(1, p.passos))
 
     private fun movimento(dx: String = "0", dy: String = "0", sx: String? = null, sy: String? = null, giro: String? = null, w: Int, h: Int, fps: Int, px: Double, py: Double, r: String): String {
         val cadeia = mutableListOf<String>()

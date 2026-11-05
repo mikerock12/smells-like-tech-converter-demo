@@ -4,6 +4,7 @@ import android.app.Application
 import android.graphics.Bitmap
 import android.graphics.ImageDecoder
 import android.net.Uri
+import android.os.SystemClock
 import android.provider.OpenableColumns
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -108,7 +109,10 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
     private val temVideo get() = origem?.tipo == TipoDaOrigem.VIDEO || camadas.any { it.visivel && it.origem?.tipo == TipoDaOrigem.VIDEO }
 
     /** A duração escolhida, sem nunca passar do tempo de mídia disponível; sem escolha, o maior trecho. */
-    val duracaoDaComposicao get() = (duracaoEscolhida ?: maiorTrecho).coerceIn(0.2, duracaoDisponivel)
+    val duracaoDaComposicao get() = (duracaoEscolhida ?: duracaoAutomatica).coerceIn(0.2, duracaoDisponivel)
+
+    /** Com vídeo ou GIF principal, o maior trecho; só com imagens, o tempo de um efeito se mostrar. */
+    private val duracaoAutomatica get() = if (temVideo || origem?.tipo == TipoDaOrigem.GIF) maiorTrecho else EfeitosDaFigurinha.DURACAO_SEM_MIDIA
     val tempoDaCamadaSelecionada get() = cursoresDasCamadas[camadaSelecionada ?: "principal"] ?: 0f
     val posicaoDoPlayer get() = inicioSelecionado + tempoDaCamadaSelecionada.coerceIn(0f,
         (fimSelecionado - inicioSelecionado).toFloat().coerceAtLeast(0f))
@@ -231,6 +235,7 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
         duracaoEscolhida = estado.duracao
         tempoDaPrevia = tempoDaPrevia.coerceIn(0f, duracaoDaComposicao.toFloat())
         preferencias.edit().putInt("quadrosPorSegundo", estado.fps).apply()
+        if (!temEfeitos) pararEfeito()
         atualizarHistorico(); atualizarPrevia()
     }
     fun mudarAnimada(valor: Boolean) { if (animada != valor) { registrar(); animada = valor } }
@@ -238,8 +243,8 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
     fun mudarDuracao(valor: Float) {
         if (!valor.isFinite()) return
         registrar("duracao")
-        // Igual ao disponível vale como "automático": acompanha os próximos cortes.
-        duracaoEscolhida = valor.toDouble().coerceIn(0.2, duracaoDisponivel).takeIf { it < duracaoDisponivel - 0.001 }
+        // Igual ao automático não vale como escolha: acompanha os próximos cortes.
+        duracaoEscolhida = valor.toDouble().coerceIn(0.2, duracaoDisponivel).takeIf { kotlin.math.abs(it - duracaoAutomatica) > 0.001 }
         tempoDaPrevia = tempoDaPrevia.coerceAtMost(duracaoDaComposicao.toFloat())
         atualizarPrevia()
     }
@@ -280,6 +285,7 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
     fun mostrarInstanteDaCamada(id: String?, segundosNaOrigem: Double) {
         if (!segundosNaOrigem.isFinite()) return
         if (origemDaCamada(id) == null) return
+        cancelarEfeito()
         val camada = camadas.firstOrNull { it.id == id }
         val de = camada?.inicio ?: inicio
         val ate = if (id == null) fim else camada?.fim ?: (de + (fim - inicio).coerceIn(0.2, 10.0))
@@ -410,7 +416,17 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
 
     // ---- Editar ----
 
-    val temAnimacao get() = origem?.tipo?.let { it != TipoDaOrigem.IMAGEM } == true || camadas.any { it.origem?.tipo?.let { tipo -> tipo != TipoDaOrigem.IMAGEM } == true }
+    private val temMidiaAnimada get() = origem?.tipo?.let { it != TipoDaOrigem.IMAGEM } == true || camadas.any { it.origem?.tipo?.let { tipo -> tipo != TipoDaOrigem.IMAGEM } == true }
+    val temEfeitos get() = EfeitosDaFigurinha.tem(edicaoPrincipal) || camadas.any { it.visivel && EfeitosDaFigurinha.tem(it.edicao) }
+
+    /** Reeditando uma animada, ela continua animada: o pacote não aceita outro tipo. */
+    val temAnimacao get() = temMidiaAnimada || temEfeitos || (editando != null && animada)
+
+    /** O WhatsApp não mistura estáticas e animadas: uma estática reaberta não pode ganhar efeitos. */
+    val podeUsarEfeitos get() = editando == null || animada
+
+    /** O que vai para o pacote: animada de fato, e não só a escolha guardada. */
+    private val saiAnimada get() = animada && temAnimacao
 
     fun selecionarCamada(id: String?) {
         camadaSelecionada = id
@@ -593,6 +609,8 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
             nova.copy(texto = anterior.texto) == anterior -> "texto"
             nova.copy(tamanhoDoTexto = anterior.tamanhoDoTexto) == anterior -> "tamanhoDoTexto"
             nova.copy(larguraDoContorno = anterior.larguraDoContorno) == anterior -> "larguraDoContorno"
+            nova.copy(duracaoEntrada = anterior.duracaoEntrada) == anterior -> "duracaoEntrada"
+            nova.copy(duracaoSaida = anterior.duracaoSaida) == anterior -> "duracaoSaida"
             else -> ""
         }
         registrar(if (campo.isEmpty()) "" else "edicao:$camadaSelecionada:$campo")
@@ -608,6 +626,66 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
         } else {
             atualizarPrevia()
         }
+    }
+
+    /** Um efeito só existe em movimento: a figurinha vira animada e a prévia passa a tocar. */
+    fun mudarEfeito(nova: Edicao) {
+        if (!podeUsarEfeitos) return
+        mudar(nova)
+        if (temEfeitos) {
+            animada = true
+            tocarEfeito()
+        } else {
+            if (!temAnimacao) animada = false
+            pararEfeito()
+        }
+    }
+
+    var tocandoEfeito by mutableStateOf(false)
+        private set
+    private var trabalhoDoEfeito: Job? = null
+    private var comecoDoEfeito = 0L
+
+    /**
+     * Toca a composição na prévia, em laço, com o estado mais recente: trocar de efeito aparece
+     * na hora. Cada quadro só sai depois do anterior; se o desenho demora, o relógio pula quadros.
+     */
+    fun tocarEfeito() {
+        comecoDoEfeito = SystemClock.elapsedRealtime()
+        if (tocandoEfeito) return
+        tocandoEfeito = true
+        trabalhoDoEfeito = viewModelScope.launch {
+            try {
+                while (true) {
+                    val lista = composicao()
+                    if (lista.isEmpty()) break
+                    val antes = SystemClock.elapsedRealtime()
+                    val segundo = ((antes - comecoDoEfeito) / 1000.0 % duracaoDaComposicao).toFloat()
+                    val desenho = desenharInstante(lista, segundo, null)
+                    ensureActive()
+                    tempoDaPrevia = segundo
+                    previa = desenho
+                    delay((1000L / quadrosPorSegundo - (SystemClock.elapsedRealtime() - antes)).coerceAtLeast(1))
+                }
+            } catch (erro: CancellationException) { throw erro }
+            catch (erro: Exception) { aviso = "Não foi possível tocar o efeito: ${erro.message}" }
+            finally { tocandoEfeito = false }
+        }
+    }
+
+    private fun cancelarEfeito() {
+        trabalhoDoEfeito?.cancel()
+        tocandoEfeito = false
+    }
+
+    /** Volta à figura parada, a que se edita (com fade in, o instante 0 seria uma tela vazia). */
+    fun pararEfeito() {
+        if (!tocandoEfeito) return
+        cancelarEfeito()
+        instanteEscolhido = false
+        previaPorCamada = false
+        tempoDaPrevia = 0f
+        atualizarPrevia()
     }
 
     private suspend fun calcularMascara(id: String?) {
@@ -674,6 +752,7 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
      * esperar a cada evento, como antes, deixava a prévia parada até o dedo soltar.
      */
     fun atualizarPrevia() {
+        if (tocandoEfeito) return
         previaPendente = true
         if (trabalhoDaPrevia?.isActive == true && desenhandoPrevia) return
         trabalhoDaPrevia?.cancel()
@@ -703,6 +782,7 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
 
     fun mostrarInstante(segundos: Float) {
         if (!segundos.isFinite()) return
+        cancelarEfeito()
         tempoDaPrevia = segundos.coerceIn(0f, duracaoDaComposicao.toFloat())
         cursoresDasCamadas = composicao().associate { it.id to tempoDaPrevia }
         previaPorCamada = false
@@ -730,7 +810,9 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
                     camada.copy(imagem = quadro, mascara = recorte)
                 }
             }
-            return withContext(Dispatchers.Default) { compositor.desenhar(quadros, corDeFundo, corFinalDoFundo) }
+            // O player de uma camada inspeciona a mídia dela: os efeitos ficam na composição.
+            val instante = if (cursores == null && saiAnimada) InstanteDosEfeitos(segundos.toDouble(), duracaoDaComposicao, quadrosPorSegundo, fimDosVideos()) else null
+            return withContext(Dispatchers.Default) { compositor.desenhar(quadros, corDeFundo, corFinalDoFundo, instante) }
         } finally {
             if (ocupado == CONVERTENDO_PARA_A_PREVIA) ocupado = null
             temporarios.forEach { it.recycle() }
@@ -739,7 +821,7 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
 
     // ---- Salvar no pacote ----
 
-    fun pacotesCompativeis(): List<PacoteDeFigurinhas> = lista.filter { it.animado == animada && !it.cheio }
+    fun pacotesCompativeis(): List<PacoteDeFigurinhas> = lista.filter { it.animado == saiAnimada && !it.cheio }
 
     /**
      * Gera a figurinha (estática ou animada) e põe no pacote escolhido, ou num novo com
@@ -747,6 +829,7 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
      */
     fun salvar(destino: PacoteDeFigurinhas?, nomeDoNovo: String) {
         val atual = origem ?: return
+        pararEfeito()
         trabalho?.cancel()
         trabalho = viewModelScope.launch {
             ocupado = "Gerando a figurinha…"
@@ -758,18 +841,18 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
                 val pronta = previaFinal?.takeIf { it.assinatura == assinatura() }
                 val webp = when {
                     pronta != null -> withContext(Dispatchers.IO) { pronta.arquivo.readBytes() }.also { if (pronta.encurtada) encurtada = pronta.segundos }
-                    animada && temAnimacao -> gerarAnimadaEmCamadas().also { if (it.encurtada) encurtada = it.segundos }.webp
+                    saiAnimada -> gerarAnimadaEmCamadas().also { if (it.encurtada) encurtada = it.segundos }.webp
                     else -> gerarEstatica()
                 }
                 val alvo = editando
                 val (atualizado, arquivo) = if (alvo != null) {
                     val pacote = pacotes.ler(alvo.first) ?: throw ErroDeConversao("O pacote desta figurinha não existe mais.")
                     val figurinha = pacote.figurinhas.firstOrNull { it.arquivo == alvo.second } ?: throw ErroDeConversao("A figurinha saiu do pacote.")
-                    if (pacote.animado != (animada && temAnimacao)) throw ErroDeConversao(
+                    if (pacote.animado != saiAnimada) throw ErroDeConversao(
                         if (pacote.animado) "Este pacote é de figurinhas animadas: deixe a figurinha animada." else "Este pacote é de figurinhas estáticas: deixe a figurinha estática.")
                     withContext(Dispatchers.IO) { pacotes.substituir(pacote, figurinha, webp, emojis) } to figurinha.arquivo
                 } else {
-                    val pacote = destino?.let { pacotes.ler(it.id) } ?: pacotes.criar(nomeDoNovo, animada)
+                    val pacote = destino?.let { pacotes.ler(it.id) } ?: pacotes.criar(nomeDoNovo, saiAnimada)
                     val novo = withContext(Dispatchers.IO) { pacotes.adicionar(pacote, webp, emojis) }
                     novo to novo.figurinhas.last().arquivo
                 }
@@ -783,7 +866,7 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
                 else if (atualizado.prontoParaWhatsApp) "Figurinha salva em “${atualizado.nome}”."
                 else "Figurinha salva. ${if (atualizado.faltam == 1) "Falta" else "Faltam"} ${atualizado.faltam} para o WhatsApp aceitar o pacote (mínimo ${Regras.MINIMO}).") +
                     (encurtada?.let {
-                        " Para manter $quadrosPorSegundo quadros/s, ela ficou com ${"%.1f".format(it)} s: o vídeo tem movimento demais para os 500 KB do WhatsApp."
+                        " Para manter $quadrosPorSegundo quadros/s, ela ficou com ${"%.1f".format(it)} s: a animação tem movimento demais para os 500 KB do WhatsApp."
                     } ?: "")
             } catch (erro: Exception) {
                 aviso = erro.message ?: "Não deu para gerar a figurinha."
@@ -820,6 +903,7 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
         val lista = composicao().filter { it.visivel }
         val duracao = duracaoDaComposicao
         val taxa = quadrosPorSegundo
+        val fins = fimDosVideos()
         val extraidos = mutableMapOf<String, Producao.Quadros>()
         val pasta = File.createTempFile("composicao-", "", contexto.cacheDir).apply { delete(); mkdirs() }
         try {
@@ -840,7 +924,9 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
                 var feitos = 0
                 (0 until total).chunked(paralelos).forEach { lote ->
                     val prontos = coroutineScope {
-                        lote.map { indice -> async(Dispatchers.Default) { comporQuadro(lista, extraidos, indice, taxa) } }.awaitAll()
+                        lote.map { indice ->
+                            async(Dispatchers.Default) { comporQuadro(lista, extraidos, indice, taxa, InstanteDosEfeitos(indice.toDouble() / taxa, duracao, taxa, fins)) }
+                        }.awaitAll()
                     }
                     withContext(Dispatchers.IO) { prontos.forEach { desenho -> try { crus.gravar(desenho) } finally { desenho.recycle() } } }
                     feitos += lote.size
@@ -853,7 +939,7 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
         }
     }
 
-    private suspend fun comporQuadro(lista: List<CamadaDeFigurinha>, extraidos: Map<String, Producao.Quadros>, indice: Int, taxa: Int): Bitmap {
+    private suspend fun comporQuadro(lista: List<CamadaDeFigurinha>, extraidos: Map<String, Producao.Quadros>, indice: Int, taxa: Int, instante: InstanteDosEfeitos): Bitmap {
         val temporarios = mutableListOf<Bitmap>()
         try {
             val quadros = lista.mapNotNull { camada ->
@@ -869,11 +955,15 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
                     camada.copy(imagem = imagem, mascara = recorte)
                 }
             }
-            return compositor.desenhar(quadros, corDeFundo, corFinalDoFundo)
+            return compositor.desenhar(quadros, corDeFundo, corFinalDoFundo, instante)
         } finally {
             temporarios.forEach { it.recycle() }
         }
     }
+
+    /** Onde cada vídeo acaba: depois disso a camada some, e a saída dela precisa ter terminado. */
+    private fun fimDosVideos(): Map<String, Double> = composicao().filter { it.origem?.tipo == TipoDaOrigem.VIDEO }
+        .mapNotNull { camada -> trechoDe(camada)?.let { camada.id to it.duracao } }.toMap()
 
     // ---- A versão leve de cada trecho de vídeo ----
 
@@ -918,6 +1008,7 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
             ?: throw ErroDeConversao("Não deu para abrir um quadro da camada ${camada.nome}.")
 
     fun cancelar() {
+        cancelarEfeito()
         restante = null
         trabalho?.cancel()
         trabalhoDaBase?.cancel()
@@ -934,6 +1025,7 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
     }
 
     private fun limparEditor() {
+        cancelarEfeito()
         historico.limpar(); atualizarHistorico()
         copiasRetidas.forEach { it.delete() }; copiasRetidas.clear()
         versaoDoEditor++
@@ -991,6 +1083,7 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
     private fun selecionadaNaComposicao(): CamadaDeFigurinha? = composicao().firstOrNull { it.id == (camadaSelecionada ?: "principal") }
 
     fun iniciarGesto() {
+        pararEfeito()
         iniciarAlteracao()
         trabalhoDasGuias?.cancel()
         mostrandoGuias = true
@@ -1044,11 +1137,12 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
     // ---- Prévia final ----
 
     /** Tudo o que muda a figurinha gerada: se nada mudou desde a prévia final, o Salvar a reaproveita. */
-    private fun assinatura(): Any = listOf(composicao(), corDeFundo, corFinalDoFundo, inicio, fim, duracaoEscolhida, animada && temAnimacao, quadrosPorSegundo)
+    private fun assinatura(): Any = listOf(composicao(), corDeFundo, corFinalDoFundo, inicio, fim, duracaoEscolhida, saiAnimada, quadrosPorSegundo)
 
     /** Gera a figurinha exatamente como o Salvar faria e mostra (animada, com duração e tamanho). */
     fun verComoFica() {
         if (origem == null) return
+        pararEfeito()
         trabalho?.cancel()
         trabalho = viewModelScope.launch {
             ocupado = "Montando a figurinha…"
@@ -1057,7 +1151,7 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
             andamento = Andamento()
             try {
                 val assinada = assinatura()
-                val animadaAgora = animada && temAnimacao
+                val animadaAgora = saiAnimada
                 val gerada = if (animadaAgora) gerarAnimadaEmCamadas() else Producao.Animada(gerarEstatica(), 0.0, false)
                 val arquivo = File.createTempFile("previa-final-", ".webp", contexto.cacheDir)
                 withContext(Dispatchers.IO) { arquivo.writeBytes(gerada.webp) }
@@ -1155,7 +1249,7 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
         val temporaria = File(destino.parentFile, destino.name + ".novo")
         withContext(Dispatchers.IO) { temporaria.deleteRecursively(); temporaria.mkdirs() }
         val duracaoPrincipal = (fim - inicio).coerceIn(0.2, Regras.ANIMADA_MAX_SEGUNDOS)
-        val animadaAgora = animada && temAnimacao
+        val animadaAgora = saiAnimada
         var inicioGuardado = inicio
         var fimGuardado = fim
 

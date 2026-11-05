@@ -6,6 +6,7 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.ColorMatrix
 import android.graphics.ColorMatrixColorFilter
+import android.graphics.Matrix
 import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.PorterDuff
@@ -14,8 +15,12 @@ import android.graphics.PorterDuffXfermode
 import android.graphics.RectF
 import android.graphics.Typeface
 import android.text.Layout
+import android.text.SpannableString
+import android.text.Spanned
 import android.text.StaticLayout
 import android.text.TextPaint
+import android.text.style.ForegroundColorSpan
+import br.com.smellsliketech.converter.estudio.Efeitos
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.math.cos
 import kotlin.math.min
@@ -131,6 +136,12 @@ data class Edicao(
     val larguraDoContorno: Float = 12f,
     /** Só o pedaço escolhido da mídia vira figura; nulo = a mídia inteira. */
     val recorte: Recorte? = null,
+    /** Os mesmos efeitos do estúdio (ids de [Efeitos]): só animam na figurinha animada. */
+    val efeitoEntrada: String = "nenhum",
+    val duracaoEntrada: Float = Efeitos.DURACAO_PADRAO.toFloat(),
+    val efeitoSaida: String = "nenhum",
+    val duracaoSaida: Float = Efeitos.DURACAO_PADRAO.toFloat(),
+    val efeitoContinuo: String = "nenhum",
 )
 
 enum class Mescla(val rotulo: String, val modo: PorterDuff.Mode) {
@@ -149,7 +160,8 @@ class Renderizador(private val contexto: Context) {
     // Os quadros da animada são desenhados em paralelo.
     private val fontes = ConcurrentHashMap<Fonte, Typeface>()
 
-    fun desenhar(fonte: Bitmap, mascara: Bitmap?, edicao: Edicao): Bitmap {
+    /** `efeito` move a figura pronta (efeitos animados), sem cortar o que sairia da camada. */
+    fun desenhar(fonte: Bitmap, mascara: Bitmap?, edicao: Edicao, efeito: Matrix? = null): Bitmap {
         val lado = Regras.LADO
         val saida = Bitmap.createBitmap(lado, lado, Bitmap.Config.ARGB_8888)
         val tela = Canvas(saida)
@@ -167,6 +179,7 @@ class Renderizador(private val contexto: Context) {
         val transformacao = Perspectiva.matriz(largura, altura, lado, lado, edicao.copy(zoom = edicao.zoom * (lado - 2 * margem) / lado))
         desenhoDaCamada.save()
         if (transformacao != null) {
+            efeito?.let(desenhoDaCamada::concat)
             desenhoDaCamada.concat(transformacao)
             if (pedaco != null) {
                 val caixa = pedaco.caixa()
@@ -198,7 +211,12 @@ class Renderizador(private val contexto: Context) {
         camada.recycle()
 
         // 3. O texto, com contorno para ler em cima de qualquer imagem.
-        if (edicao.texto.isNotBlank()) desenharTexto(tela, edicao, lado)
+        if (edicao.texto.isNotBlank()) {
+            tela.save()
+            efeito?.let(tela::concat)
+            desenharTexto(tela, edicao, lado)
+            tela.restore()
+        }
         return saida
     }
 
@@ -243,18 +261,20 @@ class Renderizador(private val contexto: Context) {
 
     // ---- Texto como objeto ----
 
-    private data class ChaveDoTexto(val texto: String, val fonte: Fonte, val tamanho: Float, val cor: Int, val corDoContorno: Int, val disposicao: DisposicaoDoTexto)
+    private data class ChaveDoTexto(val texto: String, val fonte: Fonte, val tamanho: Float, val cor: Int, val corDoContorno: Int,
+        val disposicao: DisposicaoDoTexto, val visiveis: Int?)
     private val texturas = ConcurrentHashMap<ChaveDoTexto, Bitmap>()
 
     /**
      * O texto de uma camada como uma imagem justa, só do tamanho das letras (com o contorno):
      * assim ele se move, aproxima, gira e inclina como qualquer mídia, e as guias encostam nele
      * de verdade. Desenhada em [RESOLUCAO_DO_TEXTO]× para aguentar o zoom; [zoomDoTexto] devolve
-     * o tamanho natural. Fica em cache: a prévia redesenha muitas vezes por segundo.
+     * o tamanho natural. Fica em cache: a prévia redesenha muitas vezes por segundo. `visiveis`
+     * (máquina de escrever) mostra só as primeiras letras, sem mudar o lugar nem o tamanho delas.
      */
-    fun texturaDoTexto(edicao: Edicao): Bitmap {
+    fun texturaDoTexto(edicao: Edicao, visiveis: Int? = null): Bitmap {
         val chave = ChaveDoTexto(edicao.texto.ifBlank { " " }, edicao.fonte, edicao.tamanhoDoTexto, edicao.corDoTexto,
-            edicao.corDoContornoDoTexto, edicao.disposicaoDoTexto)
+            edicao.corDoContornoDoTexto, edicao.disposicaoDoTexto, visiveis)
         texturas[chave]?.let { return it }
         if (texturas.size > 24) texturas.clear()
         return desenharTextura(chave).also { texturas[chave] = it }
@@ -287,7 +307,11 @@ class Renderizador(private val contexto: Context) {
             val limite = (Regras.LADO * 0.92f * RESOLUCAO_DO_TEXTO).toInt()
             // Para cima: arredondar para baixo faria a última letra quebrar para a linha de baixo.
             val largura = (kotlin.math.ceil(chave.texto.lines().maxOf { preenchimento.measureText(it) }.toDouble()).toInt() + 2).coerceIn(1, limite)
-            fun bloco(p: TextPaint) = StaticLayout.Builder.obtain(chave.texto, 0, chave.texto.length, p, largura)
+            // As letras ainda escondidas ocupam o lugar delas: o texto não dança enquanto é digitado.
+            val conteudo: CharSequence = chave.visiveis?.let { n ->
+                SpannableString(chave.texto).apply { setSpan(ForegroundColorSpan(Color.TRANSPARENT), fimDaLetra(chave.texto, n), length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE) }
+            } ?: chave.texto
+            fun bloco(p: TextPaint) = StaticLayout.Builder.obtain(conteudo, 0, conteudo.length, p, largura)
                 .setAlignment(Layout.Alignment.ALIGN_CENTER).setMaxLines(3).build()
             val desenho = bloco(preenchimento)
             val saida = Bitmap.createBitmap(largura + 2 * folga, desenho.height + 2 * folga, Bitmap.Config.ARGB_8888)
@@ -336,9 +360,31 @@ class Renderizador(private val contexto: Context) {
             (base - topo).toInt().coerceAtLeast(1) + 2 * folga, Bitmap.Config.ARGB_8888)
         val tela = Canvas(saida)
         tela.translate(folga - esquerda, folga - topo)
-        contorno?.let { p -> postas.forEach { tela.drawText(it.letra, it.x, it.linhaDeBase, p) } }
-        postas.forEach { tela.drawText(it.letra, it.x, it.linhaDeBase, preenchimento) }
+        val aparecem = postas.take(chave.visiveis ?: postas.size)
+        contorno?.let { p -> aparecem.forEach { tela.drawText(it.letra, it.x, it.linhaDeBase, p) } }
+        aparecem.forEach { tela.drawText(it.letra, it.x, it.linhaDeBase, preenchimento) }
         return saida
+    }
+
+    /** Quantas letras o texto tem, como a máquina de escrever conta. */
+    fun quantasLetras(texto: String) = letras(texto).size
+
+    /** Onde termina a n-ésima letra, em posições da string (emoji e acento contam como uma). */
+    private fun fimDaLetra(texto: String, n: Int): Int {
+        var fim = 0
+        var restam = n
+        val iterador = java.text.BreakIterator.getCharacterInstance()
+        iterador.setText(texto)
+        var inicio = iterador.first()
+        var proximo = iterador.next()
+        while (proximo != java.text.BreakIterator.DONE && restam > 0) {
+            val letra = texto.substring(inicio, proximo)
+            if (letra.isNotBlank() || letra == " ") restam--
+            fim = proximo
+            inicio = proximo
+            proximo = iterador.next()
+        }
+        return fim
     }
 
     private fun letras(texto: String): List<String> {

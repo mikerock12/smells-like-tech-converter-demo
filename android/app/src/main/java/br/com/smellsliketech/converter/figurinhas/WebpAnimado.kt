@@ -79,6 +79,33 @@ object WebpAnimado {
         return resultado
     }
 
+    /**
+     * O quadro que abre a figurinha. A miniatura do pacote, o ícone da bandeja e a lista do
+     * WhatsApp mostram o primeiro quadro, e num efeito de entrada ele sai vazio ou quase. Nesse
+     * caso, a repetição começa no primeiro quadro em que a figura já apareceu: é o mesmo laço.
+     * `tinta` é a soma do alfa de cada quadro.
+     */
+    fun quadroDeCapa(tinta: List<Long>): Int {
+        val maximo = tinta.maxOrNull() ?: return 0
+        if (maximo <= 0 || tinta[0] * 2 >= maximo) return 0
+        return tinta.indexOfFirst { it * 10 >= maximo * 8 }
+    }
+
+    /** Roda a ordem dos quadros: `indice` vira o primeiro. Exige quadros independentes; não recodifica. */
+    fun comecarEm(webp: ByteArray, indice: Int): ByteArray {
+        if (indice <= 0) return webp
+        val inicios = ler(webp).quadros.map { it.posicaoDoTempo - 20 }
+        require(indice < inicios.size) { "Esse quadro não existe na figurinha." }
+        fun fim(i: Int): Int {
+            val tamanho = (0..3).fold(0) { n, k -> n or ((webp[i + 4 + k].toInt() and 255) shl (8 * k)) }
+            return i + 8 + tamanho + (tamanho and 1)
+        }
+        require(inicios.zipWithNext().all { (a, b) -> fim(a) == b }) { "Os quadros da figurinha não estão em sequência." }
+        val ultimo = fim(inicios.last())
+        return webp.copyOfRange(0, inicios[0]) + webp.copyOfRange(inicios[indice], ultimo) +
+            webp.copyOfRange(inicios[0], inicios[indice]) + webp.copyOfRange(ultimo, webp.size)
+    }
+
     /** Ajusta somente os três bytes de duração de cada ANMF; não recodifica nem perde qualidade. */
     fun normalizar(webp: ByteArray, duracaoMaximaMs: Int = DURACAO_MAX_MS): ByteArray {
         val info = ler(webp)

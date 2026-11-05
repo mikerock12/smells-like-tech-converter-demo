@@ -152,16 +152,18 @@ object Producao {
         private val saida = arquivo.outputStream().buffered(1 shl 20)
         private val pontos = IntArray(Regras.LADO * Regras.LADO)
         private val bytes = ByteBuffer.allocate(pontos.size * 4).order(ByteOrder.BIG_ENDIAN)
-        private val visiveis = mutableListOf<Boolean>()
+        private val tinta = mutableListOf<Long>()
         var quantidade = 0
             private set
 
-        fun temImagem(ate: Int = quantidade): Boolean = visiveis.take(ate).any { it }
+        fun temImagem(ate: Int = quantidade): Boolean = tinta.take(ate).any { it > 0 }
+
+        fun quadroDeCapa(ate: Int = quantidade): Int = WebpAnimado.quadroDeCapa(tinta.take(ate))
 
         fun gravar(quadro: Bitmap) {
             require(quadro.width == Regras.LADO && quadro.height == Regras.LADO)
             quadro.getPixels(pontos, 0, Regras.LADO, 0, 0, Regras.LADO, Regras.LADO)
-            visiveis += pontos.any { it ushr 24 != 0 }
+            tinta += pontos.sumOf { (it ushr 24).toLong() }
             bytes.clear()
             bytes.asIntBuffer().put(pontos)
             saida.write(bytes.array())
@@ -260,7 +262,7 @@ object Producao {
                     val gerada = saida.readBytes()
                     if (!crus.temImagem(quadros)) throw ErroDeConversao("A figurinha ficou vazia: a imagem saiu do quadro. Toque em Centralizar e tente de novo.")
                     val duracaoMs = (quadros * 1000L / crus.porSegundo).coerceIn(16, WebpAnimado.DURACAO_MAX_MS.toLong()).toInt()
-                    val webp = WebpAnimado.normalizar(WebpAnimado.quadrosIndependentes(gerada), duracaoMs)
+                    val webp = WebpAnimado.comecarEm(WebpAnimado.normalizar(WebpAnimado.quadrosIndependentes(gerada), duracaoMs), crus.quadroDeCapa(quadros))
                     aoAvancar(1.0)
                     return@withContext Animada(webp, quadros.toDouble() / crus.porSegundo, quadros < total)
                 }

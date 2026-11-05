@@ -83,6 +83,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import br.com.smellsliketech.converter.conversao.Opcoes
 import br.com.smellsliketech.converter.conversao.textoDoAndamento
+import br.com.smellsliketech.converter.estudio.Efeitos
 import br.com.smellsliketech.converter.figurinhas.Edicao
 import br.com.smellsliketech.converter.figurinhas.Figurinha
 import br.com.smellsliketech.converter.figurinhas.FigurinhasViewModel
@@ -329,7 +330,7 @@ private fun DetalheDoPacote(
     }
 }
 
-private enum class Aba(val rotulo: String) { CAMADAS("Camadas"), ENQUADRAR("Enquadrar"), RECORTAR("Recortar"), FUNDO("Fundo"), FILTRO("Filtro"), TEXTO("Texto"), CONTORNO("Contorno"), EMOJI("Emoji") }
+private enum class Aba(val rotulo: String) { CAMADAS("Camadas"), ENQUADRAR("Enquadrar"), RECORTAR("Recortar"), FUNDO("Fundo"), FILTRO("Filtro"), TEXTO("Texto"), EFEITOS("Efeitos"), CONTORNO("Contorno"), EMOJI("Emoji") }
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -349,7 +350,11 @@ private fun EditorDeFigurinha(modelo: FigurinhasViewModel, pedirSaida: () -> Uni
     var salvando by remember { mutableStateOf(false) }
     var importarComoFundo by remember { mutableStateOf(false) }
     val rolagemDosAjustes = rememberScrollState()
-    LaunchedEffect(aba) { rolagemDosAjustes.scrollTo(0) }
+    LaunchedEffect(aba) {
+        rolagemDosAjustes.scrollTo(0)
+        // A prévia toca só enquanto os efeitos estão à vista; nas outras abas a figura fica parada.
+        if (aba != Aba.EFEITOS) modelo.pararEfeito()
+    }
     // O recorte em edição (só vale ao tocar em Aplicar). Recomeça ao trocar de camada ou de aba.
     var formaDoRecorte by remember { mutableStateOf(FormaDoRecorte.QUADRADO) }
     var rascunhoDoRecorte by remember { mutableStateOf<Recorte?>(null) }
@@ -546,6 +551,48 @@ private fun EditorDeFigurinha(modelo: FigurinhasViewModel, pedirSaida: () -> Uni
                         }
                         Dica("Arraste o texto na prévia para mover; pinça aproxima e torção gira. Zoom, giro e inclinação finos ficam em Enquadrar.")
                     }
+                    Aba.EFEITOS -> if (!modelo.podeUsarEfeitos) {
+                        Dica("Efeitos precisam de figurinha animada, e esta está num pacote de estáticas: o WhatsApp não mistura os dois tipos. Crie uma figurinha nova para usar efeitos.")
+                    } else {
+                        Dica(if (modelo.textoSelecionado) "Para o texto entrar, sair ou se mexer sozinho. Cada camada tem os seus efeitos."
+                            else "Para a mídia entrar, sair ou se mexer sozinha. Fica ainda mais divertido com o fundo removido, num rosto ou personagem. Cada camada tem os seus efeitos.")
+                        // No topo: a lista de efeitos é longa, e o botão precisa estar à mão.
+                        if (modelo.temEfeitos) {
+                            if (!modelo.animada) Dica("Os efeitos só aparecem na figurinha animada. Escolha Animada no fim desta aba.")
+                            else OutlinedButton(onClick = { if (modelo.tocandoEfeito) modelo.pararEfeito() else modelo.tocarEfeito() }) {
+                                Text(if (modelo.tocandoEfeito) "Parar a prévia" else "Tocar na prévia")
+                            }
+                        }
+                        Rotulado("Entrada") {
+                            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                // A máquina de escrever só faz sentido em texto.
+                                Efeitos.ENTRADAS.filter { it.first != "maquina" || modelo.textoSelecionado }.forEach { (id, nome) ->
+                                    FilterChip(selected = edicao.efeitoEntrada == id, onClick = { modelo.mudarEfeito(edicao.copy(efeitoEntrada = id)) }, label = { Text(nome, fontSize = 12.sp) })
+                                }
+                            }
+                        }
+                        if (edicao.efeitoEntrada != "nenhum") Rotulado("Duração da entrada: ${"%.1f".format(edicao.duracaoEntrada)} s") {
+                            DeslizanteComAjusteFino(edicao.duracaoEntrada, { modelo.mudarEfeito(edicao.copy(duracaoEntrada = it)) }, limites = .1f..10f, passo = .1f, descricao = "Duração da entrada")
+                        }
+                        Rotulado("Saída") {
+                            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Efeitos.SAIDAS.forEach { (id, nome) ->
+                                    FilterChip(selected = edicao.efeitoSaida == id, onClick = { modelo.mudarEfeito(edicao.copy(efeitoSaida = id)) }, label = { Text(nome, fontSize = 12.sp) })
+                                }
+                            }
+                        }
+                        if (edicao.efeitoSaida != "nenhum") Rotulado("Duração da saída: ${"%.1f".format(edicao.duracaoSaida)} s") {
+                            DeslizanteComAjusteFino(edicao.duracaoSaida, { modelo.mudarEfeito(edicao.copy(duracaoSaida = it)) }, limites = .1f..10f, passo = .1f, descricao = "Duração da saída")
+                        }
+                        Rotulado("Enquanto aparece") {
+                            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Efeitos.CONTINUOS.forEach { (id, nome) ->
+                                    FilterChip(selected = edicao.efeitoContinuo == id, onClick = { modelo.mudarEfeito(edicao.copy(efeitoContinuo = id)) }, label = { Text(nome, fontSize = 12.sp) })
+                                }
+                            }
+                        }
+                        if (modelo.temEfeitos) Dica("Com efeito, a figurinha vira animada. A prévia toca no ritmo que o celular conseguir; Ver como vai ficar mostra a figurinha de verdade.")
+                    }
                     Aba.CONTORNO -> {
                         Linha("Contorno de figurinha", edicao.contorno) { modelo.mudar(edicao.copy(contorno = it)) }
                         if (edicao.contorno) {
@@ -611,7 +658,7 @@ private fun EditorDeFigurinha(modelo: FigurinhasViewModel, pedirSaida: () -> Uni
                                 }
                             }
                         }
-                        Dica("Toda figurinha anima nessa velocidade, sem pular quadros. Se o vídeo tiver movimento demais para os 500 KB do WhatsApp, ela fica mais curta. Mais quadros: mais suave e mais curta.")
+                        Dica("Toda figurinha anima nessa velocidade, sem pular quadros. Se a animação tiver movimento demais para os 500 KB do WhatsApp, ela fica mais curta. Mais quadros: mais suave e mais curta.")
                         Rotulado("Duração da composição: ${"%.1f".format(modelo.duracaoDaComposicao)} s de ${"%.1f".format(modelo.duracaoDisponivel)} s disponíveis") {
                             DeslizanteComAjusteFino(modelo.duracaoDaComposicao.toFloat(),
                                 modelo::mudarDuracao, limites = 0.2f..modelo.duracaoDisponivel.toFloat().coerceAtLeast(0.2f), passo = .1f, descricao = "Duração")
@@ -721,8 +768,8 @@ private fun PreviaFinal(modelo: FigurinhasViewModel, salvar: () -> Unit) {
                 )
                 if (previa.encurtada) {
                     Text(
-                        "O vídeo tem movimento demais para os 500 KB do WhatsApp: para manter ${previa.quadrosPorSegundo} quadros/s, ela ficou com " +
-                            "${"%.1f".format(previa.segundos)} s. Com menos quadros por segundo ou um trecho mais calmo, ela fica mais longa.",
+                        "A animação tem movimento demais para os 500 KB do WhatsApp: para manter ${previa.quadrosPorSegundo} quadros/s, ela ficou com " +
+                            "${"%.1f".format(previa.segundos)} s. Com menos quadros por segundo ou menos movimento, ela fica mais longa.",
                         fontSize = 12.sp, color = Cores.amarelo,
                     )
                 }

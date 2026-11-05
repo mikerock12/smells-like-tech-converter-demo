@@ -1,5 +1,6 @@
 package br.com.smellsliketech.converter.figurinhas
 
+import br.com.smellsliketech.converter.estudio.Efeitos
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
@@ -40,8 +41,8 @@ data class CamadaSalva(
 
 object Projetos {
     const val ARQUIVO = "projeto.json"
-    /** 4: texto como objeto (textura justa), disposição do texto e recorte. */
-    private const val VERSAO = 4
+    /** 4: texto como objeto (textura justa), disposição do texto e recorte. 5: efeitos animados. */
+    private const val VERSAO = 5
 
     fun gravar(pasta: File, projeto: ProjetoSalvo) {
         val objeto = JSONObject()
@@ -145,11 +146,18 @@ object Projetos {
         .put("larguraDoContorno", e.larguraDoContorno.toDouble())
         .put("disposicaoDoTexto", e.disposicaoDoTexto.name)
         .put("recorte", e.recorte?.let { r -> JSONObject().put("forma", r.forma.name).put("pontos", JSONArray(r.pontos.map { it.toDouble() })) } ?: JSONObject.NULL)
+        .put("efeitoEntrada", e.efeitoEntrada)
+        .put("duracaoEntrada", e.duracaoEntrada.toDouble())
+        .put("efeitoSaida", e.efeitoSaida)
+        .put("duracaoSaida", e.duracaoSaida.toDouble())
+        .put("efeitoContinuo", e.efeitoContinuo)
 
     /** Campo ausente ou desconhecido volta ao padrão: um projeto antigo continua abrindo. */
     fun edicaoDeJson(o: JSONObject): Edicao {
         val p = Edicao()
         fun f(nome: String, padrao: Float) = o.optDouble(nome, padrao.toDouble()).toFloat()
+        fun efeito(nome: String, lista: List<Pair<String, String>>) = o.optString(nome).takeIf { id -> lista.any { it.first == id } } ?: "nenhum"
+        fun duracao(nome: String, padrao: Float) = f(nome, padrao).takeIf { it.isFinite() }?.coerceIn(.1f, 10f) ?: padrao
         return Edicao(
             zoom = f("zoom", p.zoom),
             deslocamentoX = f("deslocamentoX", p.deslocamentoX),
@@ -182,6 +190,11 @@ object Projetos {
                 val pontos = r.optJSONArray("pontos") ?: return@let null
                 Recorte(forma, (0 until pontos.length()).map { pontos.optDouble(it, 0.0).toFloat() }).takeIf { it.valido }
             },
+            efeitoEntrada = efeito("efeitoEntrada", Efeitos.ENTRADAS),
+            duracaoEntrada = duracao("duracaoEntrada", p.duracaoEntrada),
+            efeitoSaida = efeito("efeitoSaida", Efeitos.SAIDAS),
+            duracaoSaida = duracao("duracaoSaida", p.duracaoSaida),
+            efeitoContinuo = efeito("efeitoContinuo", Efeitos.CONTINUOS),
         )
     }
 
