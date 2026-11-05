@@ -129,7 +129,7 @@ public static class FfmpegCommandPlanner
             $"fps={fps},scale={width}:-2:flags=lanczos,split[paletteSource][gifSource];" +
             "[paletteSource]palettegen=stats_mode=diff[palette];" +
             "[gifSource][palette]paletteuse=dither=bayer:bayer_scale=5:diff_mode=rectangle",
-            "-loop", "0",
+            "-loop", AnimationRepeats.GifLoop(options.Repeats).ToString(Invariant),
             "-an", "-sn", "-dn",
             outputPath
         ]);

@@ -107,7 +107,8 @@ class SaidaDoEditorTest {
             m = EstudioViewModel(app); m.novoProjeto(); m.escolherDestino("personalizado", 512, 512)
             m.escolherSaida("video"); m.adicionarMidias(listOf(Uri.fromFile(arquivo)))
         }
-        esperar { m.previa != null && m.ocupado == null }
+        // Vídeo simples toca no player direto, sem bitmap de prévia: basta o clipe entrar no projeto.
+        esperar { m.projeto?.clipes?.size == 1 && m.ocupado == null }
         val id = m.projeto!!.clipes.single().id
         tela { m.mudarClipe(id) { it.copy(inicio = .25, fim = 1.75) } }
         esperar { m.ocupado == null }
@@ -115,25 +116,33 @@ class SaidaDoEditorTest {
         var saiu = false
         try {
             tela { a.setContent { TemaDoConverter { TelaDoEstudio(m, true, {}, {}, { saiu = true }) } } }
-            no("Fechar editor (projeto mantido)")
-            voltar(); no("Sair da edição?")
+            val fechar = "Fechar ou salvar o projeto"
+            val pergunta = "O que fazer com o projeto?"
+            no(fechar)
+            voltar(); no(pergunta)
             assertFalse(saiu)
-            assertTrue(nos().any { it.text?.toString()?.contains("rascunho automático") == true })
-            voltar(); no("Fechar editor (projeto mantido)"); assertFalse(saiu)
-            tocar("Fechar editor (projeto mantido)"); no("Sair da edição?")
-            tocar("Continuar editando"); assertFalse(saiu)
+            assertTrue(nos().any { it.text?.toString() == "Salvar projeto e sair" })
+            // Voltar no próprio diálogo só fecha a pergunta.
+            voltar(); no(fechar); assertFalse(saiu)
+            tocar(fechar); no(pergunta)
+            tocar("Cancelar"); assertFalse(saiu)
             assertEquals(.25, m.projeto!!.clipes.single().inicio!!, .0001)
             assertEquals(1.75, m.projeto!!.clipes.single().fim!!, .0001)
-            tocar("Fechar editor (projeto mantido)"); no("Sair da edição?")
-            i.uiAutomation.takeScreenshot()?.let { b ->
-                File(app.filesDir, "saida-video.png").outputStream().use { b.compress(Bitmap.CompressFormat.PNG, 100, it) }; b.recycle()
-            }
-            tocar("Sair da edição"); esperar { saiu }
+            // Enquanto ninguém descarta, o rascunho automático guarda os cortes.
             lateinit var restaurado: EstudioViewModel
             tela { restaurado = EstudioViewModel(app) }
             assertEquals(.25, restaurado.projeto!!.clipes.single().inicio!!, .0001)
             assertEquals(1.75, restaurado.projeto!!.clipes.single().fim!!, .0001)
-            File(app.filesDir, "saida-editores.json").writeText("{\"voltarEIconeProtegidos\":true,\"cancelarPreservaEdicoes\":true,\"sairExigeConfirmacao\":true,\"rascunhoEstudioMantido\":true}")
+            tocar(fechar); no(pergunta)
+            i.uiAutomation.takeScreenshot()?.let { b ->
+                File(app.filesDir, "saida-video.png").outputStream().use { b.compress(Bitmap.CompressFormat.PNG, 100, it) }; b.recycle()
+            }
+            // Desde a 1.0.9 sair sem salvar descarta o projeto, como o botão diz.
+            tocar("Sair sem salvar"); esperar { saiu }
+            assertNull(m.projeto)
+            tela { restaurado = EstudioViewModel(app) }
+            assertNull(restaurado.projeto)
+            File(app.filesDir, "saida-editores.json").writeText("{\"voltarEIconeProtegidos\":true,\"cancelarPreservaEdicoes\":true,\"sairExigeConfirmacao\":true,\"rascunhoEstudioMantido\":true,\"sairSemSalvarDescarta\":true}")
         } finally { tela { m.novoProjeto(); a.finish() }; png.delete(); arquivo.delete() }
     }
 }

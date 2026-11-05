@@ -28,6 +28,7 @@ import {
 } from "@/packages/converter-core/estudio.mjs";
 import { conferirEstudio, type BloqueioDoEstudio } from "@/packages/converter-core/estudio-plano.mjs";
 import { camadasNoTempo, VERSAO_DO_PROJETO } from "@/packages/converter-core/estudio.mjs";
+import { REPETICOES } from "@/packages/converter-core/repeticoes.mjs";
 import { mudarBaseDaAnimacao } from "@/packages/converter-core/estudio-animacao.mjs";
 import { dividirClipe } from "@/packages/converter-core/estudio-criacao.mjs";
 import { TRANSFORMACAO_PADRAO, type Transformacao } from "@/packages/converter-core/camadas.mjs";
@@ -1229,6 +1230,15 @@ function PainelDeExportar({
           <span>Quadro em {tempo(projeto.quadro)}</span>
           <button type="button" className="button" onClick={() => mudar((p) => ({ ...p, quadro: instante }))}>Usar o ponto da prévia ({tempo(instante)})</button>
         </div>
+      )}
+      {projeto.saida === "gif" && (
+        <Controle rotulo="Repetições">
+          <div className="estudio__chips">
+            {REPETICOES.map((r) => (
+              <button key={r.valor} type="button" className={`estudio__chip${(projeto.repeticoes ?? 0) === r.valor ? " estudio__chip--ativo" : ""}`} onClick={() => mudar((p) => ({ ...p, repeticoes: r.valor }))}>{r.rotulo}</button>
+            ))}
+          </div>
+        </Controle>
       )}
       {(projeto.saida === "video" || projeto.saida === "gif" || projeto.saida === "imagem") && (
         <Controle rotulo="Qualidade">

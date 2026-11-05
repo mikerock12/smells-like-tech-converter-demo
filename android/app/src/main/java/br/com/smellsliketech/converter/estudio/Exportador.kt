@@ -1,5 +1,6 @@
 package br.com.smellsliketech.converter.estudio
 
+import br.com.smellsliketech.converter.conversao.Repeticoes
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.ImageDecoder
@@ -207,7 +208,7 @@ object Exportador {
                 "video" -> video(contexto, projeto, receita, pasta, destino, aoCompor, qualidadeDoVideo)
                 else -> {
                     val fim = when (projeto.saida) {
-                        "gif" -> listOf("-loop", "0")
+                        "gif" -> listOf("-loop", Repeticoes.loopDoGif(projeto.repeticoes).toString())
                         "imagem" -> listOf("-ss", Estudio.numero(projeto.quadro), "-frames:v", "1", "-update", "1")
                         "texto" -> listOf("-ac", "1", "-ar", "16000", "-c:a", "pcm_s16le")
                         else -> listOf("-c:a", "libmp3lame", "-b:a", "192k")

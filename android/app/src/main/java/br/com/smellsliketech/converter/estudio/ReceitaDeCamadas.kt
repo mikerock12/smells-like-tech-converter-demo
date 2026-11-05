@@ -52,7 +52,7 @@ object ReceitaDeCamadas {
             val original=Estudio.duracaoDoClipe(c);val duracao=if(i==p.clipes.lastIndex) maxOf(original,total-inicio) else original; val rotulo="cp$i"
             val estender=if(duracao>original) "tpad=stop_mode=clone:stop_duration=${n(duracao-original)},trim=duration=${n(duracao)}," else ""
             val fim="setsar=1,$estender${FiltrosDeCamada.transformacao(c.transformacao,w,h,otimizar=otimizar,rotulo=rotulo,fps=fps)}${Efeitos.filtro(c.transformacao,w,h,fps,duracao,rotulo)},setpts=PTS-STARTPTS${if(transicoes) ",format=gbrap,settb=AVTB" else "+${n(inicio)}/TB"}[$rotulo]"
-            filtros+=when(c.ajuste) {
+            filtros+=when(Estudio.ajusteDoClipe(c)) {
                 "preencher" -> "[$i:v]${Estudio.filtroDeVelocidade(c)}fps=$fps,format=rgba,scale=$w:$h:force_original_aspect_ratio=increase,crop=$w:$h,$fim"
                 "caber" -> "[$i:v]${Estudio.filtroDeVelocidade(c)}fps=$fps,format=rgba,scale=$w:$h:force_original_aspect_ratio=decrease:force_divisible_by=2,pad=$w:$h:(ow-iw)/2:(oh-ih)/2:color=black@0,$fim"
                 else -> "[$i:v]${Estudio.filtroDeVelocidade(c)}fps=$fps,format=rgba,split[cb$i][cf$i];[cb$i]scale=$w:$h:force_original_aspect_ratio=increase,crop=$w:$h,scale=${Estudio.par(w/8.0)}:${Estudio.par(h/8.0)},gblur=sigma=3,scale=$w:$h[cblur$i];[cf$i]scale=$w:$h:force_original_aspect_ratio=decrease:force_divisible_by=2[cfit$i];[cblur$i][cfit$i]overlay=(W-w)/2:(H-h)/2:format=auto,$fim"

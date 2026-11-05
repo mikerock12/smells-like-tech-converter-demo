@@ -64,7 +64,7 @@ class QualidadeDaFigurinhaTest {
         val render = Renderizador(contexto)
         crus.use { Producao.desenharTodos(quadros, crus, { render.desenhar(it, null, Edicao()) }) {} }
         quadros.arquivos.first().parentFile?.deleteRecursively()
-        val resultado = Producao.animada(contexto, crus, { Log.i("QualidadeFigurinha", it) })
+        val resultado = Producao.animada(contexto, crus, aoTentar = { Log.i("QualidadeFigurinha", it) })
         val info = WebpAnimado.ler(resultado.webp)
         conferir(resultado.webp, kotlin.math.round(resultado.segundos * 10).toInt())
         assertTrue(resultado.webp.size <= Regras.ANIMADA_MAX_BYTES)

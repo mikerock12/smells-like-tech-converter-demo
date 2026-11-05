@@ -18,7 +18,8 @@ public static class RemovalCache
     {
         Directory.CreateDirectory(directory);
         var file = new FileInfo(source);
-        var key = string.Join('|', Path.GetFullPath(source).ToLowerInvariant(), file.Length.ToString(CultureInfo.InvariantCulture),
+        // O começo da chave muda com o jeito de recortar: 2 é a máscara limpa, sem os resquícios.
+        var key = string.Join('|', "2", Path.GetFullPath(source).ToLowerInvariant(), file.Length.ToString(CultureInfo.InvariantCulture),
             file.LastWriteTimeUtc.Ticks.ToString(CultureInfo.InvariantCulture), start.ToString("R", CultureInfo.InvariantCulture),
             duration.ToString("R", CultureInfo.InvariantCulture), width, height, fps, maskEvery);
         var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(key)))[..24].ToLowerInvariant();

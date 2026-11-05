@@ -138,6 +138,35 @@ public class FfmpegIntegrationTests : IDisposable
     }
 
     [Fact]
+    public async Task VideoParaGif_GravaAsRepeticoesNoArquivo()
+    {
+        if (!Available)
+        {
+            return;
+        }
+
+        var source = await CreateSampleAsync(withAudio: false);
+        var (engine, workspace, job) = Setup(source, new VideoToGifOptions
+        {
+            FrameRate = 10,
+            Width = 240,
+            Repeats = 3,
+            TrimDuration = TimeSpan.FromSeconds(1)
+        });
+
+        using (workspace)
+        {
+            var result = await engine.ExecuteAsync(new EngineContext(job, workspace, new IgnoreProgress()), CancellationToken.None);
+            var bytes = await File.ReadAllBytesAsync(Assert.Single(result.OutputFiles));
+            var marca = System.Text.Encoding.ASCII.GetBytes("NETSCAPE2.0");
+            var i = bytes.AsSpan().IndexOf(marca);
+            Assert.True(i > 0, "O GIF precisa ter o bloco de repetição.");
+            // Bloco: tamanho 3, id 1 e o número em 16 bits. Tocar 3 vezes é repetir 2.
+            Assert.Equal(2, bytes[i + marca.Length + 2] | (bytes[i + marca.Length + 3] << 8));
+        }
+    }
+
+    [Fact]
     public async Task Progresso_ChegaAoFimDuranteAConversao()
     {
         if (!Available)

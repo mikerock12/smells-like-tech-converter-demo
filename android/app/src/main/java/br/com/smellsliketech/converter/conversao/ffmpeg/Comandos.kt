@@ -1,5 +1,6 @@
 package br.com.smellsliketech.converter.conversao.ffmpeg
 
+import br.com.smellsliketech.converter.conversao.Repeticoes
 import br.com.smellsliketech.converter.conversao.Encaixe
 import br.com.smellsliketech.converter.conversao.ErroDeConversao
 import br.com.smellsliketech.converter.conversao.Listas
@@ -361,7 +362,7 @@ object Comandos {
     }
 
     fun gif(entrada: String, saida: String, opcoes: Opcoes): List<String> {
-        if (opcoes.fpsDoGif !in Listas.FPS_DO_GIF || opcoes.larguraDoGif !in Listas.LARGURAS_DO_GIF) throw ErroDeConversao("GIF fora das opções.")
+        if (opcoes.fpsDoGif !in Listas.FPS_DO_GIF || opcoes.larguraDoGif !in Listas.LARGURAS_DO_GIF || opcoes.vezesDoGif !in Repeticoes.TODAS) throw ErroDeConversao("GIF fora das opções.")
         // Sem corte, o GIF fica nos 10 primeiros segundos, como no desktop; no máximo 2 minutos.
         val fim = when {
             opcoes.fimSegundos > opcoes.inicioSegundos -> minOf(opcoes.fimSegundos, opcoes.inicioSegundos + 120)
@@ -373,7 +374,7 @@ object Comandos {
             "fps=${opcoes.fpsDoGif},scale=${opcoes.larguraDoGif}:-2:flags=lanczos,split[paleta][gif];" +
                 "[paleta]palettegen=stats_mode=diff[p];" +
                 "[gif][p]paletteuse=dither=bayer:bayer_scale=5:diff_mode=rectangle",
-            "-loop", "0", "-an", "-sn", "-dn", saida,
+            "-loop", Repeticoes.loopDoGif(opcoes.vezesDoGif).toString(), "-an", "-sn", "-dn", saida,
         )
         return argumentos
     }

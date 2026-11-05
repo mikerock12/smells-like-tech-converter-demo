@@ -15,6 +15,7 @@ import {
   getFirstEncodableVideoCodec,
 } from "mediabunny";
 import { GIFEncoder, applyPalette, quantize } from "gifenc";
+import { loopDoGif } from "@/packages/converter-core/repeticoes.mjs";
 
 import {
   FPS_DO_GIF,
@@ -167,6 +168,7 @@ async function gif(projeto: Projeto, arquivos: ArquivosDoProjeto, andamento: And
     const atraso = (Math.round(((indice + 1) * 100) / FPS_DO_GIF) - Math.round((indice * 100) / FPS_DO_GIF)) * 10;
     codificador.writeFrame(applyPalette(data, paleta, "rgba4444"), largura, altura, {
       palette: paleta, delay: atraso, transparent: transparente >= 0, transparentIndex: transparente, dispose: 2,
+      repeat: loopDoGif(projeto.repeticoes ?? 0),
     });
     andamento("Montando o GIF", (indice + 1) / total);
   });

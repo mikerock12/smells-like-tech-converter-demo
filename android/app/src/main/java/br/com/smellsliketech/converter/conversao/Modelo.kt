@@ -196,6 +196,8 @@ data class Opcoes(
     val quadrosExtraidosPorSegundo: Double = 1.0,
     val maximoDeQuadros: Int = 300,
     val repeticoesDoGif: Int = 1,
+    /** Vídeo → GIF: quantas vezes o GIF gerado toca (0 = sem fim). `repeticoesDoGif` é o contrário: GIF → vídeo. */
+    val vezesDoGif: Int = 0,
     val atrasoLegendaSegundos: Double = 0.0,
 
     // Transcrição
@@ -255,4 +257,13 @@ object Mimes {
         "srt" -> "application/x-subrip"; "vtt" -> "text/vtt"
         else -> "application/octet-stream"
     }
+}
+
+/** Quantas vezes uma animação toca; 0 é sem fim. Espelho de repeticoes.mjs. */
+object Repeticoes {
+    val TODAS = listOf(0, 3, 5, 10)
+    fun rotulo(vezes: Int) = if (vezes == 0) "Sem fim" else "$vezes vezes"
+
+    /** O GIF guarda quantas vezes repete depois da primeira: tocar 3 vezes é gravar 2. */
+    fun loopDoGif(vezes: Int) = if (vezes > 0) vezes - 1 else 0
 }

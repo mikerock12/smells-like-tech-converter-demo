@@ -1,5 +1,6 @@
 package br.com.smellsliketech.converter.ui
 
+import br.com.smellsliketech.converter.conversao.Repeticoes
 import android.app.Activity
 import android.graphics.BitmapFactory
 import android.graphics.Color as CorAndroid
@@ -658,6 +659,14 @@ private fun EditorDeFigurinha(modelo: FigurinhasViewModel, pedirSaida: () -> Uni
                                 }
                             }
                         }
+                        Rotulado("Repetições") {
+                            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Repeticoes.TODAS.forEach { vezes ->
+                                    FilterChip(selected = modelo.repeticoes == vezes, onClick = { modelo.mudarRepeticoes(vezes) }, label = { Text(Repeticoes.rotulo(vezes), fontSize = 12.sp) })
+                                }
+                            }
+                        }
+                        if (modelo.repeticoes != 0) Dica("A escolha fica gravada na figurinha, mas quem decide quantas vezes ela toca é o WhatsApp: ele pode repetir do jeito dele.")
                         Dica("Toda figurinha anima nessa velocidade, sem pular quadros. Se a animação tiver movimento demais para os 500 KB do WhatsApp, ela fica mais curta. Mais quadros: mais suave e mais curta.")
                         Rotulado("Duração da composição: ${"%.1f".format(modelo.duracaoDaComposicao)} s de ${"%.1f".format(modelo.duracaoDisponivel)} s disponíveis") {
                             DeslizanteComAjusteFino(modelo.duracaoDaComposicao.toFloat(),
@@ -755,7 +764,8 @@ private fun PreviaFinal(modelo: FigurinhasViewModel, salvar: () -> Unit) {
                         update = { vista ->
                             val desenho = android.graphics.ImageDecoder.decodeDrawable(android.graphics.ImageDecoder.createSource(previa.arquivo))
                             vista.setImageDrawable(desenho)
-                            (desenho as? android.graphics.drawable.AnimatedImageDrawable)?.apply { repeatCount = android.graphics.drawable.AnimatedImageDrawable.REPEAT_INFINITE; start() }
+                            // Sem forçar a repetição: a prévia toca as vezes que a figurinha tem gravadas.
+                            (desenho as? android.graphics.drawable.AnimatedImageDrawable)?.start()
                         },
                         modifier = Modifier.fillMaxSize(),
                     )

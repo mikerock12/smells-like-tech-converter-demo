@@ -1,5 +1,6 @@
 package br.com.smellsliketech.converter.ui
 
+import br.com.smellsliketech.converter.conversao.Repeticoes
 import android.app.Activity
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -329,6 +330,7 @@ private fun Ajustes(modelo: OficinaViewModel, ferramenta: Ferramenta, opcoes: Op
         Ferramenta.VIDEO_GIF -> {
             Escolha("Quadros por segundo", Listas.FPS_DO_GIF, opcoes.fpsDoGif, { "$it" }) { mudar(opcoes.copy(fpsDoGif = it)) }
             Escolha("Largura", Listas.LARGURAS_DO_GIF, opcoes.larguraDoGif, { "$it px" }) { mudar(opcoes.copy(larguraDoGif = it)) }
+            Escolha("Repetições", Repeticoes.TODAS, opcoes.vezesDoGif, Repeticoes::rotulo) { mudar(opcoes.copy(vezesDoGif = it)) }
             Dica("Sem corte, o GIF usa os 10 primeiros segundos (no máximo 2 minutos).")
             Trecho(amostra, opcoes, mudar)
         }

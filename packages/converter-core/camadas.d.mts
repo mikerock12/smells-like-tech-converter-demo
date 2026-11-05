@@ -16,3 +16,4 @@ export declare function cantosDaCamada(largura: number, altura: number, quadroW:
 export declare function homografia(cantos: { x: number; y: number }[]): number[] | null;
 export declare function projetarPonto(m: number[], x: number, y: number): { x: number; y: number };
 export declare function validarTransformacao(t?: Partial<Transformacao>): string | null;
+export declare function ajusteDoClipe<A extends string>(clipe: { ajuste: A; transformacao?: { removerFundo?: boolean } | null }): A | "caber";

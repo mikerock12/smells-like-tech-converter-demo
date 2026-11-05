@@ -81,6 +81,8 @@ export type Projeto = {
   audios: AudioExtra[];
   /** Instante exportado quando a saída é imagem. */
   quadro: number;
+  /** Quantas vezes o GIF toca; sem o campo ou 0, sem fim. */
+  repeticoes?: number;
 };
 
 export type Camada = {

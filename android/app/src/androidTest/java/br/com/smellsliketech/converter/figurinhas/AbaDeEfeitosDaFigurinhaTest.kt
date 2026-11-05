@@ -124,6 +124,8 @@ class AbaDeEfeitosDaFigurinhaTest {
             no("Parar a prévia")
             fotografar("aba-efeitos-tocando.png")
             no("Duração da entrada")
+            tocar("3 vezes")
+            esperar { m.repeticoes == 3 }
             tocar("Camadas")
             esperar { !m.tocandoEfeito }
             // Em texto, a máquina de escrever aparece.

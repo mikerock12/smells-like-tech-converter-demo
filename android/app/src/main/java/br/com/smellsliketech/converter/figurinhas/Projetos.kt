@@ -1,5 +1,6 @@
 package br.com.smellsliketech.converter.figurinhas
 
+import br.com.smellsliketech.converter.conversao.Repeticoes
 import br.com.smellsliketech.converter.estudio.Efeitos
 import org.json.JSONArray
 import org.json.JSONObject
@@ -22,6 +23,7 @@ data class ProjetoSalvo(
     val principal: CamadaSalva,
     val camadas: List<CamadaSalva>,
     val duracao: Double? = null,
+    val repeticoes: Int = 0,
 )
 
 /** `arquivo` e `mascara` são nomes dentro da pasta do projeto; texto não tem arquivo. */
@@ -52,6 +54,7 @@ object Projetos {
             .put("inicio", projeto.inicio)
             .put("fim", projeto.fim)
             .put("duracao", projeto.duracao ?: JSONObject.NULL)
+            .put("repeticoes", projeto.repeticoes)
             .put("corDeFundo", projeto.corDeFundo)
             .put("corFinalDoFundo", projeto.corFinalDoFundo ?: JSONObject.NULL)
             .put("emojis", JSONArray(projeto.emojis))
@@ -74,6 +77,7 @@ object Projetos {
                 inicio = o.getDouble("inicio"),
                 fim = o.getDouble("fim"),
                 duracao = o.optDouble("duracao", Double.NaN).takeIf { it.isFinite() && it in 0.2..10.0 },
+                repeticoes = o.optInt("repeticoes", 0).takeIf { it in Repeticoes.TODAS } ?: 0,
                 corDeFundo = o.getInt("corDeFundo"),
                 corFinalDoFundo = if (o.isNull("corFinalDoFundo")) null else o.getInt("corFinalDoFundo"),
                 emojis = (0 until emojis.length()).map { emojis.getString(it) },

@@ -603,6 +603,12 @@ public sealed partial class StudioPage : Page
         var saida = StudioRules.FindOutput(atual.Output);
         ExportPanel.Children.Add(Muted($"{saida?.Description} · {atual.Width}×{atual.Height} · {StudioRules.ReadableDuration(Total)}"));
 
+        if (atual.Output == "gif")
+        {
+            ExportPanel.Children.Add(Choice("Repetições", AnimationRepeats.Allowed.Select(r => (r.ToString(CultureInfo.InvariantCulture), AnimationRepeats.Label(r))).ToList(),
+                atual.Repeats.ToString(CultureInfo.InvariantCulture), id => ChangeAndRefresh(p => p with { Repeats = int.Parse(id, CultureInfo.InvariantCulture) })));
+        }
+
         if (atual.Output == "imagem")
         {
             var quadro = new Button { Content = $"Usar o ponto da prévia ({Clock(TimeSlider.Value)}) · agora em {Clock(atual.Frame)}" };

@@ -1,5 +1,6 @@
 package br.com.smellsliketech.converter.ui
 
+import br.com.smellsliketech.converter.conversao.Repeticoes
 import android.content.ComponentName
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -705,6 +706,14 @@ private fun PainelDeExportar(modelo: EstudioViewModel, projeto: Projeto, podeExp
                 Text("Modelo de transcrição", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     instalados.forEach { m -> FilterChip(selected = escolhido == m.id, onClick = { modeloWhisper = m.id }, label = { Text(m.rotulo, fontSize = 12.sp) }) }
+                }
+            }
+        }
+        if (projeto.saida == "gif") {
+            Text("Repetições", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Repeticoes.TODAS.forEach { vezes ->
+                    FilterChip(selected = projeto.repeticoes == vezes, onClick = { modelo.mudarProjeto { it.copy(repeticoes = vezes) } }, label = { Text(Repeticoes.rotulo(vezes), fontSize = 12.sp) })
                 }
             }
         }

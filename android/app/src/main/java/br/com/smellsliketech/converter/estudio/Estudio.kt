@@ -1,5 +1,6 @@
 package br.com.smellsliketech.converter.estudio
 
+import br.com.smellsliketech.converter.conversao.Repeticoes
 import java.math.BigDecimal
 import kotlin.math.max
 import kotlin.math.min
@@ -144,6 +145,12 @@ object Estudio {
     }
 
     /** Problemas que impedem exportar, nos mesmos textos do site e do Windows. */
+    /**
+     * O enquadramento de verdade do clipe. O fundo desfocado é o próprio clipe borrado: com o
+     * fundo removido, ele viraria uma mancha em volta da figura. Nesse caso o clipe só cabe no quadro.
+     */
+    fun ajusteDoClipe(clipe: Clipe) = if (clipe.ajuste == "caber-desfocado" && clipe.transformacao?.removerFundo == true) "caber" else clipe.ajuste
+
     fun problemas(projeto: Projeto): List<String> {
         val lista = mutableListOf<String>()
         if (projeto.versao !in listOf(1, 2, 3, 4, VERSAO_DO_PROJETO)) lista += "Projeto de uma versão que este app não conhece."
@@ -151,6 +158,7 @@ object Estudio {
             lista += "O tamanho do quadro precisa ficar entre 16 e 4096 pixels."
         }
         if (saida(projeto.saida) == null) lista += "Escolha o que exportar."
+        if (projeto.repeticoes !in Repeticoes.TODAS) lista += "Escolha quantas vezes a animação repete."
         if (projeto.clipes.isEmpty()) lista += "Adicione pelo menos um vídeo ou imagem."
         projeto.clipes.forEachIndexed { i, clipe ->
             if (clipe.tipo == "video" && !((clipe.fim ?: 0.0) - (clipe.inicio ?: 0.0) >= DURACAO_MINIMA)) lista += "O clipe ${i + 1} termina antes de começar."

@@ -1,5 +1,6 @@
 package br.com.smellsliketech.converter.figurinhas
 
+import br.com.smellsliketech.converter.conversao.Repeticoes
 import android.app.Application
 import android.graphics.Bitmap
 import android.graphics.ImageDecoder
@@ -78,6 +79,16 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
         quadrosPorSegundo = valor
         preferencias.edit().putInt("quadrosPorSegundo", valor).apply()
     }
+    /** Quantas vezes a figurinha animada toca; 0 é sem fim. O WhatsApp pode repetir do jeito dele. */
+    var repeticoes by mutableStateOf(0)
+        private set
+
+    fun mudarRepeticoes(valor: Int) {
+        if (valor !in Repeticoes.TODAS || valor == repeticoes) return
+        registrar()
+        repeticoes = valor
+    }
+
     var inicio by mutableStateOf(0.0)
     var fim by mutableStateOf(0.0)
     private var edicaoPrincipal by mutableStateOf(Edicao())
@@ -202,7 +213,7 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
         val base: Bitmap?, val edicao: Edicao, val mascara: Bitmap?, val manual: Boolean,
         val camadas: List<CamadaDeFigurinha>, val selecionada: String?, val fundo: Int, val fundoFinal: Int?,
         val emojis: List<String>, val inicio: Double, val fim: Double, val animada: Boolean, val fps: Int,
-        val duracao: Double?,
+        val duracao: Double?, val repeticoes: Int,
     )
     private val historico = HistoricoDeEdicao<EstadoDoEditor>(peso = { estado ->
         (listOfNotNull(estado.base, estado.mascara) + estado.camadas.flatMap { listOfNotNull(it.imagem, it.mascara) }).distinct().sumOf { it.allocationByteCount.toLong() }
@@ -213,7 +224,7 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
     var podeRefazer by mutableStateOf(false)
         private set
     private fun estadoDoEditor() = EstadoDoEditor(basePrincipal, edicaoPrincipal, mascaraPrincipal, mascaraManualPrincipal,
-        camadas, camadaSelecionada, corDeFundo, corFinalDoFundo, emojis, inicio, fim, animada, quadrosPorSegundo, duracaoEscolhida)
+        camadas, camadaSelecionada, corDeFundo, corFinalDoFundo, emojis, inicio, fim, animada, quadrosPorSegundo, duracaoEscolhida, repeticoes)
     private fun atualizarHistorico() { podeDesfazer = historico.podeDesfazer; podeRefazer = historico.podeRefazer }
     private fun registrar(chave: String = "") {
         historico.registrar(estadoDoEditor(), chave)
@@ -233,6 +244,7 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
         inicio = estado.inicio; fim = estado.fim; animada = estado.animada
         quadrosPorSegundo = estado.fps
         duracaoEscolhida = estado.duracao
+        repeticoes = estado.repeticoes
         tempoDaPrevia = tempoDaPrevia.coerceIn(0f, duracaoDaComposicao.toFloat())
         preferencias.edit().putInt("quadrosPorSegundo", estado.fps).apply()
         if (!temEfeitos) pararEfeito()
@@ -933,7 +945,7 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
                     relatar(0.2 + 0.5 * feitos / total, "Compondo quadro $feitos de $total…")
                 }
             }
-            return Producao.animada(contexto, crus) { relatar(0.7 + it * 0.3, "Compactando para o WhatsApp…") }
+            return Producao.animada(contexto, crus, repeticoes) { relatar(0.7 + it * 0.3, "Compactando para o WhatsApp…") }
         } finally {
             pasta.deleteRecursively()
         }
@@ -1047,6 +1059,7 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
         previaPorCamada = false
         cursoresDasCamadas = emptyMap()
         duracaoEscolhida = null
+        repeticoes = 0
         base = null
         mascara = null
         mascaraManualPrincipal = false
@@ -1137,7 +1150,7 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
     // ---- Prévia final ----
 
     /** Tudo o que muda a figurinha gerada: se nada mudou desde a prévia final, o Salvar a reaproveita. */
-    private fun assinatura(): Any = listOf(composicao(), corDeFundo, corFinalDoFundo, inicio, fim, duracaoEscolhida, saiAnimada, quadrosPorSegundo)
+    private fun assinatura(): Any = listOf(composicao(), corDeFundo, corFinalDoFundo, inicio, fim, duracaoEscolhida, saiAnimada, quadrosPorSegundo, repeticoes)
 
     /** Gera a figurinha exatamente como o Salvar faria e mostra (animada, com duração e tamanho). */
     fun verComoFica() {
@@ -1215,6 +1228,7 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
                 inicio = projeto.inicio
                 fim = projeto.fim
                 duracaoEscolhida = projeto.duracao
+                repeticoes = projeto.repeticoes
                 corDeFundo = projeto.corDeFundo
                 corFinalDoFundo = projeto.corFinalDoFundo
                 emojis = projeto.emojis.ifEmpty { listOf(Pacotes.EMOJI_PADRAO) }
@@ -1293,6 +1307,7 @@ class FigurinhasViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) 
                 principal.mascara?.takeIf { principal.mascaraManual }?.let { png(it, "principal-mascara.png") }, principal.edicao),
             camadas = salvas,
             duracao = duracaoEscolhida,
+            repeticoes = repeticoes,
         )
         withContext(Dispatchers.IO) {
             Projetos.gravar(temporaria, projeto)

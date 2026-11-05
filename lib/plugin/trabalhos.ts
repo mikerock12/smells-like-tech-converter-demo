@@ -1,3 +1,4 @@
+import { repeticoesValidas } from "@/packages/converter-core/repeticoes.mjs";
 import type { Ferramenta } from "@/packages/converter-core/catalogo.mjs";
 
 import type { Opcoes } from "@/lib/converter/ferramentas";
@@ -81,6 +82,7 @@ export function opcoesDoPlugin(ferramenta: Ferramenta, opcoes: Opcoes): Record<s
         operation,
         Width: [240, 320, 480, 640, 800].includes(Number(opcoes.largura)) ? Number(opcoes.largura) : 480,
         FrameRate: [8, 10, 12, 15, 20, 24].includes(Number(opcoes.fps)) ? Number(opcoes.fps) : 12,
+        Repeats: repeticoesValidas(Number(opcoes.repeticoes ?? 0)) ? Number(opcoes.repeticoes ?? 0) : 0,
         TrimStart: inicio,
         TrimDuration: tempoEmTimeSpan(Number(opcoes.duracao ?? 5) || 5),
       };

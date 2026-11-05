@@ -1,3 +1,4 @@
+import { REPETICOES } from "@/packages/converter-core/repeticoes.mjs";
 import type { FormatId } from "@/packages/converter-core/index.mjs";
 import { getFormat } from "@/packages/converter-core/index.mjs";
 import { AUDIO_BITRATES } from "@/packages/converter-core/index.mjs";
@@ -277,6 +278,7 @@ export const CAMPOS: Readonly<Record<string, readonly Campo[]>> = {
     { id: "duracao", tipo: "numero", rotulo: "Duração", padrao: 5, min: 0.5, max: 30, passo: 0.5, sufixo: "s" },
     { id: "largura", tipo: "select", rotulo: "Largura", opcoes: ["240", "320", "480", "640"].map((valor) => ({ valor, rotulo: `${valor} px` })), padrao: "480" },
     { id: "fps", tipo: "select", rotulo: "Quadros por segundo", opcoes: ["8", "10", "12", "15", "20"].map((valor) => ({ valor, rotulo: valor })), padrao: "12" },
+    { id: "repeticoes", tipo: "select", rotulo: "Repetições", opcoes: REPETICOES.map(({ valor, rotulo }) => ({ valor: String(valor), rotulo })), padrao: "0" },
   ],
   "video.de-gif": [
     formatos(["mp4", "webm"], "mp4"),

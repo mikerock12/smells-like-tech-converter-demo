@@ -74,9 +74,15 @@ class CenaSelecionadaTest {
             estudio.adicionarMidias(listOf(Uri.fromFile(video)))
         }
         try {
-            esperar { estudio.previa != null && estudio.ocupado == null }
+            esperar { estudio.projeto?.clipes?.size == 1 && estudio.ocupado == null }
             val id = estudio.projeto!!.clipes.first().id
             tela { estudio.mudarClipe(id) { it.copy(velocidade = 2.0) }; estudio.mostrarInstanteDoClipe(id, 1.5) }
+            // Vídeo simples toca no player direto, que acompanha o cursor sem montar quadro nenhum.
+            assertTrue(estudio.previaDireta)
+            assertNull(estudio.previa)
+            assertEquals(.75, estudio.instante, .001)
+            // Os pixels vêm da prévia renderizada: é ela que assume quando o player falha.
+            tela { estudio.falhouPlayer() }
             esperar { azul(estudio.previa) }
             assertEquals(.75, estudio.instante, .001)
             val anterior = estudio.previa

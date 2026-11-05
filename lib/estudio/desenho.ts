@@ -11,6 +11,7 @@ import {
   type Projeto,
   type Texto,
 } from "@/packages/converter-core/estudio.mjs";
+import { ajusteDoClipe } from "@/packages/converter-core/camadas.mjs";
 import { letrasVisiveis, usaMaquina } from "@/packages/converter-core/estudio-efeitos.mjs";
 import { desenharCamada } from "./camadas";
 
@@ -169,7 +170,7 @@ export function desenharQuadro(ctx: Contexto2D, projeto: Projeto, t: number, ima
     c.drawImage(ctx.canvas,0,0,largura,altura);
     if(fonte && clipe) {
       const enquadrada=new OffscreenCanvas(largura,altura);
-      enquadrar(enquadrada.getContext("2d")!,fonte,clipe.ajuste,largura,altura);
+      enquadrar(enquadrada.getContext("2d")!,fonte,ajusteDoClipe(clipe),largura,altura);
       desenharCamada(c,enquadrada,largura,altura,clipe.transformacao, tempoDoClipe(clipe.id), duracaoDoClipe(clipe.id));
     }
     return tela;
@@ -199,7 +200,7 @@ export function desenharQuadro(ctx: Contexto2D, projeto: Projeto, t: number, ima
   } else if(imagem && ajuste && primeiro) {
     if(primeiro.transformacao) {
       const tela=new OffscreenCanvas(largura,altura);
-      enquadrar(tela.getContext("2d")!,imagem,ajuste,largura,altura);
+      enquadrar(tela.getContext("2d")!,imagem,ajusteDoClipe({ ajuste, transformacao: primeiro.transformacao }),largura,altura);
       desenharCamada(ctx,tela,largura,altura,primeiro.transformacao, tempoDoClipe(primeiro.id), duracaoDoClipe(primeiro.id));
     }
     else enquadrar(ctx,imagem,ajuste,largura,altura);

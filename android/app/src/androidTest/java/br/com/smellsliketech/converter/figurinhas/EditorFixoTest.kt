@@ -7,6 +7,7 @@ import android.graphics.Bitmap
 import android.graphics.Color
 import android.graphics.Rect
 import android.net.Uri
+import android.os.Build
 import android.os.SystemClock
 import android.view.InputDevice
 import android.view.MotionEvent
@@ -40,10 +41,15 @@ class EditorFixoTest {
     }
     private fun todos(no: AccessibilityNodeInfo? = i.uiAutomation.rootInActiveWindow): List<AccessibilityNodeInfo> =
         if (no == null) emptyList() else listOf(no) + (0 until no.childCount).flatMap { todos(no.getChild(it)) }
+    /** A UIA guarda a árvore em cache: sem limpar, um controle que a rolagem tirou da tela continua nela. */
+    private fun arvoreAtual(): List<AccessibilityNodeInfo> {
+        if (Build.VERSION.SDK_INT >= 34) i.uiAutomation.clearCache()
+        return todos()
+    }
     private fun no(descricao: String): AccessibilityNodeInfo {
         val limite = SystemClock.uptimeMillis() + 45_000
         do {
-            val arvore = todos()
+            val arvore = arvoreAtual()
             arvore.firstOrNull { it.contentDescription?.toString() == descricao }?.let { return it }
             arvore.firstOrNull { it.text?.toString() == descricao }?.let { return it }
             // O AVD pode apresentar ANR do launcher/System UI durante o boot. Nunca fechar ANR do app.
@@ -71,7 +77,7 @@ class EditorFixoTest {
         val b = caixa(descricao); gesto(b.centerX().toFloat(), b.centerY().toFloat())
         i.waitForIdleSync(); Thread.sleep(150)
     }
-    private fun gesto(x: Float, y: Float, ateX: Float = x, ateY: Float = y) {
+    private fun gesto(x: Float, y: Float, ateX: Float = x, ateY: Float = y, pararAntesDeSoltar: Boolean = false) {
         val inicio = SystemClock.uptimeMillis()
         fun enviar(acao: Int, px: Float, py: Float) {
             enviarToque(inicio, acao, px, py)
@@ -80,6 +86,8 @@ class EditorFixoTest {
         if (x != ateX || y != ateY) repeat(8) { n ->
             SystemClock.sleep(16); enviar(MotionEvent.ACTION_MOVE, x + (ateX - x) * (n + 1) / 8, y + (ateY - y) * (n + 1) / 8)
         }
+        // Soltar em movimento deixa a rolagem seguir sozinha e passar do controle procurado.
+        if (pararAntesDeSoltar) { SystemClock.sleep(200); enviar(MotionEvent.ACTION_MOVE, ateX, ateY) }
         enviar(MotionEvent.ACTION_UP, ateX, ateY)
     }
     private fun enviarToque(inicio: Long, acao: Int, x: Float, y: Float) {
@@ -95,7 +103,7 @@ class EditorFixoTest {
      * A área de ajustes (a rolagem vertical mais alta). A fileira de abas também rola, na
      * horizontal, desde que ganhou a aba Recortar: não serve para procurar os controles.
      */
-    private fun painelRolavel(arvore: List<AccessibilityNodeInfo> = todos()): AccessibilityNodeInfo? =
+    private fun painelRolavel(arvore: List<AccessibilityNodeInfo> = arvoreAtual()): AccessibilityNodeInfo? =
         arvore.filter { it.isScrollable }.maxByOrNull { no -> Rect().also { no.getBoundsInScreen(it) }.height() }
     private fun rolarPara(descricao: String) {
         for (volta in 0 until 12) {
@@ -104,7 +112,7 @@ class EditorFixoTest {
             i.waitForIdleSync(); Thread.sleep(200)
         }
         repeat(25) {
-            val arvore = todos()
+            val arvore = arvoreAtual()
             val alvo = arvore.firstOrNull { it.contentDescription?.toString() == descricao }
             if (alvo != null) {
                 val limites = Rect(); alvo.getBoundsInScreen(limites)
@@ -114,7 +122,7 @@ class EditorFixoTest {
             }
             val rolavel = painelRolavel(arvore) ?: error("Sem área rolável")
             val b = Rect(); rolavel.getBoundsInScreen(b)
-            gesto(b.left + 4f, b.top + b.height() * .7f, b.left + 4f, b.top + b.height() * .4f)
+            gesto(b.left + 4f, b.top + b.height() * .7f, b.left + 4f, b.top + b.height() * .4f, pararAntesDeSoltar = true)
             i.waitForIdleSync(); Thread.sleep(350)
         }
         error("Controle fora da rolagem: $descricao")

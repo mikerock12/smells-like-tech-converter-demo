@@ -209,6 +209,8 @@ public sealed record VideoToGifOptions : JobOptions
 
     public int FrameRate { get; init; } = 12;
     public int Width { get; init; } = 480;
+    /// <summary>Quantas vezes o GIF toca; 0 é sem fim.</summary>
+    public int Repeats { get; init; }
     public TimeSpan? TrimStart { get; init; }
     public TimeSpan? TrimDuration { get; init; } = TimeSpan.FromSeconds(10);
 
@@ -227,6 +229,11 @@ public sealed record VideoToGifOptions : JobOptions
             throw new ConversionException("invalid_resolution", "Largura do GIF fora da lista permitida.");
         }
 
+        if (!AnimationRepeats.Allowed.Contains(Repeats))
+        {
+            throw new ConversionException("invalid_repeats", "Repetições do GIF fora da lista permitida.");
+        }
+
         AudioAllowlist.ValidateTrim(TrimStart, TrimDuration);
 
         if (TrimDuration is not null && TrimDuration.Value > TimeSpan.FromMinutes(2))
@@ -235,7 +242,7 @@ public sealed record VideoToGifOptions : JobOptions
         }
     }
 
-    public override string Summary() => $"GIF · {Width}px · {FrameRate} fps";
+    public override string Summary() => $"GIF · {Width}px · {FrameRate} fps · {AnimationRepeats.Label(Repeats)}";
 }
 
 public sealed record VideoToFramesOptions : JobOptions

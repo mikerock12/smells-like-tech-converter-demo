@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using SmellsLikeTech.Converter.Core.Options;
 
 namespace SmellsLikeTech.Converter.Core.Studio;
 
@@ -55,6 +56,12 @@ public static class StudioRules
     public static StudioPreset? FindPreset(string id) => Presets.FirstOrDefault(p => p.Id == id);
 
     public static StudioOutput? FindOutput(string id) => Outputs.FirstOrDefault(o => o.Id == id);
+
+    /// <summary>
+    /// O enquadramento de verdade do clipe. O fundo desfocado é o próprio clipe borrado: com o
+    /// fundo removido, ele viraria uma mancha em volta da figura. Nesse caso o clipe só cabe no quadro.
+    /// </summary>
+    public static string ClipFit(StudioClip clip) => clip.Fit == "caber-desfocado" && clip.Transform?.RemoveBackground == true ? "caber" : clip.Fit;
 
     public static StudioProject NewProject(string destination, string output = "video", int? width = null, int? height = null)
     {
@@ -155,6 +162,11 @@ public static class StudioRules
         if (FindOutput(project.Output) is null)
         {
             list.Add("Escolha o que exportar.");
+        }
+
+        if (!AnimationRepeats.Allowed.Contains(project.Repeats))
+        {
+            list.Add("Escolha quantas vezes a animação repete.");
         }
 
         if (project.Clips.Count == 0)

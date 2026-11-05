@@ -223,6 +223,7 @@ object Producao {
     suspend fun animada(
         contexto: Context,
         crus: QuadrosCrus,
+        repeticoes: Int = 0,
         aoTentar: (String) -> Unit = {},
         aoAvancar: (Double) -> Unit = {},
     ): Animada = withContext(Dispatchers.IO) {
@@ -262,7 +263,7 @@ object Producao {
                     val gerada = saida.readBytes()
                     if (!crus.temImagem(quadros)) throw ErroDeConversao("A figurinha ficou vazia: a imagem saiu do quadro. Toque em Centralizar e tente de novo.")
                     val duracaoMs = (quadros * 1000L / crus.porSegundo).coerceIn(16, WebpAnimado.DURACAO_MAX_MS.toLong()).toInt()
-                    val webp = WebpAnimado.comecarEm(WebpAnimado.normalizar(WebpAnimado.quadrosIndependentes(gerada), duracaoMs), crus.quadroDeCapa(quadros))
+                    val webp = WebpAnimado.repetir(WebpAnimado.comecarEm(WebpAnimado.normalizar(WebpAnimado.quadrosIndependentes(gerada), duracaoMs), crus.quadroDeCapa(quadros)), repeticoes)
                     aoAvancar(1.0)
                     return@withContext Animada(webp, quadros.toDouble() / crus.porSegundo, quadros < total)
                 }

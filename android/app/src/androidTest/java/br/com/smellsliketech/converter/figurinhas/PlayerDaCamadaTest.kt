@@ -290,27 +290,28 @@ class PlayerDaCamadaTest {
             m.previa!!.let { imagem -> File(app.filesDir, "camadas-fim-transparente.png").outputStream().use { imagem.compress(Bitmap.CompressFormat.PNG, 100, it) } }
             tela { m.mostrarInstante(3.5f) }
             esperar { m.ocupado == null && cor(m.previa, 128, 256, Color.CYAN) && cor(m.previa, 384, 256, Color.GREEN) }
-            tela { m.mudarDuracao(6f); m.mostrarInstante(5.5f) }
-            esperar { m.ocupado == null && m.previa?.let { Color.alpha(it.getPixel(256, 400)) == 0 && Color.alpha(it.getPixel(128, 256)) == 0 } == true }
+            // A composição não passa do maior trecho (1.0.6): a longa vai a 6 s e segura o fim das outras.
+            tela { m.mudarTrechoDaCamada(b, 10.0, 16.0); m.mudarDuracao(5.5f); m.mostrarInstante(5.25f) }
+            esperar { m.ocupado == null && m.previa?.let { Color.alpha(it.getPixel(256, 400)) == 0 && Color.alpha(it.getPixel(384, 256)) == 0 } == true && cor(m.previa, 128, 256, Color.CYAN) }
             tela { m.verComoFica() }
             esperar { m.ocupado == null && m.previaFinal != null }
             val webp = m.previaFinal!!.arquivo.readBytes()
-            assertEquals(6000L, WebpAnimado.ler(webp).duracaoMs)
+            assertEquals(5500L, WebpAnimado.ler(webp).duracaoMs)
             quadroNoTempo(webp, 1.25).let { q -> assertTrue(cor(q, 384, 256, Color.RED)); assertTrue(cor(q, 128, 256, Color.BLUE)); q.recycle() }
             quadroNoTempo(webp, 3.5).let { q -> assertTrue(cor(q, 384, 256, Color.GREEN)); assertTrue(cor(q, 128, 256, Color.CYAN)); q.recycle() }
-            quadroNoTempo(webp, 5.5).let { q -> assertEquals(0, Color.alpha(q.getPixel(128, 256))); assertEquals(0, Color.alpha(q.getPixel(256, 400))); q.recycle() }
+            quadroNoTempo(webp, 5.25).let { q -> assertEquals(0, Color.alpha(q.getPixel(384, 256))); assertEquals(0, Color.alpha(q.getPixel(256, 400))); assertTrue(cor(q, 128, 256, Color.CYAN)); q.recycle() }
             tela { m.exibindoPreviaFinal = false; m.salvar(null, "Tempos independentes") }
             esperar { m.origem == null && m.ocupado == null }
             val pacote = m.pacoteAberto!!; pacoteId = pacote.id
             val figurinha = pacote.figurinhas.single()
             val pasta = m.pacotes.pastaDoProjeto(pacote, figurinha.arquivo)
-            assertEquals(6.0, Projetos.ler(pasta)!!.duracao!!, 0.0)
+            assertEquals(5.5, Projetos.ler(pasta)!!.duracao!!, 0.0)
             tela { m.editar(pacote, figurinha) }
             esperar { m.editando != null && m.ocupado == null && m.previa != null }
             tela { m.mostrarInstante(1.25f) }
             esperar { m.ocupado == null && cor(m.previa, 384, 256, Color.RED) }
-            tela { m.mostrarInstante(5.5f) }
-            esperar { m.ocupado == null && m.previa?.let { Color.alpha(it.getPixel(128, 256)) == 0 } == true }
+            tela { m.mostrarInstante(5.25f) }
+            esperar { m.ocupado == null && m.previa?.let { Color.alpha(it.getPixel(384, 256)) == 0 } == true && cor(m.previa, 128, 256, Color.CYAN) }
             File(app.filesDir, "tempos-independentes.json").writeText("{\"cortes\":[[0,5],[10,15],[2,3]],\"cursoresIndependentes\":true,\"camposMilissegundos\":true,\"passosDeUmQuadro\":true,\"transparenciaPreviaExportacaoReedicao\":true}")
         } finally {
             tela { m.fecharEditor(); a.finish() }

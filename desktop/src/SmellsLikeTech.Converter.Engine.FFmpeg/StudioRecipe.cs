@@ -194,7 +194,7 @@ public static class StudioRecipe
                     "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart"]);
                 break;
             case "gif":
-                arguments.AddRange(["-loop", "0"]);
+                arguments.AddRange(["-loop", AnimationRepeats.GifLoop(project.Repeats).ToString(CultureInfo.InvariantCulture)]);
                 break;
             case "imagem":
                 arguments.AddRange(["-ss", N(project.Frame), "-frames:v", "1", "-update", "1"]);

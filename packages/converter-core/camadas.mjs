@@ -85,3 +85,11 @@ export function validarTransformacao(t = {}) {
   if (t.filtro !== undefined && !FILTROS_DE_CAMADA.includes(t.filtro)) return "Filtro desconhecido.";
   return null;
 }
+
+/**
+ * O enquadramento de verdade do clipe. O fundo desfocado é o próprio clipe borrado: com o fundo
+ * removido, ele viraria uma mancha em volta da figura. Nesse caso o clipe só cabe no quadro.
+ */
+export function ajusteDoClipe(clipe) {
+  return clipe.ajuste === "caber-desfocado" && clipe.transformacao?.removerFundo ? "caber" : clipe.ajuste;
+}

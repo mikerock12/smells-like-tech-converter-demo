@@ -1,4 +1,5 @@
 import { receitaFfmpeg, duracaoDoClipe, duracaoTotal, tamanhoDoGif, FPS_DO_GIF, numero, temTransicoes, segmentos, duracaoDaTransicao, filtroDeVelocidade } from "./estudio.mjs";
+import { ajusteDoClipe } from "./camadas.mjs";
 import { filtroDaTransformacao, filtroDoFundo, sobrepor } from "./camadas-ffmpeg.mjs";
 import { filtroDosEfeitos, passosDaMaquina, temEfeitos, usaMaquina } from "./estudio-efeitos.mjs";
 
@@ -57,8 +58,9 @@ export function receitaComCamadas(p, entradas, otimizar = false) {
     const original = duracaoDoClipe(c), duracao = i === p.clipes.length-1 ? Math.max(original,total-inicio) : original, rotulo = `cp${i}`;
     const estender = duracao > original ? `tpad=stop_mode=clone:stop_duration=${numero(duracao-original)},trim=duration=${numero(duracao)},` : "";
     const fim = `setsar=1,${estender}${filtroDaTransformacao(c.transformacao,w,h,0,otimizar,rotulo,fps)}${filtroDosEfeitos(c.transformacao,w,h,fps,duracao,rotulo)},setpts=PTS-STARTPTS${transicoes?",format=gbrap,settb=AVTB":"+"+numero(inicio)+"/TB"}[${rotulo}]`;
-    if (c.ajuste === "preencher") filtros.push(`[${i}:v]${filtroDeVelocidade(c)}fps=${fps},format=rgba,scale=${w}:${h}:force_original_aspect_ratio=increase,crop=${w}:${h},${fim}`);
-    else if (c.ajuste === "caber") filtros.push(`[${i}:v]${filtroDeVelocidade(c)}fps=${fps},format=rgba,scale=${w}:${h}:force_original_aspect_ratio=decrease:force_divisible_by=2,pad=${w}:${h}:(ow-iw)/2:(oh-ih)/2:color=black@0,${fim}`);
+    const ajuste = ajusteDoClipe(c);
+    if (ajuste === "preencher") filtros.push(`[${i}:v]${filtroDeVelocidade(c)}fps=${fps},format=rgba,scale=${w}:${h}:force_original_aspect_ratio=increase,crop=${w}:${h},${fim}`);
+    else if (ajuste === "caber") filtros.push(`[${i}:v]${filtroDeVelocidade(c)}fps=${fps},format=rgba,scale=${w}:${h}:force_original_aspect_ratio=decrease:force_divisible_by=2,pad=${w}:${h}:(ow-iw)/2:(oh-ih)/2:color=black@0,${fim}`);
     else filtros.push(`[${i}:v]${filtroDeVelocidade(c)}fps=${fps},format=rgba,split[cb${i}][cf${i}];[cb${i}]scale=${w}:${h}:force_original_aspect_ratio=increase,crop=${w}:${h},scale=${Math.max(2,Math.round(w/16)*2)}:${Math.max(2,Math.round(h/16)*2)},gblur=sigma=3,scale=${w}:${h}[cblur${i}];[cf${i}]scale=${w}:${h}:force_original_aspect_ratio=decrease:force_divisible_by=2[cfit${i}];[cblur${i}][cfit${i}]overlay=(W-w)/2:(H-h)/2:format=auto,${fim}`);
     if (!transicoes) compor(rotulo,c.transformacao,inicio,inicio+duracao);
     else {

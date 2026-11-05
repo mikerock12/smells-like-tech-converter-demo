@@ -111,6 +111,7 @@ public sealed partial class ConversionOptionsView : UserControl
             {
                 FrameRate = Value(GifFpsCombo, 12),
                 Width = Value(GifWidthCombo, 480),
+                Repeats = Value(GifRepeatsCombo, 0),
                 TrimStart = TrimTime.Parse(TrimStartBox.Text),
                 TrimDuration = TrimDurationFromScreen() ?? TimeSpan.FromSeconds(10)
             },
@@ -258,6 +259,7 @@ public sealed partial class ConversionOptionsView : UserControl
             case VideoToGifOptions gif:
                 SelectValue(GifFpsCombo, gif.FrameRate);
                 SelectValue(GifWidthCombo, gif.Width);
+                SelectValue(GifRepeatsCombo, gif.Repeats);
                 TrimStartBox.Text = OptionalTime(gif.TrimStart);
                 TrimEndBox.Text = OptionalTime(TrimTime.EndFromDuration(gif.TrimStart, gif.TrimDuration));
                 break;
@@ -548,6 +550,10 @@ public sealed partial class ConversionOptionsView : UserControl
         GifWidthCombo.ItemsSource = VideoToGifOptions.Widths
             .Select(width => new Choice<int>($"{width} px", width)).ToList();
         GifWidthCombo.SelectedIndex = 2;
+
+        GifRepeatsCombo.ItemsSource = AnimationRepeats.Allowed
+            .Select(repeats => new Choice<int>(AnimationRepeats.Label(repeats), repeats)).ToList();
+        GifRepeatsCombo.SelectedIndex = 0;
 
         FramesRateCombo.ItemsSource = VideoToFramesOptions.Rates
             .Select(rate => new Choice<double>(

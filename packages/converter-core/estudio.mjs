@@ -7,6 +7,7 @@
  * idêntica, caractere por caractere). Os presets vêm de `estudio-presets.json`, copiado no
  * build dos outros apps. JS puro: nada de DOM, roda igual no navegador e no `node --test`.
  */
+import { repeticoesValidas } from "./repeticoes.mjs";
 import dados from "./estudio-presets.json" with { type: "json" };
 import { validarTransformacao } from "./camadas.mjs";
 import { receitaComCamadas } from "./estudio-camadas.mjs";
@@ -207,6 +208,7 @@ export function problemas(projeto) {
     lista.push("O tamanho do quadro precisa ficar entre 16 e 4096 pixels.");
   }
   if (!saidaPorId(projeto.saida)) lista.push("Escolha o que exportar.");
+  if (!repeticoesValidas(projeto.repeticoes ?? 0)) lista.push("Escolha quantas vezes a animação repete.");
   if (projeto.clipes.length === 0) lista.push("Adicione pelo menos um vídeo ou imagem.");
   projeto.clipes.forEach((clipe, i) => {
     if (clipe.tipo === "video" && !((clipe.fim ?? 0) - (clipe.inicio ?? 0) >= DURACAO_MINIMA)) {

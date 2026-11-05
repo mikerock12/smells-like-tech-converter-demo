@@ -1,3 +1,4 @@
+using SmellsLikeTech.Converter.Core;
 using SmellsLikeTech.Converter.Core.Media;
 using SmellsLikeTech.Converter.Core.Options;
 using SmellsLikeTech.Converter.Engine.FFmpeg;
@@ -198,6 +199,25 @@ public class FfmpegPlannerTests
         Assert.Contains(arguments, argument => argument.Contains("palettegen", StringComparison.Ordinal));
         Assert.Contains(arguments, argument => argument.Contains("paletteuse", StringComparison.Ordinal));
         Assert.Contains("-an", arguments);
+    }
+
+    [Theory]
+    [InlineData(0, "0")]
+    [InlineData(3, "2")]
+    [InlineData(5, "4")]
+    [InlineData(10, "9")]
+    public void ToGif_GravaAsRepeticoesContandoDepoisDaPrimeira(int repeats, string loop)
+    {
+        var arguments = FfmpegCommandPlanner.ToGif(Engine(), "in.mp4", "out.gif", new VideoToGifOptions { Repeats = repeats }).Arguments.ToList();
+
+        Assert.Equal(loop, arguments[arguments.IndexOf("-loop") + 1]);
+    }
+
+    [Fact]
+    public void ToGif_RecusaRepeticaoForaDaLista()
+    {
+        var erro = Assert.Throws<ConversionException>(() => FfmpegCommandPlanner.ToGif(Engine(), "in.mp4", "out.gif", new VideoToGifOptions { Repeats = 7 }));
+        Assert.Equal("invalid_repeats", erro.Code);
     }
 
     [Fact]

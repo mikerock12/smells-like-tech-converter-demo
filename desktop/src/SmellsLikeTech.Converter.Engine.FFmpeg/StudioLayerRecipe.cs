@@ -56,8 +56,9 @@ public static class StudioLayerRecipe
             var c=p.Clips[i];var original=StudioRules.ClipDuration(c);var duration=i==p.Clips.Count-1?Math.Max(original,total-start):original;var label=$"cp{i}";
             var extend=duration>original?$"tpad=stop_mode=clone:stop_duration={N(duration-original)},trim=duration={N(duration)},":"";
             var end=$"setsar=1,{extend}{StudioLayerFilters.Transform(c.Transform,w,h,optimize:optimize,label:label,fps:fps)}{StudioEffects.Filter(c.Transform,w,h,fps,duration,label)},setpts=PTS-STARTPTS{(transitions?",format=gbrap,settb=AVTB":"+"+N(start)+"/TB")}[{label}]";
-            if(c.Fit=="preencher") filters.Add($"[{i}:v]{StudioRecipe.SpeedFilter(c)}fps={fps},format=rgba,scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h},{end}");
-            else if(c.Fit=="caber") filters.Add($"[{i}:v]{StudioRecipe.SpeedFilter(c)}fps={fps},format=rgba,scale={w}:{h}:force_original_aspect_ratio=decrease:force_divisible_by=2,pad={w}:{h}:(ow-iw)/2:(oh-ih)/2:color=black@0,{end}");
+            var fit=StudioRules.ClipFit(c);
+            if(fit=="preencher") filters.Add($"[{i}:v]{StudioRecipe.SpeedFilter(c)}fps={fps},format=rgba,scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h},{end}");
+            else if(fit=="caber") filters.Add($"[{i}:v]{StudioRecipe.SpeedFilter(c)}fps={fps},format=rgba,scale={w}:{h}:force_original_aspect_ratio=decrease:force_divisible_by=2,pad={w}:{h}:(ow-iw)/2:(oh-ih)/2:color=black@0,{end}");
             else filters.Add($"[{i}:v]{StudioRecipe.SpeedFilter(c)}fps={fps},format=rgba,split[cb{i}][cf{i}];[cb{i}]scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h},scale={StudioRules.Even(w/8.0)}:{StudioRules.Even(h/8.0)},gblur=sigma=3,scale={w}:{h}[cblur{i}];[cf{i}]scale={w}:{h}:force_original_aspect_ratio=decrease:force_divisible_by=2[cfit{i}];[cblur{i}][cfit{i}]overlay=(W-w)/2:(H-h)/2:format=auto,{end}");
             if(!transitions) Compose(label,c.Transform,start,start+duration);
             else {

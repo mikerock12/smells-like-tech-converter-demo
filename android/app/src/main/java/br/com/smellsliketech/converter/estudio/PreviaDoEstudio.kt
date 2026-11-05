@@ -47,7 +47,7 @@ class PreviaDoEstudio(private val contexto: Context) {
         val tela = Canvas(saida)
         tela.drawColor(Color.BLACK)
         Estudio.clipeNoTempo(projeto, t)?.let { (_, clipe, tempoNoArquivo) ->
-            fonte(clipe, tempoNoArquivo)?.let { imagem -> enquadrar(tela, imagem, clipe.ajuste, largura, altura) }
+            fonte(clipe, tempoNoArquivo)?.let { imagem -> enquadrar(tela, imagem, Estudio.ajusteDoClipe(clipe), largura, altura) }
         }
         tela.save()
         tela.scale((largura.toDouble() / projeto.largura).toFloat(), (altura.toDouble() / projeto.altura).toFloat())

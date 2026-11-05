@@ -1,6 +1,7 @@
 using ImageMagick;
 using Microsoft.ML.OnnxRuntime;
 using Microsoft.ML.OnnxRuntime.Tensors;
+using SmellsLikeTech.Converter.Core.Studio;
 
 namespace SmellsLikeTech.Converter.Engine.Studio;
 
@@ -54,6 +55,7 @@ public static class BackgroundRemover
                 token.ThrowIfCancellationRequested();
                 var mask=outputs.First().AsEnumerable<float>().ToArray(); var min=mask.Min(); var range=Math.Max(1e-6f,mask.Max()-min);
                 for(var k=0;k<mask.Length;k++) mask[k]=Math.Clamp((mask[k]-min)/range,0,1);
+                StudioMask.RemoveIslands(mask,Side,Side);
                 return mask;
             },token);
         } catch(OnnxRuntimeException) when(token.IsCancellationRequested) {throw new OperationCanceledException(token);}
@@ -62,7 +64,8 @@ public static class BackgroundRemover
 
     /// <summary>
     /// Multiplica o alfa pela máscara ampliada (bilinear). Com <paramref name="next"/>, usa a
-    /// mistura das duas máscaras na fração <paramref name="t"/> (0 = só a primeira).
+    /// mistura das duas máscaras na fração <paramref name="t"/> (0 = só a primeira). A borda é
+    /// apertada depois de ampliar: apertar em 320×320 deixaria degraus na figura.
     /// </summary>
     public static void ApplyMask(byte[] rgba,int width,int height,float[] mask,float[]? next,float t,CancellationToken token)
     {
@@ -82,7 +85,7 @@ public static class BackgroundRemover
             var linha=y*width*4+3;
             for(var x=0;x<width;x++) {
                 var fx=fxs[x];
-                var v=(source[y0+x0s[x]]*(1-fx)+source[y0+x1s[x]]*fx)*(1-fy)+(source[y1+x0s[x]]*(1-fx)+source[y1+x1s[x]]*fx)*fy;
+                var v=StudioMask.Curve((source[y0+x0s[x]]*(1-fx)+source[y0+x1s[x]]*fx)*(1-fy)+(source[y1+x0s[x]]*(1-fx)+source[y1+x1s[x]]*fx)*fy);
                 var i=linha+x*4;rgba[i]=(byte)Math.Clamp((int)(rgba[i]*v+.5f),0,255);
             }
         });

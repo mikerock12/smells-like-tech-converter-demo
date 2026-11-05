@@ -10,7 +10,7 @@ object WebpAnimado {
     const val DURACAO_MAX_MS = 10_000
 
     data class Quadro(val posicaoDoTempo: Int, val duracaoMs: Int, val largura: Int, val altura: Int, val x: Int = 0, val y: Int = 0)
-    data class Informacao(val largura: Int, val altura: Int, val quadros: List<Quadro>) {
+    data class Informacao(val largura: Int, val altura: Int, val quadros: List<Quadro>, val repeticoes: Int = 0) {
         val duracaoMs: Long get() = quadros.sumOf { it.duracaoMs.toLong() }
         val temImagem: Boolean get() = quadros.any { it.largura > 1 || it.altura > 1 }
     }
@@ -25,6 +25,7 @@ object WebpAnimado {
         var largura = 0
         var altura = 0
         var animacao = false
+        var repeticoes = 0
         val quadros = mutableListOf<Quadro>()
         var i = 12
         while (i < webp.size) {
@@ -41,6 +42,7 @@ object WebpAnimado {
                 "ANIM" -> {
                     require(tamanho == 6L && !animacao && quadros.isEmpty()) { "A animação da figurinha é inválida." }
                     animacao = true
+                    repeticoes = numero(i + 12, 2).toInt()
                 }
                 "ANMF" -> {
                     require(animacao && tamanho > 16) { "O quadro da figurinha está incompleto." }
@@ -57,7 +59,7 @@ object WebpAnimado {
         require(largura == Regras.LADO && altura == Regras.LADO) { "A figurinha precisa ter 512 × 512 pixels." }
         require(quadros.size > 1) { "A figurinha animada precisa ter pelo menos dois quadros. Escolha um trecho com movimento." }
         require(webp.size <= Regras.ANIMADA_MAX_BYTES) { "A figurinha passou de 500 KB." }
-        return Informacao(largura, altura, quadros)
+        return Informacao(largura, altura, quadros, repeticoes)
     }
 
     /** Só para o codificador de quadros completos: substitui, sem misturar com o anterior.
@@ -104,6 +106,27 @@ object WebpAnimado {
         val ultimo = fim(inicios.last())
         return webp.copyOfRange(0, inicios[0]) + webp.copyOfRange(inicios[indice], ultimo) +
             webp.copyOfRange(inicios[0], inicios[indice]) + webp.copyOfRange(ultimo, webp.size)
+    }
+
+    /**
+     * Grava quantas vezes a animação toca (0 = sem fim) no ANIM, sem recodificar. O WhatsApp
+     * não documenta se respeita esse número: "termina no primeiro quadro depois de repetir" é
+     * tudo o que diz, e o validador deles não o lê.
+     */
+    fun repetir(webp: ByteArray, vezes: Int): ByteArray {
+        require(vezes in 0..0xffff) { "Repetições fora do limite do WebP." }
+        ler(webp)
+        val resultado = webp.copyOf()
+        var i = 12
+        while (i < resultado.size) {
+            val tamanho = (0..3).fold(0) { n, k -> n or ((resultado[i + 4 + k].toInt() and 255) shl (8 * k)) }
+            if (String(resultado, i, 4, Charsets.US_ASCII) == "ANIM") {
+                resultado[i + 12] = vezes.toByte()
+                resultado[i + 13] = (vezes ushr 8).toByte()
+            }
+            i += 8 + tamanho + (tamanho and 1)
+        }
+        return resultado
     }
 
     /** Ajusta somente os três bytes de duração de cada ANMF; não recodifica nem perde qualidade. */

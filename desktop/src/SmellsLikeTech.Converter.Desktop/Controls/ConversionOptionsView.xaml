@@ -218,6 +218,10 @@
                     <ComboBox x:Name="GifWidthCombo" HorizontalAlignment="Stretch" />
                 </StackPanel>
             </Grid>
+            <StackPanel>
+                <TextBlock Text="Repetições" Style="{StaticResource FieldLabelStyle}" />
+                <ComboBox x:Name="GifRepeatsCombo" HorizontalAlignment="Stretch" />
+            </StackPanel>
         </StackPanel>
 
         <!-- Frames -->

@@ -21,6 +21,8 @@ data class Projeto(
     val fundo: FundoDoProjeto? = null,
     /** Instante exportado quando a saída é imagem. */
     val quadro: Double = 0.0,
+    /** Quantas vezes o GIF toca; 0 é sem fim. */
+    val repeticoes: Int = 0,
 ) {
     fun paraJson(): JSONObject = JSONObject()
         .put("versao", versao).put("destino", destino).put("largura", largura).put("altura", altura)
@@ -31,6 +33,7 @@ data class Projeto(
         .put("camadas", JSONArray(camadas.map { it.paraJson() }))
         .putOpt("fundo", fundo?.paraJson())
         .put("quadro", quadro)
+        .put("repeticoes", repeticoes)
 
     companion object {
         fun deJson(json: JSONObject) = Projeto(
@@ -46,6 +49,7 @@ data class Projeto(
             camadas = json.lista("camadas").map(Camada::deJson),
             fundo = json.optJSONObject("fundo")?.let(FundoDoProjeto::deJson),
             quadro = json.optDouble("quadro", 0.0),
+            repeticoes = json.optInt("repeticoes", 0),
         )
     }
 }

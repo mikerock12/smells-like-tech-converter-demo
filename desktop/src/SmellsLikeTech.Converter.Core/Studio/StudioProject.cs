@@ -23,6 +23,8 @@ public sealed record StudioProject
     [JsonPropertyName("fundo")] public StudioBackground? Background { get; init; }
     /// <summary>Instante exportado quando a saida e imagem.</summary>
     [JsonPropertyName("quadro")] public double Frame { get; init; }
+    /// <summary>Quantas vezes o GIF toca; 0 e sem fim.</summary>
+    [JsonPropertyName("repeticoes")] public int Repeats { get; init; }
 
     public static JsonSerializerOptions Json { get; } = new()
     {

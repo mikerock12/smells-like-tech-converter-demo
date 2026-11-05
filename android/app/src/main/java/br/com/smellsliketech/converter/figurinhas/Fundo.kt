@@ -14,7 +14,7 @@ import kotlin.math.roundToInt
  * A remoção automática de fundo: a segmentação de assunto do ML Kit separa pessoas, animais e
  * objetos do resto, no aparelho. O modelo vem pelo Google Play Services (baixado uma vez);
  * depois funciona sem internet. O resultado é uma máscara do tamanho da imagem: alfa 255 na
- * figura, 0 no fundo, com a borda suave que o modelo devolve.
+ * figura e 0 no fundo, já limpa pelo [RefinoDaMascara]: sem manchas soltas nem halo do fundo.
  */
 object Fundo {
     private val segmentador by lazy {
@@ -55,7 +55,9 @@ object Fundo {
         }
         val confianca = resultado.foregroundConfidenceMask ?: throw Indisponivel("O modelo não devolveu a figura desta imagem.")
         confianca.rewind()
-        val pontos = IntArray(largura * altura) { Color.argb((confianca.get().coerceIn(0f, 1f) * 255).roundToInt(), 255, 255, 255) }
+        val valores = FloatArray(largura * altura) { confianca.get().coerceIn(0f, 1f) }
+        RefinoDaMascara.limparIlhas(valores, largura, altura)
+        val pontos = IntArray(largura * altura) { Color.argb((RefinoDaMascara.curva(valores[it]) * 255).roundToInt(), 255, 255, 255) }
         val mascara = Bitmap.createBitmap(pontos, largura, altura, Bitmap.Config.ARGB_8888)
         return if (mascara.width == imagem.width && mascara.height == imagem.height) mascara
         else Bitmap.createScaledBitmap(mascara, imagem.width, imagem.height, true).also { mascara.recycle() }

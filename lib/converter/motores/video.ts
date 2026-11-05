@@ -28,6 +28,7 @@ import {
 import { GIFEncoder, applyPalette, quantize } from "gifenc";
 
 import { GifInvalido, lerGif, quadrosDoGif } from "@/packages/converter-core/gif.mjs";
+import { loopDoGif, repeticoesValidas } from "@/packages/converter-core/repeticoes.mjs";
 import { getFormat, outputFileName } from "@/packages/converter-core/index.mjs";
 import type { FormatId } from "@/packages/converter-core/index.mjs";
 
@@ -339,6 +340,8 @@ async function paraGif(contexto: ContextoDoMotor): Promise<{ saidas: Saida[]; no
       const duracao = Math.min(Number(opcoes.duracao ?? 5) || 5, 30, duracaoTotal - inicio);
       const fps = Math.max(1, Math.min(20, Number(opcoes.fps ?? 12) || 12));
       const largura = Math.max(16, Math.min(640, Number(opcoes.largura ?? 480) || 480));
+      const repeticoes = Number(opcoes.repeticoes ?? 0);
+      const repeat = loopDoGif(repeticoesValidas(repeticoes) ? repeticoes : 0);
 
       // Leitura sequencial de propósito: pedir "o quadro no instante X" falha em vídeos
       // sem índice (gravações de tela, WebM do MediaRecorder). Percorrer o trecho e
@@ -363,7 +366,7 @@ async function paraGif(contexto: ContextoDoMotor): Promise<{ saidas: Saida[]; no
         const indices = applyPalette(data, paleta);
         // Um quadro do vídeo pode cobrir mais de um do GIF (vídeo a 10 fps, GIF a 15).
         while (proximo <= embrulho.timestamp + embrulho.duration && quadros < total) {
-          gif.writeFrame(indices, width, height, { palette: paleta, delay: Math.round(1000 / fps) });
+          gif.writeFrame(indices, width, height, { palette: paleta, delay: Math.round(1000 / fps), repeat });
           quadros += 1;
           proximo += passo;
         }
