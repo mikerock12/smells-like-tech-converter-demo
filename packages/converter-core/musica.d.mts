@@ -69,3 +69,8 @@ export declare function clipeDaTomada(projeto: ProjetoMusical, tomada: { id: str
 export declare function adicionarTomada(faixa: Faixa, clipe: Clipe): Faixa;
 export declare function medirLatencia(gravado: Float32Array, pulsos: number[], taxa: number): number | null;
 export declare function problemasDaMusica(projeto: unknown, validarEfeito?: (efeito: EfeitoDaMusica) => string | null): string[];
+
+export declare const PASSOS_DA_MUSICA: { ganhoDb: number; pan: number; ajusteDb: number; envioDb: number; metronomoDb: number; suaveSegundos: number };
+export declare function passoDoParametro(parametro: { min: number; max: number; unidade: string }): { passo: number; relativo: boolean };
+export declare function ajusteFino(valor: number, direcao: number, passo: number, de: number, ate: number, relativo?: boolean): number;
+export declare function nomeDaFaixaSeparada(rotulo: string, nomeDaFaixa: string): string;

@@ -1,5 +1,5 @@
 {
-  "commit": "c2c95b8928cb0f85091e634bd8a48b6a4465f0b8",
+  "commit": "66fa9469637f20b1a15998fe689f5c0a162b5128",
   "repository": "https://github.com/mikerock12/smells-like-tech-converter-demo",
   "originals": [
     {
@@ -34,7 +34,7 @@
     },
     {
       "path": "android/app/build.gradle.kts",
-      "sha256": "ffbc61626ce88aab47596e15cec69adc9f5097e910cabf54b9d2b6f72502b13b",
+      "sha256": "05206213c4b0cd3714fb5192476a2311c560801332278409bee9c0ed31106b40",
       "bytes": 8960
     },
     {
@@ -869,13 +869,13 @@
     },
     {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/musica/Musica.kt",
-      "sha256": "4b1c371b2aead85ab0630716e36e5bc536d92fea74f0c4ed94262c88c05a1535",
-      "bytes": 17514
+      "sha256": "f9f4b7c001bc2123f7b64f36813294f9a43fa487a2e712beef10bd2331a43bad",
+      "bytes": 19442
     },
     {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/musica/MusicaViewModel.kt",
-      "sha256": "0738b283cb07e762df2b67b3e50f910b9c88397f3176f79636900f01378f8b04",
-      "bytes": 23248
+      "sha256": "025c8926ee510f7f401a8d1b6a1ba26e47c67c3349117747c7700d51bea77562",
+      "bytes": 23818
     },
     {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/musica/ProjetoMusical.kt",
@@ -974,8 +974,8 @@
     },
     {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/ui/TelasDaMusica.kt",
-      "sha256": "c7f8495d4e2a78fc311f625a9f6a7d3b831e43e5ac9473d95718dea5e34f1fcc",
-      "bytes": 45044
+      "sha256": "72209c5d65244a2c2d9b59c1970c284305031c09c580d39c0fff516b5ead639d",
+      "bytes": 49063
     },
     {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/ui/TelasDasFigurinhas.kt",
@@ -1176,6 +1176,11 @@
       "path": "android/app/src/test/java/br/com/smellsliketech/converter/licenca/ReciboDaPlayTest.kt",
       "sha256": "e2707faccde21a2edd72e9942c78c93e97485befdf80a1e169d617d0c7a25b9d",
       "bytes": 3671
+    },
+    {
+      "path": "android/app/src/test/java/br/com/smellsliketech/converter/musica/AjusteFinoDaMusicaTest.kt",
+      "sha256": "ade6b81d063aed801610dc47f2d2915938910afa8b6f531dcb57def1dfa5bdf2",
+      "bytes": 1639
     },
     {
       "path": "android/app/src/test/java/br/com/smellsliketech/converter/musica/CalibracaoDaRotaTest.kt",
@@ -1433,6 +1438,11 @@
       "bytes": 1134
     },
     {
+      "path": "android/play/ficha-1.0.17.md",
+      "sha256": "ef5763086429f295aed2de486ce3ce4e41e84563b9603f2cbe5bfae1c942ece4",
+      "bytes": 1213
+    },
+    {
       "path": "android/play/ficha-1.0.6.md",
       "sha256": "a6d922dcfb5d3bc7d38963c2ab2746d1d74d69d932a28b1c0ae3873408310d2c",
       "bytes": 3763
@@ -1653,24 +1663,29 @@
       "bytes": 7001
     },
     {
+      "path": "app/estudio/musica/AjusteMusical.tsx",
+      "sha256": "9ad5924cda85053303723c760fcf2c6873382503fa8ec7a741d5b9dda44a2158",
+      "bytes": 1830
+    },
+    {
       "path": "app/estudio/musica/CriacaoMusical.tsx",
-      "sha256": "2c43e7eb3f5f435bdf7bee2efea5fc0d7f198cbd5d7e986a10c4adcbf3c69806",
-      "bytes": 31717
+      "sha256": "f2dea579ae8075687ca0bae1e8e78eee9de5b269bb432d240a214f7bb2c34a84",
+      "bytes": 31952
     },
     {
       "path": "app/estudio/musica/LinhaDoTempoMusical.tsx",
-      "sha256": "19a507297d8996fee3952af134437eaebcd4ad55c424a718f0bda7907a074f8c",
-      "bytes": 19254
+      "sha256": "7bf3f97cf6eaac385ea746ed2321e0c861d12fea17dbd30b38099c79a28efcfd",
+      "bytes": 19813
     },
     {
       "path": "app/estudio/musica/MixerMusical.tsx",
-      "sha256": "44e9fc5261bcbf4a749d643a09d5f4fa87ad0e4aa145b0d0fa9e8511e10326d6",
-      "bytes": 13296
+      "sha256": "f567afe4e95357aa96969d3634808e98592947b6d8280cb5c695bea254ca2d13",
+      "bytes": 13428
     },
     {
       "path": "app/estudio/musica/PaineisMusicais.tsx",
-      "sha256": "081aacebf1bdfc14b03fcb24a4f36670e74f6d4ce086747deccb9768e5d03380",
-      "bytes": 22003
+      "sha256": "49cd0f9503f9f7ba89335122a7025efc0e78abf59fefb77b538aec93fe7918e5",
+      "bytes": 24026
     },
     {
       "path": "app/estudio/musica/page.tsx",
@@ -1694,8 +1709,8 @@
     },
     {
       "path": "app/globals.css",
-      "sha256": "1a877e588931461a328562e9d027173c3c878a6999895ea5d6554cba9ddebba6",
-      "bytes": 88226
+      "sha256": "f834a749a07cac21094f020d3c2ac2bfd0e46bb46a5d8f609be26471283546c4",
+      "bytes": 90100
     },
     {
       "path": "app/heic-iphone/page.tsx",
@@ -1814,7 +1829,7 @@
     },
     {
       "path": "desktop/Directory.Build.props",
-      "sha256": "6c8eb7820506414c2456cafa0d7e70d4d185a52ec718884a5cb6629dd269ceee",
+      "sha256": "0805eb23699b347dc97d28ed9d398ffaebd9a171e09ca7cb245271db900c3839",
       "bytes": 472
     },
     {
@@ -2044,8 +2059,8 @@
     },
     {
       "path": "desktop/src/SmellsLikeTech.Converter.Core/Music/MusicRules.cs",
-      "sha256": "305fa2d9bc0d0b8ff3bd17692dac648f2f00860042df1a9fc24a889714354960",
-      "bytes": 19732
+      "sha256": "ec3cc8af849bc8f050e014120d5aafd64adb5b965c337e06f08bbb9bb981e583",
+      "bytes": 21511
     },
     {
       "path": "desktop/src/SmellsLikeTech.Converter.Core/Music/MusicSeparation.cs",
@@ -2424,8 +2439,8 @@
     },
     {
       "path": "desktop/src/SmellsLikeTech.Converter.Desktop/Pages/MusicPage.Panels.cs",
-      "sha256": "5039ab6c61a53530188132fbb9e75b0fabefc7b8cc7f3af2fdb32d401df25a49",
-      "bytes": 29984
+      "sha256": "efe7fd69f3ed27b7501d762cf8d1df771af4ca60c14fc681cc64cb6da82149a0",
+      "bytes": 33853
     },
     {
       "path": "desktop/src/SmellsLikeTech.Converter.Desktop/Pages/MusicPage.xaml",
@@ -2434,8 +2449,8 @@
     },
     {
       "path": "desktop/src/SmellsLikeTech.Converter.Desktop/Pages/MusicPage.xaml.cs",
-      "sha256": "89abb931f78ff496783d1a09d5e96fff90bc3c564e8064192cf82277f30cc956",
-      "bytes": 48526
+      "sha256": "a94a2150c910d9342ea3987079e462511b83337d3123bc373f8f704a776be4cd",
+      "bytes": 50872
     },
     {
       "path": "desktop/src/SmellsLikeTech.Converter.Desktop/Pages/QueuePage.xaml",
@@ -2971,6 +2986,11 @@
       "path": "desktop/tests/SmellsLikeTech.Converter.Tests/MusicEngineTests.cs",
       "sha256": "1784b1e9a19479e43baf0bf9dd99586c156cbdf116e375f1565555cdc7aaa84d",
       "bytes": 13055
+    },
+    {
+      "path": "desktop/tests/SmellsLikeTech.Converter.Tests/MusicFineStepTests.cs",
+      "sha256": "2258cbbad68c27a9e920657e5f75bcdb34e2627e658aa080206f0ff8698d2de6",
+      "bytes": 1616
     },
     {
       "path": "desktop/tests/SmellsLikeTech.Converter.Tests/NarrationProgressTests.cs",
@@ -3869,13 +3889,13 @@
     },
     {
       "path": "packages/converter-core/musica.d.mts",
-      "sha256": "3dd39a98026815cf6d096b2a1e88798afc4e9726800db6c3767a11d235b1f499",
-      "bytes": 5323
+      "sha256": "e7b1bdc6f6788041c607baa32d2352c61c1c8b17ac0a0c8f00e3bc5b7e5ed5df",
+      "bytes": 5840
     },
     {
       "path": "packages/converter-core/musica.mjs",
-      "sha256": "5548605c692e37c6caa1afac5ea6260ec5a4e8ee6dd9724ac81021f4404bd389",
-      "bytes": 20512
+      "sha256": "569504f1290bed1ee6a0a4a15efa1595d681b63ce77e3c46df54459eebf8dbb2",
+      "bytes": 22460
     },
     {
       "path": "packages/converter-core/paginas.d.mts",
@@ -4039,12 +4059,12 @@
     },
     {
       "path": "public/baixar/app.json",
-      "sha256": "9f4f6f4262d5a30b591338d1e23edeaf217af78609014057eeec7670686f7551",
+      "sha256": "c7c7bac17e9ac8e56f23448f35d8024adfd14e970741417da9644313297b55d7",
       "bytes": 210
     },
     {
       "path": "public/baixar/plugin.json",
-      "sha256": "958f5bd7841348d490486328349f0c9bd93a425238a1406fcec41ccca5a06bad",
+      "sha256": "8562912377c6deae8c4c488ecb997de6d9bdeb6bfa6e8bb0e58048c3a776de70",
       "bytes": 207
     },
     {

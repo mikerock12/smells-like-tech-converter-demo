@@ -411,4 +411,39 @@ public static partial class MusicRules
         if (project.Punch.Enabled && !(project.Punch.Out > project.Punch.In && project.Punch.In >= 0)) errors.Add("O punch precisa sair depois de entrar.");
         return errors;
     }
+
+    // ==================== ajuste fino (espelho de musica.mjs) ====================
+
+    /// <summary>Passos dos botões − e + dos controles da mistura.</summary>
+    public const double StepGainDb = 0.5, StepPan = 1, StepTrimDb = 0.5, StepSendDb = 0.5, StepMetronomeDb = 1, StepFadeSeconds = 0.01;
+
+    /// <summary>Passo do − e + de um parâmetro de efeito (mesma regra de <c>passoDoParametro</c>).</summary>
+    public static (double Step, bool Relative) StepFor(double min, double max, string unit)
+    {
+        var range = max - min;
+        if (unit == "dB") return (0.5, false);
+        if (unit == "Hz") return (0.02, true);
+        if (unit == "ms") return (range <= 100 ? 0.5 : range <= 1000 ? 1 : 10, false);
+        var raw = range / 100;
+        var power = Math.Pow(10, Math.Floor(Math.Log10(raw)));
+        var m = raw / power;
+        return ((m < 1.5 ? 1 : m < 3.5 ? 2 : m < 7.5 ? 5 : 10) * power, false);
+    }
+
+    /// <summary>Um toque no − (−1) ou no + (1), encaixado na grade do passo e dentro de [min, max].</summary>
+    public static double FineStep(double value, int direction, double step, double min, double max, bool relative = false)
+    {
+        double next;
+        if (relative)
+        {
+            next = Round(value * Math.Pow(1 + step, direction));
+            if (next == Round(value)) next = Round(value) + direction;
+        }
+        else next = Round((value + direction * step) / step) * step;
+        next = Round(next * 1e6) / 1e6 + 0.0;
+        return Math.Clamp(next, min, max);
+    }
+
+    /// <summary>Nome da faixa criada por uma separação: o que ela é primeiro (voz_, bateria_...).</summary>
+    public static string SeparatedTrackName(string label, string trackName) => $"{label.ToLowerInvariant()}_{trackName}";
 }

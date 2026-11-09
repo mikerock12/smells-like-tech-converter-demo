@@ -317,4 +317,41 @@ object Musica {
         if (p.punch.ligado && !(p.punch.saida > p.punch.entrada && p.punch.entrada >= 0)) erros += "O punch precisa sair depois de entrar."
         return erros
     }
+
+    // ==================== ajuste fino (espelho de musica.mjs) ====================
+
+    /** Passos dos botões − e + dos controles da mistura. */
+    const val PASSO_GANHO_DB = 0.5
+    const val PASSO_PAN = 1.0
+    const val PASSO_AJUSTE_DB = 0.5
+    const val PASSO_ENVIO_DB = 0.5
+    const val PASSO_METRONOMO_DB = 1.0
+    const val PASSO_SUAVE_SEGUNDOS = 0.01
+
+    data class Passo(val passo: Double, val relativo: Boolean)
+
+    /** Passo do − e + de um parâmetro de efeito (mesma regra de `passoDoParametro`). */
+    fun passoDoParametro(min: Double, max: Double, unidade: String): Passo {
+        val faixa = max - min
+        if (unidade == "dB") return Passo(0.5, false)
+        if (unidade == "Hz") return Passo(0.02, true)
+        if (unidade == "ms") return Passo(if (faixa <= 100) 0.5 else if (faixa <= 1000) 1.0 else 10.0, false)
+        val bruto = faixa / 100
+        val potencia = Math.pow(10.0, kotlin.math.floor(kotlin.math.log10(bruto)))
+        val m = bruto / potencia
+        return Passo((if (m < 1.5) 1.0 else if (m < 3.5) 2.0 else if (m < 7.5) 5.0 else 10.0) * potencia, false)
+    }
+
+    /** Um toque no − (−1) ou no + (1), encaixado na grade do passo e dentro de [de, ate]. */
+    fun ajusteFino(valor: Double, direcao: Int, passo: Double, de: Double, ate: Double, relativo: Boolean = false): Double {
+        var novo = if (relativo) {
+            val n = arredondar(valor * Math.pow(1 + passo, direcao.toDouble())).toDouble()
+            if (n == arredondar(valor).toDouble()) arredondar(valor).toDouble() + direcao else n
+        } else arredondar((valor + direcao * passo) / passo) * passo
+        novo = arredondar(novo * 1e6) / 1e6 + 0.0
+        return novo.coerceIn(de, ate)
+    }
+
+    /** Nome da faixa criada por uma separação: o que ela é primeiro (voz_, bateria_...). */
+    fun nomeDaFaixaSeparada(rotulo: String, nomeDaFaixa: String) = "${rotulo.lowercase()}_$nomeDaFaixa"
 }

@@ -332,6 +332,49 @@ export function medirLatencia(gravado, pulsos, taxa) {
   return atrasos[Math.floor(atrasos.length / 2)];
 }
 
+/* ------------------------------------------------------------------ ajuste fino */
+
+/** Passos dos botões − e + dos controles da mistura. */
+export const PASSOS_DA_MUSICA = { ganhoDb: 0.5, pan: 1, ajusteDb: 0.5, envioDb: 0.5, metronomoDb: 1, suaveSegundos: 0.01 };
+
+/**
+ * Passo do − e + de um parâmetro de efeito: 0,5 dB; 2% da frequência (relativo, para ser fino
+ * nos graves e nos agudos); 0,5, 1 ou 10 ms conforme a faixa; nos demais, um centésimo da faixa
+ * arredondado para 1, 2 ou 5 vezes uma potência de 10.
+ */
+export function passoDoParametro(parametro) {
+  const faixa = parametro.max - parametro.min;
+  if (parametro.unidade === "dB") return { passo: 0.5, relativo: false };
+  if (parametro.unidade === "Hz") return { passo: 0.02, relativo: true };
+  if (parametro.unidade === "ms") return { passo: faixa <= 100 ? 0.5 : faixa <= 1000 ? 1 : 10, relativo: false };
+  const bruto = faixa / 100;
+  const potencia = Math.pow(10, Math.floor(Math.log10(bruto)));
+  const m = bruto / potencia;
+  return { passo: (m < 1.5 ? 1 : m < 3.5 ? 2 : m < 7.5 ? 5 : 10) * potencia, relativo: false };
+}
+
+/**
+ * Um toque no − (direção −1) ou no + (1): anda um passo e encaixa na grade do passo (ou, se
+ * relativo, multiplica por 1 + passo e arredonda para inteiro, andando pelo menos 1), sempre
+ * dentro de [de, ate].
+ */
+export function ajusteFino(valor, direcao, passo, de, ate, relativo = false) {
+  let novo;
+  if (relativo) {
+    novo = Math.round(valor * Math.pow(1 + passo, direcao));
+    if (novo === Math.round(valor)) novo = Math.round(valor) + direcao;
+  } else {
+    novo = Math.round((valor + direcao * passo) / passo) * passo;
+  }
+  novo = Number(novo.toFixed(6)) + 0;
+  return Math.min(ate, Math.max(de, novo));
+}
+
+/** Nome da faixa criada por uma separação: o que ela é primeiro (voz_, bateria_...). */
+export function nomeDaFaixaSeparada(rotulo, nomeDaFaixa) {
+  return `${rotulo.toLowerCase()}_${nomeDaFaixa}`;
+}
+
 /* ------------------------------------------------------------------ validação */
 
 function problemasDosEfeitos(efeitos, onde, erros, validar) {

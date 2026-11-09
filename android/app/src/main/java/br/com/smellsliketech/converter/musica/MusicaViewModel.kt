@@ -323,7 +323,9 @@ class MusicaViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) {
 
     // ==================== separação, limpeza e exportação ====================
 
-    fun separar(faixaId: String, clipeId: String, modo: String) {
+    /** Separa o clipe em faixas novas (voz_, bateria_...). Com [reduzirRuido], cada faixa separada
+     *  passa pela redução de ruído antes de entrar no projeto. */
+    fun separar(faixaId: String, clipeId: String, modo: String, reduzirRuido: Boolean = false) {
         val p = projeto ?: return
         val faixa = p.faixas.first { it.id == faixaId }
         val clipe = faixa.clipes.first { it.id == clipeId }
@@ -334,21 +336,25 @@ class MusicaViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) {
                     biblioteca.garantirModelo { f -> viewModelScope.launch { andamento = "Baixando o modelo (78 MB, só na primeira vez)" to f } }
                 }
                 val faixas = biblioteca.separar(biblioteca.midia(p.id, clipe.midia), File(biblioteca.pasta(p.id), "midias"), modo, p.taxa) { etapa, f -> viewModelScope.launch { andamento = etapa to f } }
-                val novas = faixas.map { (definicao, arquivo) ->
+                val novas = faixas.mapIndexed { k, (definicao, arquivo) ->
                     val midiaId = novoId("stem")
                     val destino = biblioteca.midia(p.id, midiaId)
-                    check(arquivo.renameTo(destino)) { "Não foi possível guardar a faixa ${definicao.rotulo}." }
+                    if (reduzirRuido) {
+                        andamento = "Reduzindo o ruído: ${definicao.rotulo}" to (k + 0.5) / faixas.size
+                        biblioteca.reduzirRuido(arquivo, destino, p.taxa)
+                        arquivo.delete()
+                    } else check(arquivo.renameTo(destino)) { "Não foi possível guardar a faixa ${definicao.rotulo}." }
                     val quadros = FonteMapeada(destino).use { it.quadros }
                     definicao to MidiaMusical(midiaId, "${definicao.rotulo}.wav", "wav", p.taxa, 2, quadros, origem = clipe.midia, instrumento = definicao.id, modelo = SeparacaoDaMusica.MODELO_ID, versaoDoModelo = "1")
                 }
                 mudar { q ->
                     val i = q.faixas.indexOfFirst { it.id == faixaId }
-                    val criadas = novas.mapIndexed { k, (d, m) -> Musica.novaFaixa(novoId("faixa"), "${faixa.nome} — ${d.rotulo}", i + k + 1).copy(clipes = listOf(clipe.copy(id = novoId("clipe"), midia = m.id, nome = d.rotulo))) }
+                    val criadas = novas.mapIndexed { k, (d, m) -> Musica.novaFaixa(novoId("faixa"), Musica.nomeDaFaixaSeparada(d.rotulo, faixa.nome), i + k + 1).copy(clipes = listOf(clipe.copy(id = novoId("clipe"), midia = m.id, nome = d.rotulo))) }
                     val faixas = q.faixas.toMutableList().apply { this[i] = this[i].copy(mudo = true); addAll(i + 1, criadas) }
                     q.copy(midias = q.midias + novas.map { it.second }, faixas = faixas, separacoes = q.separacoes + RegistroDeSeparacao(novoId("sep"), clipe.midia, modo, SeparacaoDaMusica.MODELO_ID, novas.map { it.second.id }))
                 }
                 novas.forEach { carregarMidia(projeto!!, it.second) }
-                mensagem = "Pronto: ${novas.size} faixas novas abaixo de “${faixa.nome}”, que ficou muda como referência."
+                mensagem = "Pronto: ${novas.size} faixas novas abaixo de “${faixa.nome}”, que ficou muda como referência.${if (reduzirRuido) " O ruído de fundo foi reduzido em cada uma." else ""}"
             } catch (e: kotlinx.coroutines.CancellationException) {
                 mensagem = "Separação cancelada."
             } catch (e: Exception) {

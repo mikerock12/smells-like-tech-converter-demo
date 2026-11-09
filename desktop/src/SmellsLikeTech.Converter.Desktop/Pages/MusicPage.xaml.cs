@@ -26,7 +26,7 @@ public sealed partial class MusicPage : Page
 {
     private const int Rate = MusicRules.DefaultSampleRate;
     private const double HeaderWidth = 270;
-    private const double RowHeight = 96;
+    private const double RowHeight = 128;
 
     private MusicAudioEngine? engine;
     private MusicProject? project;
@@ -672,13 +672,14 @@ public sealed partial class MusicPage : Page
         fx.Click += (_, _) => { effectsTarget = track.Id; BuildPanels(); Panels.SelectedIndex = 1; };
         row2.Children.Add(fx);
         row2.Children.Add(meter);
-        var volume = new Slider { Minimum = MusicRules.MinGainDb, Maximum = MusicRules.MaxGainDb, StepFrequency = 0.5, Value = track.GainDb, Width = 116 };
-        AutomationProperties.SetName(volume, $"Volume de {track.Name}");
+        var volume = new Slider { Minimum = MusicRules.MinGainDb, Maximum = MusicRules.MaxGainDb, StepFrequency = 0.5, Value = track.GainDb };
         volume.ValueChanged += (_, e) => Edit(p => Track(p, track.Id).GainDb = e.NewValue, $"vol-{track.Id}", false);
-        var pan = new Slider { Minimum = -100, Maximum = 100, Value = track.Pan, Width = 116 };
-        AutomationProperties.SetName(pan, $"Pan de {track.Name}");
+        var pan = new Slider { Minimum = -100, Maximum = 100, Value = track.Pan };
         pan.ValueChanged += (_, e) => Edit(p => Track(p, track.Id).Pan = e.NewValue, $"pan-{track.Id}", false);
-        var row3 = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, Children = { volume, pan } };
+        var row3 = new StackPanel { Spacing = 0, Children = {
+            new Grid { ColumnDefinitions = { new ColumnDefinition { Width = new GridLength(30) }, new ColumnDefinition() }, Children = { new TextBlock { Text = "Vol", FontSize = 11, VerticalAlignment = VerticalAlignment.Center }, Column1(Fine(volume, MusicRules.StepGainDb, false, $"volume de {track.Name}")) } },
+            new Grid { ColumnDefinitions = { new ColumnDefinition { Width = new GridLength(30) }, new ColumnDefinition() }, Children = { new TextBlock { Text = "Pan", FontSize = 11, VerticalAlignment = VerticalAlignment.Center }, Column1(Fine(pan, MusicRules.StepPan, false, $"pan de {track.Name}")) } },
+        } };
         panel.Children.Add(row1);
         panel.Children.Add(row2);
         panel.Children.Add(row3);
@@ -873,6 +874,12 @@ public sealed partial class MusicPage : Page
         return border;
     }
 
+    private static FrameworkElement Column1(FrameworkElement element)
+    {
+        Grid.SetColumn(element, 1);
+        return element;
+    }
+
     private void BuildClipPanel()
     {
         ClipPanel.Children.Clear();
@@ -917,7 +924,38 @@ public sealed partial class MusicPage : Page
             selectedClip = null;
             Edit(p => p.Tracks.First(t => t.Id == track.Id).Clips.RemoveAll(c => c.Id == clip.Id));
         };
-        foreach (var element in new UIElement[] { start, gain, fadeIn, fadeOut, active, split, remove }) ClipPanel.Children.Add(element);
+        var noise = new Button { Content = "Reduzir ruído deste clipe" };
+        ToolTipService.SetToolTip(noise, "Para gravações com chiado, ventilador ou ar-condicionado ao fundo: aprende o ruído nos trechos mais silenciosos e o tira do clipe todo. Numa música já mixada quase nunca ajuda. A original fica guardada (Desfazer volta).");
+        noise.Click += async (_, _) =>
+        {
+            noise.IsEnabled = false;
+            Status("Reduzindo o ruído do clipe…", InfoBarSeverity.Informational);
+            try
+            {
+                var mediaId = NewId("limpa");
+                await MusicTools.ReduceNoiseAsync(Library.MediaPath(project.Id, clip.Media), Library.MediaPath(project.Id, mediaId), Rate, CancellationToken.None);
+                using var wav = new MappedWavSource(Library.MediaPath(project.Id, mediaId));
+                var media = new MusicMedia { Id = mediaId, Name = "Sem ruído.wav", SampleRate = Rate, Channels = 2, Frames = wav.Frames, Origin = clip.Media };
+                Edit(p =>
+                {
+                    p.Media.Add(media);
+                    var c = p.Tracks.First(t => t.Id == track.Id).Clips.First(x => x.Id == clip.Id);
+                    c.Media = mediaId;
+                    c.Name = $"{c.Name ?? "Clipe"} (sem ruído)";
+                });
+                LoadMedia(media);
+                Status("Ruído reduzido neste clipe. A gravação original continua guardada: Desfazer volta para ela.", InfoBarSeverity.Success);
+            }
+            catch (Exception e) when (e is IOException or Core.ConversionException)
+            {
+                Status(e.Message, InfoBarSeverity.Error);
+            }
+            finally
+            {
+                noise.IsEnabled = true;
+            }
+        };
+        foreach (var element in new UIElement[] { start, gain, fadeIn, fadeOut, active, split, noise, remove }) ClipPanel.Children.Add(element);
     }
 
     private void Split(string trackId, string clipId)

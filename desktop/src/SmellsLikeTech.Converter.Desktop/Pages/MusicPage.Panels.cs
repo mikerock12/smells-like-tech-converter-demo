@@ -78,7 +78,7 @@ public sealed partial class MusicPage
         fx.Click += (_, _) => { effectsTarget = id; BuildPanels(); Panels.SelectedIndex = 1; };
         buttons.Children.Add(fx);
         panel.Children.Add(buttons);
-        var faderRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, Height = 130 };
+        var faderRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, Height = 194 };
         var fader = new Slider { Orientation = Orientation.Vertical, Minimum = MusicRules.MinGainDb, Maximum = MusicRules.MaxGainDb, StepFrequency = 0.5, Value = gainDb, Height = 130 };
         AutomationProperties.SetName(fader, $"Volume do canal {name}");
         var value = new TextBlock { Text = $"{Db(gainDb)} dB", FontSize = 11, FontFamily = new FontFamily("Consolas") };
@@ -96,7 +96,7 @@ public sealed partial class MusicPage
         var l = Bar();
         var r = Bar();
         stripMeters[id] = (l, r);
-        faderRow.Children.Add(fader);
+        faderRow.Children.Add(Fine(fader, MusicRules.StepGainDb, false, $"volume do canal {name}", vertical: true));
         faderRow.Children.Add(new Grid { Width = 6, Height = 130, Background = new SolidColorBrush(Microsoft.UI.Colors.Black), Children = { l } });
         faderRow.Children.Add(new Grid { Width = 6, Height = 130, Background = new SolidColorBrush(Microsoft.UI.Colors.Black), Children = { r } });
         panel.Children.Add(faderRow);
@@ -105,7 +105,7 @@ public sealed partial class MusicPage
         {
             var panSlider = new Slider { Header = "Pan", Minimum = -100, Maximum = 100, Value = pan };
             panSlider.ValueChanged += (_, e) => Set((p, v) => { if (isTrack) Track(p, id).Pan = v; else p.Buses.First(b => b.Id == id).Pan = v; }, e.NewValue, $"pan-{id}");
-            panel.Children.Add(panSlider);
+            panel.Children.Add(Fine(panSlider, MusicRules.StepPan, false, $"pan de {name}"));
         }
 
         if (track is not null)
@@ -116,8 +116,8 @@ public sealed partial class MusicPage
             right.ValueChanged += (_, e) => Set((p, v) => Track(p, id).RightTrimDb = v, e.NewValue, $"r-{id}");
             var output = new ComboBox { Header = "Saída", ItemsSource = new[] { "Master" }.Concat(project!.Buses.Select(b => b.Name)).ToList(), SelectedIndex = track.Output == "master" ? 0 : project.Buses.FindIndex(b => b.Id == track.Output) + 1 };
             output.SelectionChanged += (_, _) => Edit(p => Track(p, id).Output = output.SelectedIndex <= 0 ? "master" : p.Buses[output.SelectedIndex - 1].Id, rebuild: false);
-            panel.Children.Add(left);
-            panel.Children.Add(right);
+            panel.Children.Add(Fine(left, MusicRules.StepTrimDb, false, $"ajuste do canal esquerdo de {name}"));
+            panel.Children.Add(Fine(right, MusicRules.StepTrimDb, false, $"ajuste do canal direito de {name}"));
             panel.Children.Add(output);
             foreach (var bus in project.Buses)
             {
@@ -137,7 +137,7 @@ public sealed partial class MusicPage
                     var existing = Track(p, id).Sends.FirstOrDefault(s => s.Bus == bus.Id);
                     if (existing is not null) existing.PreFader = pre.IsChecked == true;
                 }, rebuild: false);
-                panel.Children.Add(level);
+                panel.Children.Add(Fine(level, MusicRules.StepSendDb, false, $"envio de {name} para {bus.Name}"));
                 panel.Children.Add(pre);
             }
         }
@@ -154,9 +154,9 @@ public sealed partial class MusicPage
     {
         var panel = new StackPanel { Spacing = 10 };
         var targets = project!.Tracks.Select(t => (Id: t.Id, Name: $"Faixa: {t.Name}")).Concat(project.Buses.Select(b => (Id: b.Id, Name: $"Barramento: {b.Name}"))).Append((Id: "master", Name: "Master")).ToList();
-        var target = new ComboBox { Header = "Cadeia de", ItemsSource = targets.Select(t => t.Name).ToList(), SelectedIndex = Math.Max(0, targets.FindIndex(t => t.Id == effectsTarget)) };
+        var target = new ComboBox { Header = "Cadeia de", ItemsSource = targets.Select(t => t.Name).ToList(), SelectedIndex = Math.Max(0, targets.FindIndex(t => t.Id == effectsTarget)), HorizontalAlignment = HorizontalAlignment.Stretch, MaxWidth = 560 };
         target.SelectionChanged += (_, _) => { effectsTarget = targets[target.SelectedIndex].Id; BuildPanels(); };
-        var add = new ComboBox { Header = "Acrescentar", PlaceholderText = "Escolha um efeito…", ItemsSource = MusicDsp.Catalog.Select(d => $"{d.Group}: {d.Label}").ToList() };
+        var add = new ComboBox { Header = "Acrescentar", PlaceholderText = "Escolha um efeito…", ItemsSource = MusicDsp.Catalog.Select(d => $"{d.Group}: {d.Label}").ToList(), HorizontalAlignment = HorizontalAlignment.Stretch, MaxWidth = 560 };
         AutomationProperties.SetName(add, "Acrescentar efeito");
         add.SelectionChanged += (_, _) =>
         {
@@ -164,7 +164,8 @@ public sealed partial class MusicPage
             var kind = MusicDsp.Catalog[add.SelectedIndex].Kind;
             Edit(p => ChainOf(p, effectsTarget).Add(MusicDsp.NewEffect(kind, NewId("fx"))));
         };
-        panel.Children.Add(new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, Children = { target, add } });
+        // Um embaixo do outro: um nome de faixa longo não empurra o "Acrescentar" para fora da tela.
+        panel.Children.Add(new StackPanel { Spacing = 8, Children = { target, add } });
         var chain = ChainOf(project, effectsTarget);
         if (chain.Count == 0) panel.Children.Add(Label("Nenhum efeito nesta cadeia. A ordem conta: o sinal passa de cima para baixo. Os efeitos não têm atraso (latência zero)."));
         for (var i = 0; i < chain.Count; i++)
@@ -184,13 +185,14 @@ public sealed partial class MusicPage
             AutomationProperties.SetName(remove, $"Remover {definition.Label}");
             remove.Click += (_, _) => Edit(p => ChainOf(p, effectsTarget).RemoveAt(index));
             box.Children.Add(new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, Children = { enabled, up, down, remove } });
-            var grid = new VariableSizedWrapGrid { Orientation = Orientation.Horizontal, ItemWidth = 220 };
+            var grid = new VariableSizedWrapGrid { Orientation = Orientation.Horizontal, ItemWidth = 280 };
             foreach (var parameter in definition.Parameters)
             {
                 var slider = new Slider { Header = $"{parameter.Label}{(parameter.Unit.Length > 0 ? $" ({parameter.Unit})" : "")}", Minimum = parameter.Min, Maximum = parameter.Max, StepFrequency = parameter.Max - parameter.Min > 100 ? 1 : parameter.Max - parameter.Min > 10 ? 0.1 : 0.01, Value = MusicDsp.Param(effect, parameter.Id), Margin = new Thickness(0, 0, 12, 0) };
                 AutomationProperties.SetName(slider, $"{definition.Label}: {parameter.Label}");
                 slider.ValueChanged += (_, e) => Edit(p => ChainOf(p, effectsTarget)[index].Set(parameter.Id, e.NewValue), $"{effect.Id}-{parameter.Id}", false);
-                grid.Children.Add(slider);
+                var (step, relative) = MusicRules.StepFor(parameter.Min, parameter.Max, parameter.Unit);
+                grid.Children.Add(Fine(slider, step, relative, $"{definition.Label}: {parameter.Label}"));
             }
 
             box.Children.Add(grid);
@@ -253,13 +255,13 @@ public sealed partial class MusicPage
         panel.Children.Add(new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, Children = { calibrate, adjust, monitor } });
         var punch = new CheckBox { Content = "Gravar só entre a entrada e a saída do punch (região do loop)", IsChecked = project.Punch.Enabled, IsEnabled = project.Loop.End > project.Loop.Start };
         punch.Click += (_, _) => Edit(p => { p.Punch.Enabled = punch.IsChecked == true; p.Punch.In = p.Loop.Start; p.Punch.Out = p.Loop.End; }, rebuild: false);
-        var metronomeVolume = new Slider { Header = "Volume do metrônomo (dB)", Minimum = -40, Maximum = 6, Value = project.Metronome.VolumeDb, Width = 240 };
+        var metronomeVolume = new Slider { Header = "Volume do metrônomo (dB)", Minimum = -40, Maximum = 6, Value = project.Metronome.VolumeDb };
         metronomeVolume.ValueChanged += (_, e) => Edit(p => p.Metronome.VolumeDb = e.NewValue, "metro", false);
         var inExport = new CheckBox { Content = "Metrônomo também na exportação", IsChecked = project.Metronome.InExport };
         inExport.Click += (_, _) => Edit(p => p.Metronome.InExport = inExport.IsChecked == true, rebuild: false);
         var marker = new Button { Content = "+ Marcador no cursor" };
         marker.Click += (_, _) => Edit(p => p.Markers.Add(new MusicMarker { Id = NewId("marca"), Frame = engine?.Position ?? 0, Name = $"Marca {p.Markers.Count + 1}" }));
-        panel.Children.Add(new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, Children = { punch, metronomeVolume, inExport, marker } });
+        panel.Children.Add(new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, Children = { punch, Fine(metronomeVolume, MusicRules.StepMetronomeDb, false, "volume do metrônomo", width: 300), inExport, marker } });
         return panel;
     }
 
@@ -298,8 +300,24 @@ public sealed partial class MusicPage
             return panel;
         }
 
-        var source = new ComboBox { Header = "Áudio", ItemsSource = clips.Select(c => $"{c.Track.Name} — {c.Clip.Name ?? "clipe"}").ToList(), SelectedIndex = 0, MinWidth = 320 };
-        var mode = new ComboBox { Header = "Separar em", ItemsSource = MusicSeparation.Modes.Select(m => $"{m.Stems.Count} faixas: {m.Label}").ToList(), SelectedIndex = 1 };
+        // Uma opção por clipe: a faixa em cima, o clipe e a duração embaixo; nomes longos são cortados.
+        var source = new RadioButtons { Header = "1. Escolha o áudio", SelectedIndex = 0, MaxWidth = 620, HorizontalAlignment = HorizontalAlignment.Left };
+        foreach (var (t, c) in clips)
+        {
+            var text = new StackPanel { MaxWidth = 560 };
+            text.Children.Add(new TextBlock { Text = t.Name, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, TextTrimming = TextTrimming.CharacterEllipsis });
+            text.Children.Add(new TextBlock { Text = $"{c.Name ?? "Clipe"} · {c.Duration / (double)Rate:0.0} s", FontSize = 12, TextTrimming = TextTrimming.CharacterEllipsis, Foreground = (Brush)Application.Current.Resources["BrandTextMutedBrush"] });
+            ToolTipService.SetToolTip(text, $"{t.Name} — {c.Name ?? "Clipe"}");
+            source.Items.Add(text);
+        }
+
+        var mode = new RadioButtons { Header = "2. Em quantas faixas", SelectedIndex = 1, ItemsSource = MusicSeparation.Modes.Select(m => $"{m.Stems.Count} faixas: {m.Label}").ToList() };
+        var names = Label("");
+        void ShowNames() => names.Text = "As faixas novas entram com o nome do que são: " + string.Join(", ", MusicSeparation.Modes[Math.Max(0, mode.SelectedIndex)].Stems.Select(st => MusicRules.SeparatedTrackName(st.Label, "…"))) + ".";
+        ShowNames();
+        mode.SelectionChanged += (_, _) => ShowNames();
+        var clean = new ToggleSwitch { Header = "Reduzir ruído nas faixas separadas", IsOn = false };
+        var cleanHelp = Label("Tira o chiado e o ruído constante que a separação costuma deixar em cada faixa (mais útil na voz). Deixe desligado se a música original já é limpa.");
         var progress = new ProgressBar { Maximum = 1, Width = 320, Visibility = Visibility.Collapsed };
         var stage = Label("");
         var run = new Button { Content = "Separar", Style = (Style)Application.Current.Resources["BrandActionButtonStyle"] };
@@ -322,8 +340,22 @@ public sealed partial class MusicPage
                 }
 
                 var folder = Path.Combine(Library.Folder(project.Id), "midias");
-                var stems = await Tools.SeparateAsync(Library.MediaPath(project.Id, clip.Media), folder, modeId, Rate,
-                    new Progress<(string Stage, double Fraction)>(p => { stage.Text = p.Stage; progress.Value = p.Fraction; }), work.Token);
+                var stems = (await Tools.SeparateAsync(Library.MediaPath(project.Id, clip.Media), folder, modeId, Rate,
+                    new Progress<(string Stage, double Fraction)>(p => { stage.Text = p.Stage; progress.Value = p.Fraction; }), work.Token)).ToList();
+                if (clean.IsOn)
+                {
+                    // Cada faixa separada passa pela redução de ruído antes de entrar no projeto.
+                    for (var k = 0; k < stems.Count; k++)
+                    {
+                        var (stem, raw) = stems[k];
+                        stage.Text = $"Reduzindo o ruído: {stem.Label}";
+                        progress.Value = (k + 0.5) / stems.Count;
+                        var cleaned = Path.Combine(folder, $"{Path.GetFileNameWithoutExtension(raw)}-limpa.wav");
+                        await MusicTools.ReduceNoiseAsync(raw, cleaned, Rate, work.Token);
+                        File.Delete(raw);
+                        stems[k] = (stem, cleaned);
+                    }
+                }
                 var added = new List<MusicMedia>();
                 Edit(p =>
                 {
@@ -339,7 +371,7 @@ public sealed partial class MusicPage
                         var media = new MusicMedia { Id = mediaId, Name = $"{stem.Label}.wav", SampleRate = Rate, Channels = 2, Frames = wav.Frames, Origin = origin?.Id, Instrument = stem.Id, Model = MusicSeparation.ModelId, ModelVersion = "1" };
                         p.Media.Add(media);
                         added.Add(media);
-                        var newTrack = MusicRules.NewTrack(NewId("faixa"), $"{track.Name} — {stem.Label}", i + k + 1);
+                        var newTrack = MusicRules.NewTrack(NewId("faixa"), MusicRules.SeparatedTrackName(stem.Label, track.Name), i + k + 1);
                         var c = clip.Copy();
                         c.Id = NewId("clipe");
                         c.Media = mediaId;
@@ -351,7 +383,7 @@ public sealed partial class MusicPage
                     p.Separations.Add(new MusicSeparationRecord { Id = NewId("sep"), Media = clip.Media, Mode = modeId, Model = MusicSeparation.ModelId, Tracks = [.. added.Select(m => m.Id)] });
                 });
                 foreach (var media in added) LoadMedia(media);
-                Status($"Pronto: {stems.Count} faixas novas abaixo de “{track.Name}”, que ficou muda como referência.", InfoBarSeverity.Success);
+                Status($"Pronto: {stems.Count} faixas novas abaixo de “{track.Name}”, que ficou muda como referência.{(clean.IsOn ? " O ruído de fundo foi reduzido em cada uma." : "")}", InfoBarSeverity.Success);
             }
             catch (OperationCanceledException)
             {
@@ -367,32 +399,50 @@ public sealed partial class MusicPage
                 cancel.Visibility = progress.Visibility = Visibility.Collapsed;
             }
         };
-        var noise = new Button { Content = "Reduzir ruído (offline)" };
-        noise.Click += async (_, _) =>
-        {
-            var (track, clip) = clips[Math.Max(0, source.SelectedIndex)];
-            var mediaId = NewId("limpa");
-            stage.Text = "Reduzindo o ruído";
-            await MusicTools.ReduceNoiseAsync(Library.MediaPath(project.Id, clip.Media), Library.MediaPath(project.Id, mediaId), Rate, CancellationToken.None);
-            using var wav = new MappedWavSource(Library.MediaPath(project.Id, mediaId));
-            var media = new MusicMedia { Id = mediaId, Name = "Sem ruído.wav", SampleRate = Rate, Channels = 2, Frames = wav.Frames, Origin = clip.Media };
-            Edit(p =>
-            {
-                p.Media.Add(media);
-                var c = p.Tracks.First(t => t.Id == track.Id).Clips.First(x => x.Id == clip.Id);
-                c.Media = mediaId;
-                c.Name = $"{c.Name ?? "Clipe"} (sem ruído)";
-            });
-            LoadMedia(media);
-            stage.Text = "Ruído reduzido. A gravação original continua guardada: Desfazer volta para ela.";
-        };
-        panel.Children.Add(new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, Children = { source, mode, run, cancel, noise } });
+        panel.Children.Add(source);
+        panel.Children.Add(mode);
+        panel.Children.Add(names);
+        panel.Children.Add(clean);
+        panel.Children.Add(cleanHelp);
+        panel.Children.Add(new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, Children = { run, cancel } });
         panel.Children.Add(progress);
         panel.Children.Add(stage);
         panel.Children.Add(Label(MusicSeparation.Warning));
         panel.Children.Add(Label($"Modelo: Spleeter 4 faixas (Deezer), licença {MusicSeparation.ModelLicense}. Roda neste computador; o áudio não sai daqui. {(Tools.ModelReady ? "O modelo já está baixado." : "O modelo (78 MB) é baixado na primeira separação, conferido pelo SHA-256.")}"));
         panel.Children.Add(Label("Separar músicas de outras pessoas não muda os direitos autorais delas: use em gravações suas ou que você tem direito de usar."));
         return panel;
+    }
+
+    /// <summary>
+    /// Barra com − e + nas pontas: a barra para o gesto largo, os botões para o passo fino
+    /// (MusicRules.FineStep, encaixado na grade do passo). Na vertical, o + fica em cima.
+    /// </summary>
+    private static FrameworkElement Fine(Slider slider, double step, bool relative, string name, bool vertical = false, double width = 0)
+    {
+        if (!relative) slider.StepFrequency = step;
+        AutomationProperties.SetName(slider, name);
+        Button Step(string text, int direction, string verb)
+        {
+            var button = new Button { Content = text, Padding = new Thickness(8, 0, 8, 2), MinWidth = 30, VerticalAlignment = vertical ? VerticalAlignment.Center : VerticalAlignment.Bottom, HorizontalAlignment = HorizontalAlignment.Center };
+            AutomationProperties.SetName(button, $"{verb} {name}");
+            button.Click += (_, _) => slider.Value = MusicRules.FineStep(slider.Value, direction, step, slider.Minimum, slider.Maximum, relative);
+            return button;
+        }
+
+        var minus = Step("−", -1, "Diminuir");
+        var plus = Step("+", 1, "Aumentar");
+        if (vertical) return new StackPanel { Spacing = 4, Children = { plus, slider, minus } };
+        var grid = new Grid { ColumnSpacing = 4 };
+        if (width > 0) grid.Width = width;
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        Grid.SetColumn(slider, 1);
+        Grid.SetColumn(plus, 2);
+        grid.Children.Add(minus);
+        grid.Children.Add(slider);
+        grid.Children.Add(plus);
+        return grid;
     }
 
     // ==================== exportação ====================

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 
-import { novaFaixa, type ProjetoMusical } from "@/packages/converter-core/musica.mjs";
+import { PASSOS_DA_MUSICA, nomeDaFaixaSeparada, novaFaixa, type ProjetoMusical } from "@/packages/converter-core/musica.mjs";
 import type { FonteDeAudio } from "@/packages/converter-core/musica-mixer.mjs";
 import { FORMATOS_DE_EXPORTACAO, PRESETS_DE_MASTER } from "@/packages/converter-core/musica-master.mjs";
 import { AVISO_DA_SEPARACAO, MODELO_DE_SEPARACAO, MODOS_DE_SEPARACAO, reduzirRuido } from "@/packages/converter-core/musica-separacao.mjs";
@@ -14,6 +14,7 @@ import { exportarMusica, formatosDisponiveis, type Exportado } from "@/lib/music
 import { MotorDaMusica, type ResultadoDaEntrada } from "@/lib/musica/motor";
 import { SeparadorNoNavegador, apagarModelo, garantirModelo, modeloBaixado } from "@/lib/musica/separacao";
 import { novoId, type Mudar } from "./CriacaoMusical";
+import { AjusteMusical } from "./AjusteMusical";
 
 const ms = (quadros: number, taxa: number) => `${((quadros / taxa) * 1000).toFixed(1)} ms`;
 
@@ -82,9 +83,9 @@ export function PainelDeGravacao({ projeto, mudar, entrada, saidaEstimada, quadr
         <h3>Punch e metrônomo</h3>
         <label className="estudio__chave"><input type="checkbox" checked={projeto.punch.ligado} onChange={(e) => mudar((p) => ({ ...p, punch: { ...p.punch, ligado: e.target.checked && p.punch.saida > p.punch.entrada } }))} disabled={!(projeto.punch.saida > projeto.punch.entrada)} /> Gravar só entre a entrada e a saída do punch</label>
         <button type="button" className="button button--ghost" onClick={() => mudar((p) => ({ ...p, punch: { ligado: p.loop.fim > p.loop.inicio, entrada: p.loop.inicio, saida: p.loop.fim } }))} disabled={!(projeto.loop.fim > projeto.loop.inicio)}>Usar a região do loop como punch</button>
-        <label className="musica__campo">Volume do metrônomo (dB)
-          <input type="range" min={-40} max={6} step={1} value={projeto.metronomo.volumeDb} onChange={(e) => mudar((p) => ({ ...p, metronomo: { ...p.metronomo, volumeDb: Number(e.target.value) } }), "metro")} />
-        </label>
+        <div className="musica__campo">Volume do metrônomo (dB)
+          <AjusteMusical valor={projeto.metronomo.volumeDb} min={-40} max={6} passo={PASSOS_DA_MUSICA.metronomoDb} rotulo="volume do metrônomo" mudar={(v) => mudar((p) => ({ ...p, metronomo: { ...p.metronomo, volumeDb: v } }), "metro")} />
+        </div>
         <label className="estudio__chave"><input type="checkbox" checked={projeto.metronomo.naExportacao} onChange={(e) => mudar((p) => ({ ...p, metronomo: { ...p.metronomo, naExportacao: e.target.checked } }))} /> Metrônomo também na exportação</label>
         <button type="button" className="button button--ghost" onClick={() => mudar((p) => ({ ...p, marcadores: [...p.marcadores, { id: novoId("marca"), quadro: Math.round(quadro), nome: `Marca ${p.marcadores.length + 1}` }] }))}>+ Marcador no cursor</button>
         <label className="musica__campo">Loop: início e fim (s)
@@ -98,6 +99,35 @@ export function PainelDeGravacao({ projeto, mudar, entrada, saidaEstimada, quadr
   );
 }
 
+/** Redução de ruído de fundo, fora do tempo real: devolve os dois canais limpos. */
+export function canaisSemRuido(canais: Float32Array[]): Float32Array[] {
+  const n = canais[0].length;
+  const saida = [new Float32Array(n), new Float32Array(n)];
+  reduzirRuido({ comprimento: n, canais: canais.length, ler: (c, i, k, d) => d.set(canais[Math.min(c, canais.length - 1)].subarray(i, i + k)), emitir: (c, i, a, k) => saida[c].set(a.subarray(0, k), i) });
+  return saida;
+}
+
+/**
+ * Reduz o ruído de um clipe gravado (chiado, ventilador): grava a mídia limpa e troca o clipe
+ * para ela. A original fica guardada; Desfazer volta.
+ */
+export async function reduzirRuidoDoClipe(projeto: ProjetoMusical, faixaId: string, clipeId: string, canaisDe: (midia: string) => Float32Array[] | undefined, carregarMidia: (projetoId: string, midiaId: string, canais?: Float32Array[]) => Promise<void>, mudar: Mudar): Promise<string> {
+  const clipe = projeto.faixas.find((f) => f.id === faixaId)?.clipes.find((c) => c.id === clipeId);
+  const canais = clipe ? canaisDe(clipe.midia) : undefined;
+  if (!clipe || !canais) return "O áudio deste clipe ainda não carregou.";
+  await new Promise((r) => setTimeout(r, 30));
+  const saida = canaisSemRuido(canais);
+  const midia = novoId("limpa");
+  await salvarMidia(projeto.id, midia, saida, projeto.taxa);
+  await carregarMidia(projeto.id, midia, saida);
+  mudar((p) => ({
+    ...p,
+    midias: [...p.midias, { id: midia, nome: "Sem ruído.wav", formato: "wav", taxa: p.taxa, canais: 2, quadros: saida[0].length, bits: 32, origem: clipe.midia }],
+    faixas: p.faixas.map((f) => (f.id === faixaId ? { ...f, clipes: f.clipes.map((c) => (c.id === clipeId ? { ...c, midia, nome: `${c.nome ?? "Clipe"} (sem ruído)` } : c)) } : f)),
+  }));
+  return "Ruído reduzido neste clipe. A gravação original continua guardada: Desfazer volta para ela.";
+}
+
 export function PainelDeSeparacao({ projeto, canaisDe, mudar, carregarMidia }: {
   projeto: ProjetoMusical;
   canaisDe: (midia: string) => Float32Array[] | undefined;
@@ -107,6 +137,7 @@ export function PainelDeSeparacao({ projeto, canaisDe, mudar, carregarMidia }: {
   const clipes = projeto.faixas.flatMap((f) => f.clipes.filter((c) => !c.mudo).map((c) => ({ faixa: f, clipe: c })));
   const [escolhido, setEscolhido] = useState(clipes[0]?.clipe.id ?? "");
   const [modo, setModo] = useState("4");
+  const [limpar, setLimpar] = useState(false);
   const [baixado, setBaixado] = useState<boolean | null>(null);
   const [andamento, setAndamento] = useState<{ etapa: string; fracao: number } | null>(null);
   const [mensagem, setMensagem] = useState<string | null>(null);
@@ -161,8 +192,13 @@ export function PainelDeSeparacao({ projeto, canaisDe, mudar, carregarMidia }: {
         faixas = await separador.current.separar(canais.map((c) => c.slice()), projeto.taxa, modo, (etapa, fracao) => setAndamento({ etapa, fracao }));
       }
       const novas: { midia: string; rotulo: string; id: string; quadros: number }[] = [];
-      for (const faixa of faixas) {
+      for (const [k, faixa] of faixas.entries()) {
         const midia = novoId("stem");
+        if (limpar) {
+          setAndamento({ etapa: `Reduzindo o ruído: ${faixa.rotulo}`, fracao: (k + 0.5) / faixas.length });
+          await new Promise((r) => setTimeout(r, 30));
+          faixa.canais = canaisSemRuido(faixa.canais);
+        }
         setAndamento({ etapa: `Guardando ${faixa.rotulo}`, fracao: 1 });
         await salvarMidia(projeto.id, midia, faixa.canais, projeto.taxa);
         await carregarMidia(projeto.id, midia, faixa.canais);
@@ -171,7 +207,7 @@ export function PainelDeSeparacao({ projeto, canaisDe, mudar, carregarMidia }: {
       mudar((p) => {
         const origem = p.midias.find((m) => m.id === alvo.clipe.midia);
         const i = p.faixas.findIndex((f) => f.id === alvo.faixa.id);
-        const criadas = novas.map((n, k) => ({ ...novaFaixa(novoId("faixa"), `${alvo.faixa.nome} — ${n.rotulo}`, i + k + 1), clipes: [{ ...alvo.clipe, id: novoId("clipe"), midia: n.midia, nome: n.rotulo }] }));
+        const criadas = novas.map((n, k) => ({ ...novaFaixa(novoId("faixa"), nomeDaFaixaSeparada(n.rotulo, alvo.faixa.nome), i + k + 1), clipes: [{ ...alvo.clipe, id: novoId("clipe"), midia: n.midia, nome: n.rotulo }] }));
         return {
           ...p,
           midias: [...p.midias, ...novas.map((n) => ({ id: n.midia, nome: `${n.rotulo}.wav`, formato: "wav", taxa: p.taxa, canais: 2, quadros: n.quadros, bits: 32, origem: origem?.id ?? null, instrumento: n.id, modelo: MODELO_DE_SEPARACAO.id, versaoDoModelo: "1" }))],
@@ -180,7 +216,7 @@ export function PainelDeSeparacao({ projeto, canaisDe, mudar, carregarMidia }: {
           separacoes: [...p.separacoes, { id: novoId("sep"), midia: alvo.clipe.midia, modo, modelo: MODELO_DE_SEPARACAO.id, faixas: novas.map((n) => n.midia) }],
         };
       });
-      setMensagem(`Pronto: ${novas.length} faixas novas abaixo de “${alvo.faixa.nome}”, que ficou muda como referência.`);
+      setMensagem(`Pronto: ${novas.length} faixas novas abaixo de “${alvo.faixa.nome}”, que ficou muda como referência.${limpar ? " O ruído de fundo foi reduzido em cada uma." : ""}`);
     } catch (e) {
       setMensagem(e instanceof Error ? e.message : String(e));
     } finally {
@@ -190,41 +226,33 @@ export function PainelDeSeparacao({ projeto, canaisDe, mudar, carregarMidia }: {
     }
   };
 
-  const limparRuido = async () => {
-    if (!alvo) return;
-    const canais = canaisDe(alvo.clipe.midia);
-    if (!canais) return;
-    setAndamento({ etapa: "Reduzindo o ruído", fracao: 0.5 });
-    await new Promise((r) => setTimeout(r, 30));
-    const n = canais[0].length;
-    const saida = [new Float32Array(n), new Float32Array(n)];
-    reduzirRuido({ comprimento: n, canais: canais.length, ler: (c, i, k, d) => d.set(canais[Math.min(c, canais.length - 1)].subarray(i, i + k)), emitir: (c, i, a, k) => saida[c].set(a.subarray(0, k), i) });
-    const midia = novoId("limpa");
-    await salvarMidia(projeto.id, midia, saida, projeto.taxa);
-    await carregarMidia(projeto.id, midia, saida);
-    mudar((p) => ({
-      ...p,
-      midias: [...p.midias, { id: midia, nome: "Sem ruído.wav", formato: "wav", taxa: p.taxa, canais: 2, quadros: n, bits: 32, origem: alvo.clipe.midia }],
-      faixas: p.faixas.map((f) => (f.id === alvo.faixa.id ? { ...f, clipes: f.clipes.map((c) => (c.id === alvo.clipe.id ? { ...c, midia, nome: `${c.nome ?? "Clipe"} (sem ruído)` } : c)) } : f)),
-    }));
-    setAndamento(null);
-    setMensagem("Ruído reduzido. A gravação original continua guardada: Desfazer volta para ela.");
-  };
-
   return (
     <div className="musica__colunas">
       <section>
         <h3>Separar faixas por IA</h3>
         {clipes.length === 0 ? <p className="estudio__dica">Importe ou grave um áudio primeiro.</p> : (
           <>
-            <label className="musica__campo">Áudio
-              <select value={alvo?.clipe.id} onChange={(e) => setEscolhido(e.target.value)}>
-                {clipes.map(({ faixa, clipe }) => <option key={clipe.id} value={clipe.id}>{faixa.nome} — {clipe.nome ?? "clipe"}</option>)}
-              </select>
-            </label>
-            <label className="musica__campo">Separar em
-              <select value={modo} onChange={(e) => setModo(e.target.value)}>{MODOS_DE_SEPARACAO.map((m) => <option key={m.id} value={m.id}>{m.faixas.length} faixas: {m.rotulo}</option>)}</select>
-            </label>
+            <fieldset className="musica__escolha">
+              <legend>1. Escolha o áudio</legend>
+              {clipes.map(({ faixa, clipe }) => (
+                <label key={clipe.id} className={`musica__opcao${alvo?.clipe.id === clipe.id ? " musica__opcao--marcada" : ""}`} title={`${faixa.nome} — ${clipe.nome ?? "Clipe"}`} aria-label={`${faixa.nome}, ${clipe.nome ?? "Clipe"}`}>
+                  <input type="radio" name="audio-para-separar" checked={alvo?.clipe.id === clipe.id} onChange={() => setEscolhido(clipe.id)} />
+                  <span className="musica__opcao-texto">
+                    <strong>{faixa.nome}</strong>
+                    <small>{clipe.nome ?? "Clipe"} · {(clipe.duracao / projeto.taxa).toFixed(1)} s</small>
+                  </span>
+                </label>
+              ))}
+            </fieldset>
+            <fieldset className="musica__escolha">
+              <legend>2. Em quantas faixas</legend>
+              {MODOS_DE_SEPARACAO.map((m) => (
+                <label key={m.id} className="estudio__chave"><input type="radio" name="modo-de-separacao" checked={modo === m.id} onChange={() => setModo(m.id)} /> {m.faixas.length} faixas: {m.rotulo}</label>
+              ))}
+              <small className="estudio__dica">As faixas novas entram com o nome do que são: {MODOS_DE_SEPARACAO.find((m) => m.id === modo)!.faixas.map((f) => nomeDaFaixaSeparada(f.rotulo, "…")).join(", ")}.</small>
+            </fieldset>
+            <label className="estudio__chave"><input type="checkbox" role="switch" checked={limpar} onChange={(e) => setLimpar(e.target.checked)} /> Reduzir ruído nas faixas separadas</label>
+            <small className="estudio__dica">Tira o chiado e o ruído constante que a separação costuma deixar em cada faixa (mais útil na voz). Deixe desligado se a música original já é limpa.</small>
             {pluginSepara && <label className="estudio__chave"><input type="checkbox" checked={usarPlugin} onChange={(e) => setUsarPlugin(e.target.checked)} /> Separar no plugin do Windows (mais rápido, o áudio não sai deste computador)</label>}
             <div className="musica__linha">
               <button type="button" className="button" onClick={() => void separar()} disabled={!!andamento}>Separar</button>
@@ -246,11 +274,6 @@ export function PainelDeSeparacao({ projeto, canaisDe, mudar, carregarMidia }: {
         </p>
         {baixado && <button type="button" className="button button--ghost" onClick={() => void apagarModelo().then(() => setBaixado(false))}>Apagar o modelo deste navegador</button>}
         <p className="estudio__dica">Separar músicas de outras pessoas não muda os direitos autorais delas: use em gravações suas ou que você tem direito de usar.</p>
-      </section>
-      <section>
-        <h3>Limpeza</h3>
-        <p className="estudio__dica">Redução de ruído de fundo (chiado, ventilador) no áudio escolhido, fora do tempo real. Cria uma mídia nova; a original fica guardada.</p>
-        <button type="button" className="button button--ghost" onClick={() => void limparRuido()} disabled={!alvo || !!andamento}>Reduzir ruído</button>
       </section>
     </div>
   );

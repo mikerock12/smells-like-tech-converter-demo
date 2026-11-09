@@ -2,10 +2,11 @@
 
 import { useEffect, useRef, useState, type PointerEvent as EventoDoPonteiro } from "react";
 
-import { AJUSTE_MAXIMO_DB, AJUSTE_MINIMO_DB, GANHO_MAXIMO_DB, GANHO_MINIMO_DB, duracaoEmQuadros, novaFaixa, quadroDaBatida, quadrosPorBatida, quadrosPorCompasso, type Clipe, type Faixa, type ProjetoMusical } from "@/packages/converter-core/musica.mjs";
+import { AJUSTE_MAXIMO_DB, AJUSTE_MINIMO_DB, GANHO_MAXIMO_DB, GANHO_MINIMO_DB, PASSOS_DA_MUSICA, duracaoEmQuadros, novaFaixa, quadroDaBatida, quadrosPorBatida, quadrosPorCompasso, type Clipe, type Faixa, type ProjetoMusical } from "@/packages/converter-core/musica.mjs";
 import type { EstadoDoMotor } from "@/lib/musica/motor";
 import { QUADROS_POR_PICO } from "@/lib/musica/picos";
 import { novoId, type Mudar, type Selecao } from "./CriacaoMusical";
+import { AjusteMusical } from "./AjusteMusical";
 
 type Props = {
   projeto: ProjetoMusical;
@@ -19,6 +20,8 @@ type Props = {
   gravando: string | null;
   exportarFaixa: (id: string) => void;
   abrirEfeitos: (id: string) => void;
+  /** Reduz o ruído de fundo de um clipe gravado (cria uma mídia nova; Desfazer volta). */
+  limparClipe?: (faixaId: string, clipeId: string) => void;
 };
 
 const LARGURA_DA_CABECA = 250;
@@ -58,7 +61,7 @@ function Onda({ picos, clipe, largura, cor }: { picos: Float32Array | undefined;
   return <canvas ref={tela} className="musica__onda" aria-hidden />;
 }
 
-export default function LinhaDoTempoMusical({ projeto, picos, estado, zoom, mudar, irPara, selecao, selecionar, gravando, exportarFaixa, abrirEfeitos }: Props) {
+export default function LinhaDoTempoMusical({ projeto, picos, estado, zoom, mudar, irPara, selecao, selecionar, gravando, exportarFaixa, abrirEfeitos, limparClipe }: Props) {
   const [menu, setMenu] = useState<string | null>(null);
   const [encaixe, setEncaixe] = useState(true);
   const arraste = useRef<{ clipe: string; faixa: string; x0: number; inicio0: number } | null>(null);
@@ -179,12 +182,12 @@ export default function LinhaDoTempoMusical({ projeto, picos, estado, zoom, muda
                     <span className="musica__nivel" aria-hidden><span style={{ width: `${Math.min(100, Math.max(0, (20 * Math.log10(nivel + 1e-9) + 60) / 60) * 100)}%`, background: nivel >= 1 ? "#e53935" : undefined }} /></span>
                   </div>
                   <div className="musica__linha">
-                    <label className="musica__rotulo" title="Volume">Vol
-                      <input type="range" min={GANHO_MINIMO_DB} max={GANHO_MAXIMO_DB} step={0.5} value={faixa.ganhoDb} onChange={(e) => mudarFaixa(mudar, faixa.id, (f) => ({ ...f, ganhoDb: Number(e.target.value) }), `vol-${faixa.id}`)} onDoubleClick={() => mudarFaixa(mudar, faixa.id, (f) => ({ ...f, ganhoDb: 0 }))} aria-valuetext={`${faixa.ganhoDb} dB`} />
-                    </label>
-                    <label className="musica__rotulo" title="Pan (duplo clique centraliza)">Pan
-                      <input type="range" min={-100} max={100} step={1} value={faixa.pan} onChange={(e) => mudarFaixa(mudar, faixa.id, (f) => ({ ...f, pan: Number(e.target.value) }), `pan-${faixa.id}`)} onDoubleClick={() => mudarFaixa(mudar, faixa.id, (f) => ({ ...f, pan: 0 }))} aria-valuetext={faixa.pan === 0 ? "centro" : faixa.pan < 0 ? `${-faixa.pan} à esquerda` : `${faixa.pan} à direita`} />
-                    </label>
+                    <div className="musica__rotulo" title="Volume">Vol
+                      <AjusteMusical valor={faixa.ganhoDb} min={GANHO_MINIMO_DB} max={GANHO_MAXIMO_DB} passo={PASSOS_DA_MUSICA.ganhoDb} rotulo={`volume de ${faixa.nome}`} textoDoValor={`${faixa.ganhoDb} dB`} padrao={0} mudar={(v) => mudarFaixa(mudar, faixa.id, (f) => ({ ...f, ganhoDb: v }), `vol-${faixa.id}`)} />
+                    </div>
+                    <div className="musica__rotulo" title="Pan (duplo clique centraliza)">Pan
+                      <AjusteMusical valor={faixa.pan} min={-100} max={100} passo={PASSOS_DA_MUSICA.pan} rotulo={`pan de ${faixa.nome}`} textoDoValor={faixa.pan === 0 ? "centro" : faixa.pan < 0 ? `${-faixa.pan} à esquerda` : `${faixa.pan} à direita`} padrao={0} mudar={(v) => mudarFaixa(mudar, faixa.id, (f) => ({ ...f, pan: v }), `pan-${faixa.id}`)} />
+                    </div>
                   </div>
                   {menu === faixa.id && (
                     <div className="musica__menu" role="menu">
@@ -221,6 +224,7 @@ export default function LinhaDoTempoMusical({ projeto, picos, estado, zoom, muda
           <label className="musica__campo">Saída suave (ms)<input type="number" step={10} min={0} value={Math.round((selecionado.clipe.saidaSuave / taxa) * 1000)} onChange={(e) => mudarFaixa(mudar, selecionado.faixa.id, (f) => ({ ...f, clipes: f.clipes.map((c) => (c.id === selecionado.clipe.id ? { ...c, saidaSuave: Math.min(c.duracao - c.entradaSuave, Math.max(0, Math.round((Number(e.target.value) / 1000) * taxa))) } : c)) }), "saida")} /></label>
           <label className="estudio__chave"><input type="checkbox" checked={!selecionado.clipe.mudo} onChange={(e) => mudarFaixa(mudar, selecionado.faixa.id, (f) => ({ ...f, clipes: f.clipes.map((c) => (c.id === selecionado.clipe.id ? { ...c, mudo: !e.target.checked } : c)) }))} /> Tomada ativa</label>
           <button type="button" className="button button--ghost" onClick={dividir}>Dividir no cursor</button>
+          {limparClipe && <button type="button" className="button button--ghost" onClick={() => limparClipe(selecionado.faixa.id, selecionado.clipe.id)} title="Para gravações com chiado, ventilador ou ar-condicionado ao fundo: aprende o ruído nos trechos mais silenciosos e o tira do clipe todo. Numa música já mixada quase nunca ajuda. A original fica guardada (Desfazer volta).">Reduzir ruído deste clipe</button>}
           <button type="button" className="button button--ghost" onClick={() => { mudarFaixa(mudar, selecionado.faixa.id, (f) => ({ ...f, clipes: f.clipes.filter((c) => c.id !== selecionado.clipe.id) })); selecionar((s) => ({ ...s, clipe: null })); }}>Remover clipe</button>
           <span className="estudio__dica">A mídia original nunca muda: cortar, mover e remover mexem só no clipe.</span>
         </div>

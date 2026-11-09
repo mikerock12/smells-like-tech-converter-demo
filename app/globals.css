@@ -1028,3 +1028,23 @@ audio.previa__midia { background: transparent; cursor: default; }
 }
 .estudio__musica { margin: 14px 0 4px; text-decoration: none; border-color: var(--amber); }
 .musica__voltar { display: block; text-decoration: none; }
+
+/* Criação musical: barras com − e + nas pontas, escolhas em lista e efeitos em coluna. */
+.musica__ajuste { display: inline-flex; align-items: center; gap: 4px; min-width: 0; width: 100%; }
+.musica__ajuste input[type="range"] { flex: 1 1 auto; min-width: 0; }
+.musica__ajuste--vertical { flex-direction: column; width: auto; }
+.musica__passo { flex: none; width: 26px; height: 26px; border-radius: 6px; border: 1px solid var(--borda, #3b3b48); background: transparent; color: inherit; font: 600 15px/1 system-ui, sans-serif; cursor: pointer; }
+.musica__passo:hover:not(:disabled) { border-color: #ff7a18; color: #ff7a18; }
+.musica__passo:disabled { opacity: .35; cursor: default; }
+.musica__escolha { display: grid; gap: 6px; min-width: 0; border: 0; padding: 0; margin: 0 0 10px; }
+.musica__escolha legend { font-weight: 700; margin-bottom: 4px; }
+.musica__opcao { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 8px 10px; border: 1px solid var(--borda, #3b3b48); border-radius: 10px; cursor: pointer; }
+.musica__opcao--marcada { border-color: #ff7a18; box-shadow: 0 0 0 1px #ff7a18 inset; }
+.musica__opcao-texto { display: grid; min-width: 0; }
+.musica__opcao-texto strong, .musica__opcao-texto small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.musica__escolha-de-efeitos { display: grid; gap: 8px; margin-bottom: 10px; }
+.musica__escolha-de-efeitos .musica__campo, .musica__escolha-de-efeitos select { min-width: 0; max-width: 100%; width: 100%; }
+/* No cabeçalho da faixa, Vol e Pan ficam um embaixo do outro: cabem com o − e o + no celular. */
+.musica__cabeca .musica__linha:has(> .musica__rotulo) { flex-direction: column; align-items: stretch; gap: 2px; }
+.musica__cabeca .musica__rotulo { flex-direction: row; align-items: center; gap: 4px; }
+.musica__cabeca .musica__rotulo .musica__ajuste { flex: 1 1 auto; }

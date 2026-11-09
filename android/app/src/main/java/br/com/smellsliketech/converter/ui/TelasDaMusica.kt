@@ -61,6 +61,10 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.material3.Switch
+import androidx.compose.material3.RadioButton
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.layout.PaddingValues
 import kotlinx.coroutines.delay
 import androidx.compose.runtime.LaunchedEffect
@@ -277,12 +281,8 @@ private fun CartaoDaFaixa(modelo: MusicaViewModel, projeto: ProjetoMusical, faix
                 val m = modelo.medidores[faixa.id]
                 LinearProgressIndicator(progress = { if (m == null) 0f else nivel(maxOf(m[0], m[1])) }, modifier = Modifier.weight(1f))
             }
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Vol", fontSize = 11.sp)
-                Slider(faixa.ganhoDb.toFloat(), { v -> modelo.mudarFaixa(faixa.id, "vol-${faixa.id}") { it.copy(ganhoDb = v.toDouble()) } }, Modifier.weight(1f), valueRange = -60f..12f)
-                Text("Pan", fontSize = 11.sp)
-                Slider(faixa.pan.toFloat(), { v -> modelo.mudarFaixa(faixa.id, "pan-${faixa.id}") { it.copy(pan = v.toDouble()) } }, Modifier.weight(1f), valueRange = -100f..100f)
-            }
+            AjusteDaMusica("Volume de ${faixa.nome}", faixa.ganhoDb, Musica.GANHO_MINIMO_DB, Musica.GANHO_MAXIMO_DB, Musica.PASSO_GANHO_DB, rotulo = "Vol") { v -> modelo.mudarFaixa(faixa.id, "vol-${faixa.id}") { it.copy(ganhoDb = v) } }
+            AjusteDaMusica("Pan de ${faixa.nome}", faixa.pan, -100.0, 100.0, Musica.PASSO_PAN, rotulo = "Pan") { v -> modelo.mudarFaixa(faixa.id, "pan-${faixa.id}") { it.copy(pan = v) } }
             Box(Modifier.fillMaxWidth().height(64.dp).horizontalScroll(rolagem)) {
                 Pista(modelo, projeto, faixa, zoom, larguraDp, corDaFaixa, selecionado, selecionar)
             }
@@ -356,11 +356,15 @@ private fun EditorDoClipe(modelo: MusicaViewModel, projeto: ProjetoMusical, faix
                 }
             }
             Text("Ganho: ${"%.1f".format(clipe.ganhoDb)} dB", fontSize = 12.sp)
-            Slider(clipe.ganhoDb.toFloat(), { v -> mudarClipe("ganho") { it.copy(ganhoDb = v.toDouble()) } }, valueRange = -24f..12f)
+            AjusteDaMusica("Ganho do clipe", clipe.ganhoDb, -24.0, 12.0, Musica.PASSO_GANHO_DB) { v -> mudarClipe("ganho") { it.copy(ganhoDb = v) } }
             Text("Entrada suave: ${clipe.entradaSuave * 1000 / projeto.taxa} ms · saída suave: ${clipe.saidaSuave * 1000 / projeto.taxa} ms", fontSize = 12.sp)
-            Slider(clipe.entradaSuave.toFloat(), { v -> mudarClipe("fadein") { it.copy(entradaSuave = minOf(v.roundToLong(), it.duracao - it.saidaSuave)) } }, valueRange = 0f..minOf(clipe.duracao.toFloat(), projeto.taxa * 5f))
-            Slider(clipe.saidaSuave.toFloat(), { v -> mudarClipe("fadeout") { it.copy(saidaSuave = minOf(v.roundToLong(), it.duracao - it.entradaSuave)) } }, valueRange = 0f..minOf(clipe.duracao.toFloat(), projeto.taxa * 5f))
+            val passoSuave = projeto.taxa * Musica.PASSO_SUAVE_SEGUNDOS
+            val maximoSuave = minOf(clipe.duracao.toDouble(), projeto.taxa * 5.0)
+            AjusteDaMusica("Entrada suave", clipe.entradaSuave.toDouble(), 0.0, maximoSuave, passoSuave) { v -> mudarClipe("fadein") { it.copy(entradaSuave = minOf(v.roundToLong(), it.duracao - it.saidaSuave)) } }
+            AjusteDaMusica("Saída suave", clipe.saidaSuave.toDouble(), 0.0, maximoSuave, passoSuave) { v -> mudarClipe("fadeout") { it.copy(saidaSuave = minOf(v.roundToLong(), it.duracao - it.entradaSuave)) } }
             Row(verticalAlignment = Alignment.CenterVertically) { Checkbox(!clipe.mudo, { a -> mudarClipe { it.copy(mudo = !a) } }); Text("Tomada ativa") }
+            OutlinedButton(onClick = { modelo.reduzirRuido(faixa.id, clipe.id) }, enabled = modelo.andamento == null) { Text("Reduzir ruído deste clipe") }
+            Text("Para gravações com chiado, ventilador ou ar-condicionado ao fundo: aprende o ruído nos trechos mais silenciosos e o tira do clipe todo. Numa música já mixada quase nunca ajuda. A original fica guardada (Desfazer volta).", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(onClick = {
                     val corte = modelo.posicao
@@ -429,7 +433,7 @@ private fun AbaDeGravar(modelo: MusicaViewModel, projeto: ProjetoMusical) {
             Text("Gravar só dentro da região do loop (punch)")
         }
         Text("Volume do metrônomo: ${projeto.metronomo.volumeDb.roundToLong()} dB", fontSize = 12.sp)
-        Slider(projeto.metronomo.volumeDb.toFloat(), { v -> modelo.mudar("metro") { p -> p.copy(metronomo = p.metronomo.copy(volumeDb = v.toDouble())) } }, valueRange = -40f..6f)
+        AjusteDaMusica("Volume do metrônomo", projeto.metronomo.volumeDb, -40.0, 6.0, Musica.PASSO_METRONOMO_DB) { v -> modelo.mudar("metro") { p -> p.copy(metronomo = p.metronomo.copy(volumeDb = v)) } }
     }
 }
 
@@ -440,17 +444,17 @@ private fun AbaDoMixer(modelo: MusicaViewModel, projeto: ProjetoMusical) {
             Canal(f.nome, cor(f.cor), f.ganhoDb, f.pan, modelo.medidores[f.id], { v -> modelo.mudarFaixa(f.id, "vol-${f.id}") { it.copy(ganhoDb = v) } }, { v -> modelo.mudarFaixa(f.id, "pan-${f.id}") { it.copy(pan = v) } }) {
                 Row { FilterChip(f.solo, { modelo.mudarFaixa(f.id) { it.copy(solo = !it.solo) } }, { Text("S") }); FilterChip(f.mudo, { modelo.mudarFaixa(f.id) { it.copy(mudo = !it.mudo) } }, { Text("M") }) }
                 Text("L ${"%.1f".format(f.ajusteEsquerdoDb)} dB", fontSize = 11.sp)
-                Slider(f.ajusteEsquerdoDb.toFloat(), { v -> modelo.mudarFaixa(f.id, "l-${f.id}") { it.copy(ajusteEsquerdoDb = v.toDouble()) } }, valueRange = Musica.AJUSTE_MINIMO_DB.toFloat()..Musica.AJUSTE_MAXIMO_DB.toFloat())
+                AjusteDaMusica("Ajuste do canal esquerdo de ${f.nome}", f.ajusteEsquerdoDb, Musica.AJUSTE_MINIMO_DB, Musica.AJUSTE_MAXIMO_DB, Musica.PASSO_AJUSTE_DB) { v -> modelo.mudarFaixa(f.id, "l-${f.id}") { it.copy(ajusteEsquerdoDb = v) } }
                 Text("R ${"%.1f".format(f.ajusteDireitoDb)} dB", fontSize = 11.sp)
-                Slider(f.ajusteDireitoDb.toFloat(), { v -> modelo.mudarFaixa(f.id, "r-${f.id}") { it.copy(ajusteDireitoDb = v.toDouble()) } }, valueRange = Musica.AJUSTE_MINIMO_DB.toFloat()..Musica.AJUSTE_MAXIMO_DB.toFloat())
+                AjusteDaMusica("Ajuste do canal direito de ${f.nome}", f.ajusteDireitoDb, Musica.AJUSTE_MINIMO_DB, Musica.AJUSTE_MAXIMO_DB, Musica.PASSO_AJUSTE_DB) { v -> modelo.mudarFaixa(f.id, "r-${f.id}") { it.copy(ajusteDireitoDb = v) } }
                 projeto.barramentos.forEach { b ->
                     val envio = f.envios.firstOrNull { it.barramento == b.id }
                     Text("→ ${b.nome}: ${envio?.let { "${it.nivelDb.roundToLong()} dB" } ?: "desligado"}", fontSize = 11.sp)
-                    Slider((envio?.nivelDb ?: -61.0).toFloat(), { v ->
+                    AjusteDaMusica("Envio de ${f.nome} para ${b.nome}", envio?.nivelDb ?: -61.0, -61.0, 6.0, Musica.PASSO_ENVIO_DB) { v ->
                         modelo.mudarFaixa(f.id, "envio-${f.id}-${b.id}") { t ->
-                            t.copy(envios = if (v <= -61f) t.envios.filter { it.barramento != b.id } else if (envio == null) t.envios + Envio(b.id, v.toDouble()) else t.envios.map { if (it.barramento == b.id) it.copy(nivelDb = v.toDouble()) else it })
+                            t.copy(envios = if (v <= -61.0) t.envios.filter { it.barramento != b.id } else if (envio == null) t.envios + Envio(b.id, v) else t.envios.map { if (it.barramento == b.id) it.copy(nivelDb = v) else it })
                         }
-                    }, valueRange = -61f..6f)
+                    }
                 }
             }
         }
@@ -469,18 +473,18 @@ private fun AbaDoMixer(modelo: MusicaViewModel, projeto: ProjetoMusical) {
 
 @Composable
 private fun Canal(nome: String, corDoCanal: Color, ganhoDb: Double, pan: Double, medidor: FloatArray?, volume: (Double) -> Unit, mudarPan: ((Double) -> Unit)?, extra: @Composable () -> Unit) {
-    Card(Modifier.width(170.dp).border(2.dp, corDoCanal, RoundedCornerShape(12.dp)).semantics { contentDescription = "Canal $nome" }) {
+    Card(Modifier.width(210.dp).border(2.dp, corDoCanal, RoundedCornerShape(12.dp)).semantics { contentDescription = "Canal $nome" }) {
         Column(Modifier.padding(8.dp)) {
-            Text(nome, fontWeight = FontWeight.Bold, maxLines = 1)
+            Text(nome, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Row(Modifier.height(8.dp).fillMaxWidth()) {
                 Box(Modifier.weight(nivel(medidor?.get(0) ?: 0f).coerceAtLeast(0.001f)).height(8.dp).background(Color(0xFF43A047)))
                 Spacer(Modifier.weight((1 - nivel(medidor?.get(0) ?: 0f)).coerceAtLeast(0.001f)))
             }
             Text("${if (ganhoDb <= -60) "−∞" else "%.1f".format(ganhoDb)} dB", fontSize = 12.sp, fontFamily = FontFamily.Monospace)
-            Slider(ganhoDb.toFloat(), { volume(it.toDouble()) }, valueRange = -60f..12f)
+            AjusteDaMusica("Volume de $nome", ganhoDb, Musica.GANHO_MINIMO_DB, Musica.GANHO_MAXIMO_DB, Musica.PASSO_GANHO_DB) { volume(it) }
             if (mudarPan != null) {
                 Text("Pan ${if (pan == 0.0) "C" else if (pan < 0) "L${(-pan).roundToLong()}" else "R${pan.roundToLong()}"}", fontSize = 12.sp)
-                Slider(pan.toFloat(), { mudarPan(it.toDouble()) }, valueRange = -100f..100f)
+                AjusteDaMusica("Pan de $nome", pan, -100.0, 100.0, Musica.PASSO_PAN) { mudarPan(it) }
             }
             extra()
         }
@@ -499,16 +503,18 @@ private fun AbaDeEfeitos(modelo: MusicaViewModel, projeto: ProjetoMusical) {
     var menuAlvo by remember { mutableStateOf(false) }
     var menuNovo by remember { mutableStateOf(false) }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Box {
-                OutlinedButton(onClick = { menuAlvo = true }) { Text(alvos.firstOrNull { it.first == alvo }?.second ?: "Master") }
-                DropdownMenu(menuAlvo, { menuAlvo = false }) { alvos.forEach { (id, rotulo) -> DropdownMenuItem(text = { Text(rotulo) }, onClick = { alvo = id; menuAlvo = false }) } }
+        // O alvo ocupa a linha toda e corta nomes longos; o botão de novo efeito fica sempre visível embaixo.
+        Text("Efeitos de", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Box(Modifier.fillMaxWidth()) {
+            OutlinedButton(onClick = { menuAlvo = true }, Modifier.fillMaxWidth().semantics { contentDescription = "Escolher onde ficam os efeitos" }) {
+                Text(alvos.firstOrNull { it.first == alvo }?.second ?: "Master", maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
-            Box {
-                Button(onClick = { menuNovo = true }) { Text("+ Efeito") }
-                DropdownMenu(menuNovo, { menuNovo = false }) {
-                    DspDaMusica.CATALOGO.forEach { d -> DropdownMenuItem(text = { Text("${d.grupo}: ${d.rotulo}") }, onClick = { menuNovo = false; trocar { it + DspDaMusica.novoEfeito(d.tipo, novoId("fx")) } }) }
-                }
+            DropdownMenu(menuAlvo, { menuAlvo = false }) { alvos.forEach { (id, rotulo) -> DropdownMenuItem(text = { Text(rotulo, maxLines = 2, overflow = TextOverflow.Ellipsis) }, onClick = { alvo = id; menuAlvo = false }) } }
+        }
+        Box(Modifier.fillMaxWidth()) {
+            Button(onClick = { menuNovo = true }, Modifier.fillMaxWidth()) { Text("+ Efeito") }
+            DropdownMenu(menuNovo, { menuNovo = false }) {
+                DspDaMusica.CATALOGO.forEach { d -> DropdownMenuItem(text = { Text("${d.grupo}: ${d.rotulo}") }, onClick = { menuNovo = false; trocar { it + DspDaMusica.novoEfeito(d.tipo, novoId("fx")) } }) }
             }
         }
         val efeitos = cadeia(projeto)
@@ -527,7 +533,8 @@ private fun AbaDeEfeitos(modelo: MusicaViewModel, projeto: ProjetoMusical) {
                     d.parametros.forEach { par ->
                         val v = DspDaMusica.parametro(e, par.id)
                         Text("${par.rotulo}: ${"%.2f".format(v)} ${par.unidade}", fontSize = 12.sp)
-                        Slider(v.toFloat(), { nv -> trocar("${e.id}-${par.id}") { l -> l.map { if (it.id == e.id) it.com(par.id, nv.toDouble()) else it } } }, valueRange = par.min.toFloat()..par.max.toFloat())
+                        val passo = Musica.passoDoParametro(par.min, par.max, par.unidade)
+                        AjusteDaMusica("${d.rotulo}: ${par.rotulo}", v, par.min, par.max, passo.passo, passo.relativo) { nv -> trocar("${e.id}-${par.id}") { l -> l.map { if (it.id == e.id) it.com(par.id, nv) else it } } }
                     }
                 }
             }
@@ -538,23 +545,43 @@ private fun AbaDeEfeitos(modelo: MusicaViewModel, projeto: ProjetoMusical) {
 @Composable
 private fun AbaDeSeparar(modelo: MusicaViewModel, projeto: ProjetoMusical) {
     val clipes = projeto.faixas.flatMap { f -> f.clipes.filter { !it.mudo }.map { f to it } }
-    var escolhido by rememberSaveable { mutableIntStateOf(0) }
+    var escolhido by rememberSaveable { mutableStateOf<String?>(null) }
     var modo by rememberSaveable { mutableStateOf("4") }
-    var menu by remember { mutableStateOf(false) }
+    var limpar by rememberSaveable { mutableStateOf(false) }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text("Separar faixas por IA", fontWeight = FontWeight.Bold)
         if (clipes.isEmpty()) { Text("Importe ou grave um áudio primeiro."); return@Column }
-        val (faixa, clipe) = clipes[escolhido.coerceIn(0, clipes.size - 1)]
-        Box {
-            OutlinedButton(onClick = { menu = true }) { Text("${faixa.nome} — ${clipe.nome ?: "clipe"}") }
-            DropdownMenu(menu, { menu = false }) { clipes.forEachIndexed { i, (f, c) -> DropdownMenuItem(text = { Text("${f.nome} — ${c.nome ?: "clipe"}") }, onClick = { escolhido = i; menu = false }) } }
+        val (faixa, clipe) = clipes.firstOrNull { it.second.id == escolhido } ?: clipes.first()
+        Text("1. Escolha o áudio", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+        // Uma linha por clipe: a faixa em cima, o clipe e a duração embaixo; nomes longos são cortados.
+        clipes.forEach { (f, c) ->
+            val marcado = c.id == clipe.id
+            Card(
+                Modifier.fillMaxWidth().clickable { escolhido = c.id }.semantics { contentDescription = "Áudio ${f.nome}" },
+                border = if (marcado) androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null,
+            ) {
+                Row(Modifier.padding(horizontal = 4.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    RadioButton(marcado, { escolhido = c.id })
+                    Column(Modifier.weight(1f)) {
+                        Text(f.nome, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text("${c.nome ?: "Clipe"} · ${"%.1f".format(c.duracao.toDouble() / projeto.taxa)} s", fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+            }
         }
+        Text("2. Em quantas faixas", fontSize = 13.sp, fontWeight = FontWeight.Bold)
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             SeparacaoDaMusica.MODOS.forEach { m -> FilterChip(modo == m.id, { modo = m.id }, { Text("${m.faixas.size} faixas") }) }
         }
-        Text(SeparacaoDaMusica.modo(modo)!!.rotulo, fontSize = 12.sp)
-        Button(onClick = { modelo.separar(faixa.id, clipe.id, modo) }, enabled = modelo.andamento == null, modifier = Modifier.semantics { contentDescription = "Separar faixas" }) { Text("Separar") }
-        OutlinedButton(onClick = { modelo.reduzirRuido(faixa.id, clipe.id) }, enabled = modelo.andamento == null) { Text("Reduzir ruído (offline)") }
+        val modoAtual = SeparacaoDaMusica.modo(modo)!!
+        Text("${modoAtual.rotulo}. As faixas novas entram com o nome do que são: ${modoAtual.faixas.joinToString { Musica.nomeDaFaixaSeparada(it.rotulo, "…") }}", fontSize = 12.sp)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Switch(limpar, { limpar = it }, Modifier.semantics { contentDescription = "Reduzir ruído nas faixas separadas" })
+            Spacer(Modifier.width(8.dp))
+            Text("Reduzir ruído nas faixas separadas", Modifier.weight(1f))
+        }
+        Text("Tira o chiado e o ruído constante que a separação costuma deixar em cada faixa (mais útil na voz). Fica desligado se a música original já é limpa.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Button(onClick = { modelo.separar(faixa.id, clipe.id, modo, limpar) }, enabled = modelo.andamento == null, modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Separar faixas" }) { Text("Separar") }
         Text(SeparacaoDaMusica.AVISO, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Text("Modelo: Spleeter 4 faixas (Deezer), licença ${SeparacaoDaMusica.LICENCA}. Roda no celular; o áudio não sai daqui. ${if (modelo.biblioteca.modeloPronto) "O modelo já está baixado." else "O modelo (78 MB) é baixado na primeira separação e conferido pelo SHA-256."} Músicas longas levam minutos e gastam bateria; aparelhos com pouca memória podem não dar conta.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Text("Separar músicas de outras pessoas não muda os direitos autorais delas: use em gravações suas ou que você tem direito de usar.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -579,5 +606,19 @@ private fun AbaDeExportar(modelo: MusicaViewModel, projeto: ProjetoMusical, pode
         Button(onClick = { if (podeCriar) modelo.exportar(formato, master, soLoop, cadaFaixa, cauda, null) else abrirLicenca() }, enabled = modelo.andamento == null, modifier = Modifier.semantics { contentDescription = "Exportar música" }) { Text("Exportar para Downloads") }
         modelo.exportados.forEach { Text(it, fontSize = 13.sp) }
         Text("WAV de 16 e 24 bits leva dither; o float32 não. Nenhum alvo de volume é imposto: escolha o master pela finalidade e confira a medida.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+/**
+ * Barra de ajuste com − e + nas pontas: a barra para o gesto largo, os botões para o passo fino
+ * (encaixado na grade do passo, ou relativo nas frequências). Ver Musica.ajusteFino.
+ */
+@Composable
+private fun AjusteDaMusica(descricao: String, valor: Double, de: Double, ate: Double, passo: Double, relativo: Boolean = false, rotulo: String? = null, mudar: (Double) -> Unit) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        if (rotulo != null) Text(rotulo, Modifier.width(30.dp), fontSize = 11.sp)
+        AcaoDoEditor(AcaoEditor.DIMINUIR, "Diminuir $descricao", habilitada = valor > de) { mudar(Musica.ajusteFino(valor, -1, passo, de, ate, relativo)) }
+        Slider(valor.toFloat().coerceIn(de.toFloat(), ate.toFloat()), { mudar(it.toDouble()) }, Modifier.weight(1f).semantics { contentDescription = descricao }, valueRange = de.toFloat()..ate.toFloat())
+        AcaoDoEditor(AcaoEditor.ADICIONAR, "Aumentar $descricao", habilitada = valor < ate) { mudar(Musica.ajusteFino(valor, 1, passo, de, ate, relativo)) }
     }
 }

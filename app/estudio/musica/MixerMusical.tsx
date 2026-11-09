@@ -1,9 +1,10 @@
 "use client";
 
-import { AJUSTE_MAXIMO_DB, AJUSTE_MINIMO_DB, GANHO_MAXIMO_DB, GANHO_MINIMO_DB, type EfeitoDaMusica, type ProjetoMusical } from "@/packages/converter-core/musica.mjs";
+import { AJUSTE_MAXIMO_DB, AJUSTE_MINIMO_DB, GANHO_MAXIMO_DB, GANHO_MINIMO_DB, PASSOS_DA_MUSICA, passoDoParametro, type EfeitoDaMusica, type ProjetoMusical } from "@/packages/converter-core/musica.mjs";
 import { EFEITOS_DA_MUSICA, definicaoDoEfeito, novoEfeito, parametro } from "@/packages/converter-core/musica-dsp.mjs";
 import type { EstadoDoMotor } from "@/lib/musica/motor";
 import { novoId, type Mudar } from "./CriacaoMusical";
+import { AjusteMusical } from "./AjusteMusical";
 
 const db = (v: number) => (v <= GANHO_MINIMO_DB ? "−∞" : `${v > 0 ? "+" : ""}${v.toFixed(1)}`);
 
@@ -36,18 +37,18 @@ export function MixerMusical({ projeto, estado, mudar, abrirEfeitos }: { projeto
             <button type="button" className="musica__mini" onClick={() => abrirEfeitos(f.id)}>FX{f.efeitos.length ? ` ${f.efeitos.length}` : ""}</button>
           </div>
           <div className="musica__fader">
-            <input type="range" className="musica__vertical" min={GANHO_MINIMO_DB} max={GANHO_MAXIMO_DB} step={0.5} value={f.ganhoDb} aria-label={`Volume de ${f.nome}`} aria-valuetext={`${db(f.ganhoDb)} dB`} onChange={(e) => mudarFaixa(f.id, (x) => ({ ...x, ganhoDb: Number(e.target.value) }), `vol-${f.id}`)} onDoubleClick={() => mudarFaixa(f.id, (x) => ({ ...x, ganhoDb: 0 }))} />
+            <AjusteMusical vertical valor={f.ganhoDb} min={GANHO_MINIMO_DB} max={GANHO_MAXIMO_DB} passo={PASSOS_DA_MUSICA.ganhoDb} rotulo={`volume de ${f.nome}`} textoDoValor={`${db(f.ganhoDb)} dB`} padrao={0} mudar={(v) => mudarFaixa(f.id, (x) => ({ ...x, ganhoDb: v }), `vol-${f.id}`)} />
             <Medidor valores={estado.medidores[f.id]} />
           </div>
           <small>{db(f.ganhoDb)} dB</small>
           <label className="musica__rotulo">Pan {f.pan === 0 ? "C" : f.pan < 0 ? `L${-f.pan}` : `R${f.pan}`}
-            <input type="range" min={-100} max={100} value={f.pan} onChange={(e) => mudarFaixa(f.id, (x) => ({ ...x, pan: Number(e.target.value) }), `pan-${f.id}`)} onDoubleClick={() => mudarFaixa(f.id, (x) => ({ ...x, pan: 0 }))} />
+            <AjusteMusical valor={f.pan} min={-100} max={100} passo={PASSOS_DA_MUSICA.pan} rotulo={`pan de ${f.nome}`} padrao={0} mudar={(v) => mudarFaixa(f.id, (x) => ({ ...x, pan: v }), `pan-${f.id}`)} />
           </label>
           <label className="musica__rotulo">L {f.ajusteEsquerdoDb} dB
-            <input type="range" min={AJUSTE_MINIMO_DB} max={AJUSTE_MAXIMO_DB} step={0.5} value={f.ajusteEsquerdoDb} onChange={(e) => mudarFaixa(f.id, (x) => ({ ...x, ajusteEsquerdoDb: Number(e.target.value) }), `l-${f.id}`)} />
+            <AjusteMusical valor={f.ajusteEsquerdoDb} min={AJUSTE_MINIMO_DB} max={AJUSTE_MAXIMO_DB} passo={PASSOS_DA_MUSICA.ajusteDb} rotulo={`ajuste do canal esquerdo de ${f.nome}`} padrao={0} mudar={(v) => mudarFaixa(f.id, (x) => ({ ...x, ajusteEsquerdoDb: v }), `l-${f.id}`)} />
           </label>
           <label className="musica__rotulo">R {f.ajusteDireitoDb} dB
-            <input type="range" min={AJUSTE_MINIMO_DB} max={AJUSTE_MAXIMO_DB} step={0.5} value={f.ajusteDireitoDb} onChange={(e) => mudarFaixa(f.id, (x) => ({ ...x, ajusteDireitoDb: Number(e.target.value) }), `r-${f.id}`)} />
+            <AjusteMusical valor={f.ajusteDireitoDb} min={AJUSTE_MINIMO_DB} max={AJUSTE_MAXIMO_DB} passo={PASSOS_DA_MUSICA.ajusteDb} rotulo={`ajuste do canal direito de ${f.nome}`} padrao={0} mudar={(v) => mudarFaixa(f.id, (x) => ({ ...x, ajusteDireitoDb: v }), `r-${f.id}`)} />
           </label>
           <label className="musica__rotulo">Saída
             <select value={f.saida} onChange={(e) => mudarFaixa(f.id, (x) => ({ ...x, saida: e.target.value }))}>
@@ -61,8 +62,7 @@ export function MixerMusical({ projeto, estado, mudar, abrirEfeitos }: { projeto
               <label key={b.id} className="musica__rotulo" title="Envio ao barramento (pré-fader não segue o volume da faixa)">
                 → {b.nome} {envio ? `${envio.nivelDb} dB` : "desligado"}
                 <span className="musica__linha">
-                  <input type="range" min={-61} max={6} step={1} value={envio?.nivelDb ?? -61} onChange={(e) => {
-                    const nivel = Number(e.target.value);
+                  <AjusteMusical valor={envio?.nivelDb ?? -61} min={-61} max={6} passo={PASSOS_DA_MUSICA.envioDb} rotulo={`envio de ${f.nome} para ${b.nome}`} mudar={(nivel) => {
                     mudarFaixa(f.id, (x) => ({ ...x, envios: nivel <= -61 ? x.envios.filter((y) => y.barramento !== b.id) : x.envios.some((y) => y.barramento === b.id) ? x.envios.map((y) => (y.barramento === b.id ? { ...y, nivelDb: nivel } : y)) : [...x.envios, { barramento: b.id, nivelDb: nivel, preFader: false }] }), `envio-${f.id}-${b.id}`);
                   }} />
                   {envio && <button type="button" className={`musica__mini${envio.preFader ? " musica__mini--ligado" : ""}`} aria-pressed={envio.preFader} onClick={() => mudarFaixa(f.id, (x) => ({ ...x, envios: x.envios.map((y) => (y.barramento === b.id ? { ...y, preFader: !y.preFader } : y)) }))}>PRÉ</button>}
@@ -81,18 +81,18 @@ export function MixerMusical({ projeto, estado, mudar, abrirEfeitos }: { projeto
             <button type="button" className="musica__mini" aria-label={`Remover ${b.nome}`} onClick={() => mudar((p) => ({ ...p, barramentos: p.barramentos.filter((x) => x.id !== b.id), faixas: p.faixas.map((f) => ({ ...f, saida: f.saida === b.id ? "master" : f.saida, envios: f.envios.filter((e) => e.barramento !== b.id) })) }))}>✕</button>
           </div>
           <div className="musica__fader">
-            <input type="range" className="musica__vertical" min={GANHO_MINIMO_DB} max={GANHO_MAXIMO_DB} step={0.5} value={b.ganhoDb} aria-label={`Volume de ${b.nome}`} onChange={(e) => mudarBus(b.id, (x) => ({ ...x, ganhoDb: Number(e.target.value) }), `vol-${b.id}`)} />
+            <AjusteMusical vertical valor={b.ganhoDb} min={GANHO_MINIMO_DB} max={GANHO_MAXIMO_DB} passo={PASSOS_DA_MUSICA.ganhoDb} rotulo={`volume de ${b.nome}`} textoDoValor={`${db(b.ganhoDb)} dB`} padrao={0} mudar={(v) => mudarBus(b.id, (x) => ({ ...x, ganhoDb: v }), `vol-${b.id}`)} />
             <Medidor valores={estado.medidores[b.id]} />
           </div>
           <small>{db(b.ganhoDb)} dB</small>
-          <label className="musica__rotulo">Pan<input type="range" min={-100} max={100} value={b.pan} onChange={(e) => mudarBus(b.id, (x) => ({ ...x, pan: Number(e.target.value) }), `pan-${b.id}`)} /></label>
+          <div className="musica__rotulo">Pan<AjusteMusical valor={b.pan} min={-100} max={100} passo={PASSOS_DA_MUSICA.pan} rotulo={`pan de ${b.nome}`} padrao={0} mudar={(v) => mudarBus(b.id, (x) => ({ ...x, pan: v }), `pan-${b.id}`)} /></div>
         </div>
       ))}
       <div className="musica__canal musica__canal--master">
         <strong>Master</strong>
         <button type="button" className="musica__mini" onClick={() => abrirEfeitos("master")}>FX{projeto.master.efeitos.length ? ` ${projeto.master.efeitos.length}` : ""}</button>
         <div className="musica__fader">
-          <input type="range" className="musica__vertical" min={GANHO_MINIMO_DB} max={GANHO_MAXIMO_DB} step={0.5} value={projeto.master.ganhoDb} aria-label="Volume do master" onChange={(e) => mudar((p) => ({ ...p, master: { ...p.master, ganhoDb: Number(e.target.value) } }), "vol-master")} />
+          <AjusteMusical vertical valor={projeto.master.ganhoDb} min={GANHO_MINIMO_DB} max={GANHO_MAXIMO_DB} passo={PASSOS_DA_MUSICA.ganhoDb} rotulo="volume do master" textoDoValor={`${db(projeto.master.ganhoDb)} dB`} padrao={0} mudar={(v) => mudar((p) => ({ ...p, master: { ...p.master, ganhoDb: v } }), "vol-master")} />
           <Medidor valores={estado.medidores.master} />
         </div>
         <small>{db(projeto.master.ganhoDb)} dB</small>
@@ -121,7 +121,7 @@ export function EfeitosMusicais({ projeto, alvo, escolher, mudar }: { projeto: P
   const grupos = [...new Set(EFEITOS_DA_MUSICA.map((e) => e.grupo))];
   return (
     <div className="musica__efeitos">
-      <div className="musica__linha">
+      <div className="musica__escolha-de-efeitos">
         <label className="musica__campo">Cadeia de
           <select value={alvo} onChange={(e) => escolher(e.target.value)}>
             {projeto.faixas.map((f) => <option key={f.id} value={f.id}>Faixa: {f.nome}</option>)}
@@ -150,10 +150,11 @@ export function EfeitosMusicais({ projeto, alvo, escolher, mudar }: { projeto: P
             </legend>
             {def.parametros.map((par) => {
               const valor = parametro(efeito, par.id);
-              const passo = par.max - par.min > 100 ? 1 : par.max - par.min > 10 ? 0.1 : 0.01;
+              const { passo, relativo } = passoDoParametro(par);
+              const casas = relativo ? 0 : passo < 0.1 ? 2 : passo < 1 ? 1 : 0;
               return (
-                <label key={par.id} className="musica__rotulo">{par.rotulo}: {valor.toFixed(passo < 0.1 ? 2 : passo < 1 ? 1 : 0)}{par.unidade ? ` ${par.unidade}` : ""}
-                  <input type="range" min={par.min} max={par.max} step={passo} value={valor} onChange={(e) => mudarEfeitos((l) => l.map((x) => (x.id === efeito.id ? { ...x, [par.id]: Number(e.target.value) } : x)), `${efeito.id}-${par.id}`)} onDoubleClick={() => mudarEfeitos((l) => l.map((x) => (x.id === efeito.id ? { ...x, [par.id]: par.padrao } : x)))} />
+                <label key={par.id} className="musica__rotulo">{par.rotulo}: {valor.toFixed(casas)}{par.unidade ? ` ${par.unidade}` : ""}
+                  <AjusteMusical valor={valor} min={par.min} max={par.max} passo={passo} relativo={relativo} rotulo={`${def.rotulo}: ${par.rotulo}`} padrao={par.padrao} mudar={(v) => mudarEfeitos((l) => l.map((x) => (x.id === efeito.id ? { ...x, [par.id]: v } : x)), `${efeito.id}-${par.id}`)} />
                 </label>
               );
             })}

@@ -11,7 +11,7 @@ Marcas não são concedidas pela licença do código.
 
 ## O que está aqui — e o que não está
 
-Snapshot dos clientes do commit `c2c95b8928cb0f85091e634bd8a48b6a4465f0b8`, sem histórico do repositório privado.
+Snapshot dos clientes do commit `66fa9469637f20b1a15998fe689f5c0a162b5128`, sem histórico do repositório privado.
 Não inclui servidor de cobrança, contas, administração, banco, dados de clientes,
 configuração Cloudflare, chaves de assinatura ou segredos.
 Os catálogos públicos e verificadores locais de licença fazem parte dos clientes.
