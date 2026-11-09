@@ -1,0 +1,177 @@
+{
+  "descricao": "Projeto com erros: os três núcleos recusam com as mesmas mensagens.",
+  "projeto": {
+    "versao": 1,
+    "id": "caso",
+    "titulo": "Caso",
+    "taxa": 32000,
+    "profundidade": 24,
+    "bpm": 400,
+    "compasso": [
+      4,
+      4
+    ],
+    "faixas": [
+      {
+        "id": "faixa-a",
+        "nome": "A",
+        "cor": "#FF7A18",
+        "ganhoDb": 0,
+        "pan": 150,
+        "ajusteEsquerdoDb": 0,
+        "ajusteDireitoDb": 0,
+        "gravar": false,
+        "monitorar": false,
+        "mudo": false,
+        "solo": false,
+        "entrada": null,
+        "canaisDeEntrada": 1,
+        "saida": "bus-x",
+        "efeitos": [],
+        "envios": [],
+        "automacao": {
+          "volume": [],
+          "pan": []
+        },
+        "clipes": [
+          {
+            "id": "c1",
+            "midia": "nada",
+            "inicio": 0,
+            "inicioNaMidia": 0,
+            "duracao": 10,
+            "ganhoDb": 0,
+            "entradaSuave": 0,
+            "saidaSuave": 0,
+            "mudo": false
+          },
+          {
+            "id": "c2",
+            "midia": "voz",
+            "inicio": 0,
+            "inicioNaMidia": 0,
+            "duracao": 96000,
+            "ganhoDb": 0,
+            "entradaSuave": 0,
+            "saidaSuave": 0,
+            "mudo": false
+          }
+        ]
+      },
+      {
+        "id": "faixa-a",
+        "nome": "A de novo",
+        "cor": "#1E88E5",
+        "ganhoDb": 0,
+        "pan": 0,
+        "ajusteEsquerdoDb": 0,
+        "ajusteDireitoDb": 0,
+        "gravar": false,
+        "monitorar": false,
+        "mudo": false,
+        "solo": false,
+        "entrada": null,
+        "canaisDeEntrada": 1,
+        "saida": "master",
+        "efeitos": [
+          {
+            "id": "fx-1",
+            "tipo": "flanger",
+            "ligado": true
+          },
+          {
+            "id": "fx-2",
+            "tipo": "compressor",
+            "ligado": true,
+            "limiarDb": -18,
+            "razao": 50,
+            "ataqueMs": 10,
+            "liberacaoMs": 120,
+            "joelhoDb": 6,
+            "ganhoDb": 0
+          }
+        ],
+        "envios": [],
+        "automacao": {
+          "volume": [],
+          "pan": []
+        },
+        "clipes": []
+      }
+    ],
+    "barramentos": [],
+    "master": {
+      "ganhoDb": 0,
+      "efeitos": []
+    },
+    "marcadores": [],
+    "midias": [
+      {
+        "id": "violao",
+        "nome": "violao.wav",
+        "formato": "wav",
+        "taxa": 48000,
+        "canais": 2,
+        "quadros": 48000,
+        "bits": 32
+      },
+      {
+        "id": "baixo",
+        "nome": "baixo.wav",
+        "formato": "wav",
+        "taxa": 48000,
+        "canais": 1,
+        "quadros": 48000,
+        "bits": 32
+      },
+      {
+        "id": "voz",
+        "nome": "voz.wav",
+        "formato": "wav",
+        "taxa": 48000,
+        "canais": 1,
+        "quadros": 48000,
+        "bits": 32
+      }
+    ],
+    "metronomo": {
+      "ligado": true,
+      "volumeDb": -6,
+      "naExportacao": false
+    },
+    "contagem": 1,
+    "latencia": {
+      "entrada": 0,
+      "saida": 0,
+      "medida": false
+    },
+    "loop": {
+      "ligado": false,
+      "inicio": 0,
+      "fim": 0
+    },
+    "punch": {
+      "ligado": false,
+      "entrada": 0,
+      "saida": 0
+    },
+    "separacoes": []
+  },
+  "midias": {},
+  "esperado": {
+    "problemas": [
+      "Taxa de amostragem não suportada (44,1, 48 ou 96 kHz).",
+      "O andamento vai de 30 a 300 BPM.",
+      "Mídia violao: precisa estar na taxa do projeto.",
+      "Mídia baixo: precisa estar na taxa do projeto.",
+      "Mídia voz: precisa estar na taxa do projeto.",
+      "Faixa A: pan vai de −100 a +100.",
+      "Faixa A: saída para um barramento que não existe.",
+      "Faixa A: o clipe c1 usa uma mídia que não está no projeto.",
+      "Faixa A: o clipe c2 passa do fim da mídia.",
+      "Faixa sem id válido.",
+      "Faixa A de novo: efeito desconhecido (flanger).",
+      "Faixa A de novo: Compressor: razão (x:1) vai de 1 a 20."
+    ]
+  }
+}

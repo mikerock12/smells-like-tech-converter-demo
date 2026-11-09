@@ -156,6 +156,8 @@ public sealed partial class ConversionOptionsView : UserControl
                 MaxPages = (int)PdfMaxPagesBox.Value
             },
 
+            OperationIds.MusicSeparate => new MusicSeparateOptions(),
+
             _ => throw new ConversionException("operation_not_available", "Selecione uma conversão disponível.")
         };
     }

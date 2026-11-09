@@ -24,6 +24,7 @@ namespace SmellsLikeTech.Converter.Core.Options;
 [JsonDerivedType(typeof(PdfSplitOptions), OperationIds.PdfSplit)]
 [JsonDerivedType(typeof(ImageToPdfOptions), OperationIds.ImageToPdf)]
 [JsonDerivedType(typeof(StudioExportOptions), OperationIds.StudioExport)]
+[JsonDerivedType(typeof(MusicSeparateOptions), OperationIds.MusicSeparate)]
 public abstract record JobOptions
 {
     /// <summary>Operacao a que estas opcoes pertencem.</summary>

@@ -29,6 +29,9 @@ public static class OperationIds
     /// <summary>Exportar um projeto do estudio (video, GIF, imagem, audio ou texto).</summary>
     public const string StudioExport = "studio.export";
 
+    /// <summary>Separar um audio em faixas (voz, bateria, baixo, outros) pela IA local.</summary>
+    public const string MusicSeparate = "music.separate";
+
     // Ainda sem engine local.
     public const string DocumentConvert = "document.convert";
 

@@ -1,0 +1,2064 @@
+{
+  "descricao": "Cada efeito do catálogo sozinho numa faixa, com ruído estéreo ou impulsos.",
+  "projeto": {
+    "versao": 1,
+    "id": "caso-efeitos",
+    "titulo": "Efeitos",
+    "taxa": 48000,
+    "profundidade": 24,
+    "bpm": 120,
+    "compasso": [
+      4,
+      4
+    ],
+    "faixas": [
+      {
+        "id": "faixa-passa-alta",
+        "nome": "passa-alta",
+        "cor": "#FF7A18",
+        "ganhoDb": 0,
+        "pan": 0,
+        "ajusteEsquerdoDb": 0,
+        "ajusteDireitoDb": 0,
+        "gravar": false,
+        "monitorar": false,
+        "mudo": false,
+        "solo": false,
+        "entrada": null,
+        "canaisDeEntrada": 1,
+        "saida": "master",
+        "efeitos": [
+          {
+            "id": "fx-passa-alta",
+            "tipo": "passa-alta",
+            "ligado": true,
+            "frequencia": 400
+          }
+        ],
+        "envios": [],
+        "automacao": {
+          "volume": [],
+          "pan": []
+        },
+        "clipes": [
+          {
+            "id": "c-passa-alta",
+            "midia": "ruido",
+            "inicio": 0,
+            "inicioNaMidia": 0,
+            "duracao": 12000,
+            "ganhoDb": 0,
+            "entradaSuave": 0,
+            "saidaSuave": 0,
+            "mudo": false
+          }
+        ]
+      },
+      {
+        "id": "faixa-passa-baixa",
+        "nome": "passa-baixa",
+        "cor": "#1E88E5",
+        "ganhoDb": 0,
+        "pan": 0,
+        "ajusteEsquerdoDb": 0,
+        "ajusteDireitoDb": 0,
+        "gravar": false,
+        "monitorar": false,
+        "mudo": false,
+        "solo": false,
+        "entrada": null,
+        "canaisDeEntrada": 1,
+        "saida": "master",
+        "efeitos": [
+          {
+            "id": "fx-passa-baixa",
+            "tipo": "passa-baixa",
+            "ligado": true,
+            "frequencia": 2000
+          }
+        ],
+        "envios": [],
+        "automacao": {
+          "volume": [],
+          "pan": []
+        },
+        "clipes": [
+          {
+            "id": "c-passa-baixa",
+            "midia": "pulsos",
+            "inicio": 0,
+            "inicioNaMidia": 0,
+            "duracao": 12000,
+            "ganhoDb": 0,
+            "entradaSuave": 0,
+            "saidaSuave": 0,
+            "mudo": false
+          }
+        ]
+      },
+      {
+        "id": "faixa-equalizador",
+        "nome": "equalizador",
+        "cor": "#43A047",
+        "ganhoDb": 0,
+        "pan": 0,
+        "ajusteEsquerdoDb": 0,
+        "ajusteDireitoDb": 0,
+        "gravar": false,
+        "monitorar": false,
+        "mudo": false,
+        "solo": false,
+        "entrada": null,
+        "canaisDeEntrada": 1,
+        "saida": "master",
+        "efeitos": [
+          {
+            "id": "fx-equalizador",
+            "tipo": "equalizador",
+            "ligado": true,
+            "gravesDb": 6,
+            "mediosFrequencia": 800,
+            "mediosDb": -4,
+            "mediosQ": 2,
+            "presencaFrequencia": 3000,
+            "presencaDb": 3,
+            "agudosDb": -6
+          }
+        ],
+        "envios": [],
+        "automacao": {
+          "volume": [],
+          "pan": []
+        },
+        "clipes": [
+          {
+            "id": "c-equalizador",
+            "midia": "ruido",
+            "inicio": 0,
+            "inicioNaMidia": 0,
+            "duracao": 12000,
+            "ganhoDb": 0,
+            "entradaSuave": 0,
+            "saidaSuave": 0,
+            "mudo": false
+          }
+        ]
+      },
+      {
+        "id": "faixa-compressor",
+        "nome": "compressor",
+        "cor": "#E53935",
+        "ganhoDb": 0,
+        "pan": 0,
+        "ajusteEsquerdoDb": 0,
+        "ajusteDireitoDb": 0,
+        "gravar": false,
+        "monitorar": false,
+        "mudo": false,
+        "solo": false,
+        "entrada": null,
+        "canaisDeEntrada": 1,
+        "saida": "master",
+        "efeitos": [
+          {
+            "id": "fx-compressor",
+            "tipo": "compressor",
+            "ligado": true,
+            "limiarDb": -24,
+            "razao": 4,
+            "ataqueMs": 5,
+            "liberacaoMs": 80,
+            "joelhoDb": 6,
+            "ganhoDb": 6
+          }
+        ],
+        "envios": [],
+        "automacao": {
+          "volume": [],
+          "pan": []
+        },
+        "clipes": [
+          {
+            "id": "c-compressor",
+            "midia": "pulsos",
+            "inicio": 0,
+            "inicioNaMidia": 0,
+            "duracao": 12000,
+            "ganhoDb": 0,
+            "entradaSuave": 0,
+            "saidaSuave": 0,
+            "mudo": false
+          }
+        ]
+      },
+      {
+        "id": "faixa-porta",
+        "nome": "porta",
+        "cor": "#8E24AA",
+        "ganhoDb": 0,
+        "pan": 0,
+        "ajusteEsquerdoDb": 0,
+        "ajusteDireitoDb": 0,
+        "gravar": false,
+        "monitorar": false,
+        "mudo": false,
+        "solo": false,
+        "entrada": null,
+        "canaisDeEntrada": 1,
+        "saida": "master",
+        "efeitos": [
+          {
+            "id": "fx-porta",
+            "tipo": "porta",
+            "ligado": true,
+            "limiarDb": -20,
+            "faixaDb": -40,
+            "ataqueMs": 1,
+            "liberacaoMs": 100
+          }
+        ],
+        "envios": [],
+        "automacao": {
+          "volume": [],
+          "pan": []
+        },
+        "clipes": [
+          {
+            "id": "c-porta",
+            "midia": "ruido",
+            "inicio": 0,
+            "inicioNaMidia": 0,
+            "duracao": 12000,
+            "ganhoDb": 0,
+            "entradaSuave": 0,
+            "saidaSuave": 0,
+            "mudo": false
+          }
+        ]
+      },
+      {
+        "id": "faixa-limitador",
+        "nome": "limitador",
+        "cor": "#FFD54A",
+        "ganhoDb": 0,
+        "pan": 0,
+        "ajusteEsquerdoDb": 0,
+        "ajusteDireitoDb": 0,
+        "gravar": false,
+        "monitorar": false,
+        "mudo": false,
+        "solo": false,
+        "entrada": null,
+        "canaisDeEntrada": 1,
+        "saida": "master",
+        "efeitos": [
+          {
+            "id": "fx-limitador",
+            "tipo": "limitador",
+            "ligado": true,
+            "tetoDb": -6,
+            "liberacaoMs": 20
+          }
+        ],
+        "envios": [],
+        "automacao": {
+          "volume": [],
+          "pan": []
+        },
+        "clipes": [
+          {
+            "id": "c-limitador",
+            "midia": "pulsos",
+            "inicio": 0,
+            "inicioNaMidia": 0,
+            "duracao": 12000,
+            "ganhoDb": 0,
+            "entradaSuave": 0,
+            "saidaSuave": 0,
+            "mudo": false
+          }
+        ]
+      },
+      {
+        "id": "faixa-desesser",
+        "nome": "desesser",
+        "cor": "#00ACC1",
+        "ganhoDb": 0,
+        "pan": 0,
+        "ajusteEsquerdoDb": 0,
+        "ajusteDireitoDb": 0,
+        "gravar": false,
+        "monitorar": false,
+        "mudo": false,
+        "solo": false,
+        "entrada": null,
+        "canaisDeEntrada": 1,
+        "saida": "master",
+        "efeitos": [
+          {
+            "id": "fx-desesser",
+            "tipo": "desesser",
+            "ligado": true,
+            "frequencia": 5000,
+            "limiarDb": -40,
+            "reducaoMaxDb": 12
+          }
+        ],
+        "envios": [],
+        "automacao": {
+          "volume": [],
+          "pan": []
+        },
+        "clipes": [
+          {
+            "id": "c-desesser",
+            "midia": "ruido",
+            "inicio": 0,
+            "inicioNaMidia": 0,
+            "duracao": 12000,
+            "ganhoDb": 0,
+            "entradaSuave": 0,
+            "saidaSuave": 0,
+            "mudo": false
+          }
+        ]
+      },
+      {
+        "id": "faixa-saturacao",
+        "nome": "saturacao",
+        "cor": "#F06292",
+        "ganhoDb": 0,
+        "pan": 0,
+        "ajusteEsquerdoDb": 0,
+        "ajusteDireitoDb": 0,
+        "gravar": false,
+        "monitorar": false,
+        "mudo": false,
+        "solo": false,
+        "entrada": null,
+        "canaisDeEntrada": 1,
+        "saida": "master",
+        "efeitos": [
+          {
+            "id": "fx-saturacao",
+            "tipo": "saturacao",
+            "ligado": true,
+            "driveDb": 12,
+            "mistura": 0.8,
+            "saidaDb": -3
+          }
+        ],
+        "envios": [],
+        "automacao": {
+          "volume": [],
+          "pan": []
+        },
+        "clipes": [
+          {
+            "id": "c-saturacao",
+            "midia": "pulsos",
+            "inicio": 0,
+            "inicioNaMidia": 0,
+            "duracao": 12000,
+            "ganhoDb": 0,
+            "entradaSuave": 0,
+            "saidaSuave": 0,
+            "mudo": false
+          }
+        ]
+      },
+      {
+        "id": "faixa-atraso",
+        "nome": "atraso",
+        "cor": "#FF7A18",
+        "ganhoDb": 0,
+        "pan": 0,
+        "ajusteEsquerdoDb": 0,
+        "ajusteDireitoDb": 0,
+        "gravar": false,
+        "monitorar": false,
+        "mudo": false,
+        "solo": false,
+        "entrada": null,
+        "canaisDeEntrada": 1,
+        "saida": "master",
+        "efeitos": [
+          {
+            "id": "fx-atraso",
+            "tipo": "atraso",
+            "ligado": true,
+            "tempoMs": 50,
+            "retorno": 0.5,
+            "mistura": 0.5
+          }
+        ],
+        "envios": [],
+        "automacao": {
+          "volume": [],
+          "pan": []
+        },
+        "clipes": [
+          {
+            "id": "c-atraso",
+            "midia": "ruido",
+            "inicio": 0,
+            "inicioNaMidia": 0,
+            "duracao": 12000,
+            "ganhoDb": 0,
+            "entradaSuave": 0,
+            "saidaSuave": 0,
+            "mudo": false
+          }
+        ]
+      },
+      {
+        "id": "faixa-reverberacao",
+        "nome": "reverberacao",
+        "cor": "#1E88E5",
+        "ganhoDb": 0,
+        "pan": 0,
+        "ajusteEsquerdoDb": 0,
+        "ajusteDireitoDb": 0,
+        "gravar": false,
+        "monitorar": false,
+        "mudo": false,
+        "solo": false,
+        "entrada": null,
+        "canaisDeEntrada": 1,
+        "saida": "master",
+        "efeitos": [
+          {
+            "id": "fx-reverberacao",
+            "tipo": "reverberacao",
+            "ligado": true,
+            "tamanho": 0.8,
+            "amortecimento": 0.3,
+            "largura": 0.7,
+            "mistura": 0.4
+          }
+        ],
+        "envios": [],
+        "automacao": {
+          "volume": [],
+          "pan": []
+        },
+        "clipes": [
+          {
+            "id": "c-reverberacao",
+            "midia": "pulsos",
+            "inicio": 0,
+            "inicioNaMidia": 0,
+            "duracao": 12000,
+            "ganhoDb": 0,
+            "entradaSuave": 0,
+            "saidaSuave": 0,
+            "mudo": false
+          }
+        ]
+      },
+      {
+        "id": "faixa-coro",
+        "nome": "coro",
+        "cor": "#43A047",
+        "ganhoDb": 0,
+        "pan": 0,
+        "ajusteEsquerdoDb": 0,
+        "ajusteDireitoDb": 0,
+        "gravar": false,
+        "monitorar": false,
+        "mudo": false,
+        "solo": false,
+        "entrada": null,
+        "canaisDeEntrada": 1,
+        "saida": "master",
+        "efeitos": [
+          {
+            "id": "fx-coro",
+            "tipo": "coro",
+            "ligado": true,
+            "taxaHz": 1.5,
+            "profundidadeMs": 4,
+            "mistura": 0.5
+          }
+        ],
+        "envios": [],
+        "automacao": {
+          "volume": [],
+          "pan": []
+        },
+        "clipes": [
+          {
+            "id": "c-coro",
+            "midia": "ruido",
+            "inicio": 0,
+            "inicioNaMidia": 0,
+            "duracao": 12000,
+            "ganhoDb": 0,
+            "entradaSuave": 0,
+            "saidaSuave": 0,
+            "mudo": false
+          }
+        ]
+      },
+      {
+        "id": "faixa-tremolo",
+        "nome": "tremolo",
+        "cor": "#E53935",
+        "ganhoDb": 0,
+        "pan": 0,
+        "ajusteEsquerdoDb": 0,
+        "ajusteDireitoDb": 0,
+        "gravar": false,
+        "monitorar": false,
+        "mudo": false,
+        "solo": false,
+        "entrada": null,
+        "canaisDeEntrada": 1,
+        "saida": "master",
+        "efeitos": [
+          {
+            "id": "fx-tremolo",
+            "tipo": "tremolo",
+            "ligado": true,
+            "taxaHz": 8,
+            "profundidade": 0.7
+          }
+        ],
+        "envios": [],
+        "automacao": {
+          "volume": [],
+          "pan": []
+        },
+        "clipes": [
+          {
+            "id": "c-tremolo",
+            "midia": "pulsos",
+            "inicio": 0,
+            "inicioNaMidia": 0,
+            "duracao": 12000,
+            "ganhoDb": 0,
+            "entradaSuave": 0,
+            "saidaSuave": 0,
+            "mudo": false
+          }
+        ]
+      },
+      {
+        "id": "faixa-largura",
+        "nome": "largura",
+        "cor": "#8E24AA",
+        "ganhoDb": 0,
+        "pan": 0,
+        "ajusteEsquerdoDb": 0,
+        "ajusteDireitoDb": 0,
+        "gravar": false,
+        "monitorar": false,
+        "mudo": false,
+        "solo": false,
+        "entrada": null,
+        "canaisDeEntrada": 1,
+        "saida": "master",
+        "efeitos": [
+          {
+            "id": "fx-largura",
+            "tipo": "largura",
+            "ligado": true,
+            "largura": 1.6
+          }
+        ],
+        "envios": [],
+        "automacao": {
+          "volume": [],
+          "pan": []
+        },
+        "clipes": [
+          {
+            "id": "c-largura",
+            "midia": "ruido",
+            "inicio": 0,
+            "inicioNaMidia": 0,
+            "duracao": 12000,
+            "ganhoDb": 0,
+            "entradaSuave": 0,
+            "saidaSuave": 0,
+            "mudo": false
+          }
+        ]
+      },
+      {
+        "id": "faixa-ganho",
+        "nome": "ganho",
+        "cor": "#FFD54A",
+        "ganhoDb": 0,
+        "pan": 0,
+        "ajusteEsquerdoDb": 0,
+        "ajusteDireitoDb": 0,
+        "gravar": false,
+        "monitorar": false,
+        "mudo": false,
+        "solo": false,
+        "entrada": null,
+        "canaisDeEntrada": 1,
+        "saida": "master",
+        "efeitos": [
+          {
+            "id": "fx-ganho",
+            "tipo": "ganho",
+            "ligado": true,
+            "ganhoDb": -9
+          }
+        ],
+        "envios": [],
+        "automacao": {
+          "volume": [],
+          "pan": []
+        },
+        "clipes": [
+          {
+            "id": "c-ganho",
+            "midia": "pulsos",
+            "inicio": 0,
+            "inicioNaMidia": 0,
+            "duracao": 12000,
+            "ganhoDb": 0,
+            "entradaSuave": 0,
+            "saidaSuave": 0,
+            "mudo": false
+          }
+        ]
+      }
+    ],
+    "barramentos": [],
+    "master": {
+      "ganhoDb": 0,
+      "efeitos": []
+    },
+    "marcadores": [],
+    "midias": [
+      {
+        "id": "ruido",
+        "nome": "ruido.wav",
+        "formato": "wav",
+        "taxa": 48000,
+        "canais": 2,
+        "quadros": 12000,
+        "bits": 32
+      },
+      {
+        "id": "pulsos",
+        "nome": "pulsos.wav",
+        "formato": "wav",
+        "taxa": 48000,
+        "canais": 1,
+        "quadros": 12000,
+        "bits": 32
+      }
+    ],
+    "metronomo": {
+      "ligado": true,
+      "volumeDb": -6,
+      "naExportacao": false
+    },
+    "contagem": 1,
+    "latencia": {
+      "entrada": 0,
+      "saida": 0,
+      "medida": false
+    },
+    "loop": {
+      "ligado": false,
+      "inicio": 0,
+      "fim": 0
+    },
+    "punch": {
+      "ligado": false,
+      "entrada": 0,
+      "saida": 0
+    },
+    "separacoes": []
+  },
+  "midias": {
+    "ruido": {
+      "tipo": "ruido",
+      "semente": 3,
+      "amplitude": 0.5
+    },
+    "pulsos": {
+      "tipo": "impulsos",
+      "periodo": 2400,
+      "inicio": 10,
+      "amplitude": 0.9
+    }
+  },
+  "renders": [
+    {
+      "inicio": 0,
+      "quadros": 12000,
+      "somente": "faixa-passa-alta"
+    },
+    {
+      "inicio": 0,
+      "quadros": 12000,
+      "somente": "faixa-passa-baixa"
+    },
+    {
+      "inicio": 0,
+      "quadros": 12000,
+      "somente": "faixa-equalizador"
+    },
+    {
+      "inicio": 0,
+      "quadros": 12000,
+      "somente": "faixa-compressor"
+    },
+    {
+      "inicio": 0,
+      "quadros": 12000,
+      "somente": "faixa-porta"
+    },
+    {
+      "inicio": 0,
+      "quadros": 12000,
+      "somente": "faixa-limitador"
+    },
+    {
+      "inicio": 0,
+      "quadros": 12000,
+      "somente": "faixa-desesser"
+    },
+    {
+      "inicio": 0,
+      "quadros": 12000,
+      "somente": "faixa-saturacao"
+    },
+    {
+      "inicio": 0,
+      "quadros": 12000,
+      "somente": "faixa-atraso"
+    },
+    {
+      "inicio": 0,
+      "quadros": 12000,
+      "somente": "faixa-reverberacao"
+    },
+    {
+      "inicio": 0,
+      "quadros": 12000,
+      "somente": "faixa-coro"
+    },
+    {
+      "inicio": 0,
+      "quadros": 12000,
+      "somente": "faixa-tremolo"
+    },
+    {
+      "inicio": 0,
+      "quadros": 12000,
+      "somente": "faixa-largura"
+    },
+    {
+      "inicio": 0,
+      "quadros": 12000,
+      "somente": "faixa-ganho"
+    }
+  ],
+  "esperado": {
+    "problemas": [],
+    "duracao": 12000,
+    "cauda": 240000,
+    "audiveis": [
+      "faixa-passa-alta",
+      "faixa-passa-baixa",
+      "faixa-equalizador",
+      "faixa-compressor",
+      "faixa-porta",
+      "faixa-limitador",
+      "faixa-desesser",
+      "faixa-saturacao",
+      "faixa-atraso",
+      "faixa-reverberacao",
+      "faixa-coro",
+      "faixa-tremolo",
+      "faixa-largura",
+      "faixa-ganho"
+    ],
+    "ganhos": [
+      [
+        1,
+        1
+      ],
+      [
+        1,
+        1
+      ],
+      [
+        1,
+        1
+      ],
+      [
+        1,
+        1
+      ],
+      [
+        1,
+        1
+      ],
+      [
+        1,
+        1
+      ],
+      [
+        1,
+        1
+      ],
+      [
+        1,
+        1
+      ],
+      [
+        1,
+        1
+      ],
+      [
+        1,
+        1
+      ],
+      [
+        1,
+        1
+      ],
+      [
+        1,
+        1
+      ],
+      [
+        1,
+        1
+      ],
+      [
+        1,
+        1
+      ]
+    ],
+    "renders": [
+      {
+        "soma": 1.978276,
+        "energia": 1966.422698,
+        "pico": 0.666319,
+        "amostras": [
+          [
+            0,
+            -0.481644,
+            -0.481584
+          ],
+          [
+            799,
+            -0.155707,
+            -0.345699
+          ],
+          [
+            1599,
+            -0.130143,
+            -0.495892
+          ],
+          [
+            2399,
+            0.519559,
+            -0.405324
+          ],
+          [
+            3199,
+            -0.440084,
+            -0.307283
+          ],
+          [
+            3999,
+            0.389176,
+            -0.503718
+          ],
+          [
+            4799,
+            0.158794,
+            0.181334
+          ],
+          [
+            5599,
+            -0.135223,
+            -0.411825
+          ],
+          [
+            6399,
+            -0.256463,
+            -0.394388
+          ],
+          [
+            7199,
+            0.329599,
+            0.477696
+          ],
+          [
+            7999,
+            0.245045,
+            0.105307
+          ],
+          [
+            8799,
+            0.375216,
+            0.057352
+          ],
+          [
+            9599,
+            -0.317065,
+            -0.009763
+          ],
+          [
+            10399,
+            0.050733,
+            0.483461
+          ],
+          [
+            11199,
+            0.420972,
+            -0.038994
+          ],
+          [
+            11999,
+            0.460645,
+            0.356999
+          ]
+        ]
+      },
+      {
+        "soma": 9,
+        "energia": 0.743189,
+        "pico": 0.10677,
+        "amostras": [
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            799,
+            0,
+            0
+          ],
+          [
+            1599,
+            0,
+            0
+          ],
+          [
+            2399,
+            0,
+            0
+          ],
+          [
+            3199,
+            0,
+            0
+          ],
+          [
+            3999,
+            0,
+            0
+          ],
+          [
+            4799,
+            0,
+            0
+          ],
+          [
+            5599,
+            0,
+            0
+          ],
+          [
+            6399,
+            0,
+            0
+          ],
+          [
+            7199,
+            0,
+            0
+          ],
+          [
+            7999,
+            0,
+            0
+          ],
+          [
+            8799,
+            0,
+            0
+          ],
+          [
+            9599,
+            0,
+            0
+          ],
+          [
+            10399,
+            0,
+            0
+          ],
+          [
+            11199,
+            0,
+            0
+          ],
+          [
+            11999,
+            0,
+            0
+          ]
+        ]
+      },
+      {
+        "soma": 3.646072,
+        "energia": 1166.292664,
+        "pico": 0.643839,
+        "amostras": [
+          [
+            0,
+            -0.333322,
+            -0.33328
+          ],
+          [
+            799,
+            0.068451,
+            -0.060226
+          ],
+          [
+            1599,
+            0.082617,
+            -0.204513
+          ],
+          [
+            2399,
+            0.137922,
+            -0.072259
+          ],
+          [
+            3199,
+            -0.182132,
+            -0.02886
+          ],
+          [
+            3999,
+            0.302617,
+            -0.539562
+          ],
+          [
+            4799,
+            -0.035981,
+            0.163959
+          ],
+          [
+            5599,
+            -0.22163,
+            -0.040096
+          ],
+          [
+            6399,
+            -0.325553,
+            -0.217182
+          ],
+          [
+            7199,
+            0.466205,
+            0.20566
+          ],
+          [
+            7999,
+            0.449186,
+            -0.132775
+          ],
+          [
+            8799,
+            0.31033,
+            -0.228985
+          ],
+          [
+            9599,
+            -0.157299,
+            -0.207806
+          ],
+          [
+            10399,
+            0.048907,
+            0.396741
+          ],
+          [
+            11199,
+            0.30438,
+            -0.122229
+          ],
+          [
+            11999,
+            0.248238,
+            0.41373
+          ]
+        ]
+      },
+      {
+        "soma": 17.710037,
+        "energia": 31.364853,
+        "pico": 1.780914,
+        "amostras": [
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            799,
+            0,
+            0
+          ],
+          [
+            1599,
+            0,
+            0
+          ],
+          [
+            2399,
+            0,
+            0
+          ],
+          [
+            3199,
+            0,
+            0
+          ],
+          [
+            3999,
+            0,
+            0
+          ],
+          [
+            4799,
+            0,
+            0
+          ],
+          [
+            5599,
+            0,
+            0
+          ],
+          [
+            6399,
+            0,
+            0
+          ],
+          [
+            7199,
+            0,
+            0
+          ],
+          [
+            7999,
+            0,
+            0
+          ],
+          [
+            8799,
+            0,
+            0
+          ],
+          [
+            9599,
+            0,
+            0
+          ],
+          [
+            10399,
+            0,
+            0
+          ],
+          [
+            11199,
+            0,
+            0
+          ],
+          [
+            11999,
+            0,
+            0
+          ]
+        ]
+      },
+      {
+        "soma": 3.768187,
+        "energia": 2005.466898,
+        "pico": 0.499957,
+        "amostras": [
+          [
+            0,
+            -0.499811,
+            -0.499748
+          ],
+          [
+            799,
+            -0.110534,
+            -0.376766
+          ],
+          [
+            1599,
+            -0.038422,
+            -0.419599
+          ],
+          [
+            2399,
+            0.423407,
+            -0.322032
+          ],
+          [
+            3199,
+            -0.426631,
+            -0.230242
+          ],
+          [
+            3999,
+            0.37688,
+            -0.490971
+          ],
+          [
+            4799,
+            0.092068,
+            0.236036
+          ],
+          [
+            5599,
+            -0.17048,
+            -0.27221
+          ],
+          [
+            6399,
+            -0.319413,
+            -0.388287
+          ],
+          [
+            7199,
+            0.449939,
+            0.478908
+          ],
+          [
+            7999,
+            0.401861,
+            -0.005401
+          ],
+          [
+            8799,
+            0.439366,
+            -0.102554
+          ],
+          [
+            9599,
+            -0.224635,
+            -0.067771
+          ],
+          [
+            10399,
+            -0.025346,
+            0.421538
+          ],
+          [
+            11199,
+            0.457786,
+            0.005421
+          ],
+          [
+            11999,
+            0.499856,
+            0.453442
+          ]
+        ]
+      },
+      {
+        "soma": 5.011872,
+        "energia": 2.511886,
+        "pico": 0.501187,
+        "amostras": [
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            799,
+            0,
+            0
+          ],
+          [
+            1599,
+            0,
+            0
+          ],
+          [
+            2399,
+            0,
+            0
+          ],
+          [
+            3199,
+            0,
+            0
+          ],
+          [
+            3999,
+            0,
+            0
+          ],
+          [
+            4799,
+            0,
+            0
+          ],
+          [
+            5599,
+            0,
+            0
+          ],
+          [
+            6399,
+            0,
+            0
+          ],
+          [
+            7199,
+            0,
+            0
+          ],
+          [
+            7999,
+            0,
+            0
+          ],
+          [
+            8799,
+            0,
+            0
+          ],
+          [
+            9599,
+            0,
+            0
+          ],
+          [
+            10399,
+            0,
+            0
+          ],
+          [
+            11199,
+            0,
+            0
+          ],
+          [
+            11999,
+            0,
+            0
+          ]
+        ]
+      },
+      {
+        "soma": 3.333355,
+        "energia": 990.028743,
+        "pico": 0.583127,
+        "amostras": [
+          [
+            0,
+            -0.499811,
+            -0.499748
+          ],
+          [
+            799,
+            0.085945,
+            0.023231
+          ],
+          [
+            1599,
+            0.170088,
+            -0.100101
+          ],
+          [
+            2399,
+            0.049841,
+            0.008175
+          ],
+          [
+            3199,
+            -0.104814,
+            0.00013
+          ],
+          [
+            3999,
+            0.232558,
+            -0.489315
+          ],
+          [
+            4799,
+            -0.081654,
+            0.162587
+          ],
+          [
+            5599,
+            -0.220493,
+            0.044466
+          ],
+          [
+            6399,
+            -0.194693,
+            -0.159471
+          ],
+          [
+            7199,
+            0.430389,
+            0.089655
+          ],
+          [
+            7999,
+            0.421649,
+            -0.188295
+          ],
+          [
+            8799,
+            0.259694,
+            -0.264764
+          ],
+          [
+            9599,
+            -0.047799,
+            -0.213451
+          ],
+          [
+            10399,
+            -0.042311,
+            0.359698
+          ],
+          [
+            11199,
+            0.219936,
+            -0.24378
+          ],
+          [
+            11999,
+            0.092923,
+            0.436091
+          ]
+        ]
+      },
+      {
+        "soma": 6.933067,
+        "energia": 4.806742,
+        "pico": 0.693307,
+        "amostras": [
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            799,
+            0,
+            0
+          ],
+          [
+            1599,
+            0,
+            0
+          ],
+          [
+            2399,
+            0,
+            0
+          ],
+          [
+            3199,
+            0,
+            0
+          ],
+          [
+            3999,
+            0,
+            0
+          ],
+          [
+            4799,
+            0,
+            0
+          ],
+          [
+            5599,
+            0,
+            0
+          ],
+          [
+            6399,
+            0,
+            0
+          ],
+          [
+            7199,
+            0,
+            0
+          ],
+          [
+            7999,
+            0,
+            0
+          ],
+          [
+            8799,
+            0,
+            0
+          ],
+          [
+            9599,
+            0,
+            0
+          ],
+          [
+            10399,
+            0,
+            0
+          ],
+          [
+            11199,
+            0,
+            0
+          ],
+          [
+            11999,
+            0,
+            0
+          ]
+        ]
+      },
+      {
+        "soma": 16.807377,
+        "energia": 1004.8282,
+        "pico": 0.63204,
+        "amostras": [
+          [
+            0,
+            -0.249906,
+            -0.249874
+          ],
+          [
+            799,
+            -0.055267,
+            -0.188383
+          ],
+          [
+            1599,
+            -0.019211,
+            -0.2098
+          ],
+          [
+            2399,
+            0.211703,
+            -0.161016
+          ],
+          [
+            3199,
+            -0.268582,
+            -0.303504
+          ],
+          [
+            3999,
+            0.169229,
+            -0.455285
+          ],
+          [
+            4799,
+            0.257737,
+            -0.042998
+          ],
+          [
+            5599,
+            -0.326189,
+            -0.345417
+          ],
+          [
+            6399,
+            0.019128,
+            -0.544529
+          ],
+          [
+            7199,
+            0.376855,
+            0.276964
+          ],
+          [
+            7999,
+            -0.004784,
+            -0.243461
+          ],
+          [
+            8799,
+            0.149394,
+            -0.420613
+          ],
+          [
+            9599,
+            0.188595,
+            0.224323
+          ],
+          [
+            10399,
+            0.0854,
+            0.087688
+          ],
+          [
+            11199,
+            0.413432,
+            -0.233235
+          ],
+          [
+            11999,
+            0.288067,
+            0.32194
+          ]
+        ]
+      },
+      {
+        "soma": 6.839641,
+        "energia": 6.437593,
+        "pico": 0.54,
+        "amostras": [
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            799,
+            0,
+            0
+          ],
+          [
+            1599,
+            0,
+            0
+          ],
+          [
+            2399,
+            -0.02754,
+            -0.00486
+          ],
+          [
+            3199,
+            0.001721,
+            0.000304
+          ],
+          [
+            3999,
+            0.000481,
+            0.010088
+          ],
+          [
+            4799,
+            -0.034876,
+            -0.00601
+          ],
+          [
+            5599,
+            0.000039,
+            -0.004005
+          ],
+          [
+            6399,
+            0.003251,
+            0.009814
+          ],
+          [
+            7199,
+            -0.038824,
+            -0.0084
+          ],
+          [
+            7999,
+            -0.000093,
+            -0.005904
+          ],
+          [
+            8799,
+            0.004361,
+            0.017491
+          ],
+          [
+            9599,
+            -0.042255,
+            -0.009362
+          ],
+          [
+            10399,
+            -0.000125,
+            -0.00561
+          ],
+          [
+            11199,
+            0.003224,
+            0.013805
+          ],
+          [
+            11999,
+            -0.042651,
+            -0.00839
+          ]
+        ]
+      },
+      {
+        "soma": -0.326385,
+        "energia": 817.189588,
+        "pico": 0.493181,
+        "amostras": [
+          [
+            0,
+            -0.249906,
+            -0.249874
+          ],
+          [
+            799,
+            -0.158475,
+            -0.188383
+          ],
+          [
+            1599,
+            0.019592,
+            -0.173123
+          ],
+          [
+            2399,
+            0.286539,
+            -0.107979
+          ],
+          [
+            3199,
+            -0.197915,
+            -0.208052
+          ],
+          [
+            3999,
+            0.164821,
+            -0.164156
+          ],
+          [
+            4799,
+            -0.118244,
+            -0.027467
+          ],
+          [
+            5599,
+            0.107801,
+            -0.008591
+          ],
+          [
+            6399,
+            -0.270708,
+            -0.228254
+          ],
+          [
+            7199,
+            0.311634,
+            0.260665
+          ],
+          [
+            7999,
+            0.4427,
+            -0.132225
+          ],
+          [
+            8799,
+            0.420971,
+            -0.035962
+          ],
+          [
+            9599,
+            -0.127405,
+            -0.012746
+          ],
+          [
+            10399,
+            -0.184111,
+            0.239021
+          ],
+          [
+            11199,
+            0.318699,
+            0.173921
+          ],
+          [
+            11999,
+            0.089817,
+            0.252979
+          ]
+        ]
+      },
+      {
+        "soma": 5.85,
+        "energia": 3.918375,
+        "pico": 0.883547,
+        "amostras": [
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            799,
+            0,
+            0
+          ],
+          [
+            1599,
+            0,
+            0
+          ],
+          [
+            2399,
+            0,
+            0
+          ],
+          [
+            3199,
+            0,
+            0
+          ],
+          [
+            3999,
+            0,
+            0
+          ],
+          [
+            4799,
+            0,
+            0
+          ],
+          [
+            5599,
+            0,
+            0
+          ],
+          [
+            6399,
+            0,
+            0
+          ],
+          [
+            7199,
+            0,
+            0
+          ],
+          [
+            7999,
+            0,
+            0
+          ],
+          [
+            8799,
+            0,
+            0
+          ],
+          [
+            9599,
+            0,
+            0
+          ],
+          [
+            10399,
+            0,
+            0
+          ],
+          [
+            11199,
+            0,
+            0
+          ],
+          [
+            11999,
+            0,
+            0
+          ]
+        ]
+      },
+      {
+        "soma": 3.768188,
+        "energia": 3600.564836,
+        "pico": 0.79391,
+        "amostras": [
+          [
+            0,
+            -0.49983,
+            -0.499729
+          ],
+          [
+            799,
+            -0.030664,
+            -0.456636
+          ],
+          [
+            1599,
+            0.075931,
+            -0.533952
+          ],
+          [
+            2399,
+            0.647038,
+            -0.545664
+          ],
+          [
+            3199,
+            -0.485547,
+            -0.171325
+          ],
+          [
+            3999,
+            0.637236,
+            -0.751327
+          ],
+          [
+            4799,
+            0.048878,
+            0.279226
+          ],
+          [
+            5599,
+            -0.139961,
+            -0.302729
+          ],
+          [
+            6399,
+            -0.298751,
+            -0.40895
+          ],
+          [
+            7199,
+            0.441249,
+            0.487598
+          ],
+          [
+            7999,
+            0.524039,
+            -0.127579
+          ],
+          [
+            8799,
+            0.601942,
+            -0.26513
+          ],
+          [
+            9599,
+            -0.271694,
+            -0.020711
+          ],
+          [
+            10399,
+            -0.159411,
+            0.555603
+          ],
+          [
+            11199,
+            0.593496,
+            -0.130289
+          ],
+          [
+            11999,
+            0.513781,
+            0.439518
+          ]
+        ]
+      },
+      {
+        "soma": 3.19332,
+        "energia": 1.019729,
+        "pico": 0.319332,
+        "amostras": [
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            799,
+            0,
+            0
+          ],
+          [
+            1599,
+            0,
+            0
+          ],
+          [
+            2399,
+            0,
+            0
+          ],
+          [
+            3199,
+            0,
+            0
+          ],
+          [
+            3999,
+            0,
+            0
+          ],
+          [
+            4799,
+            0,
+            0
+          ],
+          [
+            5599,
+            0,
+            0
+          ],
+          [
+            6399,
+            0,
+            0
+          ],
+          [
+            7199,
+            0,
+            0
+          ],
+          [
+            7999,
+            0,
+            0
+          ],
+          [
+            8799,
+            0,
+            0
+          ],
+          [
+            9599,
+            0,
+            0
+          ],
+          [
+            10399,
+            0,
+            0
+          ],
+          [
+            11199,
+            0,
+            0
+          ],
+          [
+            11999,
+            0,
+            0
+          ]
+        ]
+      }
+    ]
+  }
+}

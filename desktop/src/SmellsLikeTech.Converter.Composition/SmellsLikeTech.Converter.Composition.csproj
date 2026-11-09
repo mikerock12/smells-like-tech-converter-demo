@@ -21,5 +21,6 @@
     <ProjectReference Include="..\SmellsLikeTech.Converter.Engine.Speech\SmellsLikeTech.Converter.Engine.Speech.csproj" />
     <ProjectReference Include="..\SmellsLikeTech.Converter.Engine.Documents\SmellsLikeTech.Converter.Engine.Documents.csproj" />
     <ProjectReference Include="..\SmellsLikeTech.Converter.Engine.Studio\SmellsLikeTech.Converter.Engine.Studio.csproj" />
+    <ProjectReference Include="..\SmellsLikeTech.Converter.Engine.Music\SmellsLikeTech.Converter.Engine.Music.csproj" />
   </ItemGroup>
 </Project>

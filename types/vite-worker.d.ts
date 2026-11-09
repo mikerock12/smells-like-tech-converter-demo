@@ -10,3 +10,9 @@ declare module "*?worker" {
   export default WorkerFactory;
 }
 // SPDX-License-Identifier: GPL-3.0-or-later — declarações do cliente navegador.
+
+/** O worklet de áudio: o Vite empacota o módulo com as dependências e devolve a URL. */
+declare module "*?worker&url" {
+  const url: string;
+  export default url;
+}

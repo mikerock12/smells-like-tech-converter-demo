@@ -26,3 +26,6 @@
 # pelo nome que está no manifesto, com o construtor sem argumentos. Sem esta regra o R8 tirava
 # o construtor, o ML Kit não iniciava e a remoção automática de fundo dava NullPointerException.
 -keep class * implements com.google.firebase.components.ComponentRegistrar { public <init>(); }
+
+# Criação musical: o teste instrumentado no build R8 usa as classes do núcleo.
+-keep class br.com.smellsliketech.converter.musica.** { *; }

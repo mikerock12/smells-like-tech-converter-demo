@@ -1,0 +1,30 @@
+<Page
+    x:Class="SmellsLikeTech.Converter.Desktop.Pages.MusicPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Background="{StaticResource BrandBackgroundBrush}">
+
+    <!-- A criação musical monta a tela no código (MusicPage.xaml.cs): as faixas, os canais
+         do mixer e os efeitos mudam com o projeto. Aqui ficam só as duas vistas. -->
+    <Grid Padding="16">
+        <ScrollViewer x:Name="StartView" VerticalScrollBarVisibility="Auto">
+            <StackPanel x:Name="StartPanel" Spacing="12" MaxWidth="1100" HorizontalAlignment="Left" />
+        </ScrollViewer>
+        <Grid x:Name="EditorView" Visibility="Collapsed" RowSpacing="8">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" MinHeight="180" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="320" />
+            </Grid.RowDefinitions>
+            <StackPanel x:Name="HeaderPanel" Grid.Row="0" Orientation="Horizontal" Spacing="8" />
+            <StackPanel x:Name="TransportPanel" Grid.Row="1" Orientation="Horizontal" Spacing="8" Padding="8" CornerRadius="10" Background="{StaticResource BrandSurfaceBrush}" BorderBrush="{StaticResource BrandStrokeBrush}" BorderThickness="1" />
+            <InfoBar x:Name="StatusBar" Grid.Row="2" IsOpen="False" IsClosable="True" />
+            <Grid x:Name="TimelineGrid" Grid.Row="3" CornerRadius="10" BorderBrush="{StaticResource BrandStrokeBrush}" BorderThickness="1" Background="{StaticResource BrandSurfaceBrush}" />
+            <StackPanel x:Name="ClipPanel" Grid.Row="4" Orientation="Horizontal" Spacing="10" />
+            <TabView x:Name="Panels" Grid.Row="5" IsAddTabButtonVisible="False" CanReorderTabs="False" CanDragTabs="False" TabWidthMode="SizeToContent" />
+        </Grid>
+    </Grid>
+</Page>

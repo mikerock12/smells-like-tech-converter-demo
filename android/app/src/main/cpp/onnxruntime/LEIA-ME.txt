@@ -1,0 +1,4 @@
+Cabeçalhos da API C do ONNX Runtime 1.30.0 (Microsoft, licença MIT), copiados do pacote
+com.microsoft.onnxruntime:onnxruntime-android:1.30.0 (pasta headers/). Só servem para compilar
+musica_onnx.c, que pede a API 17; o runtime usado no app é o libonnxruntime.so que já vem no
+sherpa-onnx. Licença: https://github.com/microsoft/onnxruntime/blob/main/LICENSE

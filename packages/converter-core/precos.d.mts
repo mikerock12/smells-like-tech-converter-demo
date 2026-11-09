@@ -41,7 +41,7 @@ export declare const LIMITES: Readonly<{
   pro: Readonly<Record<Contador, null>>;
 }>;
 export declare const ROTULOS_DOS_LIMITES: Readonly<
-  Record<Contador, { titulo: string; unidade: string; periodo: "dia" | null }>
+  Record<Contador, { titulo: string; unidade: string; periodo: "dia" | "semana" | null }>
 >;
 export declare const COMPARATIVO: readonly { item: string; gratis: string; pro: string }[];
 export declare function produto(id: string): Produto | null;

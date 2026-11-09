@@ -185,6 +185,8 @@ export const LIMITES = deepFreeze({
     /** Estúdio: exportações por dia e duração do projeto, em segundos. */
     estudio: 3,
     estudioDuracao: 60,
+    /** Criação musical: projetos novos por semana (seg–dom, horário de Brasília). Reabrir não conta. */
+    musica: 1,
   },
   pro: {
     lote: null,
@@ -196,6 +198,7 @@ export const LIMITES = deepFreeze({
     ocr: null,
     estudio: null,
     estudioDuracao: null,
+    musica: null,
   },
 });
 
@@ -210,6 +213,7 @@ export const ROTULOS_DOS_LIMITES = deepFreeze({
   ocr: { titulo: "Reconhecimento de texto", unidade: "páginas por dia", periodo: "dia" },
   estudio: { titulo: "Exportações do estúdio", unidade: "por dia", periodo: "dia" },
   estudioDuracao: { titulo: "Duração do projeto no estúdio", unidade: "segundos por projeto", periodo: null },
+  musica: { titulo: "Criação musical", unidade: "projeto novo por semana", periodo: "semana" },
 });
 
 /** Quadro comparativo da página de preços, na ordem em que aparece. */
@@ -227,6 +231,7 @@ export const COMPARATIVO = deepFreeze([
   { item: "Estúdio: exportações de vídeo, GIF, imagem e áudio", gratis: "3 por dia", pro: "Sem limite" },
   { item: "Estúdio: duração do projeto", gratis: "Até 1 min (Stories, Status, Reels curtos)", pro: "Sem limite" },
   { item: "Estúdio: remoção de fundo", gratis: "Fotos, stickers e GIFs", pro: "Também em vídeo, quadro a quadro" },
+  { item: "Criação musical: gravação multipista, mixer e separação de faixas por IA", gratis: "1 projeto novo por semana (reabrir e exportar à vontade)", pro: "Sem limite" },
   { item: "PDF → Word editável", gratis: "—", pro: "Incluído" },
   { item: "Presets salvos e fila prioritária", gratis: "—", pro: "Incluído" },
   { item: "Suporte", gratis: "Comunidade", pro: "E-mail em até 1 dia útil" },

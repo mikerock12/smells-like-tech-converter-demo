@@ -122,7 +122,7 @@ class OficinaViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) {
     var textoParaNarrar by mutableStateOf<String?>(null)
 
     /** As portas da tela inicial: o app abre nela, e arquivos recebidos vão direto à conversão. */
-    enum class Tela { INICIO, CONVERTER, ESTUDIO }
+    enum class Tela { INICIO, CONVERTER, ESTUDIO, MUSICA }
     var tela by mutableStateOf(Tela.INICIO)
 
     /** Veio de "Transcrever áudio ou vídeo": os arquivos escolhidos já entram na transcrição. */

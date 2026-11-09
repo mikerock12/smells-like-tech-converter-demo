@@ -118,6 +118,7 @@ fun Oficina(modelo: OficinaViewModel, escolher: (Array<String>) -> Unit) {
                 abrirLicenca = { modelo.mostrarLicenca = true },
                 converter = { modelo.tela = OficinaViewModel.Tela.CONVERTER },
                 estudio = { modelo.tela = OficinaViewModel.Tela.ESTUDIO },
+                musica = { modelo.tela = OficinaViewModel.Tela.MUSICA },
                 transcrever = { modelo.transcreverAoReceber = true; escolher(arrayOf("audio/*", "video/*")) },
                 narrar = { modelo.textoParaNarrar = "" },
                 figurinhas = { modelo.mostrarFigurinhas = true },
@@ -131,6 +132,15 @@ fun Oficina(modelo: OficinaViewModel, escolher: (Array<String>) -> Unit) {
                 podeExportar = modelo.situacao.podeConverter,
                 abrirLicenca = { modelo.mostrarLicenca = true },
                 abrirModelos = { modelo.mostrarModelos = true },
+                voltar = { modelo.tela = OficinaViewModel.Tela.INICIO },
+            )
+            return
+        }
+        OficinaViewModel.Tela.MUSICA -> {
+            TelaDaMusica(
+                viewModel(),
+                podeCriar = modelo.situacao.podeConverter,
+                abrirLicenca = { modelo.mostrarLicenca = true },
                 voltar = { modelo.tela = OficinaViewModel.Tela.INICIO },
             )
             return

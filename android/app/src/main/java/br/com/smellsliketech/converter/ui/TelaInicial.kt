@@ -42,6 +42,7 @@ fun TelaInicial(
     abrirLicenca: () -> Unit,
     converter: () -> Unit,
     estudio: () -> Unit,
+    musica: () -> Unit,
     transcrever: () -> Unit,
     narrar: () -> Unit,
     figurinhas: () -> Unit,
@@ -50,6 +51,7 @@ fun TelaInicial(
     val caminhos = listOf(
         Caminho("⇄", "Converter uma mídia", "Troque o formato, comprima, corte ou junte vídeos, áudios, imagens, PDFs e documentos.", true, converter),
         Caminho("✦", "Criar no estúdio", "Monte vídeo, GIF, imagem ou áudio para Instagram, TikTok, YouTube, WhatsApp e outras redes: cortes, textos e música.", true, estudio),
+        Caminho("♫", "Criação musical", "Grave várias faixas ouvindo as outras, separe voz, bateria e baixo por IA, mixe com efeitos e exporte.", false, musica),
         Caminho("✎", "Transcrever áudio ou vídeo", "A fala vira texto ou legenda, sem enviar nada para a nuvem.", false, transcrever),
         Caminho("♪", "Narrar um texto", "Seu texto vira áudio com vozes naturais em português.", false, narrar),
         Caminho("☺", "Figurinhas do WhatsApp", "Imagens, GIFs e vídeos viram figurinhas, com recorte, texto e fundo removido.", false, figurinhas),

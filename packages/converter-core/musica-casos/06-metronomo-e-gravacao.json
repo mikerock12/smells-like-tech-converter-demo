@@ -1,0 +1,315 @@
+{
+  "descricao": "Metrônomo em 3/4 a 93 BPM, posições em compassos, contagem de um compasso, punch e latência compensada.",
+  "projeto": {
+    "versao": 1,
+    "id": "caso",
+    "titulo": "Caso",
+    "taxa": 48000,
+    "profundidade": 24,
+    "bpm": 93,
+    "compasso": [
+      3,
+      4
+    ],
+    "faixas": [
+      {
+        "id": "faixa-violao",
+        "nome": "Violão",
+        "cor": "#FF7A18",
+        "ganhoDb": 0,
+        "pan": 0,
+        "ajusteEsquerdoDb": 0,
+        "ajusteDireitoDb": 0,
+        "gravar": false,
+        "monitorar": false,
+        "mudo": false,
+        "solo": false,
+        "entrada": null,
+        "canaisDeEntrada": 1,
+        "saida": "master",
+        "efeitos": [],
+        "envios": [],
+        "automacao": {
+          "volume": [],
+          "pan": []
+        },
+        "clipes": [
+          {
+            "id": "c1",
+            "midia": "violao",
+            "inicio": 0,
+            "inicioNaMidia": 0,
+            "duracao": 48000,
+            "ganhoDb": 0,
+            "entradaSuave": 0,
+            "saidaSuave": 0,
+            "mudo": false
+          }
+        ]
+      }
+    ],
+    "barramentos": [],
+    "master": {
+      "ganhoDb": 0,
+      "efeitos": []
+    },
+    "marcadores": [],
+    "midias": [
+      {
+        "id": "violao",
+        "nome": "violao.wav",
+        "formato": "wav",
+        "taxa": 48000,
+        "canais": 2,
+        "quadros": 48000,
+        "bits": 32
+      },
+      {
+        "id": "baixo",
+        "nome": "baixo.wav",
+        "formato": "wav",
+        "taxa": 48000,
+        "canais": 1,
+        "quadros": 48000,
+        "bits": 32
+      },
+      {
+        "id": "voz",
+        "nome": "voz.wav",
+        "formato": "wav",
+        "taxa": 48000,
+        "canais": 1,
+        "quadros": 48000,
+        "bits": 32
+      }
+    ],
+    "metronomo": {
+      "ligado": true,
+      "volumeDb": -6,
+      "naExportacao": false
+    },
+    "contagem": 1,
+    "latencia": {
+      "entrada": 240,
+      "saida": 480,
+      "medida": true,
+      "ajuste": 12
+    },
+    "loop": {
+      "ligado": false,
+      "inicio": 0,
+      "fim": 0
+    },
+    "punch": {
+      "ligado": true,
+      "entrada": 96000,
+      "saida": 144000
+    },
+    "separacoes": []
+  },
+  "midias": {
+    "violao": {
+      "tipo": "seno",
+      "frequencia": 220,
+      "amplitude": 0.2
+    }
+  },
+  "posicoes": [
+    0,
+    1,
+    30967,
+    30968,
+    92903,
+    1000000
+  ],
+  "metronomo": {
+    "inicio": 0,
+    "fim": 200000
+  },
+  "gravacao": {
+    "cursor": 90000,
+    "quadroAlinhado": 50000,
+    "quadrosCapturados": 120000
+  },
+  "renders": [
+    {
+      "inicio": 0,
+      "quadros": 40000,
+      "metronomo": true
+    }
+  ],
+  "esperado": {
+    "problemas": [],
+    "duracao": 48000,
+    "cauda": 0,
+    "audiveis": [
+      "faixa-violao"
+    ],
+    "ganhos": [
+      [
+        1,
+        1
+      ]
+    ],
+    "posicoes": [
+      "1.1.00",
+      "1.1.00",
+      "1.1.99",
+      "1.2.00",
+      "1.3.99",
+      "11.3.29"
+    ],
+    "metronomo": [
+      {
+        "quadro": 0,
+        "forte": true
+      },
+      {
+        "quadro": 30968,
+        "forte": false
+      },
+      {
+        "quadro": 61935,
+        "forte": false
+      },
+      {
+        "quadro": 92903,
+        "forte": true
+      },
+      {
+        "quadro": 123871,
+        "forte": false
+      },
+      {
+        "quadro": 154839,
+        "forte": false
+      },
+      {
+        "quadro": 185806,
+        "forte": true
+      }
+    ],
+    "gravacao": {
+      "plano": {
+        "inicioDoTransporte": 0,
+        "inicioDaTomada": 96000,
+        "fimDaTomada": 144000,
+        "cliquesDaContagem": [
+          {
+            "quadro": 3097,
+            "forte": true
+          },
+          {
+            "quadro": 34065,
+            "forte": false
+          },
+          {
+            "quadro": 65032,
+            "forte": false
+          }
+        ],
+        "preRolagem": 92903
+      },
+      "clipe": {
+        "id": "tomada-1",
+        "midia": "gravacao-1",
+        "inicio": 96000,
+        "inicioNaMidia": 46708,
+        "duracao": 48000,
+        "ganhoDb": 0,
+        "entradaSuave": 0,
+        "saidaSuave": 0,
+        "mudo": false
+      }
+    },
+    "renders": [
+      {
+        "soma": 27.977696,
+        "energia": 1653.907983,
+        "pico": 0.615474,
+        "amostras": [
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            2666,
+            0.196259,
+            0.196259
+          ],
+          [
+            5333,
+            0.070205,
+            0.070205
+          ],
+          [
+            7999,
+            -0.170254,
+            -0.170254
+          ],
+          [
+            10666,
+            -0.131475,
+            -0.131475
+          ],
+          [
+            13333,
+            0.127081,
+            0.127081
+          ],
+          [
+            15999,
+            0.176013,
+            0.176013
+          ],
+          [
+            18666,
+            -0.064783,
+            -0.064783
+          ],
+          [
+            21332,
+            -0.19815,
+            -0.19815
+          ],
+          [
+            23999,
+            -0.005759,
+            -0.005759
+          ],
+          [
+            26666,
+            0.196259,
+            0.196259
+          ],
+          [
+            29332,
+            0.075568,
+            0.075568
+          ],
+          [
+            31999,
+            -0.160661,
+            -0.160661
+          ],
+          [
+            34665,
+            -0.13576,
+            -0.13576
+          ],
+          [
+            37332,
+            0.122581,
+            0.122581
+          ],
+          [
+            39999,
+            0.176013,
+            0.176013
+          ]
+        ]
+      }
+    ]
+  }
+}

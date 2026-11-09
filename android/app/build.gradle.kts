@@ -34,8 +34,8 @@ android {
         minSdk = 28
         // A Google Play exige o Android 16 como alvo desde 31/08/2026.
         targetSdk = 36
-        versionCode = 39
-        versionName = "1.0.14"
+        versionCode = 40
+        versionName = "1.0.15"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         if (providers.gradleProperty("validacaoR8").orNull == "true")
             testApplicationId = "br.com.smellsliketech.converter.validacao.test"
@@ -111,6 +111,11 @@ android {
             matchingFallbacks += listOf("release")
         }
     }
+
+    // Inferência da separação de faixas (criação musical): um JNI pequeno em C sobre a API C
+    // do ONNX Runtime, ligado no libonnxruntime.so do sherpa-onnx (src/main/cpp).
+    ndkVersion = "27.0.12077973"
+    externalNativeBuild { cmake { path = file("src/main/cpp/CMakeLists.txt"); version = "3.22.1" } }
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17

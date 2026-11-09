@@ -13,6 +13,9 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROCESSING" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <!-- Criação musical: gravar faixas. Pedido na hora de gravar; o áudio fica no aparelho. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- Só no Android 9: sem o MediaStore.Downloads, gravar em Downloads pede estas permissões. -->
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
@@ -68,6 +71,10 @@
         <service android:name=".conversao.ServicoDeConversao"
             android:exported="false" android:stopWithTask="false"
             android:foregroundServiceType="dataSync|mediaProcessing" />
+
+        <!-- A gravação continua com a tela apagada; só começa com o app aberto (REC). -->
+        <service android:name=".musica.ServicoDeGravacao"
+            android:exported="false" android:foregroundServiceType="microphone" />
 
         <service
             android:name="com.google.android.datatransport.runtime.backends.TransportBackendDiscovery"

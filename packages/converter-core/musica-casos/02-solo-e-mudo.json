@@ -1,0 +1,347 @@
+{
+  "descricao": "Solo no violão e na voz, mas a voz também está muda: o mudo vence e só o violão toca.",
+  "projeto": {
+    "versao": 1,
+    "id": "caso",
+    "titulo": "Caso",
+    "taxa": 48000,
+    "profundidade": 24,
+    "bpm": 120,
+    "compasso": [
+      4,
+      4
+    ],
+    "faixas": [
+      {
+        "id": "faixa-violao",
+        "nome": "Violão",
+        "cor": "#FF7A18",
+        "ganhoDb": 0,
+        "pan": -40,
+        "ajusteEsquerdoDb": 0,
+        "ajusteDireitoDb": 0,
+        "gravar": false,
+        "monitorar": false,
+        "mudo": false,
+        "solo": true,
+        "entrada": null,
+        "canaisDeEntrada": 1,
+        "saida": "master",
+        "efeitos": [],
+        "envios": [],
+        "automacao": {
+          "volume": [],
+          "pan": []
+        },
+        "clipes": [
+          {
+            "id": "c1",
+            "midia": "violao",
+            "inicio": 0,
+            "inicioNaMidia": 0,
+            "duracao": 48000,
+            "ganhoDb": 0,
+            "entradaSuave": 0,
+            "saidaSuave": 0,
+            "mudo": false
+          }
+        ]
+      },
+      {
+        "id": "faixa-baixo",
+        "nome": "Baixo",
+        "cor": "#1E88E5",
+        "ganhoDb": -3,
+        "pan": 0,
+        "ajusteEsquerdoDb": 0,
+        "ajusteDireitoDb": -6,
+        "gravar": false,
+        "monitorar": false,
+        "mudo": false,
+        "solo": false,
+        "entrada": null,
+        "canaisDeEntrada": 1,
+        "saida": "master",
+        "efeitos": [],
+        "envios": [],
+        "automacao": {
+          "volume": [],
+          "pan": []
+        },
+        "clipes": [
+          {
+            "id": "c2",
+            "midia": "baixo",
+            "inicio": 4800,
+            "inicioNaMidia": 0,
+            "duracao": 43200,
+            "ganhoDb": 0,
+            "entradaSuave": 0,
+            "saidaSuave": 0,
+            "mudo": false
+          }
+        ]
+      },
+      {
+        "id": "faixa-voz",
+        "nome": "Voz",
+        "cor": "#43A047",
+        "ganhoDb": 0,
+        "pan": 25,
+        "ajusteEsquerdoDb": 0,
+        "ajusteDireitoDb": 0,
+        "gravar": false,
+        "monitorar": false,
+        "mudo": true,
+        "solo": true,
+        "entrada": null,
+        "canaisDeEntrada": 1,
+        "saida": "master",
+        "efeitos": [],
+        "envios": [
+          {
+            "barramento": "bus-reverb",
+            "nivelDb": -10,
+            "preFader": false
+          }
+        ],
+        "automacao": {
+          "volume": [],
+          "pan": []
+        },
+        "clipes": [
+          {
+            "id": "c3",
+            "midia": "voz",
+            "inicio": 9600,
+            "inicioNaMidia": 0,
+            "duracao": 38400,
+            "ganhoDb": 0,
+            "entradaSuave": 0,
+            "saidaSuave": 0,
+            "mudo": false
+          }
+        ]
+      }
+    ],
+    "barramentos": [
+      {
+        "id": "bus-reverb",
+        "nome": "Reverb",
+        "ganhoDb": 0,
+        "pan": 0,
+        "mudo": false,
+        "efeitos": [
+          {
+            "id": "fx-rev",
+            "tipo": "reverberacao",
+            "ligado": true,
+            "tamanho": 0.6,
+            "amortecimento": 0.4,
+            "largura": 1,
+            "mistura": 1
+          }
+        ]
+      }
+    ],
+    "master": {
+      "ganhoDb": 0,
+      "efeitos": [
+        {
+          "id": "fx-lim",
+          "tipo": "limitador",
+          "ligado": true,
+          "tetoDb": -1,
+          "liberacaoMs": 50
+        }
+      ]
+    },
+    "marcadores": [],
+    "midias": [
+      {
+        "id": "violao",
+        "nome": "violao.wav",
+        "formato": "wav",
+        "taxa": 48000,
+        "canais": 2,
+        "quadros": 48000,
+        "bits": 32
+      },
+      {
+        "id": "baixo",
+        "nome": "baixo.wav",
+        "formato": "wav",
+        "taxa": 48000,
+        "canais": 1,
+        "quadros": 48000,
+        "bits": 32
+      },
+      {
+        "id": "voz",
+        "nome": "voz.wav",
+        "formato": "wav",
+        "taxa": 48000,
+        "canais": 1,
+        "quadros": 48000,
+        "bits": 32
+      }
+    ],
+    "metronomo": {
+      "ligado": true,
+      "volumeDb": -6,
+      "naExportacao": false
+    },
+    "contagem": 1,
+    "latencia": {
+      "entrada": 0,
+      "saida": 0,
+      "medida": false
+    },
+    "loop": {
+      "ligado": false,
+      "inicio": 0,
+      "fim": 0
+    },
+    "punch": {
+      "ligado": false,
+      "entrada": 0,
+      "saida": 0
+    },
+    "separacoes": []
+  },
+  "midias": {
+    "violao": {
+      "tipo": "seno",
+      "frequencia": 220,
+      "frequencia2": 330,
+      "amplitude": 0.4
+    },
+    "baixo": {
+      "tipo": "seno",
+      "frequencia": 55,
+      "amplitude": 0.6
+    },
+    "voz": {
+      "tipo": "ruido",
+      "semente": 7,
+      "amplitude": 0.3
+    }
+  },
+  "renders": [
+    {
+      "inicio": 0,
+      "quadros": 12000
+    }
+  ],
+  "esperado": {
+    "problemas": [],
+    "duracao": 48000,
+    "cauda": 192000,
+    "audiveis": [
+      "faixa-violao"
+    ],
+    "ganhos": [
+      [
+        1,
+        0.64204
+      ],
+      [
+        0.707946,
+        0.354813
+      ],
+      [
+        0.785695,
+        1
+      ]
+    ],
+    "renders": [
+      {
+        "soma": 11.888625,
+        "energia": 1355.72616,
+        "pico": 0.4,
+        "amostras": [
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            799,
+            -0.340508,
+            0.01109
+          ],
+          [
+            1599,
+            0.352025,
+            -0.01109
+          ],
+          [
+            2399,
+            -0.011518,
+            0.01109
+          ],
+          [
+            3199,
+            -0.340508,
+            -0.01109
+          ],
+          [
+            3999,
+            0.352025,
+            0.01109
+          ],
+          [
+            4799,
+            -0.011518,
+            -0.01109
+          ],
+          [
+            5599,
+            -0.340508,
+            0.01109
+          ],
+          [
+            6399,
+            0.352025,
+            -0.01109
+          ],
+          [
+            7199,
+            -0.011518,
+            0.01109
+          ],
+          [
+            7999,
+            -0.340508,
+            -0.01109
+          ],
+          [
+            8799,
+            0.352025,
+            0.01109
+          ],
+          [
+            9599,
+            -0.011518,
+            -0.01109
+          ],
+          [
+            10399,
+            -0.340508,
+            0.01109
+          ],
+          [
+            11199,
+            0.352025,
+            -0.01109
+          ],
+          [
+            11999,
+            -0.011518,
+            0.01109
+          ]
+        ]
+      }
+    ]
+  }
+}

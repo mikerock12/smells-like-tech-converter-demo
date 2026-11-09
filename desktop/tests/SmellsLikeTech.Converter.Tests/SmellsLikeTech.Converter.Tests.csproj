@@ -25,6 +25,10 @@
     <Content Include="..\..\..\packages\converter-core\giphy-caso.json" Link="giphy-caso.json" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="..\..\..\packages\converter-core\guias-casos.json" Link="guias-casos.json" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="..\..\..\packages\converter-core\recorte-casos.json" Link="recorte-casos.json" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\..\packages\converter-core\musica-casos\*.json">
+      <Link>musica-casos\%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
     <Content Include="..\..\..\packages\converter-core\estudio-casos\*.json">
       <Link>estudio-casos\%(Filename)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
@@ -40,5 +44,6 @@
     <ProjectReference Include="..\..\src\SmellsLikeTech.Converter.Engine.Speech\SmellsLikeTech.Converter.Engine.Speech.csproj" />
     <ProjectReference Include="..\..\src\SmellsLikeTech.Converter.Engine.Documents\SmellsLikeTech.Converter.Engine.Documents.csproj" />
     <ProjectReference Include="..\..\src\SmellsLikeTech.Converter.Engine.Studio\SmellsLikeTech.Converter.Engine.Studio.csproj" />
+    <ProjectReference Include="..\..\src\SmellsLikeTech.Converter.Engine.Music\SmellsLikeTech.Converter.Engine.Music.csproj" />
   </ItemGroup>
 </Project>

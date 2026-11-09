@@ -748,6 +748,12 @@ function EscolhaDoDestino({
       <span className="estudio__selo">Estúdio · no seu computador</span>
       <h1 id="destino-titulo">Para onde é?</h1>
       <p className="estudio__dica">Escolha a rede e o formato: o estúdio ajusta o tamanho do quadro e avisa se passar do tempo que ela costuma aceitar. Nada é enviado para a internet.</p>
+      {!voltar && (
+        <a className="estudio__cartao estudio__musica" href="/estudio/musica">
+          <strong>Criação musical (novo)</strong>
+          <span>Grave várias faixas ouvindo as outras, separe voz, bateria e baixo por IA, mixe com efeitos e exporte em WAV, FLAC ou MP3.</span>
+        </a>
+      )}
       {grupos.map(([rede, lista]) => (
         <div key={rede} className="estudio__rede">
           <h2>{rede}</h2>

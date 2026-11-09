@@ -5,6 +5,7 @@ using SmellsLikeTech.Converter.Core.Queue;
 using SmellsLikeTech.Converter.Engine.Documents;
 using SmellsLikeTech.Converter.Engine.FFmpeg;
 using SmellsLikeTech.Converter.Engine.Image;
+using SmellsLikeTech.Converter.Engine.Music;
 using SmellsLikeTech.Converter.Engine.Speech;
 using SmellsLikeTech.Converter.Engine.Studio;
 using SmellsLikeTech.Converter.Infrastructure.Configuration;
@@ -73,8 +74,12 @@ public sealed class AppServices : IAsyncDisposable
             log,
             Path.Combine(AppContext.BaseDirectory, "fontes"));
 
+        MusicLibrary = new MusicLibrary(paths.Root);
+        MusicTools = new MusicTools(() => ffmpeg.FfmpegPath, Processes, Path.Combine(paths.Temp, "musica"), paths.Models);
+
         var engines = new IConversionEngine[]
         {
+            new MusicEngine(MusicTools, () => MusicHttp.Value),
             new FfmpegEngine(() => ffmpeg, Processes, probe, log),
             new MagickImageEngine(log),
             transcriber,
@@ -113,6 +118,11 @@ public sealed class AppServices : IAsyncDisposable
     public FfprobeInspector MediaProbe { get; }
     /// <summary>O estudio: exporta pela fila e monta as previas da tela do estudio.</summary>
     public StudioEngine Studio { get; }
+    /// <summary>A criacao musical: projetos no disco e as ferramentas (importar, exportar, separar).</summary>
+    public MusicLibrary MusicLibrary { get; }
+    public MusicTools MusicTools { get; }
+    private static readonly Lazy<HttpClient> MusicHttp = new(() => new HttpClient { Timeout = TimeSpan.FromMinutes(20) });
+    public HttpClient Http => MusicHttp.Value;
     public WhisperModelCatalog Models { get; }
     public WhisperModelInstaller ModelInstaller { get; }
     public ITtsEngine TtsEngine { get; }

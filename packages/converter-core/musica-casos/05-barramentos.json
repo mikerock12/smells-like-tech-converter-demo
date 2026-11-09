@@ -1,0 +1,333 @@
+{
+  "descricao": "Saída para barramento, envio pré-fader (não segue o fader) e pós-fader, e barramento mudo.",
+  "projeto": {
+    "versao": 1,
+    "id": "caso",
+    "titulo": "Caso",
+    "taxa": 48000,
+    "profundidade": 24,
+    "bpm": 120,
+    "compasso": [
+      4,
+      4
+    ],
+    "faixas": [
+      {
+        "id": "faixa-voz",
+        "nome": "Voz",
+        "cor": "#FF7A18",
+        "ganhoDb": -12,
+        "pan": 0,
+        "ajusteEsquerdoDb": 0,
+        "ajusteDireitoDb": 0,
+        "gravar": false,
+        "monitorar": false,
+        "mudo": false,
+        "solo": false,
+        "entrada": null,
+        "canaisDeEntrada": 1,
+        "saida": "bus-vozes",
+        "efeitos": [],
+        "envios": [
+          {
+            "barramento": "bus-delay",
+            "nivelDb": -6,
+            "preFader": true
+          },
+          {
+            "barramento": "bus-mudo",
+            "nivelDb": 0,
+            "preFader": false
+          }
+        ],
+        "automacao": {
+          "volume": [],
+          "pan": []
+        },
+        "clipes": [
+          {
+            "id": "c1",
+            "midia": "voz",
+            "inicio": 0,
+            "inicioNaMidia": 0,
+            "duracao": 48000,
+            "ganhoDb": 0,
+            "entradaSuave": 0,
+            "saidaSuave": 0,
+            "mudo": false
+          }
+        ]
+      },
+      {
+        "id": "faixa-baixo",
+        "nome": "Baixo",
+        "cor": "#1E88E5",
+        "ganhoDb": 0,
+        "pan": 0,
+        "ajusteEsquerdoDb": 0,
+        "ajusteDireitoDb": 0,
+        "gravar": false,
+        "monitorar": false,
+        "mudo": false,
+        "solo": false,
+        "entrada": null,
+        "canaisDeEntrada": 1,
+        "saida": "master",
+        "efeitos": [],
+        "envios": [
+          {
+            "barramento": "bus-delay",
+            "nivelDb": -3,
+            "preFader": false
+          }
+        ],
+        "automacao": {
+          "volume": [],
+          "pan": []
+        },
+        "clipes": [
+          {
+            "id": "c2",
+            "midia": "baixo",
+            "inicio": 0,
+            "inicioNaMidia": 0,
+            "duracao": 48000,
+            "ganhoDb": 0,
+            "entradaSuave": 0,
+            "saidaSuave": 0,
+            "mudo": false
+          }
+        ]
+      }
+    ],
+    "barramentos": [
+      {
+        "id": "bus-vozes",
+        "nome": "Vozes",
+        "ganhoDb": -2,
+        "pan": 10,
+        "mudo": false,
+        "efeitos": [
+          {
+            "id": "fx-comp",
+            "tipo": "compressor",
+            "ligado": true,
+            "limiarDb": -18,
+            "razao": 3,
+            "ataqueMs": 10,
+            "liberacaoMs": 120,
+            "joelhoDb": 6,
+            "ganhoDb": 0
+          }
+        ]
+      },
+      {
+        "id": "bus-delay",
+        "nome": "Delay",
+        "ganhoDb": 0,
+        "pan": 0,
+        "mudo": false,
+        "efeitos": [
+          {
+            "id": "fx-delay",
+            "tipo": "atraso",
+            "ligado": true,
+            "tempoMs": 120,
+            "retorno": 0.4,
+            "mistura": 1
+          }
+        ]
+      },
+      {
+        "id": "bus-mudo",
+        "nome": "Mudo",
+        "ganhoDb": 0,
+        "pan": 0,
+        "mudo": true,
+        "efeitos": []
+      }
+    ],
+    "master": {
+      "ganhoDb": 0,
+      "efeitos": []
+    },
+    "marcadores": [],
+    "midias": [
+      {
+        "id": "violao",
+        "nome": "violao.wav",
+        "formato": "wav",
+        "taxa": 48000,
+        "canais": 2,
+        "quadros": 48000,
+        "bits": 32
+      },
+      {
+        "id": "baixo",
+        "nome": "baixo.wav",
+        "formato": "wav",
+        "taxa": 48000,
+        "canais": 1,
+        "quadros": 48000,
+        "bits": 32
+      },
+      {
+        "id": "voz",
+        "nome": "voz.wav",
+        "formato": "wav",
+        "taxa": 48000,
+        "canais": 1,
+        "quadros": 48000,
+        "bits": 32
+      }
+    ],
+    "metronomo": {
+      "ligado": true,
+      "volumeDb": -6,
+      "naExportacao": false
+    },
+    "contagem": 1,
+    "latencia": {
+      "entrada": 0,
+      "saida": 0,
+      "medida": false
+    },
+    "loop": {
+      "ligado": false,
+      "inicio": 0,
+      "fim": 0
+    },
+    "punch": {
+      "ligado": false,
+      "entrada": 0,
+      "saida": 0
+    },
+    "separacoes": []
+  },
+  "midias": {
+    "voz": {
+      "tipo": "ruido",
+      "semente": 5,
+      "amplitude": 0.4
+    },
+    "baixo": {
+      "tipo": "impulsos",
+      "periodo": 9000,
+      "amplitude": 0.8
+    }
+  },
+  "renders": [
+    {
+      "inicio": 0,
+      "quadros": 48000
+    }
+  ],
+  "esperado": {
+    "problemas": [],
+    "duracao": 48000,
+    "cauda": 49184,
+    "audiveis": [
+      "faixa-voz",
+      "faixa-baixo"
+    ],
+    "ganhos": [
+      [
+        0.251189,
+        0.251189
+      ],
+      [
+        1,
+        1
+      ]
+    ],
+    "renders": [
+      {
+        "soma": 8.833541,
+        "energia": 1499.905443,
+        "pico": 1.04367,
+        "amostras": [
+          [
+            0,
+            0.726745,
+            0.720241
+          ],
+          [
+            3199,
+            -0.014503,
+            -0.015791
+          ],
+          [
+            6399,
+            0.035855,
+            0.036325
+          ],
+          [
+            9599,
+            0.065635,
+            0.06737
+          ],
+          [
+            12799,
+            0.095645,
+            0.095292
+          ],
+          [
+            15999,
+            0.07516,
+            0.076252
+          ],
+          [
+            19199,
+            -0.047499,
+            -0.04836
+          ],
+          [
+            22399,
+            0.090933,
+            0.096915
+          ],
+          [
+            25599,
+            0.280858,
+            0.286746
+          ],
+          [
+            28799,
+            -0.25752,
+            -0.262777
+          ],
+          [
+            31999,
+            -0.120028,
+            -0.121268
+          ],
+          [
+            35199,
+            0.066901,
+            0.061941
+          ],
+          [
+            38399,
+            0.003529,
+            -0.002228
+          ],
+          [
+            41599,
+            -0.012225,
+            -0.018139
+          ],
+          [
+            44799,
+            0.06937,
+            0.067484
+          ],
+          [
+            47999,
+            -0.186896,
+            -0.192443
+          ]
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,394 @@
+{
+  "descricao": "Automação de volume e pan, rampas de entrada/saída, ganho do clipe, início na mídia e clipe mudo.",
+  "projeto": {
+    "versao": 1,
+    "id": "caso",
+    "titulo": "Caso",
+    "taxa": 48000,
+    "profundidade": 24,
+    "bpm": 120,
+    "compasso": [
+      4,
+      4
+    ],
+    "faixas": [
+      {
+        "id": "faixa-violao",
+        "nome": "Violão",
+        "cor": "#FF7A18",
+        "ganhoDb": 0,
+        "pan": 0,
+        "ajusteEsquerdoDb": 0,
+        "ajusteDireitoDb": 0,
+        "gravar": false,
+        "monitorar": false,
+        "mudo": false,
+        "solo": false,
+        "entrada": null,
+        "canaisDeEntrada": 1,
+        "saida": "master",
+        "efeitos": [],
+        "envios": [],
+        "automacao": {
+          "volume": [
+            {
+              "quadro": 0,
+              "valor": -24
+            },
+            {
+              "quadro": 24000,
+              "valor": 0
+            },
+            {
+              "quadro": 36000,
+              "valor": -6
+            }
+          ],
+          "pan": [
+            {
+              "quadro": 0,
+              "valor": -100
+            },
+            {
+              "quadro": 48000,
+              "valor": 100
+            }
+          ]
+        },
+        "clipes": [
+          {
+            "id": "c1",
+            "midia": "violao",
+            "inicio": 0,
+            "inicioNaMidia": 0,
+            "duracao": 48000,
+            "ganhoDb": -2,
+            "entradaSuave": 4800,
+            "saidaSuave": 9600,
+            "mudo": false
+          }
+        ]
+      },
+      {
+        "id": "faixa-baixo",
+        "nome": "Baixo",
+        "cor": "#1E88E5",
+        "ganhoDb": 0,
+        "pan": 0,
+        "ajusteEsquerdoDb": 0,
+        "ajusteDireitoDb": 0,
+        "gravar": false,
+        "monitorar": false,
+        "mudo": false,
+        "solo": false,
+        "entrada": null,
+        "canaisDeEntrada": 1,
+        "saida": "master",
+        "efeitos": [],
+        "envios": [],
+        "automacao": {
+          "volume": [],
+          "pan": []
+        },
+        "clipes": [
+          {
+            "id": "c2",
+            "midia": "baixo",
+            "inicio": 1000,
+            "inicioNaMidia": 5000,
+            "duracao": 20000,
+            "ganhoDb": 0,
+            "entradaSuave": 0,
+            "saidaSuave": 0,
+            "mudo": false
+          },
+          {
+            "id": "c3",
+            "midia": "baixo",
+            "inicio": 30000,
+            "inicioNaMidia": 0,
+            "duracao": 10000,
+            "ganhoDb": 0,
+            "entradaSuave": 0,
+            "saidaSuave": 0,
+            "mudo": true
+          }
+        ]
+      }
+    ],
+    "barramentos": [],
+    "master": {
+      "ganhoDb": 0,
+      "efeitos": []
+    },
+    "marcadores": [],
+    "midias": [
+      {
+        "id": "violao",
+        "nome": "violao.wav",
+        "formato": "wav",
+        "taxa": 48000,
+        "canais": 2,
+        "quadros": 48000,
+        "bits": 32
+      },
+      {
+        "id": "baixo",
+        "nome": "baixo.wav",
+        "formato": "wav",
+        "taxa": 48000,
+        "canais": 1,
+        "quadros": 48000,
+        "bits": 32
+      },
+      {
+        "id": "voz",
+        "nome": "voz.wav",
+        "formato": "wav",
+        "taxa": 48000,
+        "canais": 1,
+        "quadros": 48000,
+        "bits": 32
+      }
+    ],
+    "metronomo": {
+      "ligado": true,
+      "volumeDb": -6,
+      "naExportacao": false
+    },
+    "contagem": 1,
+    "latencia": {
+      "entrada": 0,
+      "saida": 0,
+      "medida": false
+    },
+    "loop": {
+      "ligado": false,
+      "inicio": 0,
+      "fim": 0
+    },
+    "punch": {
+      "ligado": false,
+      "entrada": 0,
+      "saida": 0
+    },
+    "separacoes": []
+  },
+  "midias": {
+    "violao": {
+      "tipo": "seno",
+      "frequencia": 440,
+      "amplitude": 0.5
+    },
+    "baixo": {
+      "tipo": "ruido",
+      "semente": 11,
+      "amplitude": 0.4
+    }
+  },
+  "renders": [
+    {
+      "inicio": 0,
+      "quadros": 48000
+    },
+    {
+      "inicio": 20000,
+      "quadros": 7000
+    }
+  ],
+  "esperado": {
+    "problemas": [],
+    "duracao": 48000,
+    "cauda": 0,
+    "audiveis": [
+      "faixa-violao",
+      "faixa-baixo"
+    ],
+    "ganhos": [
+      [
+        1,
+        1
+      ],
+      [
+        1,
+        1
+      ]
+    ],
+    "renders": [
+      {
+        "soma": -129.19091,
+        "energia": 3726.353025,
+        "pico": 0.666995,
+        "amostras": [
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            3199,
+            -0.307033,
+            -0.32541
+          ],
+          [
+            6399,
+            0.291678,
+            0.32257
+          ],
+          [
+            9599,
+            -0.007306,
+            -0.004854
+          ],
+          [
+            12799,
+            0.383805,
+            0.342293
+          ],
+          [
+            15999,
+            -0.143015,
+            -0.104308
+          ],
+          [
+            19199,
+            0.044053,
+            0.046273
+          ],
+          [
+            22399,
+            0.295089,
+            0.27923
+          ],
+          [
+            25599,
+            -0.286512,
+            -0.302762
+          ],
+          [
+            28799,
+            -0.014418,
+            -0.017344
+          ],
+          [
+            31999,
+            0.15832,
+            0.223886
+          ],
+          [
+            35199,
+            -0.100222,
+            -0.174221
+          ],
+          [
+            38399,
+            -0.005008,
+            -0.011458
+          ],
+          [
+            41599,
+            0.034869,
+            0.118571
+          ],
+          [
+            44799,
+            -0.008203,
+            -0.055474
+          ],
+          [
+            47999,
+            0,
+            -0.000001
+          ]
+        ]
+      },
+      {
+        "soma": -18.420741,
+        "energia": 885.907119,
+        "pico": 0.666994,
+        "amostras": [
+          [
+            0,
+            -0.161219,
+            -0.191403
+          ],
+          [
+            466,
+            0.10716,
+            0.126941
+          ],
+          [
+            933,
+            0.013424,
+            0.032723
+          ],
+          [
+            1399,
+            0.246053,
+            0.224245
+          ],
+          [
+            1866,
+            0.117379,
+            0.108904
+          ],
+          [
+            2333,
+            -0.321682,
+            -0.303667
+          ],
+          [
+            2799,
+            -0.01991,
+            -0.019113
+          ],
+          [
+            3266,
+            0.361614,
+            0.352829
+          ],
+          [
+            3732,
+            -0.103562,
+            -0.10265
+          ],
+          [
+            4199,
+            -0.348485,
+            -0.350775
+          ],
+          [
+            4666,
+            0.229111,
+            0.23427
+          ],
+          [
+            5132,
+            0.250531,
+            0.260352
+          ],
+          [
+            5599,
+            -0.286515,
+            -0.302763
+          ],
+          [
+            6065,
+            -0.141224,
+            -0.151821
+          ],
+          [
+            6532,
+            0.303851,
+            0.332512
+          ],
+          [
+            6999,
+            0.01726,
+            0.019237
+          ]
+        ]
+      }
+    ]
+  }
+}

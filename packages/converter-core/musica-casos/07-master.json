@@ -1,0 +1,574 @@
+{
+  "descricao": "Masterização para streaming (−14 LUFS, teto −1 dBTP) e para podcast, com medidas antes e depois.",
+  "projeto": {
+    "versao": 1,
+    "id": "caso",
+    "titulo": "Caso",
+    "taxa": 48000,
+    "profundidade": 24,
+    "bpm": 120,
+    "compasso": [
+      4,
+      4
+    ],
+    "faixas": [
+      {
+        "id": "faixa-violao",
+        "nome": "Violão",
+        "cor": "#FF7A18",
+        "ganhoDb": -12,
+        "pan": 0,
+        "ajusteEsquerdoDb": 0,
+        "ajusteDireitoDb": 0,
+        "gravar": false,
+        "monitorar": false,
+        "mudo": false,
+        "solo": false,
+        "entrada": null,
+        "canaisDeEntrada": 1,
+        "saida": "master",
+        "efeitos": [],
+        "envios": [],
+        "automacao": {
+          "volume": [],
+          "pan": []
+        },
+        "clipes": [
+          {
+            "id": "c1",
+            "midia": "violao",
+            "inicio": 0,
+            "inicioNaMidia": 0,
+            "duracao": 48000,
+            "ganhoDb": 0,
+            "entradaSuave": 0,
+            "saidaSuave": 0,
+            "mudo": false
+          }
+        ]
+      },
+      {
+        "id": "faixa-voz",
+        "nome": "Voz",
+        "cor": "#1E88E5",
+        "ganhoDb": -18,
+        "pan": 0,
+        "ajusteEsquerdoDb": 0,
+        "ajusteDireitoDb": 0,
+        "gravar": false,
+        "monitorar": false,
+        "mudo": false,
+        "solo": false,
+        "entrada": null,
+        "canaisDeEntrada": 1,
+        "saida": "master",
+        "efeitos": [],
+        "envios": [],
+        "automacao": {
+          "volume": [],
+          "pan": []
+        },
+        "clipes": [
+          {
+            "id": "c2",
+            "midia": "voz",
+            "inicio": 0,
+            "inicioNaMidia": 0,
+            "duracao": 48000,
+            "ganhoDb": 0,
+            "entradaSuave": 0,
+            "saidaSuave": 0,
+            "mudo": false
+          }
+        ]
+      }
+    ],
+    "barramentos": [],
+    "master": {
+      "ganhoDb": 0,
+      "efeitos": [
+        {
+          "id": "fx-eq",
+          "tipo": "equalizador",
+          "ligado": true,
+          "gravesDb": 2,
+          "mediosFrequencia": 500,
+          "mediosDb": 0,
+          "mediosQ": 1,
+          "presencaFrequencia": 3000,
+          "presencaDb": 0,
+          "agudosDb": 1.5
+        },
+        {
+          "id": "fx-comp",
+          "tipo": "compressor",
+          "ligado": true,
+          "limiarDb": -20,
+          "razao": 2,
+          "ataqueMs": 10,
+          "liberacaoMs": 120,
+          "joelhoDb": 6,
+          "ganhoDb": 0
+        }
+      ]
+    },
+    "marcadores": [],
+    "midias": [
+      {
+        "id": "violao",
+        "nome": "violao.wav",
+        "formato": "wav",
+        "taxa": 48000,
+        "canais": 2,
+        "quadros": 48000,
+        "bits": 32
+      },
+      {
+        "id": "baixo",
+        "nome": "baixo.wav",
+        "formato": "wav",
+        "taxa": 48000,
+        "canais": 1,
+        "quadros": 48000,
+        "bits": 32
+      },
+      {
+        "id": "voz",
+        "nome": "voz.wav",
+        "formato": "wav",
+        "taxa": 48000,
+        "canais": 1,
+        "quadros": 48000,
+        "bits": 32
+      }
+    ],
+    "metronomo": {
+      "ligado": true,
+      "volumeDb": -6,
+      "naExportacao": false
+    },
+    "contagem": 1,
+    "latencia": {
+      "entrada": 0,
+      "saida": 0,
+      "medida": false
+    },
+    "loop": {
+      "ligado": false,
+      "inicio": 0,
+      "fim": 0
+    },
+    "punch": {
+      "ligado": false,
+      "entrada": 0,
+      "saida": 0
+    },
+    "separacoes": []
+  },
+  "midias": {
+    "violao": {
+      "tipo": "seno",
+      "frequencia": 997,
+      "frequencia2": 1499,
+      "amplitude": 0.5
+    },
+    "voz": {
+      "tipo": "ruido",
+      "semente": 9,
+      "amplitude": 0.5
+    }
+  },
+  "renders": [
+    {
+      "inicio": 0,
+      "quadros": 48000,
+      "medir": true,
+      "master": "streaming"
+    },
+    {
+      "inicio": 0,
+      "quadros": 48000,
+      "master": "podcast"
+    }
+  ],
+  "esperado": {
+    "problemas": [],
+    "duracao": 48000,
+    "cauda": 0,
+    "audiveis": [
+      "faixa-violao",
+      "faixa-voz"
+    ],
+    "ganhos": [
+      [
+        0.251189,
+        0.251189
+      ],
+      [
+        0.125893,
+        0.125893
+      ]
+    ],
+    "renders": [
+      {
+        "soma": -12.31374,
+        "energia": 604.721064,
+        "pico": 0.191241,
+        "amostras": [
+          [
+            0,
+            -0.07048,
+            -0.07048
+          ],
+          [
+            3199,
+            0.048711,
+            -0.044879
+          ],
+          [
+            6399,
+            -0.00299,
+            -0.036482
+          ],
+          [
+            9599,
+            0.030463,
+            -0.139387
+          ],
+          [
+            12799,
+            -0.127609,
+            -0.14105
+          ],
+          [
+            15999,
+            0.146953,
+            -0.022796
+          ],
+          [
+            19199,
+            -0.088164,
+            -0.031925
+          ],
+          [
+            22399,
+            0.074164,
+            -0.029474
+          ],
+          [
+            25599,
+            -0.118423,
+            0.018819
+          ],
+          [
+            28799,
+            0.121374,
+            0.103716
+          ],
+          [
+            31999,
+            -0.108186,
+            0.067299
+          ],
+          [
+            35199,
+            0.099822,
+            0.135223
+          ],
+          [
+            38399,
+            -0.025526,
+            0.11161
+          ],
+          [
+            41599,
+            -0.010064,
+            0.022793
+          ],
+          [
+            44799,
+            0.01211,
+            0.043243
+          ],
+          [
+            47999,
+            -0.001842,
+            -0.007112
+          ]
+        ],
+        "medidas": {
+          "lufs": -17.768257,
+          "amostraDb": -14.368394,
+          "realDb": -13.373921
+        },
+        "master": {
+          "ganhoDb": 3.768257,
+          "lufs": -14,
+          "realDb": -9.605664,
+          "soma": -19.002154,
+          "energia": 1440.06065,
+          "pico": 0.295116,
+          "amostras": [
+            [
+              0,
+              -0.108763,
+              -0.108763
+            ],
+            [
+              3199,
+              0.07517,
+              -0.069255
+            ],
+            [
+              6399,
+              -0.004615,
+              -0.056298
+            ],
+            [
+              9599,
+              0.04701,
+              -0.215098
+            ],
+            [
+              12799,
+              -0.196921,
+              -0.217664
+            ],
+            [
+              15999,
+              0.226773,
+              -0.035178
+            ],
+            [
+              19199,
+              -0.136052,
+              -0.049265
+            ],
+            [
+              22399,
+              0.114448,
+              -0.045483
+            ],
+            [
+              25599,
+              -0.182747,
+              0.02904
+            ],
+            [
+              28799,
+              0.1873,
+              0.160052
+            ],
+            [
+              31999,
+              -0.166949,
+              0.103854
+            ],
+            [
+              35199,
+              0.154042,
+              0.208672
+            ],
+            [
+              38399,
+              -0.039391,
+              0.172233
+            ],
+            [
+              41599,
+              -0.01553,
+              0.035173
+            ],
+            [
+              44799,
+              0.018688,
+              0.06673
+            ],
+            [
+              47999,
+              -0.002842,
+              -0.010975
+            ]
+          ]
+        }
+      },
+      {
+        "soma": -12.31374,
+        "energia": 604.721064,
+        "pico": 0.191241,
+        "amostras": [
+          [
+            0,
+            -0.07048,
+            -0.07048
+          ],
+          [
+            3199,
+            0.048711,
+            -0.044879
+          ],
+          [
+            6399,
+            -0.00299,
+            -0.036482
+          ],
+          [
+            9599,
+            0.030463,
+            -0.139387
+          ],
+          [
+            12799,
+            -0.127609,
+            -0.14105
+          ],
+          [
+            15999,
+            0.146953,
+            -0.022796
+          ],
+          [
+            19199,
+            -0.088164,
+            -0.031925
+          ],
+          [
+            22399,
+            0.074164,
+            -0.029474
+          ],
+          [
+            25599,
+            -0.118423,
+            0.018819
+          ],
+          [
+            28799,
+            0.121374,
+            0.103716
+          ],
+          [
+            31999,
+            -0.108186,
+            0.067299
+          ],
+          [
+            35199,
+            0.099822,
+            0.135223
+          ],
+          [
+            38399,
+            -0.025526,
+            0.11161
+          ],
+          [
+            41599,
+            -0.010064,
+            0.022793
+          ],
+          [
+            44799,
+            0.01211,
+            0.043243
+          ],
+          [
+            47999,
+            -0.001842,
+            -0.007112
+          ]
+        ],
+        "master": {
+          "ganhoDb": 1.768257,
+          "lufs": -16,
+          "realDb": -11.605664,
+          "soma": -15.093947,
+          "energia": 908.616844,
+          "pico": 0.234419,
+          "amostras": [
+            [
+              0,
+              -0.086393,
+              -0.086393
+            ],
+            [
+              3199,
+              0.05971,
+              -0.055011
+            ],
+            [
+              6399,
+              -0.003666,
+              -0.044719
+            ],
+            [
+              9599,
+              0.037341,
+              -0.170858
+            ],
+            [
+              12799,
+              -0.15642,
+              -0.172896
+            ],
+            [
+              15999,
+              0.180133,
+              -0.027943
+            ],
+            [
+              19199,
+              -0.10807,
+              -0.039133
+            ],
+            [
+              22399,
+              0.090909,
+              -0.036128
+            ],
+            [
+              25599,
+              -0.145161,
+              0.023068
+            ],
+            [
+              28799,
+              0.148777,
+              0.127134
+            ],
+            [
+              31999,
+              -0.132612,
+              0.082494
+            ],
+            [
+              35199,
+              0.12236,
+              0.165754
+            ],
+            [
+              38399,
+              -0.03129,
+              0.136809
+            ],
+            [
+              41599,
+              -0.012336,
+              0.027939
+            ],
+            [
+              44799,
+              0.014844,
+              0.053006
+            ],
+            [
+              47999,
+              -0.002257,
+              -0.008718
+            ]
+          ]
+        }
+      }
+    ]
+  }
+}

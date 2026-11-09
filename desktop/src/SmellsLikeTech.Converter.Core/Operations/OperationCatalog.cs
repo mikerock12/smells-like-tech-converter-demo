@@ -222,6 +222,19 @@ public static class OperationCatalog
             DefaultOptions = _ => new StudioExportOptions { Project = Studio.StudioRules.NewProject("instagram-reels") }
         },
 
+        // A separacao da criacao musical: o site manda o audio ao plugin, que roda o modelo
+        // nativo (ONNX Runtime) bem mais rapido que o WASM do navegador. No conversor do
+        // aplicativo, aparece para qualquer audio (4 faixas, 48 kHz).
+        new OperationDescriptor
+        {
+            Id = OperationIds.MusicSeparate,
+            Title = "Separar faixas (IA)",
+            Description = "Separa voz, bateria, baixo e outros (Spleeter 4 faixas, MIT) no próprio computador.",
+            InputKinds = [MediaKind.Audio],
+            OutputFormats = ["wav"],
+            DefaultOptions = _ => new MusicSeparateOptions()
+        },
+
         // Marcos seguintes: aparecem na interface como indisponíveis, sem prometer o que ainda não existe.
         new OperationDescriptor
         {

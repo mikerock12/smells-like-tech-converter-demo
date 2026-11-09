@@ -1,0 +1,81 @@
+{
+  "descricao": "Entradas permitidas e recusadas do .sltmusic (caminhos, bomba de compressão) e calibração de latência por pulsos.",
+  "arquivo": [
+    [
+      {
+        "nome": "projeto.json",
+        "tamanho": 2000,
+        "comprimido": 800
+      },
+      {
+        "nome": "midias/voz-1.wav",
+        "tamanho": 4000000,
+        "comprimido": 3000000
+      }
+    ],
+    [
+      {
+        "nome": "projeto.json",
+        "tamanho": 2000,
+        "comprimido": 800
+      },
+      {
+        "nome": "../fora.wav",
+        "tamanho": 10,
+        "comprimido": 10
+      }
+    ],
+    [
+      {
+        "nome": "projeto.json",
+        "tamanho": 2000,
+        "comprimido": 800
+      },
+      {
+        "nome": "midias/a.wav",
+        "tamanho": 900000000,
+        "comprimido": 1000000
+      }
+    ],
+    [
+      {
+        "nome": "midias/a.wav",
+        "tamanho": 10,
+        "comprimido": 10
+      }
+    ],
+    [
+      {
+        "nome": "projeto.json",
+        "tamanho": 2000,
+        "comprimido": 800
+      },
+      {
+        "nome": "midias/a.exe",
+        "tamanho": 10,
+        "comprimido": 10
+      }
+    ]
+  ],
+  "latencia": {
+    "quadros": 96000,
+    "atraso": 1873,
+    "pulsos": [
+      4800,
+      28800,
+      52800,
+      76800
+    ],
+    "taxa": 48000
+  },
+  "esperado": {
+    "latencia": 1873,
+    "arquivo": [
+      null,
+      "Entrada não permitida no projeto: ../fora.wav",
+      "O arquivo parece uma bomba de compressão e foi recusado.",
+      "O arquivo não tem projeto.json.",
+      "Entrada não permitida no projeto: midias/a.exe"
+    ]
+  }
+}
