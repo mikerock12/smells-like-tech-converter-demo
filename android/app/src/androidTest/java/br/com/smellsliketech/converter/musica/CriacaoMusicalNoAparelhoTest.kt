@@ -69,7 +69,9 @@ class CriacaoMusicalNoAparelhoTest {
             while (tomada == null && SystemClock.elapsedRealtime() < limite) Thread.sleep(50)
             val t = tomada!!
             val gravados = synchronized(partes) { partes.sumOf { it.size } }
-            Log.i("CriacaoMusical", "tomada: ${t.quadros} quadros (${t.quadros / taxa.toDouble()} s), alinhada em ${t.quadroAlinhado} pelo relógio=${t.alinhadaPeloRelogio}")
+            Log.i("CriacaoMusical", "tomada: ${t.quadros} quadros (${t.quadros / taxa.toDouble()} s), alinhada em ${t.quadroAlinhado} pelo relógio=${t.alinhadaPeloRelogio}, ${t.medidas} medidas, rota ${motor.rotaDaSaida()}")
+            // O alinhamento é a mediana de várias medidas, não de um instante só.
+            if (t.alinhadaPeloRelogio) assertTrue("medidas: ${t.medidas}", t.medidas >= 8)
             assertEquals(t.quadros, gravados.toLong())
             assertTrue("gravou ${t.quadros / taxa.toDouble()} s em 3 s", t.quadros / taxa.toDouble() in 2.6..3.3)
             assertTrue("alinhamento plausível: ${t.quadroAlinhado}", t.quadroAlinhado in -taxa.toLong()..taxa.toLong())

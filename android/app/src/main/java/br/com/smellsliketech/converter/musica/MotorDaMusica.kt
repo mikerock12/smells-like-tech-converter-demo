@@ -3,6 +3,7 @@ package br.com.smellsliketech.converter.musica
 import android.annotation.SuppressLint
 import android.content.Context
 import android.media.AudioAttributes
+import android.media.AudioDeviceInfo
 import android.media.AudioFormat
 import android.media.AudioManager
 import android.media.AudioRecord
@@ -20,7 +21,10 @@ import kotlin.math.min
 
 data class EntradaAberta(val nome: String, val canais: Int, val semProcessamento: Boolean, val avisos: List<String>)
 
-data class Tomada(val quadroAlinhado: Long, val quadros: Long, val canais: Int, val alinhadaPeloRelogio: Boolean)
+data class Tomada(val quadroAlinhado: Long, val quadros: Long, val canais: Int, val alinhadaPeloRelogio: Boolean, val medidas: Int = 0)
+
+/** A saída por onde a pessoa está ouvindo; a calibração do alinhamento é guardada por [chave]. */
+data class RotaDeAudio(val chave: String, val nome: String)
 
 /**
  * O motor de áudio da criação musical no Android: AudioTrack em float, modo de baixa latência
@@ -32,6 +36,9 @@ data class Tomada(val quadroAlinhado: Long, val quadros: Long, val canais: Int, 
  * Alinhamento: AudioTrack.getTimestamp diz que quadro está soando em cada instante, e
  * AudioRecord.getTimestamp diz quando cada quadro foi capturado. O primeiro quadro gravado
  * ganha o quadro do transporte que a pessoa ouvia; os buffers do Android ficam descontados.
+ * A conta é refeita a cada bloco nos primeiros segundos e vale a mediana, para um relógio
+ * desencontrado num instante não deslocar a tomada inteira. O que os relógios não contam
+ * (conversores, Bluetooth) sai pela calibração da saída ([CalibracaoDaRota]).
  * Na thread de áudio nada de disco: a tomada vai por fila para quem escreve o WAV.
  */
 class MotorDaMusica(private val contexto: Context, private val taxa: Int = Musica.TAXA_PADRAO) {
@@ -61,12 +68,16 @@ class MotorDaMusica(private val contexto: Context, private val taxa: Int = Music
         private set
     var burst = 256
         private set
+    @Volatile private var trilhaAtual: AudioTrack? = null
 
     private class Gravacao(val canais: Int, val escrever: (FloatArray) -> Unit) {
         var primeiroEscrito = -1L
         var primeiroTransporte = 0L
-        var alinhado = Long.MIN_VALUE
-        var peloRelogio = false
+        @Volatile var alinhado = Long.MIN_VALUE
+        @Volatile var peloRelogio = false
+        /** Estimativas do alinhamento, uma por bloco, nos primeiros [MEDIDAS] blocos. */
+        val estimativas = LongArray(MEDIDAS)
+        @Volatile var medidas = 0
         var quadros = 0L
         var aoTerminar: ((Tomada) -> Unit)? = null
     }
@@ -87,6 +98,7 @@ class MotorDaMusica(private val contexto: Context, private val taxa: Int = Music
             .setBufferSizeInBytes(max(minimo, burst * 8 * 4))
             .build()
         ligado = true
+        trilhaAtual = trilha
         saida = Thread({ lacoDaSaida(trilha) }, "criacao-musical-saida").apply { start() }
     }
 
@@ -126,9 +138,26 @@ class MotorDaMusica(private val contexto: Context, private val taxa: Int = Music
                 if (trilha.getTimestamp(ts)) relogioDaSaida = PontoDoRelogio(ts.framePosition, ts.nanoTime)
             }
         } finally {
+            trilhaAtual = null
             runCatching { trilha.stop() }
             trilha.release()
         }
+    }
+
+    /** Por onde o som está saindo agora (fone Bluetooth, USB, com fio ou alto-falante). */
+    fun rotaDaSaida(): RotaDeAudio {
+        val d = trilhaAtual?.routedDevice ?: return RotaDeAudio("desconhecida", "Saída padrão")
+        val tipo = when (d.type) {
+            AudioDeviceInfo.TYPE_BLUETOOTH_A2DP, AudioDeviceInfo.TYPE_BLUETOOTH_SCO -> "Bluetooth"
+            TIPO_BLE_HEADSET, TIPO_BLE_SPEAKER -> "Bluetooth LE"
+            AudioDeviceInfo.TYPE_WIRED_HEADPHONES, AudioDeviceInfo.TYPE_WIRED_HEADSET -> "Fone com fio"
+            AudioDeviceInfo.TYPE_USB_HEADSET, AudioDeviceInfo.TYPE_USB_DEVICE, AudioDeviceInfo.TYPE_USB_ACCESSORY -> "USB"
+            AudioDeviceInfo.TYPE_BUILTIN_SPEAKER, AudioDeviceInfo.TYPE_BUILTIN_EARPIECE -> "Alto-falante"
+            else -> "Saída ${d.type}"
+        }
+        val produto = d.productName?.toString()?.trim().orEmpty()
+        val nome = if (produto.isEmpty() || tipo == "Alto-falante") tipo else "$tipo · $produto"
+        return RotaDeAudio("${d.type}:$produto", nome)
     }
 
     private fun tocadoEm(nano: Long): Long? {
@@ -149,7 +178,7 @@ class MotorDaMusica(private val contexto: Context, private val taxa: Int = Music
         misturador.definirContagem(emptyList(), -1)
         val g = gravacao
         gravacao = null
-        if (g != null) g.aoTerminar?.invoke(Tomada(if (g.alinhado == Long.MIN_VALUE) cursor.get() else g.alinhado, g.quadros, g.canais, g.peloRelogio))
+        if (g != null) g.aoTerminar?.invoke(Tomada(if (g.alinhado == Long.MIN_VALUE) cursor.get() else g.alinhado, g.quadros, g.canais, g.peloRelogio, g.medidas))
     }
 
     fun posicionar(quadro: Long) = comandos.add { cursor.set(max(0L, quadro)) }
@@ -213,14 +242,25 @@ class MotorDaMusica(private val contexto: Context, private val taxa: Int = Music
                 anel.escrever(estereo, quadros)
                 val g = gravacao
                 if (g != null && tocando && g.primeiroEscrito >= 0) {
-                    if (g.alinhado == Long.MIN_VALUE) {
-                        // Instante em que o primeiro quadro deste bloco foi capturado.
-                        val tocado = if (gravador.getTimestamp(ts, AudioTimestamp.TIMEBASE_MONOTONIC) == AudioRecord.SUCCESS)
-                            tocadoEm(ts.nanoTime + Musica.arredondar((lidos - ts.framePosition) * 1e9 / taxa)) else null
+                    if (g.medidas < MEDIDAS) {
+                        // Instante em que o primeiro quadro deste bloco foi capturado, e o quadro do
+                        // transporte que soava nele; menos o que a tomada já tem, é onde ela começa.
+                        val antes = g.quadros
+                        val capturadoEm = if (gravador.getTimestamp(ts, AudioTimestamp.TIMEBASE_MONOTONIC) == AudioRecord.SUCCESS)
+                            ts.nanoTime + Musica.arredondar((lidos - ts.framePosition) * 1e9 / taxa) else null
+                        val tocado = capturadoEm?.let { tocadoEm(it) }
                         if (tocado != null) {
-                            g.alinhado = g.primeiroTransporte + (tocado - g.primeiroEscrito)
+                            g.estimativas[g.medidas] = g.primeiroTransporte + (tocado - g.primeiroEscrito) - antes
+                            g.medidas += 1
+                            g.alinhado = CalibracaoDaRota.mediana(g.estimativas.copyOf(g.medidas).asList())
                             g.peloRelogio = true
-                        } else g.alinhado = cursor.get() - quadros
+                        } else if (g.alinhado == Long.MIN_VALUE) {
+                            // Sem o relógio da entrada: o bloco acabou de chegar, então começou a ser
+                            // capturado pelo menos a sua duração atrás; o relógio da saída diz o que
+                            // soava. Sem nenhum relógio, só o que foi entregue à saída (pior caso).
+                            val estimado = tocadoEm(System.nanoTime() - Musica.arredondar(quadros * 1e9 / taxa))
+                            g.alinhado = if (estimado != null) g.primeiroTransporte + (estimado - g.primeiroEscrito) - antes else cursor.get() - quadros - antes
+                        }
                     }
                     val tomada = FloatArray(quadros * g.canais)
                     for (i in 0 until quadros) {
@@ -258,6 +298,14 @@ class MotorDaMusica(private val contexto: Context, private val taxa: Int = Music
         ligado = false
         saida?.join(1000)
         saida = null
+    }
+
+    companion object {
+        /** Blocos medidos para a mediana do alinhamento (os primeiros 128 blocos da tomada). */
+        const val MEDIDAS = 128
+        // AudioDeviceInfo.TYPE_BLE_HEADSET e TYPE_BLE_SPEAKER (API 31); o número vale em qualquer versão.
+        private const val TIPO_BLE_HEADSET = 26
+        private const val TIPO_BLE_SPEAKER = 27
     }
 
     /** Anel de um produtor (captura) e um consumidor (saída) para o monitoramento. */

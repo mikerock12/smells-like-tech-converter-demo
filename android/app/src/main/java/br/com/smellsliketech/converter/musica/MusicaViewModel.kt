@@ -1,6 +1,7 @@
 package br.com.smellsliketech.converter.musica
 
 import android.app.Application
+import android.content.Context
 import android.net.Uri
 import android.provider.OpenableColumns
 import androidx.compose.runtime.getValue
@@ -50,6 +51,11 @@ class MusicaViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) {
     var podeDesfazer by mutableStateOf(false); private set
     var podeRefazer by mutableStateOf(false); private set
     var exportados by mutableStateOf(emptyList<String>()); private set
+    /** Saída por onde a pessoa ouve e o atraso calibrado dela (ms), guardado no aparelho por saída. */
+    var rota by mutableStateOf<RotaDeAudio?>(null); private set
+    var atrasoDaRotaMs by mutableStateOf<Double?>(null); private set
+    var calibrando by mutableStateOf(false); private set
+    private val alinhamentos = aplicacao.getSharedPreferences("criacao-musical-alinhamento", Context.MODE_PRIVATE)
 
     init { recarregar() }
 
@@ -58,6 +64,24 @@ class MusicaViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) {
     private fun novoId(prefixo: String) = "$prefixo-${UUID.randomUUID().toString().replace("-", "").take(16)}"
 
     private fun garantirMotor(): MotorDaMusica = motor ?: MotorDaMusica(getApplication()).also { it.iniciar(); motor = it }
+
+    /** Lê por onde o som sai agora e a calibração guardada para essa saída. */
+    fun atualizarRota(): RotaDeAudio {
+        val r = garantirMotor().rotaDaSaida()
+        rota = r
+        val ms = alinhamentos.getFloat(r.chave, Float.NaN)
+        atrasoDaRotaMs = if (ms.isNaN()) null else ms.toDouble()
+        return r
+    }
+
+    /** A latência que vale para uma tomada gravada pela saída [r]: a sobra calibrada dela (os
+     *  relógios do Android já descontam o resto) mais a correção manual do projeto. A latência
+     *  guardada no projeto por outro aparelho (site, Windows) não vale aqui. */
+    private fun latenciaDaTomada(p: ProjetoMusical, r: RotaDeAudio): Latencia {
+        val ms = alinhamentos.getFloat(r.chave, Float.NaN)
+        val quadros = if (ms.isNaN()) 0.0 else ms * p.taxa / 1000.0
+        return Latencia(quadros, 0.0, !ms.isNaN(), p.latencia.ajuste)
+    }
 
     fun criar(modeloId: String) {
         val modelo = Musica.MODELOS.first { it.id == modeloId }
@@ -199,7 +223,7 @@ class MusicaViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) {
     // ==================== gravação ====================
 
     fun abrirEntrada(canais: Int) {
-        try { entrada = garantirMotor().abrirEntrada(canais) } catch (e: Exception) { mensagem = e.message }
+        try { entrada = garantirMotor().abrirEntrada(canais); atualizarRota() } catch (e: Exception) { mensagem = e.message }
     }
 
     fun fecharEntrada() { motor?.fecharEntrada(); entrada = null }
@@ -215,6 +239,7 @@ class MusicaViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) {
         if (armadas.size != 1) { mensagem = if (armadas.isEmpty()) "Arme uma faixa (REC) antes de gravar." else "Grava uma faixa por vez: deixe só uma armada."; return }
         val e = entrada ?: run { mensagem = "Abra a entrada de áudio na aba Gravar antes de gravar."; return }
         val faixa = armadas[0]
+        val rotaDaTomada = atualizarRota()
         val plano = Musica.planoDaGravacao(p, m.posicao)
         val midiaId = novoId("tomada")
         val canais = if (faixa.canaisDeEntrada == 2 && e.canais >= 2) 2 else 1
@@ -242,39 +267,58 @@ class MusicaViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) {
                 ServicoDeGravacao.encerrar(app)
                 gravando = null
                 val atual = projeto ?: return@launch
-                val clipe = Musica.clipeDaTomada(atual, novoId("clipe"), midiaId, tomada.quadroAlinhado, escritor.quadros, plano)
+                val clipe = Musica.clipeDaTomada(atual.copy(latencia = latenciaDaTomada(atual, rotaDaTomada)), novoId("clipe"), midiaId, tomada.quadroAlinhado, escritor.quadros, plano)
                 if (clipe == null) { mensagem = "A gravação parou antes do ponto de entrada: nada foi acrescentado (o arquivo ficou guardado)."; return@launch }
                 val midia = MidiaMusical(midiaId, "${faixa.nome} — tomada.wav", "wav", atual.taxa, canais, escritor.quadros)
                 mudar { q -> q.copy(midias = q.midias + midia, faixas = q.faixas.map { f -> if (f.id == faixa.id) Musica.adicionarTomada(f, clipe.copy(nome = "Tomada ${f.clipes.size + 1}")) else f }) }
                 carregarMidia(projeto!!, midia)
+                if (alinhamentos.getFloat(rotaDaTomada.chave, Float.NaN).isNaN())
+                    mensagem = "Tomada gravada. Para ela ficar exatamente no tempo do que você ouve, calibre esta saída (${rotaDaTomada.nome}) na aba Gravar: é uma vez só por fone."
             }
         }
     }
 
     fun pararGravacao() { motor?.parar() }
 
-    /** Toca cliques e grava a volta para medir a latência de ida e volta. */
+    /** Calibra a saída atual: toca 12 cliques e grava. Com fone, a pessoa bate palmas junto com
+     *  cada clique; com o alto-falante, o clique volta sozinho pelo microfone. O atraso que sobra
+     *  depois dos relógios fica guardado no aparelho para esta saída ([CalibracaoDaRota]). */
     fun calibrar() {
         val p = projeto ?: return
         val m = motor ?: return
         if (entrada == null) { mensagem = "Abra a entrada antes de calibrar."; return }
-        mensagem = "Calibrando: microfone perto do alto-falante, silêncio por 3 segundos."
-        val pulsos = listOf(12000L, 36000L, 60000L, 84000L)
+        if (m.tocando || calibrando) return
+        val r = atualizarRota()
+        calibrando = true
+        mensagem = if (r.nome == "Alto-falante") "Calibrando o alto-falante: deixe o celular tocar os 12 cliques perto do microfone, em silêncio."
+            else "Calibrando ${r.nome}: bata palmas forte, exatamente junto com cada um dos 12 cliques que você ouvir."
+        val cliques = CalibracaoDaRota.cliques(p.taxa)
         val partes = mutableListOf<FloatArray>()
         m.definirProjeto(Musica.novoProjeto("calibracao", "Calibração", p.taxa).copy(metronomo = Metronomo(volumeDb = 0.0)))
-        m.gravar(PlanoDaGravacao(0, Long.MAX_VALUE / 4, null, pulsos.map { Clique(it, true) }, 0), 1, false, { synchronized(partes) { partes += it } }) { tomada ->
+        m.gravar(PlanoDaGravacao(0, Long.MAX_VALUE / 4, null, cliques.map { Clique(it, true) }, 0), 1, false, { synchronized(partes) { partes += it } }) { tomada ->
             viewModelScope.launch {
                 m.definirProjeto(projeto ?: p)
-                val gravado = synchronized(partes) { partes.flatMap { it.asList() }.toFloatArray() }
-                val medido = Musica.medirLatencia(gravado, pulsos.map { it - tomada.quadroAlinhado }, p.taxa)
-                if (medido == null) mensagem = "Não deu para ouvir os cliques de volta. Com fones a calibração não funciona: use a correção manual."
-                else {
-                    mudar { q -> q.copy(latencia = Latencia(medido.toDouble(), 0.0, true, q.latencia.ajuste)) }
-                    mensagem = "Latência de ida e volta medida: ${"%.1f".format(medido * 1000.0 / p.taxa)} ms."
+                calibrando = false
+                val gravado = withContext(Dispatchers.Default) { synchronized(partes) { partes.flatMap { it.asList() }.toFloatArray() } }
+                val resultado = withContext(Dispatchers.Default) { CalibracaoDaRota.medir(gravado, cliques.map { it - tomada.quadroAlinhado }, p.taxa) }
+                if (resultado == null) {
+                    mensagem = "Não deu para medir com segurança. Tente de novo: palmas fortes e no tempo de cada clique (com fone), ou o celular perto e em silêncio (alto-falante)."
+                } else {
+                    val ms = resultado.atraso * 1000.0 / p.taxa
+                    alinhamentos.edit().putFloat(r.chave, ms.toFloat()).apply()
+                    atrasoDaRotaMs = ms
+                    mensagem = "Alinhamento de ${r.nome}: ${"%.1f".format(ms)} ms (variação ±${"%.1f".format(resultado.espalhamento * 1000.0 / p.taxa)} ms, ${resultado.achados} de ${cliques.size} cliques). Vale para todas as gravações por esta saída."
                 }
             }
         }
-        viewModelScope.launch { delay(2700); m.parar() }
+        viewModelScope.launch { delay((cliques.last() + p.taxa) * 1000 / p.taxa); m.parar() }
+    }
+
+    /** Esquece a calibração da saída atual. */
+    fun esquecerCalibracao() {
+        val r = rota ?: atualizarRota()
+        alinhamentos.edit().remove(r.chave).apply()
+        atrasoDaRotaMs = null
     }
 
     // ==================== separação, limpeza e exportação ====================

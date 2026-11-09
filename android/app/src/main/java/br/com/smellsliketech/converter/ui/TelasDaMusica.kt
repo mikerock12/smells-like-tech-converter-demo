@@ -61,6 +61,9 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.foundation.layout.PaddingValues
+import kotlinx.coroutines.delay
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -337,7 +340,21 @@ private fun EditorDoClipe(modelo: MusicaViewModel, projeto: ProjetoMusical, faix
     fun mudarClipe(juntar: String? = null, f: (ClipeMusical) -> ClipeMusical) = modelo.mudarFaixa(faixa.id, juntar) { t -> t.copy(clipes = t.clipes.map { if (it.id == clipe.id) f(it) else it }) }
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text("${clipe.nome ?: "Clipe"} em ${"%.2f".format(clipe.inicio.toDouble() / projeto.taxa)} s", fontWeight = FontWeight.Bold)
+            Text("${clipe.nome ?: "Clipe"} em ${"%.3f".format(clipe.inicio.toDouble() / projeto.taxa)} s", fontWeight = FontWeight.Bold)
+            // Ajuste fino da posição: para encaixar de ouvido uma tomada já gravada.
+            Text("Posição fina (adiantar ou atrasar o clipe):", fontSize = 12.sp)
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                listOf(-10, -1, 1, 10).forEach { ms ->
+                    OutlinedButton(onClick = {
+                        val d = Musica.arredondar(ms * projeto.taxa / 1000.0)
+                        mudarClipe("posicao-fina") { c ->
+                            val novo = c.inicio + d
+                            if (novo >= 0) c.copy(inicio = novo)
+                            else { val corte = minOf(-novo, c.duracao - 1); c.copy(inicio = 0, inicioNaMidia = c.inicioNaMidia + corte, duracao = c.duracao - corte) }
+                        }
+                    }, contentPadding = PaddingValues(horizontal = 10.dp)) { Text(if (ms > 0) "+$ms ms" else "$ms ms") }
+                }
+            }
             Text("Ganho: ${"%.1f".format(clipe.ganhoDb)} dB", fontSize = 12.sp)
             Slider(clipe.ganhoDb.toFloat(), { v -> mudarClipe("ganho") { it.copy(ganhoDb = v.toDouble()) } }, valueRange = -24f..12f)
             Text("Entrada suave: ${clipe.entradaSuave * 1000 / projeto.taxa} ms · saída suave: ${clipe.saidaSuave * 1000 / projeto.taxa} ms", fontSize = 12.sp)
@@ -381,10 +398,20 @@ private fun AbaDeGravar(modelo: MusicaViewModel, projeto: ProjetoMusical) {
             OutlinedButton(onClick = modelo::fecharEntrada) { Text("Fechar o microfone") }
         }
         Text("Use fone com fio ou interface de áudio USB. Com Bluetooth o atraso varia. Sem fone, deixe o MON desligado para não dar microfonia. A gravação é sempre seca e continua com a tela apagada (notificação de microfone em uso).", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text("Latência", fontWeight = FontWeight.Bold)
-        Text(if (projeto.latencia.medida) "Medida: ${"%.1f".format((projeto.latencia.entrada + projeto.latencia.saida) * 1000 / projeto.taxa)} ms de ida e volta." else "A tomada é alinhada pelos relógios da saída e da entrada do Android; calibre para descontar também o atraso dos conversores do aparelho.", fontSize = 13.sp)
+        Text("Alinhamento", fontWeight = FontWeight.Bold)
+        // A saída muda quando a pessoa conecta ou tira o fone: lê de novo enquanto a aba está aberta.
+        LaunchedEffect(Unit) { while (true) { if (modelo.gravando == null && !modelo.calibrando) modelo.atualizarRota(); delay(2000) } }
+        val rota = modelo.rota
+        Text("Saída agora: ${rota?.nome ?: "—"}", fontSize = 13.sp)
+        Text(modelo.atrasoDaRotaMs?.let { "Calibrada: as tomadas por esta saída voltam ${"%.1f".format(it)} ms para ficar no tempo do que você ouve." }
+            ?: "Ainda não calibrada. Os relógios do Android alinham quase tudo, mas o fone (principalmente Bluetooth) e o próprio aparelho deixam alguns milissegundos de atraso: calibre uma vez para cada fone.", fontSize = 13.sp)
+        Text("Calibrar: toque em Calibrar esta saída e, com fone, bata palmas forte junto com cada um dos 12 cliques. Sem fone, deixe o celular tocar os cliques perto do microfone, em silêncio.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedButton(onClick = modelo::calibrar, enabled = modelo.entrada != null) { Text("Calibrar com cliques") }
+            Button(onClick = modelo::calibrar, enabled = modelo.entrada != null && !modelo.calibrando && modelo.gravando == null) { Text(if (modelo.calibrando) "Calibrando…" else "Calibrar esta saída") }
+            if (modelo.atrasoDaRotaMs != null) TextButton(onClick = modelo::esquecerCalibracao) { Text("Esquecer") }
+        }
+        Text("Correção manual deste projeto (soma à calibração):", fontSize = 12.sp)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedButton(onClick = { modelo.mudar("ajuste") { p -> p.copy(latencia = p.latencia.copy(ajuste = (p.latencia.ajuste ?: 0.0) - p.taxa / 1000.0)) } }) { Text("−1 ms") }
             OutlinedButton(onClick = { modelo.mudar("ajuste") { p -> p.copy(latencia = p.latencia.copy(ajuste = (p.latencia.ajuste ?: 0.0) + p.taxa / 1000.0)) } }) { Text("+1 ms") }
         }
