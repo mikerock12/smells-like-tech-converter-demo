@@ -1,17 +1,18 @@
 import type { Metadata } from "next";
 
 import { COMPARATIVO, DIAS_DE_TESTE_DO_APP, MAQUINAS_POR_LICENCA, PLANOS, economiaDoAnual, formatarReais, produto } from "@/packages/converter-core/precos.mjs";
-import { ANDROID_NA_PLAY, LINK_DA_GOOGLE_PLAY } from "@/packages/converter-core/android.mjs";
+import { ANDROID_NA_PLAY } from "@/packages/converter-core/android.mjs";
 import { contagem } from "@/packages/converter-core/catalogo.mjs";
 import { origemValida } from "@/packages/loja/index.mjs";
 
+import BotaoGooglePlay from "../BotaoGooglePlay";
 import { SiteFooter, SiteHeader } from "../SiteChrome";
 import BotaoDeCompra from "./BotaoDeCompra";
 
 export const metadata: Metadata = {
-  title: "Preços — grátis de verdade, Pro por R$ 19,90 e aplicativo vitalício — Smells Like Tech Converter",
+  title: "Preços — grátis de verdade, Pro, aplicativos para Windows e Android — Smells Like Tech Converter",
   description:
-    "Plano grátis sem marca d'água e sem cadastro. Pro por R$ 19,90/mês ou R$ 149/ano. Aplicativo para Windows com licença vitalícia por R$ 249. Pix, cartão e boleto pelo Mercado Pago.",
+    "Plano grátis sem marca d'água e sem cadastro. Pro por R$ 19,90/mês ou R$ 149/ano. Aplicativo para Windows e app para Android com 7 dias grátis, mensal ou vitalício. Ou tudo junto, para sempre, por R$ 349.",
 };
 
 const perguntas = [
@@ -62,9 +63,20 @@ export default async function PaginaDePrecos({ searchParams }: { searchParams: P
   const completo = produto("completo-vitalicio")!;
   const android = produto("android-vitalicio")!;
   const androidMensal = produto("android-mensal")!;
-  // O app para Android é vendido dentro dele, pela Google Play: aqui só é apresentado, e
-  // só depois de estar publicado na loja.
+  // O app para Android é vendido dentro dele, pela Google Play: aqui é apresentado, com o
+  // caminho da compra, e o "Tudo, para sempre" (vendido aqui) também o libera.
   const { total, noNavegador } = contagem();
+  // Quanto o pacote completo economiza em relação a comprar cada parte para sempre (o Pro, que
+  // não tem vitalício avulso, entra com um ano).
+  const separado = app.centavos + android.centavos + anual.centavos;
+  const economia = separado - completo.centavos;
+  const opcoes: { nome: string; site: string; windows: string; celular: string; preco: string; destaque?: boolean }[] = [
+    { nome: PLANOS.completo.nome, site: "Pro vitalício", windows: "Vitalício", celular: "Vitalício", preco: `${formatarReais(completo.centavos)}, uma vez`, destaque: true },
+    { nome: "Só o celular", site: "Grátis", windows: "—", celular: "Vitalício ou mensal", preco: `${formatarReais(android.centavos)} uma vez, ou ${formatarReais(androidMensal.centavos)}/mês` },
+    { nome: "Só o Windows", site: "Grátis", windows: "Vitalício ou mensal", celular: "—", preco: `${formatarReais(app.centavos)} uma vez, ou ${formatarReais(appMensal.centavos)} por 31 dias` },
+    { nome: "Só o site e o plugin", site: "Pro", windows: "—", celular: "—", preco: `${formatarReais(mensal.centavos)}/mês ou ${formatarReais(anual.centavos)}/ano` },
+    { nome: PLANOS.gratis.nome, site: "Com limites de volume", windows: `${DIAS_DE_TESTE_DO_APP} dias de teste`, celular: `${DIAS_DE_TESTE_DO_APP} dias de teste`, preco: "R$ 0" },
+  ];
 
   return (
     <>
@@ -167,24 +179,66 @@ export default async function PaginaDePrecos({ searchParams }: { searchParams: P
         </section>
 
         {ANDROID_NA_PLAY && (
-          <section className="combo combo--celular" aria-labelledby="android-titulo">
-            <div>
-              <p className="converter__eyebrow">{PLANOS.android.nome}</p>
+          <section className="android-planos" id="android" aria-labelledby="android-titulo">
+            <div className="android-planos__topo">
+              <p className="converter__eyebrow">{PLANOS.android.nome} · Google Play</p>
               <h2 id="android-titulo">
-                {PLANOS.android.chamada}. <em>{formatarReais(android.centavos)}, uma vez, ou {formatarReais(androidMensal.centavos)} por mês.</em>
+                O conversor inteiro no celular. <em>{DIAS_DE_TESTE_DO_APP} dias grátis para testar.</em>
               </h2>
               <p>
-                {PLANOS.android.descricao} {DIAS_DE_TESTE_DO_APP} dias de teste completo; depois, dentro do app, pela Google Play: a
-                licença vitalícia ou a assinatura mensal, que você cancela na própria Play.
+                Converter, estúdio de vídeo, criação musical, figurinhas do WhatsApp, transcrição, narração e OCR, no próprio
+                celular e sem internet. O plugin é só para Windows: no celular, é este app que faz tudo.
               </p>
             </div>
-            <div className="combo__acao">
-              <a className="button button--primary" href={LINK_DA_GOOGLE_PLAY} rel="noopener">
-                Instalar pela Google Play
-              </a>
-              <a className="button button--ghost" href="/android">
-                Ver o que o app faz
-              </a>
+            <div className="android-planos__opcoes">
+              <article className="plano">
+                <p className="plano__nome">Assinatura mensal</p>
+                <p className="plano__preco">
+                  <strong>{formatarReais(androidMensal.centavos)}</strong>
+                  <span>por mês, pela Google Play</span>
+                </p>
+                <p className="plano__chamada">Para começar pagando pouco.</p>
+                <ul className="plano__lista">
+                  <li>Renova sozinha todo mês, pela Google Play</li>
+                  <li>Cancele quando quiser, na própria Play</li>
+                  <li>Troque pela vitalícia a qualquer momento</li>
+                </ul>
+              </article>
+              <article className="plano plano--pro">
+                <span className="plano__fita">sem mensalidade</span>
+                <p className="plano__nome">Licença vitalícia</p>
+                <p className="plano__preco">
+                  <strong>{formatarReais(android.centavos)}</strong>
+                  <span>uma vez, pela Google Play</span>
+                </p>
+                <p className="plano__chamada">Para quem vai usar sempre.</p>
+                <ul className="plano__lista">
+                  <li>Compra única, que não vence</li>
+                  <li>Todas as atualizações incluídas</li>
+                  <li>Vale nos celulares com a mesma conta Google</li>
+                </ul>
+              </article>
+            </div>
+            <div className="android-planos__como">
+              <h3>Como assinar ou comprar</h3>
+              <ol>
+                <li><strong>Instale pela Google Play.</strong> O app sai só pela loja oficial, e as atualizações chegam sozinhas.</li>
+                <li><strong>Use tudo por {DIAS_DE_TESTE_DO_APP} dias.</strong> Sem cartão, sem cadastro, sem marca d&apos;água.</li>
+                <li>
+                  <strong>No app, abra Licença</strong> e toque em “Assinar por mês” ou “Licença vitalícia, uma vez”. O pagamento é
+                  pela Google Play, com a forma de pagamento da sua conta Google.
+                </li>
+                <li>
+                  <strong>Já tem o “{PLANOS.completo.nome}”?</strong> Em Licença, toque em “Ativar uma chave” e cole a sua chave:
+                  não paga de novo. Trocou de celular? “Já comprei: restaurar a compra”.
+                </li>
+              </ol>
+              <div className="android-planos__acoes">
+                <BotaoGooglePlay />
+                <a className="button button--ghost" href="/android">
+                  Ver o que o app faz
+                </a>
+              </div>
             </div>
           </section>
         )}
@@ -196,14 +250,53 @@ export default async function PaginaDePrecos({ searchParams }: { searchParams: P
               {PLANOS.completo.chamada}. <em>{formatarReais(completo.centavos)}, uma vez.</em>
             </h2>
             <p>
-              {PLANOS.completo.descricao} Sai mais barato que o aplicativo mais um ano de Pro — e nunca mais aparece uma
-              cobrança.
+              {PLANOS.completo.descricao} Comprando cada parte para sempre (Windows {formatarReais(app.centavos)}, Android{" "}
+              {formatarReais(android.centavos)} e um ano de Pro {formatarReais(anual.centavos)}), seriam{" "}
+              {formatarReais(separado)}: o pacote economiza <strong>{formatarReais(economia)}</strong>, e nunca mais aparece uma
+              cobrança. No celular, a chave é ativada no app, em Licença → “Ativar uma chave”.
             </p>
           </div>
           <div className="combo__acao">
             <BotaoDeCompra produto={completo.id} rotulo={`Levar tudo · ${formatarReais(completo.centavos)}`} destaque origem={origem} />
             <small>{completo.nota}</small>
           </div>
+        </section>
+
+        <section className="comparativo comparativo--opcoes" aria-labelledby="opcoes-titulo">
+          <div className="section-heading section-heading--compacta">
+            <div>
+              <span>Monte do seu jeito</span>
+              <h2 id="opcoes-titulo">Qual combinação escolher</h2>
+            </div>
+          </div>
+          <div className="comparativo__rolagem">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Opção</th>
+                  <th scope="col">Site e plugin</th>
+                  <th scope="col">Windows</th>
+                  <th scope="col">Android</th>
+                  <th scope="col">Preço</th>
+                </tr>
+              </thead>
+              <tbody>
+                {opcoes.map((opcao) => (
+                  <tr key={opcao.nome} className={opcao.destaque ? "comparativo__destaque" : undefined}>
+                    <th scope="row">{opcao.nome}</th>
+                    <td data-rotulo="Site e plugin">{opcao.site}</td>
+                    <td data-rotulo="Windows">{opcao.windows}</td>
+                    <td data-rotulo="Android">{opcao.celular}</td>
+                    <td data-rotulo="Preço" className="comparativo__preco">{opcao.preco}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="estudio__dica">
+            Dá para combinar: quem só usa o celular assina o Android; quem trabalha no computador fica com o Windows ou com o Pro;
+            quem usa tudo economiza {formatarReais(economia)} com o pacote completo. O site é sempre grátis, com limites de volume.
+          </p>
         </section>
 
         <section className="comparativo" aria-labelledby="comparativo-titulo">

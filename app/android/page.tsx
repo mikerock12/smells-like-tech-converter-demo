@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 
-import { ANDROID_NA_PLAY, LINK_DA_GOOGLE_PLAY } from "@/packages/converter-core/android.mjs";
+import { ANDROID_NA_PLAY } from "@/packages/converter-core/android.mjs";
 import { DIAS_DE_TESTE_DO_APP, formatarReais, produto } from "@/packages/converter-core/precos.mjs";
 
+import BotaoGooglePlay from "../BotaoGooglePlay";
 import { SiteFooter, SiteHeader } from "../SiteChrome";
 
 export const metadata: Metadata = {
@@ -56,9 +57,12 @@ export default function PaginaDoAndroid() {
           </p>
 
           {ANDROID_NA_PLAY ? (
-            <a className="primary-action" href={LINK_DA_GOOGLE_PLAY} rel="noopener">
-              Instalar pela Google Play <span aria-hidden="true">→</span>
-            </a>
+            <div className="android-planos__acoes">
+              <BotaoGooglePlay />
+              <a className="button button--ghost" href="/precos#android">
+                Ver os preços
+              </a>
+            </div>
           ) : (
             <p className="notice">
               O app está nos testes finais da Google Play e chega em breve. Quando sair, o link da loja aparece aqui.
@@ -120,6 +124,20 @@ export default function PaginaDoAndroid() {
             <div className="cartao">
               <strong>OCR e narração</strong>
               <p>Texto de foto e de PDF escaneado, e texto ou legenda virando áudio com a voz do celular, em português.</p>
+            </div>
+            <div className="cartao">
+              <strong>Estúdio de vídeo</strong>
+              <p>
+                Reels, TikTok e Shorts no tamanho certo, com cortes, textos, efeitos animados, transições, música, legendas
+                automáticas e fundo removido.
+              </p>
+            </div>
+            <div className="cartao">
+              <strong>Criação musical</strong>
+              <p>
+                Grave várias faixas ouvindo as outras, separe voz, bateria, baixo e outros por IA, mixe com 14 efeitos e exporte em
+                WAV, FLAC, MP3, AAC ou Opus.
+              </p>
             </div>
             <div className="cartao">
               <strong>Figurinhas do WhatsApp</strong>

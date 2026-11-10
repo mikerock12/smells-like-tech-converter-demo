@@ -208,7 +208,7 @@ button:focus-visible, a:focus-visible, select:focus-visible, textarea:focus-visi
 /* ==================== onde converter ==================== */
 
 .lugares { padding: 96px clamp(18px, 5vw, 70px); background: var(--surface); border-block: 1px solid var(--stroke); }
-.lugares__grade { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.lugares__grade { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
 .lugar { position: relative; padding: 26px 22px; border: 1px solid var(--stroke); border-radius: 12px; background: var(--panel); }
 .lugar--destaque { border-color: var(--orange); box-shadow: 0 0 30px rgba(255, 122, 24, .12); }
 .lugar__fita { position: absolute; top: -10px; left: 22px; padding: 4px 10px; border-radius: 99px; background: var(--action); color: var(--on-action); font: 700 9px var(--font-geist-mono), monospace; text-transform: uppercase; letter-spacing: .6px; }
@@ -1048,3 +1048,80 @@ audio.previa__midia { background: transparent; cursor: default; }
 .musica__cabeca .musica__linha:has(> .musica__rotulo) { flex-direction: column; align-items: stretch; gap: 2px; }
 .musica__cabeca .musica__rotulo { flex-direction: row; align-items: center; gap: 4px; }
 .musica__cabeca .musica__rotulo .musica__ajuste { flex: 1 1 auto; }
+
+/* ---------- App para Android: botão da Google Play, seção da home e bloco de preços ---------- */
+.botao-play { display: inline-flex; align-items: center; gap: 12px; min-height: 54px; padding: 8px 20px 8px 16px; border: 1px solid rgba(255, 122, 24, .55); border-radius: 12px; background: #050507; color: var(--text); text-decoration: none; box-shadow: 0 0 26px rgba(255, 122, 24, .2); transition: border-color .18s, box-shadow .18s, transform .18s; }
+.botao-play:hover, .botao-play:focus-visible { border-color: var(--orange); box-shadow: 0 0 34px rgba(255, 122, 24, .38); transform: translateY(-1px); }
+.botao-play__logo { width: 28px; height: 28px; flex: none; }
+.botao-play__texto { display: grid; line-height: 1.1; text-align: left; }
+.botao-play__texto small { color: var(--text-muted); font-size: 10.5px; letter-spacing: .4px; text-transform: uppercase; }
+.botao-play__texto strong { font-size: 19px; font-weight: 650; letter-spacing: -.3px; }
+
+.app-android { width: min(1180px, calc(100% - 40px)); margin: 0 auto 72px; padding: clamp(24px, 4vw, 44px); border: 1px solid rgba(255, 122, 24, .35); border-radius: 18px; background: radial-gradient(ellipse at 100% 0%, rgba(255, 122, 24, .16), transparent 55%), radial-gradient(ellipse at 0% 100%, rgba(255, 193, 7, .08), transparent 50%), var(--panel); }
+.app-android__topo { max-width: 760px; }
+.app-android__topo h2 { margin: 10px 0 14px; font-size: clamp(24px, 3.4vw, 38px); line-height: 1.15; letter-spacing: -1px; }
+.app-android__topo h2 em { display: block; color: var(--amber); font-style: normal; }
+.app-android__topo p { margin: 0; color: var(--text-muted); font-size: 15px; line-height: 1.7; }
+.app-android__grade { list-style: none; margin: 28px 0; padding: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.app-android__grade li { display: grid; gap: 6px; align-content: start; padding: 18px; border: 1px solid var(--stroke); border-radius: 12px; background: rgba(0, 0, 0, .25); }
+.app-android__grade strong { font-size: 15px; }
+.app-android__grade p { margin: 0; color: var(--text-muted); font-size: 13px; line-height: 1.6; }
+.app-android__teste { display: grid; grid-template-columns: 1.5fr 1fr; gap: 24px; align-items: center; padding: 20px; border: 1px dashed rgba(255, 213, 74, .45); border-radius: 12px; }
+.app-android__teste strong { font-size: 16px; color: var(--amber); }
+.app-android__teste p { margin: 6px 0 0; color: var(--text-muted); font-size: 13.5px; line-height: 1.7; }
+.app-android__acoes, .android-planos__acoes { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+
+.android-planos { margin-top: 26px; padding: 28px; border: 1px solid rgba(255, 122, 24, .4); border-radius: 14px; background: radial-gradient(ellipse at 100% 0%, rgba(255, 122, 24, .14), transparent 60%), var(--panel); scroll-margin-top: 90px; }
+.android-planos__topo h2 { margin: 8px 0 12px; font-size: clamp(20px, 2.6vw, 28px); letter-spacing: -.8px; line-height: 1.2; }
+.android-planos__topo h2 em { color: var(--amber); font-style: normal; }
+.android-planos__topo p { margin: 0; color: var(--text-muted); font-size: 13.5px; line-height: 1.7; max-width: 760px; }
+.android-planos__opcoes { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 22px 0; }
+.android-planos__como h3 { margin: 0 0 10px; font-size: 16px; }
+.android-planos__como ol { margin: 0 0 18px; padding-left: 20px; display: grid; gap: 8px; color: var(--text-muted); font-size: 13.5px; line-height: 1.6; }
+.android-planos__como ol strong { color: var(--text); }
+.comparativo__rolagem { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.comparativo--opcoes table { min-width: 640px; }
+.comparativo--opcoes tbody th { width: auto; }
+.comparativo__destaque th, .comparativo__destaque td { background: rgba(255, 193, 7, .07); color: var(--text); }
+.comparativo__destaque th { color: var(--amber); }
+
+@media (max-width: 1100px) { .lugares__grade { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 900px) {
+  .app-android__grade { grid-template-columns: 1fr 1fr; }
+  .app-android__teste, .android-planos__opcoes { grid-template-columns: 1fr; }
+}
+
+/* ---------- Celular: uma margem só e o menu sem cortar as pontas ---------- */
+@media (max-width: 640px) {
+  .site-header nav { justify-content: flex-start; gap: 18px; scrollbar-width: none; }
+  .site-header nav::-webkit-scrollbar { display: none; }
+  .site-header nav a { white-space: nowrap; flex: none; }
+  .site-header, .hero, .caminhos, .atalhos, .para-quem, .planos-curtos, .features, .privacy-section, .lugares, body > footer, main > footer { padding-left: 20px; padding-right: 20px; }
+  .prova-rapida, .app-android { width: calc(100% - 40px); }
+  .precos { padding-left: 20px; padding-right: 20px; }
+  .combo, .android-planos { padding: 22px 18px; }
+  .lugares__grade, .app-android__grade { grid-template-columns: 1fr; }
+  /* O topo em uma coluna só, centrada: guaxinim, título, selo e texto alinhados. */
+  .hero-copy { text-align: center; }
+  .hero-wordmark, .hero-kicker { margin-left: auto; margin-right: auto; }
+  .hero-actions { justify-content: center; }
+  .app-android__acoes .botao-play, .android-planos__acoes .botao-play { width: 100%; justify-content: center; }
+  .app-android__acoes .button, .android-planos__acoes .button { width: 100%; text-align: center; }
+}
+.android-planos__como ol { list-style: decimal; }
+.android-planos__como ol li::marker { color: var(--orange); font-weight: 700; }
+@media (max-width: 640px) {
+  .app-android__acoes .button, .android-planos__acoes .button { display: flex; justify-content: center; }
+}
+.comparativo__preco { font-weight: 650; color: var(--text); }
+/* No celular, a tabela de combinações vira um cartão por opção, sem rolar para o lado. */
+@media (max-width: 640px) {
+  .comparativo--opcoes table { min-width: 0; }
+  .comparativo--opcoes thead { display: none; }
+  .comparativo--opcoes tr { display: block; margin-bottom: 10px; padding: 12px 14px; border: 1px solid var(--stroke); border-radius: 12px; }
+  .comparativo--opcoes tr.comparativo__destaque { border-color: rgba(255, 213, 74, .6); }
+  .comparativo--opcoes th, .comparativo--opcoes td { display: flex; justify-content: space-between; gap: 14px; padding: 5px 0; border: 0; background: none; text-align: right; }
+  .comparativo--opcoes tbody th { font-size: 15px; text-align: left; }
+  .comparativo--opcoes td::before { content: attr(data-rotulo); color: var(--text-muted); text-align: left; flex: none; }
+}
+@media (max-width: 640px) { .plugin-page { padding-left: 20px; padding-right: 20px; } }

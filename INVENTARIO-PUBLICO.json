@@ -1,5 +1,5 @@
 {
-  "commit": "66fa9469637f20b1a15998fe689f5c0a162b5128",
+  "commit": "317e6519e063cc3618fcd48beee460a3cba33b50",
   "repository": "https://github.com/mikerock12/smells-like-tech-converter-demo",
   "originals": [
     {
@@ -1478,6 +1478,11 @@
       "bytes": 6164
     },
     {
+      "path": "app/BotaoGooglePlay.tsx",
+      "sha256": "0328e1a8e77dc7540b7017a7c6439cf7ff8fbe3fcc665fa42188dc1b3c56505c",
+      "bytes": 1321
+    },
+    {
       "path": "app/ConferenciaDoInstalador.tsx",
       "sha256": "9280cb88471405491266b4af3b57a6e4a0f918b26f6a6df8caa0b5db0db4eac2",
       "bytes": 1423
@@ -1514,8 +1519,8 @@
     },
     {
       "path": "app/android/page.tsx",
-      "sha256": "e206622d41fb8ee8ccf2fac33153d43aca97fcc7b3bd5a86b607d7cf675b937f",
-      "bytes": 7273
+      "sha256": "4c27926ebf516c8359d0700c623221ab8d71c5ac040e82bcfc6d9c0232ccc8d5",
+      "bytes": 7990
     },
     {
       "path": "app/aplicativo/page.tsx",
@@ -1709,8 +1714,8 @@
     },
     {
       "path": "app/globals.css",
-      "sha256": "f834a749a07cac21094f020d3c2ac2bfd0e46bb46a5d8f609be26471283546c4",
-      "bytes": 90100
+      "sha256": "00c170320634754fbf26c1bf3eec884df8330e4adbed1b988fae8be0fe0b7a19",
+      "bytes": 96653
     },
     {
       "path": "app/heic-iphone/page.tsx",
@@ -1754,8 +1759,8 @@
     },
     {
       "path": "app/page.tsx",
-      "sha256": "1d40cef4b180fd7f3924353174fab5dca7eb93c26f4247e770d63a09ec3dda01",
-      "bytes": 16418
+      "sha256": "ef540c92c53fdb75c719da244d4b8bd3c571ccb8ca51f16d85fcf2356e2a72f3",
+      "bytes": 20315
     },
     {
       "path": "app/pdf-cliente/page.tsx",
@@ -1779,8 +1784,8 @@
     },
     {
       "path": "app/precos/page.tsx",
-      "sha256": "60762f63d9b5a3063ef7faf38fd53ce691cde3413ca414b496032fe48e92aae4",
-      "bytes": 12676
+      "sha256": "e1d499a135919b4a2ae4008a7363b7c60d5abb9495355d7973387e27bedf6c18",
+      "bytes": 18511
     },
     {
       "path": "app/privacidade/page.tsx",
@@ -3464,8 +3469,8 @@
     },
     {
       "path": "packages/converter-core/android.mjs",
-      "sha256": "0c25e39c9fcd2f0e0bc3a065b4d31bc2c233054d8d902d455d24da47304deab5",
-      "bytes": 759
+      "sha256": "5d5ca74f45ea78d508f1785e16fc1f3e84cadb053d6eefd4441cc55bff31b719",
+      "bytes": 840
     },
     {
       "path": "packages/converter-core/audio-tempo.d.mts",

@@ -1,8 +1,10 @@
 import { CATEGORIAS, contagem, ferramentasDaCategoria } from "@/packages/converter-core/catalogo.mjs";
 import { ATALHOS_DA_HOME, contagemDePaginas } from "@/packages/converter-core/paginas.mjs";
-import { MAQUINAS_POR_LICENCA, formatarReais, produto } from "@/packages/converter-core/precos.mjs";
+import { DIAS_DE_TESTE_DO_APP, MAQUINAS_POR_LICENCA, formatarReais, produto } from "@/packages/converter-core/precos.mjs";
+import { ANDROID_NA_PLAY } from "@/packages/converter-core/android.mjs";
 import { DEPOIMENTOS } from "@/packages/conteudo/depoimentos.mjs";
 
+import BotaoGooglePlay from "./BotaoGooglePlay";
 import PluginBadge from "./PluginBadge";
 import { SiteFooter, SiteHeader } from "./SiteChrome";
 
@@ -38,6 +40,22 @@ const lugares = [
     detalhe: "Para quem converte o dia inteiro: fila com histórico, lote a partir de pastas, presets e ajuste fino. Funciona sem internet.",
     acao: { texto: "Conhecer o aplicativo", destino: "/aplicativo" },
   },
+  {
+    nome: "No celular",
+    resumo: `App para Android · ${DIAS_DE_TESTE_DO_APP} dias grátis`,
+    detalhe: "O conversor inteiro no celular, pela Google Play: estúdio de vídeo, criação musical, figurinhas do WhatsApp, transcrição e narração. Funciona sem internet.",
+    acao: { texto: "Conhecer o app para Android", destino: "/android" },
+  },
+];
+
+/** O que o app para Android faz, para a seção da página inicial. */
+const NO_ANDROID = [
+  { icone: "⇄", titulo: "Converter tudo", texto: "Imagem, vídeo, áudio, PDF e documentos, inclusive HEIC do iPhone, direto da galeria ou do WhatsApp." },
+  { icone: "✦", titulo: "Estúdio de vídeo", texto: "Reels, TikTok e Shorts com cortes, textos, efeitos, música e fundo removido." },
+  { icone: "♫", titulo: "Criação musical", texto: "Grave faixas ouvindo as outras, separe voz, bateria e baixo por IA e mixe com efeitos." },
+  { icone: "☺", titulo: "Figurinhas do WhatsApp", texto: "Foto, GIF ou vídeo viram figurinha, com recorte, texto e fundo removido, sem anúncios." },
+  { icone: "✎", titulo: "Transcrever e narrar", texto: "Áudio vira texto ou legenda com o Whisper; texto vira áudio com vozes naturais em português." },
+  { icone: "▣", titulo: "OCR", texto: "Texto de foto e de PDF escaneado, em português, inglês e espanhol." },
 ];
 
 /**
@@ -92,6 +110,8 @@ export default function Home() {
   const anual = produto("pro-anual")!;
   const app = produto("app-vitalicio")!;
   const completo = produto("completo-vitalicio")!;
+  const android = produto("android-vitalicio")!;
+  const androidMensal = produto("android-mensal")!;
 
   return (
     <main>
@@ -149,6 +169,48 @@ export default function Home() {
           ))}
         </ul>
       </section>
+
+      {ANDROID_NA_PLAY && (
+        <section className="app-android" aria-labelledby="app-android-titulo">
+          <div className="app-android__topo">
+            <span className="section-label">App para Android · Google Play</span>
+            <h2 id="app-android-titulo">
+              O conversor inteiro no celular. <em>Sem enviar nada para ninguém.</em>
+            </h2>
+            <p>
+              Tudo acontece no próprio aparelho, mesmo sem internet: o arquivo não sai do celular. Escolha na galeria ou
+              compartilhe do WhatsApp e de qualquer app, sem cadastro, sem anúncios e sem marca d&apos;água.
+            </p>
+          </div>
+          <ul className="app-android__grade">
+            {NO_ANDROID.map((item) => (
+              <li key={item.titulo}>
+                <span className="caminhos__icone" aria-hidden="true">{item.icone}</span>
+                <strong>{item.titulo}</strong>
+                <p>{item.texto}</p>
+              </li>
+            ))}
+          </ul>
+          <div className="app-android__teste">
+            <div>
+              <strong>{DIAS_DE_TESTE_DO_APP} dias grátis, com tudo liberado.</strong>
+              <p>
+                Instale e use todas as funções por {DIAS_DE_TESTE_DO_APP} dias, sem cartão e sem cadastro. Depois, se quiser
+                continuar, escolha dentro do app: a assinatura de {formatarReais(androidMensal.centavos)} por mês, que você
+                cancela na própria Google Play, ou a licença vitalícia de {formatarReais(android.centavos)}, paga uma vez.
+                Quem leva o pacote completo ({formatarReais(completo.centavos)}) usa o Android, o Windows e o Pro do site com
+                uma chave só.
+              </p>
+            </div>
+            <div className="app-android__acoes">
+              <BotaoGooglePlay />
+              <a className="button button--ghost" href="/precos#android">
+                Ver os preços e os pacotes
+              </a>
+            </div>
+          </div>
+        </section>
+      )}
 
       <section className="prova-rapida" aria-labelledby="prova-titulo">
         <h2 id="prova-titulo" className="section-label">
@@ -250,8 +312,12 @@ export default function Home() {
             <dd>Lote, fila, offline, até {MAQUINAS_POR_LICENCA} PCs.</dd>
           </div>
           <div>
-            <dt>Pacote · {formatarReais(completo.centavos)}</dt>
-            <dd>Aplicativo + Pro, para sempre.</dd>
+            <dt>App para Android · {formatarReais(androidMensal.centavos)}/mês ou {formatarReais(android.centavos)} vitalício</dt>
+            <dd>{DIAS_DE_TESTE_DO_APP} dias grátis, depois pela Google Play.</dd>
+          </div>
+          <div>
+            <dt>Tudo, para sempre · {formatarReais(completo.centavos)}</dt>
+            <dd>Windows, Android e Pro no site e no plugin, uma vez só.</dd>
           </div>
         </dl>
         <a className="primary-action" href="/precos">
@@ -374,7 +440,7 @@ export default function Home() {
         <div className="section-heading">
           <span>Onde a conversão acontece</span>
           <h2>
-            Três formas.
+            Quatro formas.
             <br />
             Nenhuma manda seu
             <br />

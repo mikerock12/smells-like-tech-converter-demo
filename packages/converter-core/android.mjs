@@ -6,8 +6,10 @@
  * docs/play-store.md), `ANDROID_NA_PLAY` fica falso e o site diz que o app chega em breve.
  * No dia em que a página da loja estiver publicada, basta virar para verdadeiro: /android
  * mostra o selo "Disponível no Google Play" e /precos passa a apresentar o app.
+ *
+ * Publicado na produção da Play (178 países); verdadeiro desde 10/11/2026.
  */
-export const ANDROID_NA_PLAY = false;
+export const ANDROID_NA_PLAY = true;
 
 export const PACOTE_DO_ANDROID = "br.com.smellsliketech.converter";
 
