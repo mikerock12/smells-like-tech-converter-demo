@@ -81,6 +81,9 @@ public sealed class MusicClip
     [JsonPropertyName("saidaSuave")] public long FadeOut { get; set; }
     [JsonPropertyName("mudo")] public bool Mute { get; set; }
     [JsonPropertyName("nome")] public string? Name { get; set; }
+    [JsonPropertyName("velocidade")] public double? Speed { get; set; }
+    [JsonPropertyName("semitons")] public double? Semitones { get; set; }
+    [JsonPropertyName("preservarTom")] public bool? PreservePitch { get; set; }
 
     public long End => Start + Duration;
     public MusicClip Copy() => (MusicClip)MemberwiseClone();

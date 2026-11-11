@@ -751,7 +751,7 @@ function EscolhaDoDestino({
       {!voltar && (
         <a className="estudio__cartao estudio__musica" href="/estudio/musica">
           <strong>Criação musical (novo)</strong>
-          <span>Grave várias faixas ouvindo as outras, separe voz, bateria e baixo por IA, mixe com efeitos e exporte em WAV, FLAC ou MP3.</span>
+          <span>Grave e separe faixas por IA, mude velocidade e tonalidade, identifique BPM e tom, sincronize ritmos e exporte em WAV, FLAC ou MP3.</span>
         </a>
       )}
       {grupos.map(([rede, lista]) => (

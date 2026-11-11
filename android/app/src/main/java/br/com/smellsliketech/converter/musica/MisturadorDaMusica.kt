@@ -128,10 +128,11 @@ class MisturadorDaMusica(private val taxa: Int, private val bloco: Int = Musica.
                 val a = max(t0, clipe.inicio)
                 val b = min(t0 + n, clipe.inicio + clipe.duracao)
                 if (a >= b) continue
-                val fonte = fontes[clipe.midia] ?: continue
+                val transformada = fontes[TransformacaoDaMusica.chaveDaFonte(clipe)]
+                val fonte = transformada ?: fontes[clipe.midia] ?: continue
                 val deslocamento = a - clipe.inicio
                 val k = (b - a).toInt()
-                val origem = clipe.inicioNaMidia + deslocamento
+                val origem = if (transformada != null) floor(clipe.inicioNaMidia / (clipe.velocidade ?: 1.0)).toLong() + deslocamento else clipe.inicioNaMidia + deslocamento
                 fonte.copiar(0, origem, k, le)
                 if (fonte.canais > 1) fonte.copiar(1, origem, k, ld) else System.arraycopy(le, 0, ld, 0, k)
                 val destino = (a - t0).toInt()

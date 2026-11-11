@@ -1,0 +1,15 @@
+import type { Clipe, Midia } from "./musica.d.mts";
+export declare const VELOCIDADE_MINIMA: number;
+export declare const VELOCIDADE_MAXIMA: number;
+export declare const SEMITONS_MINIMO: number;
+export declare const SEMITONS_MAXIMO: number;
+export declare function velocidadeDoClipe(clipe: Clipe): number;
+export declare function semitonsDoClipe(clipe: Clipe): number;
+export declare function preservarTomDoClipe(clipe: Clipe): boolean;
+export declare function fatorDoTom(semitons: number): number;
+export declare function temTransformacao(clipe: Clipe): boolean;
+export declare function chaveDaFonteDoClipe(clipe: Clipe): string;
+export declare function clipeComVelocidade(clipe: Clipe, midia: Midia, velocidade: number): Clipe;
+export declare function velocidadeParaIgualar(bpmDaOrigem: number, bpmDoDestino: number): number;
+export declare function reamostrar(canais: Float32Array[], fator: number): Float32Array[];
+export declare function transformarCanais(canais: Float32Array[], taxa: number, opcoes?: { velocidade?: number; semitons?: number; preservarTom?: boolean }): Float32Array[];

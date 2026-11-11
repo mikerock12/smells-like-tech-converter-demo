@@ -46,6 +46,9 @@ public sealed record AppSettings
 
     public bool OpenOutputFolderWhenDone { get; init; }
 
+    /// <summary>Desligado = a criação musical pergunta se deve salvar ao sair do projeto.</summary>
+    public bool MusicAutoSave { get; init; }
+
     // --- Licenca. O aplicativo e pago, vitalicio, com sete dias de teste completo. ---
 
     /// <summary>A chave colada em Configuracoes. Vazia = sem licenca (teste ou vencido).</summary>

@@ -9,6 +9,7 @@ import kotlin.math.log10
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.pow
+import kotlin.math.roundToInt
 import kotlin.math.sin
 import kotlin.math.sqrt
 
@@ -60,6 +61,16 @@ object Musica {
     fun dbParaLinear(db: Double): Double = if (!db.isFinite() || db <= GANHO_MINIMO_DB) 0.0 else 10.0.pow(db / 20)
 
     fun linearParaDb(ganho: Double): Double = if (ganho > 0) 20 * log10(ganho) else Double.NEGATIVE_INFINITY
+
+    fun volumeParaPercentual(db: Double): Int = if (!db.isFinite() || db <= GANHO_MINIMO_DB) 0 else (100 * 10.0.pow(db / 20)).roundToInt().coerceIn(0, 100)
+
+    fun percentualParaVolume(percentual: Double): Double = if (!percentual.isFinite() || percentual <= 0) GANHO_MINIMO_DB else (20 * log10(percentual / 100)).coerceIn(GANHO_MINIMO_DB, 0.0)
+
+    fun textoDoPan(pan: Double): String {
+        val valor = arredondar(if (pan.isFinite()) pan else 0.0).toInt().coerceIn(-100, 100)
+        if (valor == 0) return "0"
+        return if (valor > 0) "+${valor}D −${valor}L" else "+${-valor}L −${-valor}D"
+    }
 
     fun quadrosPorBatida(p: ProjetoMusical): Double = p.taxa * 60 / p.bpm * (4.0 / p.compasso[1])
 
@@ -306,9 +317,11 @@ object Musica {
                 }
                 if (listOf(c.inicio, c.inicioNaMidia, c.duracao, c.entradaSuave, c.saidaSuave).any { it < 0 } || c.duracao == 0L)
                     erros += "Faixa $nome: o clipe ${c.id} tem posição ou duração inválida."
-                else if (c.inicioNaMidia + c.duracao > m.quadros) erros += "Faixa $nome: o clipe ${c.id} passa do fim da mídia."
+                else if (c.inicioNaMidia + c.duracao * (c.velocidade ?: 1.0) > m.quadros + 1) erros += "Faixa $nome: o clipe ${c.id} passa do fim da mídia."
                 else if (c.entradaSuave + c.saidaSuave > c.duracao) erros += "Faixa $nome: as rampas do clipe ${c.id} são maiores que ele."
                 if (!c.ganhoDb.isFinite() || c.ganhoDb > 24) erros += "Faixa $nome: ganho do clipe ${c.id} inválido."
+                if (!(c.velocidade ?: 1.0).isFinite() || (c.velocidade ?: 1.0) !in 0.25..4.0) erros += "Faixa $nome: a velocidade do clipe ${c.id} vai de 25% a 400%."
+                if (!(c.semitons ?: 0.0).isFinite() || abs(c.semitons ?: 0.0) > 12) erros += "Faixa $nome: a transposição do clipe ${c.id} vai de −12 a +12 semitons."
             }
         }
         if (!p.master.ganhoDb.isFinite() || p.master.ganhoDb > GANHO_MAXIMO_DB) erros += "Ganho do master inválido."

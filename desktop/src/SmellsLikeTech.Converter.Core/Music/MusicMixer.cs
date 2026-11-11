@@ -181,10 +181,13 @@ public sealed class MusicMixer
                 if (clip.Mute) continue;
                 var a = Math.Max(t0, clip.Start);
                 var b = Math.Min(t0 + n, clip.Start + clip.Duration);
-                if (a >= b || !sources.TryGetValue(clip.Media, out var source)) continue;
+                if (a >= b) continue;
+                var transformed = sources.TryGetValue(MusicTransform.SourceKey(clip), out var prepared) ? prepared : null;
+                var source = transformed ?? (sources.TryGetValue(clip.Media, out var original) ? original : null);
+                if (source is null) continue;
                 var offset = a - clip.Start;
                 var k = (int)(b - a);
-                var origin = clip.SourceStart + offset;
+                var origin = transformed is not null ? (long)Math.Floor(clip.SourceStart / (clip.Speed ?? 1)) + offset : clip.SourceStart + offset;
                 source.Copy(0, origin, k, ll);
                 if (source.Channels > 1) source.Copy(1, origin, k, lr);
                 else Array.Copy(ll, lr, k);

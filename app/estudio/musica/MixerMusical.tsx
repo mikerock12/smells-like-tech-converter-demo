@@ -1,12 +1,15 @@
 "use client";
 
-import { AJUSTE_MAXIMO_DB, AJUSTE_MINIMO_DB, GANHO_MAXIMO_DB, GANHO_MINIMO_DB, PASSOS_DA_MUSICA, passoDoParametro, type EfeitoDaMusica, type ProjetoMusical } from "@/packages/converter-core/musica.mjs";
+import { AJUSTE_MAXIMO_DB, AJUSTE_MINIMO_DB, PASSOS_DA_MUSICA, passoDoParametro, percentualParaVolume, textoDoPan, volumeParaPercentual, type EfeitoDaMusica, type ProjetoMusical } from "@/packages/converter-core/musica.mjs";
 import { EFEITOS_DA_MUSICA, definicaoDoEfeito, novoEfeito, parametro } from "@/packages/converter-core/musica-dsp.mjs";
 import type { EstadoDoMotor } from "@/lib/musica/motor";
 import { novoId, type Mudar } from "./CriacaoMusical";
 import { AjusteMusical } from "./AjusteMusical";
 
-const db = (v: number) => (v <= GANHO_MINIMO_DB ? "−∞" : `${v > 0 ? "+" : ""}${v.toFixed(1)}`);
+function VolumeVertical({ valor, nome, mudar }: { valor: number; nome: string; mudar: (v: number) => void }) {
+  const percentual = volumeParaPercentual(valor);
+  return <AjusteMusical vertical valor={percentual} min={0} max={100} passo={1} rotulo={`volume de ${nome}`} textoDoValor={`${percentual} de 100`} padrao={100} mudar={(v) => mudar(percentualParaVolume(v))} />;
+}
 
 function Medidor({ valores }: { valores?: number[] }) {
   const barra = (v: number) => `${Math.min(100, Math.max(0, (20 * Math.log10(v + 1e-9) + 60) / 60) * 100)}%`;
@@ -37,11 +40,11 @@ export function MixerMusical({ projeto, estado, mudar, abrirEfeitos }: { projeto
             <button type="button" className="musica__mini" onClick={() => abrirEfeitos(f.id)}>FX{f.efeitos.length ? ` ${f.efeitos.length}` : ""}</button>
           </div>
           <div className="musica__fader">
-            <AjusteMusical vertical valor={f.ganhoDb} min={GANHO_MINIMO_DB} max={GANHO_MAXIMO_DB} passo={PASSOS_DA_MUSICA.ganhoDb} rotulo={`volume de ${f.nome}`} textoDoValor={`${db(f.ganhoDb)} dB`} padrao={0} mudar={(v) => mudarFaixa(f.id, (x) => ({ ...x, ganhoDb: v }), `vol-${f.id}`)} />
+            <VolumeVertical valor={f.ganhoDb} nome={f.nome} mudar={(v) => mudarFaixa(f.id, (x) => ({ ...x, ganhoDb: v }), `vol-${f.id}`)} />
             <Medidor valores={estado.medidores[f.id]} />
           </div>
-          <small>{db(f.ganhoDb)} dB</small>
-          <label className="musica__rotulo">Pan {f.pan === 0 ? "C" : f.pan < 0 ? `L${-f.pan}` : `R${f.pan}`}
+          <small>Volume {volumeParaPercentual(f.ganhoDb)}</small>
+          <label className="musica__rotulo">Pan {textoDoPan(f.pan)}
             <AjusteMusical valor={f.pan} min={-100} max={100} passo={PASSOS_DA_MUSICA.pan} rotulo={`pan de ${f.nome}`} padrao={0} mudar={(v) => mudarFaixa(f.id, (x) => ({ ...x, pan: v }), `pan-${f.id}`)} />
           </label>
           <label className="musica__rotulo">L {f.ajusteEsquerdoDb} dB
@@ -81,21 +84,21 @@ export function MixerMusical({ projeto, estado, mudar, abrirEfeitos }: { projeto
             <button type="button" className="musica__mini" aria-label={`Remover ${b.nome}`} onClick={() => mudar((p) => ({ ...p, barramentos: p.barramentos.filter((x) => x.id !== b.id), faixas: p.faixas.map((f) => ({ ...f, saida: f.saida === b.id ? "master" : f.saida, envios: f.envios.filter((e) => e.barramento !== b.id) })) }))}>✕</button>
           </div>
           <div className="musica__fader">
-            <AjusteMusical vertical valor={b.ganhoDb} min={GANHO_MINIMO_DB} max={GANHO_MAXIMO_DB} passo={PASSOS_DA_MUSICA.ganhoDb} rotulo={`volume de ${b.nome}`} textoDoValor={`${db(b.ganhoDb)} dB`} padrao={0} mudar={(v) => mudarBus(b.id, (x) => ({ ...x, ganhoDb: v }), `vol-${b.id}`)} />
+            <VolumeVertical valor={b.ganhoDb} nome={b.nome} mudar={(v) => mudarBus(b.id, (x) => ({ ...x, ganhoDb: v }), `vol-${b.id}`)} />
             <Medidor valores={estado.medidores[b.id]} />
           </div>
-          <small>{db(b.ganhoDb)} dB</small>
-          <div className="musica__rotulo">Pan<AjusteMusical valor={b.pan} min={-100} max={100} passo={PASSOS_DA_MUSICA.pan} rotulo={`pan de ${b.nome}`} padrao={0} mudar={(v) => mudarBus(b.id, (x) => ({ ...x, pan: v }), `pan-${b.id}`)} /></div>
+          <small>Volume {volumeParaPercentual(b.ganhoDb)}</small>
+          <div className="musica__rotulo">Pan {textoDoPan(b.pan)}<AjusteMusical valor={b.pan} min={-100} max={100} passo={PASSOS_DA_MUSICA.pan} rotulo={`pan de ${b.nome}`} padrao={0} mudar={(v) => mudarBus(b.id, (x) => ({ ...x, pan: v }), `pan-${b.id}`)} /></div>
         </div>
       ))}
       <div className="musica__canal musica__canal--master">
         <strong>Master</strong>
         <button type="button" className="musica__mini" onClick={() => abrirEfeitos("master")}>FX{projeto.master.efeitos.length ? ` ${projeto.master.efeitos.length}` : ""}</button>
         <div className="musica__fader">
-          <AjusteMusical vertical valor={projeto.master.ganhoDb} min={GANHO_MINIMO_DB} max={GANHO_MAXIMO_DB} passo={PASSOS_DA_MUSICA.ganhoDb} rotulo="volume do master" textoDoValor={`${db(projeto.master.ganhoDb)} dB`} padrao={0} mudar={(v) => mudar((p) => ({ ...p, master: { ...p.master, ganhoDb: v } }), "vol-master")} />
+          <VolumeVertical valor={projeto.master.ganhoDb} nome="master" mudar={(v) => mudar((p) => ({ ...p, master: { ...p.master, ganhoDb: v } }), "vol-master")} />
           <Medidor valores={estado.medidores.master} />
         </div>
-        <small>{db(projeto.master.ganhoDb)} dB</small>
+        <small>Volume {volumeParaPercentual(projeto.master.ganhoDb)}</small>
         <button type="button" className="button button--ghost" onClick={() => mudar((p) => ({ ...p, barramentos: [...p.barramentos, { id: novoId("bus"), nome: `Bus ${p.barramentos.length + 1}`, ganhoDb: 0, pan: 0, mudo: false, efeitos: [] }] }))}>+ Barramento</button>
       </div>
     </div>

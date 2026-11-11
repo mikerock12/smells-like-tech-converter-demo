@@ -115,6 +115,25 @@ public sealed class MusicEngineTests(ITestOutputHelper output) : IDisposable
     }
 
     [Fact]
+    public async Task ExportsTempoAndPitchInTheRealFile()
+    {
+        const int rate = 48000;
+        var library = new MusicLibrary(folder);
+        Directory.CreateDirectory(Path.GetDirectoryName(library.MediaPath("tempo-tom", "seno"))!);
+        await File.WriteAllBytesAsync(library.MediaPath("tempo-tom", "seno"), MusicMastering.EncodeWav([Sine(440, rate * 2, rate)], rate, 32));
+        var project = MusicRules.NewProject("tempo-tom", "Tempo e tom");
+        project.Media.Add(new MusicMedia { Id = "seno", SampleRate = rate, Channels = 1, Frames = rate * 2 });
+        project.Tracks.Add(new MusicTrack { Id = "f", Name = "Seno", Clips = [new MusicClip { Id = "c", Media = "seno", Duration = rate, Speed = 2, Semitones = 12, PreservePitch = true }] });
+        Assert.Empty(MusicRules.Problems(project));
+        var files = await Tools().ExportAsync(project, m => library.MediaPath(project.Id, m.Id), new MusicExportRequest("wav-32f", "sem-alvo", false, false, false), Path.Combine(folder, "tempo-saida"), null, CancellationToken.None);
+        using var result = new MappedWavSource(Assert.Single(files).Path);
+        Assert.Equal(rate, result.Frames);
+        var data = new float[rate];
+        result.Copy(0, 0, rate, data);
+        Assert.Contains(data, v => Math.Abs(v) > 0.05);
+    }
+
+    [Fact]
     public async Task RecordsWhilePlayingWithAStableOffsetOnRealWasapi()
     {
         MusicAudioEngine engine;

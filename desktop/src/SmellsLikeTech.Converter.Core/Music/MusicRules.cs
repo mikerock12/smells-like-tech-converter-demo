@@ -53,6 +53,17 @@ public static partial class MusicRules
 
     public static double LinearToDb(double gain) => gain > 0 ? 20 * Math.Log10(gain) : double.NegativeInfinity;
 
+    public static int VolumePercent(double db) => !double.IsFinite(db) || db <= MinGainDb ? 0 : Math.Clamp((int)Round(100 * Math.Pow(10, db / 20)), 0, 100);
+
+    public static double VolumeDb(double percent) => !double.IsFinite(percent) || percent <= 0 ? MinGainDb : Math.Clamp(20 * Math.Log10(percent / 100), MinGainDb, 0);
+
+    public static string PanText(double pan)
+    {
+        var value = (int)Math.Clamp(Round(double.IsFinite(pan) ? pan : 0), -100, 100);
+        if (value == 0) return "0";
+        return value > 0 ? $"+{value}D −{value}L" : $"+{-value}L −{-value}D";
+    }
+
     public static double FramesPerBeat(MusicProject project) => project.SampleRate * 60 / project.Bpm * (4.0 / project.Meter[1]);
 
     public static long BeatFrame(MusicProject project, long k) => Round(k * FramesPerBeat(project));
@@ -399,9 +410,11 @@ public static partial class MusicRules
 
                 if (new[] { clip.Start, clip.SourceStart, clip.Duration, clip.FadeIn, clip.FadeOut }.Any(v => v < 0) || clip.Duration == 0)
                     errors.Add($"Faixa {name}: o clipe {clip.Id} tem posição ou duração inválida.");
-                else if (clip.SourceStart + clip.Duration > m.Frames) errors.Add($"Faixa {name}: o clipe {clip.Id} passa do fim da mídia.");
+                else if (clip.SourceStart + clip.Duration * (clip.Speed ?? 1) > m.Frames + 1) errors.Add($"Faixa {name}: o clipe {clip.Id} passa do fim da mídia.");
                 else if (clip.FadeIn + clip.FadeOut > clip.Duration) errors.Add($"Faixa {name}: as rampas do clipe {clip.Id} são maiores que ele.");
                 if (!double.IsFinite(clip.GainDb) || clip.GainDb > 24) errors.Add($"Faixa {name}: ganho do clipe {clip.Id} inválido.");
+                if (!double.IsFinite(clip.Speed ?? 1) || clip.Speed is < 0.25 or > 4) errors.Add($"Faixa {name}: a velocidade do clipe {clip.Id} vai de 25% a 400%.");
+                if (!double.IsFinite(clip.Semitones ?? 0) || Math.Abs(clip.Semitones ?? 0) > 12) errors.Add($"Faixa {name}: a transposição do clipe {clip.Id} vai de −12 a +12 semitons.");
             }
         }
 

@@ -101,17 +101,24 @@ data class ClipeMusical(
     val saidaSuave: Long = 0,
     val mudo: Boolean = false,
     val nome: String? = null,
+    val velocidade: Double? = null,
+    val semitons: Double? = null,
+    val preservarTom: Boolean? = null,
 ) {
     val fim get() = inicio + duracao
 
     fun paraJson(): JSONObject = JSONObject().put("id", id).put("midia", midia).put("inicio", inicio).put("inicioNaMidia", inicioNaMidia)
         .put("duracao", duracao).put("ganhoDb", ganhoDb).put("entradaSuave", entradaSuave).put("saidaSuave", saidaSuave).put("mudo", mudo).putOpt("nome", nome)
+        .putOpt("velocidade", velocidade).putOpt("semitons", semitons).putOpt("preservarTom", preservarTom)
 
     companion object {
         fun deJson(j: JSONObject) = ClipeMusical(
             j.optString("id"), j.optString("midia"), j.optLong("inicio"), j.optLong("inicioNaMidia"), j.optLong("duracao"),
             j.optDouble("ganhoDb", 0.0), j.optLong("entradaSuave"), j.optLong("saidaSuave"), j.optBoolean("mudo", false),
             if (j.has("nome")) j.optString("nome") else null,
+            if (j.has("velocidade")) j.optDouble("velocidade") else null,
+            if (j.has("semitons")) j.optDouble("semitons") else null,
+            if (j.has("preservarTom")) j.optBoolean("preservarTom") else null,
         )
     }
 }

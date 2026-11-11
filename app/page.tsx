@@ -52,7 +52,7 @@ const lugares = [
 const NO_ANDROID = [
   { icone: "⇄", titulo: "Converter tudo", texto: "Imagem, vídeo, áudio, PDF e documentos, inclusive HEIC do iPhone, direto da galeria ou do WhatsApp." },
   { icone: "✦", titulo: "Estúdio de vídeo", texto: "Reels, TikTok e Shorts com cortes, textos, efeitos, música e fundo removido." },
-  { icone: "♫", titulo: "Criação musical", texto: "Grave faixas ouvindo as outras, separe voz, bateria e baixo por IA e mixe com efeitos." },
+  { icone: "♫", titulo: "Criação musical", texto: "Grave e separe faixas por IA, ajuste tempo e tom, identifique BPM e iguale o ritmo entre elas." },
   { icone: "☺", titulo: "Figurinhas do WhatsApp", texto: "Foto, GIF ou vídeo viram figurinha, com recorte, texto e fundo removido, sem anúncios." },
   { icone: "✎", titulo: "Transcrever e narrar", texto: "Áudio vira texto ou legenda com o Whisper; texto vira áudio com vozes naturais em português." },
   { icone: "▣", titulo: "OCR", texto: "Texto de foto e de PDF escaneado, em português, inglês e espanhol." },

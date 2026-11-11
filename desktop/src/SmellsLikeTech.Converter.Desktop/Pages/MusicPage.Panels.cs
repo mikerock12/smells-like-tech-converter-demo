@@ -24,6 +24,7 @@ public sealed partial class MusicPage
         Panels.TabItems.Add(Tab("Efeitos", EffectsView()));
         Panels.TabItems.Add(Tab("Gravação", RecordingView()));
         Panels.TabItems.Add(Tab("Separar por IA", SeparationView()));
+        Panels.TabItems.Add(Tab("Tempo e tom", TempoPitchView()));
         Panels.TabItems.Add(Tab("Exportar", ExportView()));
         Panels.SelectedIndex = Math.Min(selected, Panels.TabItems.Count - 1);
     }
@@ -36,8 +37,6 @@ public sealed partial class MusicPage
     }
 
     private static TextBlock Label(string text) => new() { Text = text, FontSize = 12, Foreground = (Brush)Application.Current.Resources["BrandTextMutedBrush"], TextWrapping = TextWrapping.Wrap };
-
-    private static string Db(double v) => v <= MusicRules.MinGainDb ? "−∞" : $"{(v > 0 ? "+" : "")}{v:0.0}";
 
     // ==================== mixer ====================
 
@@ -79,31 +78,31 @@ public sealed partial class MusicPage
         buttons.Children.Add(fx);
         panel.Children.Add(buttons);
         var faderRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, Height = 194 };
-        var fader = new Slider { Orientation = Orientation.Vertical, Minimum = MusicRules.MinGainDb, Maximum = MusicRules.MaxGainDb, StepFrequency = 0.5, Value = gainDb, Height = 130 };
+        var fader = new Slider { Orientation = Orientation.Vertical, Minimum = 0, Maximum = 100, StepFrequency = 1, Value = MusicRules.VolumePercent(gainDb), Height = 130 };
         AutomationProperties.SetName(fader, $"Volume do canal {name}");
-        var value = new TextBlock { Text = $"{Db(gainDb)} dB", FontSize = 11, FontFamily = new FontFamily("Consolas") };
+        var value = new TextBlock { Text = $"Volume {MusicRules.VolumePercent(gainDb)}", FontSize = 11, FontFamily = new FontFamily("Consolas") };
         fader.ValueChanged += (_, e) =>
         {
-            value.Text = $"{Db(e.NewValue)} dB";
+            value.Text = $"Volume {MusicRules.VolumePercent(e.NewValue)}";
             Set((p, v) =>
             {
                 if (id == "master") p.Master.GainDb = v;
                 else if (isTrack) Track(p, id).GainDb = v;
                 else p.Buses.First(b => b.Id == id).GainDb = v;
-            }, e.NewValue, $"vol-{id}");
+            }, MusicRules.VolumeDb(e.NewValue), $"vol-{id}");
         };
         Rectangle Bar() => new() { Width = 6, Height = 0, VerticalAlignment = VerticalAlignment.Bottom, Fill = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 67, 160, 71)) };
         var l = Bar();
         var r = Bar();
         stripMeters[id] = (l, r);
-        faderRow.Children.Add(Fine(fader, MusicRules.StepGainDb, false, $"volume do canal {name}", vertical: true));
+        faderRow.Children.Add(Fine(fader, 1, false, $"volume do canal {name}", vertical: true));
         faderRow.Children.Add(new Grid { Width = 6, Height = 130, Background = new SolidColorBrush(Microsoft.UI.Colors.Black), Children = { l } });
         faderRow.Children.Add(new Grid { Width = 6, Height = 130, Background = new SolidColorBrush(Microsoft.UI.Colors.Black), Children = { r } });
         panel.Children.Add(faderRow);
         panel.Children.Add(value);
         if (id != "master")
         {
-            var panSlider = new Slider { Header = "Pan", Minimum = -100, Maximum = 100, Value = pan };
+            var panSlider = new Slider { Header = $"Pan {MusicRules.PanText(pan)}", Minimum = -100, Maximum = 100, Value = pan };
             panSlider.ValueChanged += (_, e) => Set((p, v) => { if (isTrack) Track(p, id).Pan = v; else p.Buses.First(b => b.Id == id).Pan = v; }, e.NewValue, $"pan-{id}");
             panel.Children.Add(Fine(panSlider, MusicRules.StepPan, false, $"pan de {name}"));
         }

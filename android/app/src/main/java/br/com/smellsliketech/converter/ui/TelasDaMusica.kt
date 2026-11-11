@@ -31,6 +31,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.Checkbox
@@ -103,6 +104,7 @@ private fun novoId(prefixo: String) = "$prefixo-${UUID.randomUUID().toString().r
 @Composable
 fun TelaDaMusica(modelo: MusicaViewModel, podeCriar: Boolean, abrirLicenca: () -> Unit, voltar: () -> Unit) {
     val projeto = modelo.projeto
+    LaunchedEffect(projeto == null) { if (projeto == null) modelo.recarregar() }
     if (projeto == null) {
         BackHandler(onBack = voltar)
         ListaDeProjetosMusicais(modelo, podeCriar, abrirLicenca, voltar)
@@ -131,7 +133,7 @@ fun TelaDaMusica(modelo: MusicaViewModel, podeCriar: Boolean, abrirLicenca: () -
                     TextButton(onClick = modelo::cancelar) { Text("Cancelar") }
                 }
             }
-            val abas = listOf("Faixas", "Gravar", "Mixer", "FX", "Separar", "Exportar")
+            val abas = listOf("Faixas", "Gravar", "Mixer", "Tempo e tom", "FX", "Separar", "Exportar")
             ScrollableTabRow(selectedTabIndex = aba, edgePadding = 8.dp) {
                 abas.forEachIndexed { i, rotulo -> Tab(selected = aba == i, onClick = { aba = i }, text = { Text(rotulo) }) }
             }
@@ -140,13 +142,26 @@ fun TelaDaMusica(modelo: MusicaViewModel, podeCriar: Boolean, abrirLicenca: () -
                     0 -> AbaDasFaixas(modelo, projeto)
                     1 -> AbaDeGravar(modelo, projeto)
                     2 -> AbaDoMixer(modelo, projeto)
-                    3 -> AbaDeEfeitos(modelo, projeto)
-                    4 -> AbaDeSeparar(modelo, projeto)
+                    3 -> AbaDeTempoETom(modelo, projeto)
+                    4 -> AbaDeEfeitos(modelo, projeto)
+                    5 -> AbaDeSeparar(modelo, projeto)
                     else -> AbaDeExportar(modelo, projeto, podeCriar, abrirLicenca)
                 }
             }
         }
     }
+    if (modelo.perguntarSaida) AlertDialog(
+        onDismissRequest = modelo::cancelarSaida,
+        title = { Text("Salvar o projeto?") },
+        text = { Text("Suas últimas alterações ainda não foram salvas neste celular.") },
+        confirmButton = { TextButton(onClick = modelo::salvarESair) { Text("Salvar e sair") } },
+        dismissButton = {
+            Row {
+                TextButton(onClick = modelo::sairSemSalvar) { Text("Sair sem salvar") }
+                TextButton(onClick = modelo::cancelarSaida) { Text("Continuar editando") }
+            }
+        },
+    )
 }
 
 @Composable
@@ -161,6 +176,15 @@ private fun ListaDeProjetosMusicais(modelo: MusicaViewModel, podeCriar: Boolean,
                 Text("Grave uma faixa ouvindo as outras, importe áudios, separe voz, bateria e baixo por IA, aplique efeitos e exporte. Tudo fica no celular. Use fone com fio ou interface USB: com Bluetooth o atraso varia.", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 if (!podeCriar) OutlinedButton(onClick = abrirLicenca) { Text("O teste acabou: ativar a licença") }
             }
+            item {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Salvar automaticamente", fontWeight = FontWeight.Bold)
+                        Text("Desligado: pergunta o que fazer ao sair do projeto.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Switch(modelo.salvarAutomaticamente, modelo::definirSalvamentoAutomatico, Modifier.semantics { contentDescription = "Salvar projetos automaticamente" })
+                }
+            }
             item { Text("COMEÇAR UM PROJETO", color = MaterialTheme.colorScheme.secondary, fontSize = 11.sp, letterSpacing = 2.sp) }
             items(Musica.MODELOS) { m ->
                 Card(onClick = { if (podeCriar) modelo.criar(m.id) else abrirLicenca() }, modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Modelo ${m.rotulo}" }) {
@@ -171,6 +195,7 @@ private fun ListaDeProjetosMusicais(modelo: MusicaViewModel, podeCriar: Boolean,
                 }
             }
             item { OutlinedButton(onClick = { abrirArquivo.launch(arrayOf("application/zip", "application/octet-stream", "*/*")) }) { Text("Abrir um .sltmusic") } }
+            if (modelo.carregandoLista) item { Text("Carregando os projetos salvos…", color = MaterialTheme.colorScheme.onSurfaceVariant) }
             if (modelo.lista.isNotEmpty()) {
                 item { Text("PROJETOS NESTE CELULAR", color = MaterialTheme.colorScheme.secondary, fontSize = 11.sp, letterSpacing = 2.sp) }
                 items(modelo.lista, key = { it.id }) { r ->
@@ -234,6 +259,10 @@ private fun AbaDasFaixas(modelo: MusicaViewModel, projeto: ProjetoMusical) {
                 OutlinedButton(onClick = { importar.launch(arrayOf("audio/*")) }) { Text("Importar áudio") }
                 OutlinedButton(onClick = modelo::salvarArquivo) { Text("Salvar") }
             }
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text(if (modelo.salvarAutomaticamente) "Salvar automaticamente" else if (modelo.alteracoesPendentes) "Alterações não salvas" else "Perguntar ao sair", Modifier.weight(1f), fontSize = 12.sp)
+                Switch(modelo.salvarAutomaticamente, modelo::definirSalvamentoAutomatico, Modifier.semantics { contentDescription = "Salvar este projeto automaticamente" })
+            }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("Zoom", fontSize = 12.sp)
                 Slider(zoom, { zoom = it }, Modifier.weight(1f), valueRange = 8f..300f)
@@ -281,8 +310,8 @@ private fun CartaoDaFaixa(modelo: MusicaViewModel, projeto: ProjetoMusical, faix
                 val m = modelo.medidores[faixa.id]
                 LinearProgressIndicator(progress = { if (m == null) 0f else nivel(maxOf(m[0], m[1])) }, modifier = Modifier.weight(1f))
             }
-            AjusteDaMusica("Volume de ${faixa.nome}", faixa.ganhoDb, Musica.GANHO_MINIMO_DB, Musica.GANHO_MAXIMO_DB, Musica.PASSO_GANHO_DB, rotulo = "Vol") { v -> modelo.mudarFaixa(faixa.id, "vol-${faixa.id}") { it.copy(ganhoDb = v) } }
-            AjusteDaMusica("Pan de ${faixa.nome}", faixa.pan, -100.0, 100.0, Musica.PASSO_PAN, rotulo = "Pan") { v -> modelo.mudarFaixa(faixa.id, "pan-${faixa.id}") { it.copy(pan = v) } }
+            AjusteDaMusica("Volume de ${faixa.nome}", Musica.volumeParaPercentual(faixa.ganhoDb).toDouble(), 0.0, 100.0, 1.0, rotulo = "Vol", valorTexto = "${Musica.volumeParaPercentual(faixa.ganhoDb)}") { v -> modelo.mudarFaixa(faixa.id, "vol-${faixa.id}") { it.copy(ganhoDb = Musica.percentualParaVolume(v)) } }
+            AjusteDaMusica("Pan de ${faixa.nome}", faixa.pan, -100.0, 100.0, Musica.PASSO_PAN, rotulo = "Pan", valorTexto = Musica.textoDoPan(faixa.pan)) { v -> modelo.mudarFaixa(faixa.id, "pan-${faixa.id}") { it.copy(pan = v) } }
             Box(Modifier.fillMaxWidth().height(64.dp).horizontalScroll(rolagem)) {
                 Pista(modelo, projeto, faixa, zoom, larguraDp, corDaFaixa, selecionado, selecionar)
             }
@@ -321,7 +350,7 @@ private fun Pista(modelo: MusicaViewModel, projeto: ProjetoMusical, faixa: Faixa
                 val colunas = p.size / 2
                 var px = 0f
                 while (px < w) {
-                    val k = ((clipe.inicioNaMidia + px / w * clipe.duracao) / 1024).toInt().coerceIn(0, colunas - 1)
+                    val k = ((clipe.inicioNaMidia + px / w * clipe.duracao * (clipe.velocidade ?: 1.0)) / 1024).toInt().coerceIn(0, colunas - 1)
                     val y0 = (1 - p[k * 2 + 1]) / 2 * size.height
                     val y1 = (1 - p[k * 2]) / 2 * size.height
                     drawLine(corDaFaixa.copy(alpha = if (clipe.mudo) 0.4f else 1f), Offset(x + px, y0), Offset(x + px, y1), 1.5f)
@@ -350,7 +379,7 @@ private fun EditorDoClipe(modelo: MusicaViewModel, projeto: ProjetoMusical, faix
                         mudarClipe("posicao-fina") { c ->
                             val novo = c.inicio + d
                             if (novo >= 0) c.copy(inicio = novo)
-                            else { val corte = minOf(-novo, c.duracao - 1); c.copy(inicio = 0, inicioNaMidia = c.inicioNaMidia + corte, duracao = c.duracao - corte) }
+                            else { val corte = minOf(-novo, c.duracao - 1); c.copy(inicio = 0, inicioNaMidia = c.inicioNaMidia + Musica.arredondar(corte * (c.velocidade ?: 1.0)), duracao = c.duracao - corte) }
                         }
                     }, contentPadding = PaddingValues(horizontal = 10.dp)) { Text(if (ms > 0) "+$ms ms" else "$ms ms") }
                 }
@@ -370,7 +399,7 @@ private fun EditorDoClipe(modelo: MusicaViewModel, projeto: ProjetoMusical, faix
                     val corte = modelo.posicao
                     if (corte > clipe.inicio && corte < clipe.fim) modelo.mudarFaixa(faixa.id) { t ->
                         val esq = corte - clipe.inicio
-                        t.copy(clipes = t.clipes.flatMap { if (it.id != clipe.id) listOf(it) else listOf(it.copy(duracao = esq, saidaSuave = 0, entradaSuave = minOf(it.entradaSuave, esq)), it.copy(id = novoId("clipe"), inicio = corte, inicioNaMidia = it.inicioNaMidia + esq, duracao = it.duracao - esq, entradaSuave = 0, saidaSuave = minOf(it.saidaSuave, it.duracao - esq))) })
+                        t.copy(clipes = t.clipes.flatMap { if (it.id != clipe.id) listOf(it) else listOf(it.copy(duracao = esq, saidaSuave = 0, entradaSuave = minOf(it.entradaSuave, esq)), it.copy(id = novoId("clipe"), inicio = corte, inicioNaMidia = it.inicioNaMidia + Musica.arredondar(esq * (it.velocidade ?: 1.0)), duracao = it.duracao - esq, entradaSuave = 0, saidaSuave = minOf(it.saidaSuave, it.duracao - esq))) })
                     }
                 }) { Text("Dividir no cursor") }
                 OutlinedButton(onClick = { modelo.mudarFaixa(faixa.id) { t -> t.copy(clipes = t.clipes.filter { it.id != clipe.id }) }; fechar() }) { Text("Remover clipe") }
@@ -480,10 +509,10 @@ private fun Canal(nome: String, corDoCanal: Color, ganhoDb: Double, pan: Double,
                 Box(Modifier.weight(nivel(medidor?.get(0) ?: 0f).coerceAtLeast(0.001f)).height(8.dp).background(Color(0xFF43A047)))
                 Spacer(Modifier.weight((1 - nivel(medidor?.get(0) ?: 0f)).coerceAtLeast(0.001f)))
             }
-            Text("${if (ganhoDb <= -60) "−∞" else "%.1f".format(ganhoDb)} dB", fontSize = 12.sp, fontFamily = FontFamily.Monospace)
-            AjusteDaMusica("Volume de $nome", ganhoDb, Musica.GANHO_MINIMO_DB, Musica.GANHO_MAXIMO_DB, Musica.PASSO_GANHO_DB) { volume(it) }
+            Text("Volume ${Musica.volumeParaPercentual(ganhoDb)}", fontSize = 12.sp, fontFamily = FontFamily.Monospace)
+            AjusteDaMusica("Volume de $nome", Musica.volumeParaPercentual(ganhoDb).toDouble(), 0.0, 100.0, 1.0) { volume(Musica.percentualParaVolume(it)) }
             if (mudarPan != null) {
-                Text("Pan ${if (pan == 0.0) "C" else if (pan < 0) "L${(-pan).roundToLong()}" else "R${pan.roundToLong()}"}", fontSize = 12.sp)
+                Text("Pan ${Musica.textoDoPan(pan)}", fontSize = 12.sp)
                 AjusteDaMusica("Pan de $nome", pan, -100.0, 100.0, Musica.PASSO_PAN) { mudarPan(it) }
             }
             extra()
@@ -614,9 +643,12 @@ private fun AbaDeExportar(modelo: MusicaViewModel, projeto: ProjetoMusical, pode
  * (encaixado na grade do passo, ou relativo nas frequências). Ver Musica.ajusteFino.
  */
 @Composable
-private fun AjusteDaMusica(descricao: String, valor: Double, de: Double, ate: Double, passo: Double, relativo: Boolean = false, rotulo: String? = null, mudar: (Double) -> Unit) {
+internal fun AjusteDaMusica(descricao: String, valor: Double, de: Double, ate: Double, passo: Double, relativo: Boolean = false, rotulo: String? = null, valorTexto: String? = null, mudar: (Double) -> Unit) {
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        if (rotulo != null) Text(rotulo, Modifier.width(30.dp), fontSize = 11.sp)
+        if (rotulo != null || valorTexto != null) Column(Modifier.width(if (valorTexto != null) 82.dp else 30.dp)) {
+            if (rotulo != null) Text(rotulo, fontSize = 11.sp)
+            if (valorTexto != null) Text(valorTexto, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, fontFamily = FontFamily.Monospace)
+        }
         AcaoDoEditor(AcaoEditor.DIMINUIR, "Diminuir $descricao", habilitada = valor > de) { mudar(Musica.ajusteFino(valor, -1, passo, de, ate, relativo)) }
         Slider(valor.toFloat().coerceIn(de.toFloat(), ate.toFloat()), { mudar(it.toDouble()) }, Modifier.weight(1f).semantics { contentDescription = descricao }, valueRange = de.toFloat()..ate.toFloat())
         AcaoDoEditor(AcaoEditor.ADICIONAR, "Aumentar $descricao", habilitada = valor < ate) { mudar(Musica.ajusteFino(valor, 1, passo, de, ate, relativo)) }

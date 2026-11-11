@@ -40,6 +40,24 @@ export function linearParaDb(ganho) {
   return ganho > 0 ? 20 * Math.log10(ganho) : -Infinity;
 }
 
+/** A barra de volume mostra 0–100; 100 é o ganho original (0 dB), sem amplificação escondida. */
+export function volumeParaPercentual(db) {
+  if (!finito(db) || db <= GANHO_MINIMO_DB) return 0;
+  return limitar(Math.round(100 * Math.pow(10, db / 20)), 0, 100);
+}
+
+export function percentualParaVolume(percentual) {
+  if (!finito(percentual) || percentual <= 0) return GANHO_MINIMO_DB;
+  return limitar(20 * Math.log10(percentual / 100), GANHO_MINIMO_DB, 0);
+}
+
+/** Pan: centro 0; à direita +nD −nL; à esquerda +nL −nD. */
+export function textoDoPan(pan) {
+  const valor = Math.round(limitar(finito(pan) ? pan : 0, -100, 100));
+  if (valor === 0) return "0";
+  return valor > 0 ? `+${valor}D −${valor}L` : `+${-valor}L −${-valor}D`;
+}
+
 /** Quadros por batida (semínima, ou a figura do denominador do compasso). */
 export function quadrosPorBatida(projeto) {
   const [, denominador] = projeto.compasso;
@@ -455,9 +473,12 @@ export function problemasDaMusica(projeto, validarEfeito = () => null) {
       }
       if (![clipe.inicio, clipe.inicioNaMidia, clipe.duracao, clipe.entradaSuave, clipe.saidaSuave].every((v) => inteiro(v) && v >= 0) || clipe.duracao === 0)
         erros.push(`Faixa ${nome}: o clipe ${clipe.id} tem posição ou duração inválida.`);
-      else if (clipe.inicioNaMidia + clipe.duracao > midia.quadros) erros.push(`Faixa ${nome}: o clipe ${clipe.id} passa do fim da mídia.`);
+      else if (clipe.inicioNaMidia + clipe.duracao * (clipe.velocidade ?? 1) > midia.quadros + 1) erros.push(`Faixa ${nome}: o clipe ${clipe.id} passa do fim da mídia.`);
       else if (clipe.entradaSuave + clipe.saidaSuave > clipe.duracao) erros.push(`Faixa ${nome}: as rampas do clipe ${clipe.id} são maiores que ele.`);
       if (!finito(clipe.ganhoDb) || clipe.ganhoDb > 24) erros.push(`Faixa ${nome}: ganho do clipe ${clipe.id} inválido.`);
+      if (!finito(clipe.velocidade ?? 1) || (clipe.velocidade ?? 1) < 0.25 || (clipe.velocidade ?? 1) > 4) erros.push(`Faixa ${nome}: a velocidade do clipe ${clipe.id} vai de 25% a 400%.`);
+      if (!finito(clipe.semitons ?? 0) || Math.abs(clipe.semitons ?? 0) > 12) erros.push(`Faixa ${nome}: a transposição do clipe ${clipe.id} vai de −12 a +12 semitons.`);
+      if (clipe.preservarTom !== undefined && typeof clipe.preservarTom !== "boolean") erros.push(`Faixa ${nome}: o modo de velocidade do clipe ${clipe.id} é inválido.`);
     }
   }
   if (!finito(projeto.master?.ganhoDb) || projeto.master.ganhoDb > GANHO_MAXIMO_DB) erros.push("Ganho do master inválido.");

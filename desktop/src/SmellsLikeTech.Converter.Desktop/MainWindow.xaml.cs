@@ -115,6 +115,11 @@ public sealed partial class MainWindow : Window
             _ = LeaveStudioAsync(studio, page);
             return;
         }
+        if (ContentFrame.Content is MusicPage music && music.HasUnsavedChanges)
+        {
+            _ = LeaveMusicAsync(music, page);
+            return;
+        }
 
         ContentFrame.Navigate(page);
     }
@@ -139,19 +144,34 @@ public sealed partial class MainWindow : Window
         }
     }
 
+    private async Task LeaveMusicAsync(MusicPage music, Type page)
+    {
+        leavingStudio = true;
+        try
+        {
+            if (await music.ConfirmLeaveAsync()) ContentFrame.Navigate(page);
+            else Select("music");
+        }
+        finally
+        {
+            leavingStudio = false;
+        }
+    }
+
     /// <summary>Fechar o aplicativo com um projeto aberto no estúdio também pergunta.</summary>
     private async void OnClosing(Microsoft.UI.Windowing.AppWindow sender, Microsoft.UI.Windowing.AppWindowClosingEventArgs args)
     {
-        if (closeConfirmed || ContentFrame.Content is not StudioPage studio || !studio.HasProjectContent)
+        if (closeConfirmed) return;
+        if (ContentFrame.Content is StudioPage studio && studio.HasProjectContent)
         {
+            args.Cancel = true;
+            if (await studio.ConfirmLeaveAsync()) { closeConfirmed = true; Close(); }
             return;
         }
-
-        args.Cancel = true;
-        if (await studio.ConfirmLeaveAsync())
+        if (ContentFrame.Content is MusicPage music && music.HasUnsavedChanges)
         {
-            closeConfirmed = true;
-            Close();
+            args.Cancel = true;
+            if (await music.ConfirmLeaveAsync()) { closeConfirmed = true; Close(); }
         }
     }
 

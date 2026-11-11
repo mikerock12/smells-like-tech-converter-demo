@@ -279,7 +279,7 @@ export function PainelDeSeparacao({ projeto, canaisDe, mudar, carregarMidia }: {
   );
 }
 
-export function PainelDeExportacao({ projeto, fontes, faixaSelecionada }: { projeto: ProjetoMusical; fontes: () => Map<string, FonteDeAudio>; faixaSelecionada: string | null }) {
+export function PainelDeExportacao({ projeto, fontes, faixaSelecionada }: { projeto: ProjetoMusical; fontes: () => Promise<Map<string, FonteDeAudio>>; faixaSelecionada: string | null }) {
   const [formatos, setFormatos] = useState<string[]>(["wav-24"]);
   const [formato, setFormato] = useState("wav-24");
   const [master, setMaster] = useState("sem-alvo");
@@ -300,7 +300,7 @@ export function PainelDeExportacao({ projeto, fontes, faixaSelecionada }: { proj
     setErro(null);
     cancelado.current = false;
     try {
-      const prontos = await exportarMusica(projeto, fontes(), { formato, master, alcance, cadaFaixa: alvo === "faixas", cauda, faixa: alvo === "uma" ? faixaSelecionada : null }, (etapa, fracao) => setAndamento({ etapa, fracao }), () => cancelado.current);
+      const prontos = await exportarMusica(projeto, await fontes(), { formato, master, alcance, cadaFaixa: alvo === "faixas", cauda, faixa: alvo === "uma" ? faixaSelecionada : null }, (etapa, fracao) => setAndamento({ etapa, fracao }), () => cancelado.current);
       setResultados(prontos.map((r) => ({ ...r, url: URL.createObjectURL(r.blob) })));
       if (prontos.length === 1) {
         const a = document.createElement("a");

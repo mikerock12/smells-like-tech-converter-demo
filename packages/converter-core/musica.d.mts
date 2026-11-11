@@ -3,6 +3,12 @@ export interface PontoDeAutomacao { quadro: number; valor: number }
 export interface Clipe {
   id: string; midia: string; inicio: number; inicioNaMidia: number; duracao: number;
   ganhoDb: number; entradaSuave: number; saidaSuave: number; mudo: boolean; nome?: string;
+  /** Velocidade na linha do tempo (0,25–4); o padrão de projetos antigos é 1. */
+  velocidade?: number;
+  /** Transposição independente da duração, em semitons (−12 a +12). */
+  semitons?: number;
+  /** true = time-stretch; false = velocidade também muda o tom, como uma fita. */
+  preservarTom?: boolean;
 }
 export interface Envio { barramento: string; nivelDb: number; preFader: boolean }
 export interface EfeitoDaMusica { id: string; tipo: string; ligado: boolean; [parametro: string]: number | string | boolean }
@@ -48,6 +54,9 @@ export declare const PROFUNDIDADES: number[];
 export declare const MODELOS_DA_MUSICA: { id: string; rotulo: string; faixas: string[]; barramentos: string[] }[];
 export declare function dbParaLinear(db: number): number;
 export declare function linearParaDb(ganho: number): number;
+export declare function volumeParaPercentual(db: number): number;
+export declare function percentualParaVolume(percentual: number): number;
+export declare function textoDoPan(pan: number): string;
 export declare function quadrosPorBatida(projeto: ProjetoMusical): number;
 export declare function quadroDaBatida(projeto: ProjetoMusical, k: number): number;
 export declare function quadrosPorCompasso(projeto: ProjetoMusical): number;

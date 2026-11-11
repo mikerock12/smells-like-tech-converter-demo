@@ -135,8 +135,8 @@ export default function PaginaDoAndroid() {
             <div className="cartao">
               <strong>Criação musical</strong>
               <p>
-                Grave várias faixas ouvindo as outras, separe voz, bateria, baixo e outros por IA, mixe com 14 efeitos e exporte em
-                WAV, FLAC, MP3, AAC ou Opus.
+                Grave várias faixas ouvindo as outras e separe instrumentos por IA. Mude a velocidade com ou sem alterar o tom,
+                transponha por semitons, identifique BPM e tonalidade e iguale o ritmo entre faixas. Exporte em WAV, FLAC, MP3, AAC ou Opus.
               </p>
             </div>
             <div className="cartao">

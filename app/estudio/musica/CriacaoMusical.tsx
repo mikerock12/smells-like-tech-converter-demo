@@ -21,6 +21,7 @@ import {
   type ProjetoMusical,
 } from "@/packages/converter-core/musica.mjs";
 import { fonteDaMemoria, type FonteDeAudio } from "@/packages/converter-core/musica-mixer.mjs";
+import { chaveDaFonteDoClipe, temTransformacao, transformarCanais } from "@/packages/converter-core/musica-transformacao.mjs";
 import { formatarReais, produto } from "@/packages/converter-core/precos.mjs";
 import {
   EscritorDeMidia,
@@ -41,13 +42,15 @@ import {
 import { podeCriar, registrarCriacao } from "@/lib/musica/cota";
 import { MotorDaMusica, canaisCompartilhados, type EstadoDoMotor, type ResultadoDaEntrada } from "@/lib/musica/motor";
 import { calcularPicos } from "@/lib/musica/picos";
+import { guardarSalvamentoAutomatico, salvarAutomaticamente } from "@/lib/musica/preferencias";
 import { usePlano } from "@/lib/plano/usePlano";
 import BotaoDeCompra from "../../precos/BotaoDeCompra";
 import LinhaDoTempoMusical from "./LinhaDoTempoMusical";
 import { MixerMusical, EfeitosMusicais } from "./MixerMusical";
 import { PainelDeExportacao, PainelDeGravacao, PainelDeSeparacao, reduzirRuidoDoClipe } from "./PaineisMusicais";
+import TempoETom from "./TempoETom";
 
-type Painel = "mixer" | "efeitos" | "gravacao" | "separar" | "exportar";
+type Painel = "mixer" | "tempo" | "efeitos" | "gravacao" | "separar" | "exportar";
 export type Mudar = (mudanca: (p: ProjetoMusical) => ProjetoMusical, juntar?: string) => void;
 export type Selecao = { faixa: string | null; clipe: string | null; efeitos: string };
 
@@ -69,7 +72,9 @@ export default function CriacaoMusical() {
   const [aviso, setAviso] = useState<string | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [bloqueio, setBloqueio] = useState<string | null>(null);
-  const [salvo, setSalvo] = useState<"salvo" | "salvando" | "erro">("salvo");
+  const [salvo, setSalvo] = useState<"salvo" | "salvando" | "erro" | "pendente">("salvo");
+  const [automatico, setAutomatico] = useState(salvarAutomaticamente);
+  const [saidaPendente, setSaidaPendente] = useState(false);
   const [soltas, setSoltas] = useState<{ id: string; quadros: number; canais: number }[]>([]);
   const [carregando, setCarregando] = useState<string | null>(null);
   const [passos, setPassos] = useState({ desfazer: 0, refazer: 0 });
@@ -80,9 +85,12 @@ export default function CriacaoMusical() {
 
   const motor = useRef<MotorDaMusica | null>(null);
   const midias = useRef(new Map<string, Float32Array[]>());
+  const transformadas = useRef(new Map<string, Float32Array[]>());
   const atual = useRef<ProjetoMusical | null>(null);
   const historico = useRef<{ antes: ProjetoMusical[]; depois: ProjetoMusical[]; ultima: number; chave: string | null }>({ antes: [], depois: [], ultima: 0, chave: null });
   const temporizador = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const temporizadorDaTransformacao = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const preparacao = useRef(0);
   const capturados = useRef(0);
 
   const recarregarLista = useCallback(async () => {
@@ -100,20 +108,48 @@ export default function CriacaoMusical() {
     };
   }, []);
 
-  // Gravando: sair da página perderia o fim da tomada.
+  // Gravação ou edição ainda não salva: o navegador mostra sua confirmação ao fechar/recarregar.
   useEffect(() => {
-    if (!gravando) return;
+    if (!gravando && (automatico || salvo !== "pendente")) return;
     const aviso = (e: BeforeUnloadEvent) => e.preventDefault();
     window.addEventListener("beforeunload", aviso);
     return () => window.removeEventListener("beforeunload", aviso);
-  }, [gravando]);
+  }, [automatico, gravando, salvo]);
 
   const salvarDepois = useCallback((p: ProjetoMusical) => {
     if (temporizador.current) clearTimeout(temporizador.current);
+    if (!automatico) { setSalvo("pendente"); return; }
     setSalvo("salvando");
     temporizador.current = setTimeout(() => {
       salvarProjeto(p).then(() => setSalvo("salvo"), () => setSalvo("erro"));
     }, 700);
+  }, [automatico]);
+
+  const prepararTransformacoes = useCallback((p: ProjetoMusical, espera = 250) => {
+    const clipes = p.faixas.flatMap((f) => f.clipes).filter((c) => temTransformacao(c)).filter((c, i, todos) => todos.findIndex((x) => chaveDaFonteDoClipe(x) === chaveDaFonteDoClipe(c)) === i);
+    const numero = ++preparacao.current;
+    if (temporizadorDaTransformacao.current) clearTimeout(temporizadorDaTransformacao.current);
+    if (!clipes.length) return Promise.resolve();
+    setCarregando("Preparando tempo e tom");
+    return new Promise<void>((resolve) => {
+      temporizadorDaTransformacao.current = setTimeout(() => {
+        try {
+          for (const clipe of clipes) {
+            const chave = chaveDaFonteDoClipe(clipe);
+            const original = midias.current.get(clipe.midia);
+            if (!original) continue;
+            const canais = transformadas.current.get(chave) ?? transformarCanais(original, p.taxa, { velocidade: clipe.velocidade, semitons: clipe.semitons, preservarTom: clipe.preservarTom });
+            transformadas.current.set(chave, canais);
+            motor.current?.definirMidia(chave, canaisCompartilhados(canais));
+          }
+        } catch (e) {
+          setErro(e instanceof Error ? e.message : String(e));
+        } finally {
+          if (numero === preparacao.current) setCarregando(null);
+          resolve();
+        }
+      }, espera);
+    });
   }, []);
 
   const aplicar = useCallback((p: ProjetoMusical) => {
@@ -121,9 +157,10 @@ export default function CriacaoMusical() {
     setProjeto(p);
     motor.current?.definirProjeto(p);
     salvarDepois(p);
-  }, [salvarDepois]);
+    void prepararTransformacoes(p);
+  }, [prepararTransformacoes, salvarDepois]);
 
-  /** Toda edição passa por aqui: guarda o passo para desfazer, toca e salva. */
+  /** Toda edição passa por aqui: guarda o passo, toca e aplica a preferência de salvamento. */
   const mudar: Mudar = useCallback((mudanca, juntar) => {
     const p = atual.current;
     if (!p) return;
@@ -200,15 +237,17 @@ export default function CriacaoMusical() {
         setCarregando(`Carregando as mídias (${i + 1} de ${p.midias.length})`);
         await carregarMidia(p.id, midia.id);
       }
+      await prepararTransformacoes(p, 0);
       setSoltas(await midiasSoltas(p));
       setSelecao({ faixa: p.faixas[0]?.id ?? null, clipe: null, efeitos: "master" });
+      setSalvo("salvo");
       void pedirArmazenamentoPersistente();
     } catch (e) {
       setErro(e instanceof Error ? e.message : String(e));
     } finally {
       setCarregando(null);
     }
-  }, [carregarMidia, garantirMotor]);
+  }, [carregarMidia, garantirMotor, prepararTransformacoes]);
 
   const criar = useCallback(async (modeloId: string) => {
     const id = novoId("musica");
@@ -219,10 +258,11 @@ export default function CriacaoMusical() {
     }
     const modelo = MODELOS_DA_MUSICA.find((m) => m.id === modeloId)!;
     const p = projetoDoModelo(modeloId, id, modelo.id === "vazio" ? "Nova música" : modelo.rotulo, TAXA);
-    await salvarProjeto(p);
+    if (automatico) await salvarProjeto(p);
     registrarCriacao(id);
     await abrir(p);
-  }, [abrir, plano]);
+    if (!automatico) setSalvo("pendente");
+  }, [abrir, automatico, plano]);
 
   const abrirSalvo = useCallback(async (resumo: ResumoDoProjeto) => {
     try {
@@ -426,23 +466,30 @@ export default function CriacaoMusical() {
     return () => window.removeEventListener("keydown", tecla);
   }, [desfazer, gravar, irPara, mudar, projeto, refazer, tocarOuParar]);
 
-  const fecharProjeto = useCallback(async () => {
+  const concluirFechamento = useCallback(async (salvar: boolean) => {
     motor.current?.parar();
-    if (temporizador.current && atual.current) {
-      clearTimeout(temporizador.current);
-      await salvarProjeto(atual.current);
-    }
+    if (temporizador.current) clearTimeout(temporizador.current);
+    if (temporizadorDaTransformacao.current) clearTimeout(temporizadorDaTransformacao.current);
+    if (salvar && atual.current) await salvarProjeto(atual.current);
+    setSaidaPendente(false);
     setProjeto(null);
     atual.current = null;
     setSalvo("salvo");
     await recarregarLista();
   }, [recarregarLista]);
 
+  const fecharProjeto = useCallback(() => {
+    if (!automatico && salvo === "pendente") { setSaidaPendente(true); return; }
+    void concluirFechamento(automatico);
+  }, [automatico, concluirFechamento, salvo]);
+
   const baixarProjeto = useCallback(async () => {
     const p = atual.current;
     if (!p) return;
     setCarregando("Juntando o projeto");
     try {
+      await salvarProjeto(p);
+      setSalvo("salvo");
       const blob = await exportarArquivo(p);
       const a = document.createElement("a");
       a.href = URL.createObjectURL(blob);
@@ -456,7 +503,13 @@ export default function CriacaoMusical() {
     }
   }, []);
 
-  const fontes = useCallback((): Map<string, FonteDeAudio> => new Map([...midias.current].map(([id, c]) => [id, fonteDaMemoria(c)])), []);
+  const fontes = useCallback(async (): Promise<Map<string, FonteDeAudio>> => {
+    if (atual.current) await prepararTransformacoes(atual.current, 0);
+    const mapa = new Map<string, FonteDeAudio>();
+    for (const [id, canais] of midias.current) mapa.set(id, fonteDaMemoria(canais));
+    for (const [id, canais] of transformadas.current) mapa.set(id, fonteDaMemoria(canais));
+    return mapa;
+  }, [prepararTransformacoes]);
 
   // ==================== tela ====================
 
@@ -520,7 +573,16 @@ export default function CriacaoMusical() {
       <header className="musica__cabecalho">
         <button type="button" className="estudio__voltar" onClick={() => void fecharProjeto()} disabled={!!gravando}>← Projetos</button>
         <input className="musica__titulo" aria-label="Nome do projeto" value={projeto.titulo} maxLength={80} onChange={(e) => mudar((p) => ({ ...p, titulo: e.target.value }), "titulo")} />
-        <span className={`musica__salvo musica__salvo--${salvo}`} aria-live="polite">{salvo === "salvo" ? "Salvo neste aparelho" : salvo === "salvando" ? "Salvando…" : "Não salvou: espaço cheio?"}</span>
+        <span className={`musica__salvo musica__salvo--${salvo}`} aria-live="polite">{salvo === "salvo" ? "Salvo neste aparelho" : salvo === "salvando" ? "Salvando…" : salvo === "pendente" ? "Alterações não salvas" : "Não salvou: espaço cheio?"}</span>
+        <label className="estudio__chave" title="Desligado: pergunta se você quer salvar ao sair do projeto"><input type="checkbox" checked={automatico} onChange={(e) => {
+          const ligado = e.target.checked;
+          setAutomatico(ligado);
+          guardarSalvamentoAutomatico(ligado);
+          if (ligado && atual.current) {
+            setSalvo("salvando");
+            void salvarProjeto(atual.current).then(() => setSalvo("salvo"), () => setSalvo("erro"));
+          }
+        }} /> Salvar automaticamente</label>
         <div className="musica__acoes">
           <button type="button" className="button button--ghost" onClick={desfazer} disabled={!passos.desfazer} title="Desfazer (Ctrl+Z)">↶ Desfazer</button>
           <button type="button" className="button button--ghost" onClick={refazer} disabled={!passos.refazer} title="Refazer (Ctrl+Shift+Z)">↷ Refazer</button>
@@ -576,12 +638,13 @@ export default function CriacaoMusical() {
         limparClipe={(faixaId, clipeId) => { setAviso("Reduzindo o ruído do clipe…"); void reduzirRuidoDoClipe(projeto, faixaId, clipeId, (id) => midias.current.get(id), carregarMidia, mudar).then(setAviso); }} />
 
       <nav className="musica__abas" aria-label="Painéis">
-        {([["mixer", "Mixer"], ["efeitos", "Efeitos"], ["gravacao", "Gravação"], ["separar", "Separar por IA"], ["exportar", "Exportar"]] as const).map(([id, rotulo]) => (
+        {([["mixer", "Mixer"], ["tempo", "Tempo e tom"], ["efeitos", "Efeitos"], ["gravacao", "Gravação"], ["separar", "Separar por IA"], ["exportar", "Exportar"]] as const).map(([id, rotulo]) => (
           <button key={id} type="button" className={`musica__aba${painel === id ? " musica__aba--ativa" : ""}`} onClick={() => setPainel(id)} aria-pressed={painel === id}>{rotulo}</button>
         ))}
       </nav>
       <div className="musica__painel">
         {painel === "mixer" && <MixerMusical projeto={projeto} estado={estado} mudar={mudar} abrirEfeitos={(id) => { setSelecao((s) => ({ ...s, efeitos: id })); setPainel("efeitos"); }} />}
+        {painel === "tempo" && <TempoETom projeto={projeto} mudar={mudar} canaisDe={(id) => midias.current.get(id)} />}
         {painel === "efeitos" && <EfeitosMusicais projeto={projeto} alvo={selecao.efeitos} escolher={(id) => setSelecao((s) => ({ ...s, efeitos: id }))} mudar={mudar} />}
         {painel === "gravacao" && (
           <PainelDeGravacao projeto={projeto} mudar={mudar} entrada={entrada} saidaEstimada={saidaEstimada} quadro={estado.quadro}
@@ -591,6 +654,15 @@ export default function CriacaoMusical() {
         {painel === "separar" && <PainelDeSeparacao projeto={projeto} canaisDe={(id) => midias.current.get(id)} mudar={mudar} carregarMidia={carregarMidia} />}
         {painel === "exportar" && <PainelDeExportacao projeto={projeto} fontes={fontes} faixaSelecionada={selecao.faixa} />}
       </div>
+      {saidaPendente && <div className="musica__saida-fundo" role="presentation"><section className="musica__saida" role="dialog" aria-modal="true" aria-labelledby="saida-titulo">
+        <h2 id="saida-titulo">Salvar o projeto?</h2>
+        <p>Suas últimas alterações ainda não foram salvas neste aparelho.</p>
+        <div className="musica__saida-acoes">
+          <button type="button" className="button button--primary" onClick={() => void concluirFechamento(true)}>Salvar e sair</button>
+          <button type="button" className="button button--ghost" onClick={() => void concluirFechamento(false)}>Sair sem salvar</button>
+          <button type="button" className="button button--ghost" onClick={() => setSaidaPendente(false)}>Continuar editando</button>
+        </div>
+      </section></div>}
     </section>
   );
 }

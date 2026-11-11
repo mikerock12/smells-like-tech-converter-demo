@@ -23,7 +23,7 @@ import java.util.concurrent.LinkedBlockingQueue
 
 /**
  * Estado da criação musical no Android. Toda edição passa por [mudar] (desfazer/refazer, toca
- * e salva); o motor de áudio fica aberto enquanto a tela está aberta.
+ * e marca pendências); o motor de áudio fica aberto enquanto a tela está aberta.
  */
 class MusicaViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) {
     val biblioteca = BibliotecaDaMusica(aplicacao)
@@ -55,11 +55,26 @@ class MusicaViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) {
     var rota by mutableStateOf<RotaDeAudio?>(null); private set
     var atrasoDaRotaMs by mutableStateOf<Double?>(null); private set
     var calibrando by mutableStateOf(false); private set
+    var carregandoLista by mutableStateOf(false); private set
+    var alteracoesPendentes by mutableStateOf(false); private set
+    var perguntarSaida by mutableStateOf(false); private set
+    private val preferencias = aplicacao.getSharedPreferences("criacao-musical-preferencias", Context.MODE_PRIVATE)
+    var salvarAutomaticamente by mutableStateOf(preferencias.getBoolean("salvar-automaticamente", false)); private set
+    var analises by mutableStateOf<Map<String, AnaliseMusical>>(emptyMap()); private set
     private val alinhamentos = aplicacao.getSharedPreferences("criacao-musical-alinhamento", Context.MODE_PRIVATE)
+    private val transformadas = HashMap<String, FonteDeAudio>()
+    private var preparacao = 0
+    private var preparacaoJob: Job? = null
 
     init { recarregar() }
 
-    fun recarregar() { viewModelScope.launch(Dispatchers.IO) { lista = biblioteca.listar() } }
+    fun recarregar() {
+        carregandoLista = true
+        viewModelScope.launch {
+            lista = withContext(Dispatchers.IO) { biblioteca.listar() }
+            carregandoLista = false
+        }
+    }
 
     private fun novoId(prefixo: String) = "$prefixo-${UUID.randomUUID().toString().replace("-", "").take(16)}"
 
@@ -86,7 +101,13 @@ class MusicaViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) {
     fun criar(modeloId: String) {
         val modelo = Musica.MODELOS.first { it.id == modeloId }
         val p = Musica.projetoDoModelo(modeloId, novoId("musica"), if (modeloId == "vazio") "Nova música" else modelo.rotulo)
-        viewModelScope.launch(Dispatchers.IO) { biblioteca.salvar(p); withContext(Dispatchers.Main) { abrir(p) } }
+        if (salvarAutomaticamente) viewModelScope.launch(Dispatchers.IO) {
+            biblioteca.salvar(p)
+            withContext(Dispatchers.Main) { abrir(p) }
+        } else {
+            abrir(p)
+            alteracoesPendentes = true
+        }
     }
 
     fun abrirSalvo(id: String) { viewModelScope.launch(Dispatchers.IO) { val p = biblioteca.ler(id); withContext(Dispatchers.Main) { abrir(p) } } }
@@ -95,10 +116,14 @@ class MusicaViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) {
         val m = garantirMotor()
         antes.clear(); depois.clear(); atualizarPassos()
         projeto = p
+        alteracoesPendentes = false
+        perguntarSaida = false
         m.definirProjeto(p)
         m.posicionar(0)
         picos.clear()
         p.midias.forEach { carregarMidia(p, it) }
+        prepararTransformacoes(p)
+        recarregar()
         viewModelScope.launch(Dispatchers.IO) { soltas = biblioteca.soltas(p) }
         relogio?.cancel()
         relogio = viewModelScope.launch {
@@ -112,10 +137,34 @@ class MusicaViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) {
     }
 
     fun fechar() {
+        if (!salvarAutomaticamente && alteracoesPendentes) perguntarSaida = true
+        else finalizarFechamento(salvarAutomaticamente)
+    }
+
+    fun cancelarSaida() { perguntarSaida = false }
+    fun sairSemSalvar() = finalizarFechamento(false)
+    fun salvarESair() = finalizarFechamento(true)
+
+    private fun finalizarFechamento(salvar: Boolean) {
         motor?.parar()
-        projeto?.let { p -> viewModelScope.launch(Dispatchers.IO) { biblioteca.salvar(p); lista = biblioteca.listar() } }
+        val p = projeto
+        perguntarSaida = false
         relogio?.cancel()
-        projeto = null
+        viewModelScope.launch {
+            if (salvar && p != null) withContext(Dispatchers.IO) { biblioteca.salvar(p) }
+            projeto = null
+            alteracoesPendentes = false
+            recarregar()
+        }
+    }
+
+    fun definirSalvamentoAutomatico(ligar: Boolean) {
+        salvarAutomaticamente = ligar
+        preferencias.edit().putBoolean("salvar-automaticamente", ligar).apply()
+        if (ligar) projeto?.let { p ->
+            viewModelScope.launch(Dispatchers.IO) { biblioteca.salvar(p) }
+            alteracoesPendentes = false
+        }
     }
 
     private fun carregarMidia(p: ProjetoMusical, midia: MidiaMusical) {
@@ -143,7 +192,35 @@ class MusicaViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) {
         }
     }
 
-    /** Toda edição: guarda o passo, toca o projeto novo e salva logo depois. */
+    private fun prepararTransformacoes(p: ProjetoMusical) {
+        val faltantes = p.faixas.flatMap { it.clipes }.filter { TransformacaoDaMusica.temTransformacao(it) }
+            .distinctBy { TransformacaoDaMusica.chaveDaFonte(it) }
+            .filter { !transformadas.containsKey(TransformacaoDaMusica.chaveDaFonte(it)) }
+        if (faltantes.isEmpty()) return
+        val numero = ++preparacao
+        preparacaoJob?.cancel()
+        preparacaoJob = viewModelScope.launch {
+            delay(250)
+            if (andamento == null) andamento = "Preparando tempo e tom" to 0.0
+            val novas = withContext(Dispatchers.Default) {
+                faltantes.mapIndexed { i, clipe ->
+                    val chave = TransformacaoDaMusica.chaveDaFonte(clipe)
+                    val canais = FonteMapeada(biblioteca.midia(p.id, clipe.midia)).use(TransformacaoDaMusica::lerTudo)
+                    chave to FonteNaMemoria(TransformacaoDaMusica.transformar(canais, p.taxa, clipe.velocidade ?: 1.0, clipe.semitons ?: 0.0, clipe.preservarTom ?: true)).also {
+                        viewModelScope.launch { if (numero == preparacao) andamento = "Preparando tempo e tom" to (i + 1).toDouble() / faltantes.size }
+                    }
+                }
+            }
+            if (numero != preparacao) return@launch
+            for ((chave, fonte) in novas) {
+                transformadas[chave] = fonte
+                motor?.definirFonte(chave, fonte)
+            }
+            if (andamento?.first == "Preparando tempo e tom") andamento = null
+        }
+    }
+
+    /** Toda edição: guarda o passo e toca o projeto novo; o modo escolhido decide quando salvar. */
     fun mudar(juntar: String? = null, mudanca: (ProjetoMusical) -> ProjetoMusical) {
         val p = projeto ?: return
         val novo = mudanca(p)
@@ -160,10 +237,16 @@ class MusicaViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) {
 
     private fun aplicar(p: ProjetoMusical) {
         projeto = p
+        alteracoesPendentes = true
         motor?.definirProjeto(p)
+        prepararTransformacoes(p)
         atualizarPassos()
         salvarJob?.cancel()
-        salvarJob = viewModelScope.launch(Dispatchers.IO) { delay(700); biblioteca.salvar(p) }
+        if (salvarAutomaticamente) salvarJob = viewModelScope.launch(Dispatchers.IO) {
+            delay(700)
+            biblioteca.salvar(p)
+            withContext(Dispatchers.Main) { if (projeto == p) alteracoesPendentes = false }
+        }
     }
 
     private fun atualizarPassos() { podeDesfazer = antes.isNotEmpty(); podeRefazer = depois.isNotEmpty() }
@@ -321,6 +404,34 @@ class MusicaViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) {
         atrasoDaRotaMs = null
     }
 
+    fun analisar(clipeId: String) {
+        val p = projeto ?: return
+        val clipe = p.faixas.flatMap { it.clipes }.firstOrNull { it.id == clipeId } ?: return
+        trabalho = viewModelScope.launch {
+            andamento = "Identificando BPM e tonalidade" to 0.5
+            try {
+                val resultado = withContext(Dispatchers.Default) {
+                    FonteMapeada(biblioteca.midia(p.id, clipe.midia)).use { AnaliseDaMusica.analisar(TransformacaoDaMusica.lerTudo(it), p.taxa) }
+                }
+                analises = analises + (clipeId to resultado)
+                mensagem = if (resultado.bpm == null && resultado.tonalidade == null) "Não foi possível estimar este áudio. Tente um trecho com ritmo ou notas mais claros."
+                    else "Estimativa: ${resultado.bpm?.let { "$it BPM" } ?: "BPM não identificado"} · ${resultado.tonalidade ?: "tonalidade não identificada"}. Confira de ouvido antes de usar como referência."
+            } catch (e: Exception) { mensagem = e.message } finally { andamento = null }
+        }
+    }
+
+    fun igualarRitmo(origemId: String, destinoId: String) {
+        val p = projeto ?: return
+        val origem = analises[origemId]?.bpm
+        val destino = analises[destinoId]?.bpm
+        if (origem == null || destino == null) { mensagem = "Identifique o BPM dos dois clipes antes de igualar."; return }
+        val destinoClipe = p.faixas.flatMap { f -> f.clipes.map { f to it } }.firstOrNull { it.second.id == destinoId } ?: return
+        val velocidade = TransformacaoDaMusica.velocidadeParaIgualar(origem.toDouble(), destino.toDouble())
+        val midia = p.midias.first { it.id == destinoClipe.second.midia }
+        mudarFaixa(destinoClipe.first.id) { f -> f.copy(clipes = f.clipes.map { if (it.id == destinoId) TransformacaoDaMusica.comVelocidade(it, midia, velocidade).copy(preservarTom = true) else it }) }
+        mensagem = "${destinoClipe.second.nome ?: "O clipe"} agora toca a ${"%.1f".format(velocidade * 100)}% para acompanhar $origem BPM, sem mudar o tom."
+    }
+
     // ==================== separação, limpeza e exportação ====================
 
     /** Separa o clipe em faixas novas (voz_, bateria_...). Com [reduzirRuido], cada faixa separada
@@ -365,7 +476,11 @@ class MusicaViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) {
         }
     }
 
-    fun cancelar() { trabalho?.cancel() }
+    fun cancelar() {
+        trabalho?.cancel()
+        preparacaoJob?.cancel()
+        if (andamento?.first == "Preparando tempo e tom") andamento = null
+    }
 
     fun reduzirRuido(faixaId: String, clipeId: String) {
         val p = projeto ?: return
@@ -410,6 +525,7 @@ class MusicaViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 biblioteca.salvar(p)
+                withContext(Dispatchers.Main) { alteracoesPendentes = false }
                 val r = Saida.gravar(app, "${p.titulo.ifBlank { "musica" }.replace(Regex("[^\\p{L}\\p{N} _-]"), "")}.sltmusic", "application/zip") { saida ->
                     ArquivoDaMusica.salvar(p, { biblioteca.midia(p.id, it.id) }, saida)
                 }

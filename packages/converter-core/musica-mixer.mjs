@@ -10,6 +10,7 @@
 
 import { BLOCO, dbParaLinear, envelopeDoClipe, faixasAudiveis, ganhosEstereo, quadrosPorBatida, valorDaAutomacao } from "./musica.mjs";
 import { Cadeia, caudaDoEfeito } from "./musica-dsp.mjs";
+import { chaveDaFonteDoClipe } from "./musica-transformacao.mjs";
 
 /** Fonte de áudio em memória: um Float32Array por canal. */
 export function fonteDaMemoria(canais) {
@@ -151,11 +152,14 @@ export class Misturador {
         const a = Math.max(t0, clipe.inicio);
         const b = Math.min(t0 + n, clipe.inicio + clipe.duracao);
         if (a >= b) continue;
-        const fonte = this.fontes.get(clipe.midia);
+        const transformada = this.fontes.get(chaveDaFonteDoClipe(clipe));
+        const fonte = transformada ?? this.fontes.get(clipe.midia);
         if (!fonte) continue;
         const deslocamento = a - clipe.inicio;
         const k = b - a;
-        const origem = clipe.inicioNaMidia + deslocamento;
+        // A fonte transformada já está na duração da linha do tempo; a original é o recurso
+        // até o preparo terminar e para projetos sem transformação.
+        const origem = transformada ? Math.floor(clipe.inicioNaMidia / (clipe.velocidade ?? 1)) + deslocamento : clipe.inicioNaMidia + deslocamento;
         fonte.copiar(0, origem, k, le);
         if (fonte.canais > 1) fonte.copiar(1, origem, k, ld);
         else for (let i = 0; i < k; i += 1) ld[i] = le[i];

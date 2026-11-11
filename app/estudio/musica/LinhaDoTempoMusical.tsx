@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState, type PointerEvent as EventoDoPonteiro } from "react";
+import { createPortal } from "react-dom";
 
-import { AJUSTE_MAXIMO_DB, AJUSTE_MINIMO_DB, GANHO_MAXIMO_DB, GANHO_MINIMO_DB, PASSOS_DA_MUSICA, duracaoEmQuadros, novaFaixa, quadroDaBatida, quadrosPorBatida, quadrosPorCompasso, type Clipe, type Faixa, type ProjetoMusical } from "@/packages/converter-core/musica.mjs";
+import { AJUSTE_MAXIMO_DB, AJUSTE_MINIMO_DB, PASSOS_DA_MUSICA, duracaoEmQuadros, novaFaixa, percentualParaVolume, quadroDaBatida, quadrosPorBatida, quadrosPorCompasso, textoDoPan, volumeParaPercentual, type Clipe, type Faixa, type ProjetoMusical } from "@/packages/converter-core/musica.mjs";
 import type { EstadoDoMotor } from "@/lib/musica/motor";
 import { QUADROS_POR_PICO } from "@/lib/musica/picos";
 import { novoId, type Mudar, type Selecao } from "./CriacaoMusical";
@@ -24,8 +25,6 @@ type Props = {
   limparClipe?: (faixaId: string, clipeId: string) => void;
 };
 
-const LARGURA_DA_CABECA = 250;
-
 function mudarFaixa(mudar: Mudar, id: string, f: (faixa: Faixa) => Faixa, juntar?: string) {
   mudar((p) => ({ ...p, faixas: p.faixas.map((faixa) => (faixa.id === id ? f(faixa) : faixa)) }), juntar);
 }
@@ -45,8 +44,8 @@ function Onda({ picos, clipe, largura, cor }: { picos: Float32Array | undefined;
     ctx.fillStyle = cor;
     const colunas = picos.length / 2;
     for (let x = 0; x < w; x += 1) {
-      const de = clipe.inicioNaMidia + (x / w) * clipe.duracao;
-      const ate = clipe.inicioNaMidia + ((x + 1) / w) * clipe.duracao;
+      const de = clipe.inicioNaMidia + (x / w) * clipe.duracao * (clipe.velocidade ?? 1);
+      const ate = clipe.inicioNaMidia + ((x + 1) / w) * clipe.duracao * (clipe.velocidade ?? 1);
       let min = 0;
       let max = 0;
       for (let k = Math.floor(de / QUADROS_POR_PICO); k <= Math.min(colunas - 1, Math.floor(ate / QUADROS_POR_PICO)); k += 1) {
@@ -57,7 +56,7 @@ function Onda({ picos, clipe, largura, cor }: { picos: Float32Array | undefined;
       const y1 = ((1 - min) / 2) * h;
       ctx.fillRect(x, y0, 1, Math.max(1, y1 - y0));
     }
-  }, [picos, clipe.inicioNaMidia, clipe.duracao, largura, cor]);
+  }, [picos, clipe.inicioNaMidia, clipe.duracao, clipe.velocidade, largura, cor]);
   return <canvas ref={tela} className="musica__onda" aria-hidden />;
 }
 
@@ -100,6 +99,7 @@ export default function LinhaDoTempoMusical({ projeto, picos, estado, zoom, muda
   };
 
   const selecionado = selecao.clipe ? projeto.faixas.flatMap((f) => f.clipes.map((c) => ({ faixa: f, clipe: c }))).find((x) => x.clipe.id === selecao.clipe) : null;
+  const faixaDoMenu = menu ? visiveis.find((f) => f.id === menu) : undefined;
 
   const dividir = () => {
     if (!selecionado) return;
@@ -108,7 +108,7 @@ export default function LinhaDoTempoMusical({ projeto, picos, estado, zoom, muda
     if (corte <= clipe.inicio || corte >= clipe.inicio + clipe.duracao) return;
     const esquerda = corte - clipe.inicio;
     const a: Clipe = { ...clipe, duracao: esquerda, saidaSuave: Math.min(clipe.saidaSuave, esquerda), entradaSuave: Math.min(clipe.entradaSuave, esquerda) };
-    const b: Clipe = { ...clipe, id: novoId("clipe"), inicio: corte, inicioNaMidia: clipe.inicioNaMidia + esquerda, duracao: clipe.duracao - esquerda, entradaSuave: 0, saidaSuave: Math.min(clipe.saidaSuave, clipe.duracao - esquerda) };
+    const b: Clipe = { ...clipe, id: novoId("clipe"), inicio: corte, inicioNaMidia: clipe.inicioNaMidia + Math.round(esquerda * (clipe.velocidade ?? 1)), duracao: clipe.duracao - esquerda, entradaSuave: 0, saidaSuave: Math.min(clipe.saidaSuave, clipe.duracao - esquerda) };
     a.saidaSuave = 0;
     mudarFaixa(mudar, faixa.id, (f) => ({ ...f, clipes: f.clipes.flatMap((c) => (c.id === clipe.id ? [a, b] : [c])) }));
   };
@@ -153,8 +153,8 @@ export default function LinhaDoTempoMusical({ projeto, picos, estado, zoom, muda
         {ocultas.length > 0 && <span className="estudio__dica">Ocultas: {ocultas.map((f) => <button key={f.id} type="button" className="estudio__chip" onClick={() => mudarFaixa(mudar, f.id, (x) => ({ ...x, oculta: false }))}>{f.nome}</button>)}</span>}
       </div>
       <div className="musica__rolagem">
-        <div className="musica__grade" style={{ width: LARGURA_DA_CABECA + largura }}>
-          <div className="musica__regua" style={{ marginLeft: LARGURA_DA_CABECA, width: largura }} onPointerDown={(e) => irPara(ajustarAoTempo(quadroDe(e.clientX - (e.currentTarget as HTMLElement).getBoundingClientRect().left)))} role="slider" aria-label="Posição" aria-valuenow={Math.round(estado.quadro / taxa)} tabIndex={0}>
+        <div className="musica__grade" style={{ width: `calc(var(--musica-cabeca) + ${largura}px)` }}>
+          <div className="musica__regua" style={{ marginLeft: "var(--musica-cabeca)", width: largura }} onPointerDown={(e) => irPara(ajustarAoTempo(quadroDe(e.clientX - (e.currentTarget as HTMLElement).getBoundingClientRect().left)))} role="slider" aria-label="Posição" aria-valuenow={Math.round(estado.quadro / taxa)} tabIndex={0}>
             {projeto.loop.fim > projeto.loop.inicio && <div className={`musica__loop${projeto.loop.ligado ? " musica__loop--ligado" : ""}`} style={{ left: px(projeto.loop.inicio), width: px(projeto.loop.fim - projeto.loop.inicio) }} />}
             {projeto.punch.ligado && <div className="musica__punch" style={{ left: px(projeto.punch.entrada), width: px(projeto.punch.saida - projeto.punch.entrada) }} title="Punch" />}
             {Array.from({ length: compassos }, (_, i) => i).filter((i) => i % passoDosRotulos === 0).map((i) => (
@@ -168,7 +168,7 @@ export default function LinhaDoTempoMusical({ projeto, picos, estado, zoom, muda
             const ativa = selecao.faixa === faixa.id;
             return (
               <div key={faixa.id} className={`musica__faixa${ativa ? " musica__faixa--ativa" : ""}${faixa.mudo ? " musica__faixa--muda" : ""}`}>
-                <div className={`musica__cabeca${menu === faixa.id ? " musica__cabeca--menu" : ""}`} role="group" aria-label={`Faixa ${faixa.nome}`} style={{ width: LARGURA_DA_CABECA, borderLeftColor: faixa.cor }} onFocusCapture={() => selecionar((s) => ({ ...s, faixa: faixa.id }))} onContextMenu={(e) => { e.preventDefault(); setMenu(faixa.id); }}>
+                <div className={`musica__cabeca${menu === faixa.id ? " musica__cabeca--menu" : ""}`} role="group" aria-label={`Faixa ${faixa.nome}`} style={{ width: "var(--musica-cabeca)", borderLeftColor: faixa.cor }} onFocusCapture={() => selecionar((s) => ({ ...s, faixa: faixa.id }))} onContextMenu={(e) => { e.preventDefault(); setMenu(faixa.id); }}>
                   <div className="musica__linha">
                     <input className="musica__nome" aria-label="Nome da faixa" value={faixa.nome} maxLength={60} onChange={(e) => mudarFaixa(mudar, faixa.id, (f) => ({ ...f, nome: e.target.value }), `nome-${faixa.id}`)} />
                     <button type="button" className="estudio__icone" aria-label={`Mais ações de ${faixa.nome}`} aria-haspopup="menu" aria-expanded={menu === faixa.id} onClick={(e) => { e.stopPropagation(); setMenu(menu === faixa.id ? null : faixa.id); }}>⋯</button>
@@ -182,20 +182,13 @@ export default function LinhaDoTempoMusical({ projeto, picos, estado, zoom, muda
                     <span className="musica__nivel" aria-hidden><span style={{ width: `${Math.min(100, Math.max(0, (20 * Math.log10(nivel + 1e-9) + 60) / 60) * 100)}%`, background: nivel >= 1 ? "#e53935" : undefined }} /></span>
                   </div>
                   <div className="musica__linha">
-                    <div className="musica__rotulo" title="Volume">Vol
-                      <AjusteMusical valor={faixa.ganhoDb} min={GANHO_MINIMO_DB} max={GANHO_MAXIMO_DB} passo={PASSOS_DA_MUSICA.ganhoDb} rotulo={`volume de ${faixa.nome}`} textoDoValor={`${faixa.ganhoDb} dB`} padrao={0} mudar={(v) => mudarFaixa(mudar, faixa.id, (f) => ({ ...f, ganhoDb: v }), `vol-${faixa.id}`)} />
+                    <div className="musica__rotulo" title="Volume">Vol {volumeParaPercentual(faixa.ganhoDb)}
+                      <AjusteMusical valor={volumeParaPercentual(faixa.ganhoDb)} min={0} max={100} passo={1} rotulo={`volume de ${faixa.nome}`} textoDoValor={`${volumeParaPercentual(faixa.ganhoDb)} de 100`} padrao={100} mudar={(v) => mudarFaixa(mudar, faixa.id, (f) => ({ ...f, ganhoDb: percentualParaVolume(v) }), `vol-${faixa.id}`)} />
                     </div>
-                    <div className="musica__rotulo" title="Pan (duplo clique centraliza)">Pan
-                      <AjusteMusical valor={faixa.pan} min={-100} max={100} passo={PASSOS_DA_MUSICA.pan} rotulo={`pan de ${faixa.nome}`} textoDoValor={faixa.pan === 0 ? "centro" : faixa.pan < 0 ? `${-faixa.pan} à esquerda` : `${faixa.pan} à direita`} padrao={0} mudar={(v) => mudarFaixa(mudar, faixa.id, (f) => ({ ...f, pan: v }), `pan-${faixa.id}`)} />
+                    <div className="musica__rotulo" title="Pan (duplo clique centraliza)">Pan {textoDoPan(faixa.pan)}
+                      <AjusteMusical valor={faixa.pan} min={-100} max={100} passo={PASSOS_DA_MUSICA.pan} rotulo={`pan de ${faixa.nome}`} textoDoValor={textoDoPan(faixa.pan)} padrao={0} mudar={(v) => mudarFaixa(mudar, faixa.id, (f) => ({ ...f, pan: v }), `pan-${faixa.id}`)} />
                     </div>
                   </div>
-                  {menu === faixa.id && (
-                    <div className="musica__menu" role="menu">
-                      {([["duplicar", "Duplicar"], ["acima", "Mover para cima"], ["abaixo", "Mover para baixo"], ["efeitos", "Efeitos"], ["barramento", "Criar barramento para ela"], ["exportar", "Exportar só esta faixa"], ["ocultar", "Ocultar"], ["remover", "Remover"]] as const).map(([id, rotulo]) => (
-                        <button key={id} type="button" role="menuitem" onClick={(e) => { e.stopPropagation(); acaoDaFaixa(faixa, id); }}>{rotulo}</button>
-                      ))}
-                    </div>
-                  )}
                 </div>
                 <div className="musica__pista" style={{ width: largura }} onPointerDown={(e) => { if (e.target === e.currentTarget) irPara(ajustarAoTempo(quadroDe(e.clientX - e.currentTarget.getBoundingClientRect().left))); }}>
                   {faixa.clipes.map((clipe) => (
@@ -212,9 +205,20 @@ export default function LinhaDoTempoMusical({ projeto, picos, estado, zoom, muda
               </div>
             );
           })}
-          <div className="musica__cursor" style={{ left: LARGURA_DA_CABECA + px(estado.quadro) }} aria-hidden />
+          <div className="musica__cursor" style={{ left: `calc(var(--musica-cabeca) + ${px(estado.quadro)}px)` }} aria-hidden />
         </div>
       </div>
+      {faixaDoMenu && createPortal(
+        <>
+          <button type="button" className="musica__menu-fundo" aria-label="Fechar o menu da faixa" onClick={() => setMenu(null)} />
+          <div className="musica__menu" role="menu" aria-label={`Ações de ${faixaDoMenu.nome}`}>
+            {([["duplicar", "Duplicar"], ["acima", "Mover para cima"], ["abaixo", "Mover para baixo"], ["efeitos", "Efeitos"], ["barramento", "Criar barramento para ela"], ["exportar", "Exportar só esta faixa"], ["ocultar", "Ocultar"], ["remover", "Remover"]] as const).map(([id, rotulo]) => (
+              <button key={id} type="button" role="menuitem" onClick={(e) => { e.stopPropagation(); acaoDaFaixa(faixaDoMenu, id); }}>{rotulo}</button>
+            ))}
+          </div>
+        </>,
+        document.body,
+      )}
       {selecionado && (
         <div className="musica__clipe-editor">
           <strong>{selecionado.clipe.nome ?? "Clipe"}</strong>

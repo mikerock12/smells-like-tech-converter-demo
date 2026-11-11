@@ -42,7 +42,12 @@ public sealed partial class MusicPage : Page
     private string effectsTarget = "master";
     private double zoom = 60;
     private bool snap = true;
+    private bool dirty;
+    private bool leaveConfirmed;
     private CancellationTokenSource? work;
+    private CancellationTokenSource? prepareWork;
+    private readonly Dictionary<string, IMusicSource> transformedSources = [];
+    private readonly Dictionary<string, MusicAnalysis> analyses = [];
 
     // Elementos atualizados pelo relógio.
     private TextBlock? positionText;
@@ -68,12 +73,41 @@ public sealed partial class MusicPage : Page
     private static MusicTools Tools => App.Services.MusicTools;
 
     /// <summary>Saindo da página com gravação: para e guarda a tomada.</summary>
-    private void Close()
+    private async void Close()
     {
         timer.Stop();
-        if (project is not null) SaveNow();
+        if (project is not null)
+        {
+            if (App.Services.Settings.MusicAutoSave) SaveNow();
+            else if (dirty && !leaveConfirmed && await AskToSave() == ContentDialogResult.Primary) SaveNow();
+        }
+        prepareWork?.Cancel();
         engine?.Dispose();
         engine = null;
+    }
+
+    private async Task<ContentDialogResult> AskToSave() => await new ContentDialog
+    {
+        Title = "Salvar o projeto?",
+        Content = "Suas últimas alterações ainda não foram salvas neste computador.",
+        PrimaryButtonText = "Salvar e sair",
+        SecondaryButtonText = "Sair sem salvar",
+        CloseButtonText = "Continuar editando",
+        XamlRoot = XamlRoot ?? App.MainWindow?.Content?.XamlRoot
+    }.ShowAsync();
+
+    public bool HasUnsavedChanges => project is not null && dirty && !App.Services.Settings.MusicAutoSave;
+
+    public async Task<bool> ConfirmLeaveAsync()
+    {
+        if (project is null) return true;
+        if (App.Services.Settings.MusicAutoSave) { SaveNow(); return true; }
+        if (!dirty) return true;
+        var choice = await AskToSave();
+        if (choice == ContentDialogResult.None) return false;
+        if (choice == ContentDialogResult.Primary) SaveNow();
+        leaveConfirmed = true;
+        return true;
     }
 
     // ==================== tela inicial ====================
@@ -103,6 +137,10 @@ public sealed partial class MusicPage : Page
         open.Click += (_, _) => OpenArchive();
         templates.Children.Add(open);
         StartPanel.Children.Add(templates);
+        var autoSave = new ToggleSwitch { Header = "Salvar automaticamente", IsOn = App.Services.Settings.MusicAutoSave };
+        ToolTipService.SetToolTip(autoSave, "Desligado: pergunta se você quer salvar ao sair do projeto.");
+        autoSave.Toggled += async (_, _) => await App.Services.ApplySettingsAsync(App.Services.Settings with { MusicAutoSave = autoSave.IsOn }, CancellationToken.None);
+        StartPanel.Children.Add(autoSave);
         var saved = Library.List();
         if (saved.Count > 0)
         {
@@ -151,8 +189,10 @@ public sealed partial class MusicPage : Page
 
         var template = MusicRules.Templates.First(t => t.Id == templateId);
         var p = MusicRules.FromTemplate(templateId, $"musica-{DateTime.Now:yyyyMMddHHmmss}-{Random.Shared.Next(1000):000}", template.Id == "vazio" ? "Nova música" : template.Label, Rate);
-        Library.Save(p);
+        if (App.Services.Settings.MusicAutoSave) Library.Save(p);
         Open(p);
+        dirty = !App.Services.Settings.MusicAutoSave;
+        if (dirty) BuildHeader();
         if (!string.IsNullOrEmpty(message)) Status(message, InfoBarSeverity.Informational);
     }
 
@@ -182,6 +222,7 @@ public sealed partial class MusicPage : Page
     private void Open(MusicProject p)
     {
         project = p;
+        dirty = false;
         undo.Clear();
         redo.Clear();
         selectedTrack = p.Tracks.FirstOrDefault()?.Id;
@@ -200,6 +241,7 @@ public sealed partial class MusicPage : Page
 
         foreach (var media in p.Media) LoadMedia(media);
         engine?.SetProject(p);
+        PrepareTransforms(p);
         BuildHeader();
         BuildTransport();
         BuildTimeline();
@@ -269,7 +311,7 @@ public sealed partial class MusicPage : Page
         Status("As tomadas recuperadas estão numa faixa nova, no começo do projeto.", InfoBarSeverity.Success);
     }
 
-    /// <summary>Toda edição passa aqui: guarda o passo para desfazer, toca e salva.</summary>
+    /// <summary>Toda edição passa aqui: guarda o passo, toca e aplica a preferência de salvamento.</summary>
     private void Edit(Action<MusicProject> change, string? merge = null, bool rebuild = true)
     {
         if (project is null) return;
@@ -296,10 +338,17 @@ public sealed partial class MusicPage : Page
 
     private void Applied(bool rebuild)
     {
+        dirty = true;
+        leaveConfirmed = false;
         engine?.SetProject(project!);
-        saveTimer ??= CreateSaveTimer();
-        saveTimer.Stop();
-        saveTimer.Start();
+        PrepareTransforms(project!);
+        if (App.Services.Settings.MusicAutoSave)
+        {
+            saveTimer ??= CreateSaveTimer();
+            saveTimer.Stop();
+            saveTimer.Start();
+        }
+        else saveTimer?.Stop();
         if (rebuild)
         {
             BuildTimeline();
@@ -324,10 +373,43 @@ public sealed partial class MusicPage : Page
         try
         {
             if (project is not null) Library.Save(project);
+            dirty = false;
         }
         catch (IOException e)
         {
             Status($"Não salvou: {e.Message}", InfoBarSeverity.Error);
+        }
+    }
+
+    private async void PrepareTransforms(MusicProject p)
+    {
+        prepareWork?.Cancel();
+        var clips = p.Tracks.SelectMany(t => t.Clips).Where(MusicTransform.IsTransformed).GroupBy(MusicTransform.SourceKey).Select(g => g.First()).ToList();
+        if (clips.Count == 0) return;
+        prepareWork = new CancellationTokenSource();
+        var token = prepareWork.Token;
+        try
+        {
+            await Task.Delay(250, token);
+            var prepared = await Task.Run(() => clips.Select(clip =>
+            {
+                var key = MusicTransform.SourceKey(clip);
+                if (transformedSources.TryGetValue(key, out var cached)) return (Key: key, Source: cached);
+                using var original = new MappedWavSource(Library.MediaPath(p.Id, clip.Media));
+                var channels = MusicTransform.ReadAll(original);
+                return (Key: key, Source: (IMusicSource)new MemoryMusicSource(MusicTransform.Transform(channels, p.SampleRate, clip.Speed ?? 1, clip.Semitones ?? 0, clip.PreservePitch ?? true)));
+            }).ToList(), token);
+            if (token.IsCancellationRequested) return;
+            foreach (var (key, source) in prepared)
+            {
+                transformedSources[key] = source;
+                engine?.SetSource(key, source);
+            }
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception e) when (e is IOException or Core.ConversionException)
+        {
+            Status($"Não foi possível preparar tempo e tom: {e.Message}", InfoBarSeverity.Error);
         }
     }
 
@@ -371,10 +453,16 @@ public sealed partial class MusicPage : Page
         HeaderPanel.Children.Clear();
         var back = new Button { Content = "← Projetos" };
         AutomationProperties.SetName(back, "Voltar aos projetos");
-        back.Click += (_, _) =>
+        back.Click += async (_, _) =>
         {
             engine?.Stop();
-            SaveNow();
+            if (!App.Services.Settings.MusicAutoSave && dirty)
+            {
+                var choice = await AskToSave();
+                if (choice == ContentDialogResult.None) { timer.Start(); return; }
+                if (choice == ContentDialogResult.Primary) SaveNow();
+            }
+            else if (App.Services.Settings.MusicAutoSave) SaveNow();
             timer.Stop();
             project = null;
             ShowStart();
@@ -397,7 +485,14 @@ public sealed partial class MusicPage : Page
         HeaderPanel.Children.Add(redoButton);
         HeaderPanel.Children.Add(import);
         HeaderPanel.Children.Add(save);
-        HeaderPanel.Children.Add(new TextBlock { Text = "Salvo neste computador", VerticalAlignment = VerticalAlignment.Center, Foreground = (Brush)Application.Current.Resources["BrandTextMutedBrush"], FontSize = 12 });
+        var autoSave = new ToggleSwitch { OnContent = "Salvar automaticamente", OffContent = "Perguntar ao sair", IsOn = App.Services.Settings.MusicAutoSave };
+        autoSave.Toggled += async (_, _) =>
+        {
+            await App.Services.ApplySettingsAsync(App.Services.Settings with { MusicAutoSave = autoSave.IsOn }, CancellationToken.None);
+            if (autoSave.IsOn) { SaveNow(); BuildHeader(); }
+        };
+        HeaderPanel.Children.Add(autoSave);
+        HeaderPanel.Children.Add(new TextBlock { Text = dirty ? "Alterações não salvas" : "Salvo neste computador", VerticalAlignment = VerticalAlignment.Center, Foreground = (Brush)Application.Current.Resources["BrandTextMutedBrush"], FontSize = 12 });
     }
 
     private async Task ImportAsync()
@@ -672,13 +767,13 @@ public sealed partial class MusicPage : Page
         fx.Click += (_, _) => { effectsTarget = track.Id; BuildPanels(); Panels.SelectedIndex = 1; };
         row2.Children.Add(fx);
         row2.Children.Add(meter);
-        var volume = new Slider { Minimum = MusicRules.MinGainDb, Maximum = MusicRules.MaxGainDb, StepFrequency = 0.5, Value = track.GainDb };
-        volume.ValueChanged += (_, e) => Edit(p => Track(p, track.Id).GainDb = e.NewValue, $"vol-{track.Id}", false);
+        var volume = new Slider { Minimum = 0, Maximum = 100, StepFrequency = 1, Value = MusicRules.VolumePercent(track.GainDb) };
+        volume.ValueChanged += (_, e) => Edit(p => Track(p, track.Id).GainDb = MusicRules.VolumeDb(e.NewValue), $"vol-{track.Id}", false);
         var pan = new Slider { Minimum = -100, Maximum = 100, Value = track.Pan };
         pan.ValueChanged += (_, e) => Edit(p => Track(p, track.Id).Pan = e.NewValue, $"pan-{track.Id}", false);
         var row3 = new StackPanel { Spacing = 0, Children = {
-            new Grid { ColumnDefinitions = { new ColumnDefinition { Width = new GridLength(30) }, new ColumnDefinition() }, Children = { new TextBlock { Text = "Vol", FontSize = 11, VerticalAlignment = VerticalAlignment.Center }, Column1(Fine(volume, MusicRules.StepGainDb, false, $"volume de {track.Name}")) } },
-            new Grid { ColumnDefinitions = { new ColumnDefinition { Width = new GridLength(30) }, new ColumnDefinition() }, Children = { new TextBlock { Text = "Pan", FontSize = 11, VerticalAlignment = VerticalAlignment.Center }, Column1(Fine(pan, MusicRules.StepPan, false, $"pan de {track.Name}")) } },
+            new Grid { ColumnDefinitions = { new ColumnDefinition { Width = new GridLength(68) }, new ColumnDefinition() }, Children = { new TextBlock { Text = $"Vol {MusicRules.VolumePercent(track.GainDb)}", FontSize = 11, VerticalAlignment = VerticalAlignment.Center }, Column1(Fine(volume, 1, false, $"volume de {track.Name}")) } },
+            new Grid { ColumnDefinitions = { new ColumnDefinition { Width = new GridLength(100) }, new ColumnDefinition() }, Children = { new TextBlock { Text = MusicRules.PanText(track.Pan), FontSize = 11, VerticalAlignment = VerticalAlignment.Center }, Column1(Fine(pan, MusicRules.StepPan, false, $"pan de {track.Name}")) } },
         } };
         panel.Children.Add(row1);
         panel.Children.Add(row2);
@@ -717,7 +812,7 @@ public sealed partial class MusicPage : Page
             p.Buses.Add(bus);
             Track(p, track.Id).Output = bus.Id;
         }));
-        Item("Exportar só esta faixa", () => { selectedTrack = track.Id; BuildPanels(); Panels.SelectedIndex = 4; });
+        Item("Exportar só esta faixa", () => { selectedTrack = track.Id; BuildPanels(); Panels.SelectedIndex = 5; });
         Item("Ocultar", () => Edit(p => Track(p, track.Id).Hidden = true));
         Item("Remover", async () =>
         {
@@ -812,8 +907,8 @@ public sealed partial class MusicPage : Page
             var lows = new List<Point>();
             for (var x = 0; x < steps; x++)
             {
-                var from = clip.SourceStart + x / (double)steps * clip.Duration;
-                var to = clip.SourceStart + (x + 1) / (double)steps * clip.Duration;
+                var from = clip.SourceStart + x / (double)steps * clip.Duration * (clip.Speed ?? 1);
+                var to = clip.SourceStart + (x + 1) / (double)steps * clip.Duration * (clip.Speed ?? 1);
                 float min = 0, max = 0;
                 for (var k = (int)(from / 256); k <= Math.Min(p.Length / 2 - 1, (int)(to / 256)); k++)
                 {
@@ -970,7 +1065,7 @@ public sealed partial class MusicPage : Page
             var b = c.Copy();
             b.Id = NewId("clipe");
             b.Start = cut;
-            b.SourceStart = c.SourceStart + left;
+            b.SourceStart = c.SourceStart + MusicRules.Round(left * (c.Speed ?? 1));
             b.Duration = c.Duration - left;
             b.FadeIn = 0;
             b.FadeOut = Math.Min(c.FadeOut, b.Duration);

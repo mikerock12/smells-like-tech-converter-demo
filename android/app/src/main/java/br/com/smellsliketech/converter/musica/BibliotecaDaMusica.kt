@@ -86,8 +86,15 @@ class BibliotecaDaMusica(private val contexto: Context) {
         alvos.mapIndexed { i, (id, nomeDoArquivo) ->
             coroutineContext.ensureActive()
             progresso(if (id == null) "Mixando" else "Mixando $nomeDoArquivo", i.toDouble() / alvos.size)
-            val fontes = p.midias.associate { it.id to (FonteMapeada(midia(p.id, it.id)) as FonteDeAudio) }
+            val fontes = p.midias.associate { it.id to (FonteMapeada(midia(p.id, it.id)) as FonteDeAudio) }.toMutableMap()
             try {
+                val transformacoes = p.faixas.flatMap { it.clipes }.filter { TransformacaoDaMusica.temTransformacao(it) }.distinctBy { TransformacaoDaMusica.chaveDaFonte(it) }
+                for (clipe in transformacoes) {
+                    coroutineContext.ensureActive()
+                    val original = fontes[clipe.midia] ?: continue
+                    val canais = TransformacaoDaMusica.lerTudo(original)
+                    fontes[TransformacaoDaMusica.chaveDaFonte(clipe)] = FonteNaMemoria(TransformacaoDaMusica.transformar(canais, p.taxa, clipe.velocidade ?: 1.0, clipe.semitons ?: 0.0, clipe.preservarTom ?: true))
+                }
                 var (esq, dir) = MisturadorDaMusica.renderizar(p, fontes, inicio, quadros, id, metronomo = p.metronomo.naExportacao)
                 var medidas: Medidas? = null
                 var ganho: Double? = null
@@ -114,7 +121,7 @@ class BibliotecaDaMusica(private val contexto: Context) {
                 }
                 Exportado(arquivo, medidas, ganho)
             } finally {
-                fontes.values.forEach { (it as AutoCloseable).close() }
+                fontes.values.forEach { (it as? AutoCloseable)?.close() }
             }
         }.also { progresso("Pronto", 1.0) }
     }

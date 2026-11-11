@@ -21,6 +21,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.io.File
+import kotlin.math.sin
 
 /**
  * A tela da criação musical no aparelho. Fica fora de CriacaoMusicalNoAparelhoTest porque uma
@@ -44,8 +45,9 @@ class TelaDaMusicaTest {
             val arvore = todos()
             arvore.firstOrNull { it.contentDescription?.toString() == rotulo || it.text?.toString() == rotulo }?.let { return it }
             if (tentativa++ % 6 == 5) descer = !descer
-            arvore.filter { it.isScrollable }.maxByOrNull { Rect().also { r -> it.getBoundsInScreen(r) }.height() }
-                ?.performAction(if (descer) AccessibilityNodeInfo.ACTION_SCROLL_FORWARD else AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD)
+            arvore.filter { it.isScrollable }.forEach {
+                it.performAction(if (descer) AccessibilityNodeInfo.ACTION_SCROLL_FORWARD else AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD)
+            }
             i.waitForIdleSync()
             Thread.sleep(300)
         } while (SystemClock.uptimeMillis() < limite)
@@ -112,6 +114,62 @@ class TelaDaMusicaTest {
             Thread.sleep(800)
             BibliotecaDaMusica(contexto).apagar(id)
         } finally {
+            atividade.finish()
+        }
+    }
+
+    @Test fun listaApareceAoEntrarESaidaPerguntaSemSalvar() {
+        val biblioteca = BibliotecaDaMusica(contexto)
+        val salvo = Musica.projetoDoModelo("vazio", "projeto-lista", "Projeto que estava salvo")
+        biblioteca.salvar(salvo)
+        lateinit var modelo: MusicaViewModel
+        i.runOnMainSync { modelo = MusicaViewModel(app); modelo.definirSalvamentoAutomatico(false) }
+        val atividade = i.startActivitySync(Intent().setClassName(contexto.packageName, "br.com.smellsliketech.converter.EditorDeTesteActivity").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)) as ComponentActivity
+        try {
+            i.runOnMainSync { atividade.setContent { TemaDoConverter { TelaDaMusica(modelo, true, {}, {}) } } }
+            no("Projeto que estava salvo")
+            tocar("Modelo Em branco")
+            Thread.sleep(500)
+            i.runOnMainSync { modelo.mudar { it.copy(titulo = "Não salvar esta mudança") }; modelo.fechar() }
+            no("Salvar o projeto?")
+            tocar("Continuar editando")
+            assertTrue(modelo.projeto != null)
+            i.runOnMainSync { modelo.fechar() }
+            tocar("Sair sem salvar")
+            Thread.sleep(500)
+            assertTrue(modelo.projeto == null)
+            assertTrue(runCatching { biblioteca.ler("projeto-lista") }.isSuccess)
+        } finally {
+            biblioteca.apagar(salvo.id)
+            modelo.projeto?.let { biblioteca.apagar(it.id) }
+            atividade.finish()
+        }
+    }
+
+    @Test fun tempoETomMudamOClipeNaTela() {
+        val biblioteca = BibliotecaDaMusica(contexto)
+        val p = Musica.projetoDoModelo("vazio", "projeto-tempo-tom", "Tempo")
+        val midia = MidiaMusical("seno", "Seno.wav", "wav", 48000, 1, 48000)
+        val clipe = ClipeMusical("clipe-seno", "seno", 0, 0, 48000, nome = "Seno")
+        val projeto = p.copy(midias = listOf(midia), faixas = listOf(p.faixas[0].copy(nome = "Teste", clipes = listOf(clipe))))
+        EscritorDeWav(biblioteca.midia(p.id, "seno"), 1, 48000).use { it.escrever(FloatArray(48000) { i -> (0.4 * sin(2 * Math.PI * 440 * i / 48000)).toFloat() }) }
+        biblioteca.salvar(projeto)
+        lateinit var modelo: MusicaViewModel
+        i.runOnMainSync { modelo = MusicaViewModel(app); modelo.definirSalvamentoAutomatico(false) }
+        val atividade = i.startActivitySync(Intent().setClassName(contexto.packageName, "br.com.smellsliketech.converter.EditorDeTesteActivity").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)) as ComponentActivity
+        try {
+            i.runOnMainSync { atividade.setContent { TemaDoConverter { TelaDaMusica(modelo, true, {}, {}) } }; modelo.abrir(projeto) }
+            tocar("Tempo e tom")
+            tocar("Aumentar Velocidade de Seno")
+            var atual: ClipeMusical? = null
+            i.runOnMainSync { atual = modelo.projeto!!.faixas[0].clipes[0] }
+            assertEquals(1.01, atual!!.velocidade!!, 1e-9)
+            tocar("Aumentar Transposição de Seno")
+            i.runOnMainSync { atual = modelo.projeto!!.faixas[0].clipes[0] }
+            assertEquals(1.0, atual!!.semitons!!, 1e-9)
+            fotografar("musica-tempo-tom.png")
+        } finally {
+            biblioteca.apagar(p.id)
             atividade.finish()
         }
     }

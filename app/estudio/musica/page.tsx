@@ -6,7 +6,7 @@ import CriacaoMusical from "./CriacaoMusical";
 export const metadata: Metadata = {
   title: "Criação musical: grave em várias faixas, mixe e separe voz e instrumentos, sem upload — Smells Like Tech Converter",
   description:
-    "Grave uma faixa ouvindo as outras, importe WAV, MP3, FLAC, M4A e OGG, separe voz, bateria, baixo e outros por IA, aplique efeitos, mixe e exporte em WAV, FLAC ou MP3. Tudo no seu navegador, sem enviar arquivo.",
+    "Grave várias faixas, separe instrumentos por IA, mude a velocidade com ou sem alterar o tom, transponha por semitons, identifique BPM e tonalidade e iguale ritmos. Tudo no navegador, sem enviar arquivo.",
 };
 
 export default function CriacaoMusicalPage() {

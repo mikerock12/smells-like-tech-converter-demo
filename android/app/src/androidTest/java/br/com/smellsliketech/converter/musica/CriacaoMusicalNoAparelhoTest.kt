@@ -106,6 +106,29 @@ class CriacaoMusicalNoAparelhoTest {
         biblioteca.apagar(p.id)
     }
 
+    @Test fun exportaTempoETomNoArquivoReal() = runBlocking {
+        val biblioteca = BibliotecaDaMusica(contexto)
+        val taxa = 48000
+        val id = "teste-tempo-tom-exportacao"
+        wav(biblioteca.midia(id, "seno"), listOf(seno(440.0, taxa * 2, taxa)), taxa)
+        val midia = MidiaMusical("seno", taxa = taxa, canais = 1, quadros = taxa * 2L)
+        val clipe = ClipeMusical("c", "seno", 0, 0, taxa.toLong(), velocidade = 2.0, semitons = 12.0, preservarTom = true)
+        val p = Musica.projetoDoModelo("vazio", id, "Tempo e tom").copy(midias = listOf(midia), faixas = listOf(Musica.novaFaixa("f", "Seno").copy(clipes = listOf(clipe))))
+        assertEquals(emptyList<String>(), Musica.problemas(p))
+        biblioteca.salvar(p)
+        val pasta = File(contexto.cacheDir, "tempo-tom-teste").apply { deleteRecursively() }
+        val resultado = biblioteca.exportar(p, "wav-32f", "sem-alvo", false, false, false, null, pasta) { _, _ -> }.single()
+        FonteMapeada(resultado.arquivo).use { fonte ->
+            assertEquals(taxa.toLong(), fonte.quadros)
+            val dados = FloatArray(taxa)
+            fonte.copiar(0, 0, taxa, dados)
+            assertTrue("o arquivo não pode ficar mudo", dados.any { abs(it) > 0.05 })
+        }
+        biblioteca.apagar(id)
+        pasta.deleteRecursively()
+        Unit
+    }
+
     /** O build R8 `validacao` não é depurável (sem run-as): o modelo posto pelo adb em
      *  /data/local/tmp/spleeter.onnx chega pelo shell da instrumentação. */
     private fun copiarModeloDoAdb(destino: File) {

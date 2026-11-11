@@ -144,6 +144,13 @@ public sealed class MusicTools(Func<string> ffmpegPath, ProcessRunner runner, st
             try
             {
                 foreach (var media in project.Media) sources[media.Id] = new MappedWavSource(mediaPath(media));
+                foreach (var clip in project.Tracks.SelectMany(t => t.Clips).Where(MusicTransform.IsTransformed).GroupBy(MusicTransform.SourceKey).Select(g => g.First()))
+                {
+                    token.ThrowIfCancellationRequested();
+                    if (!sources.TryGetValue(clip.Media, out var original)) continue;
+                    var transformed = MusicTransform.Transform(MusicTransform.ReadAll(original), project.SampleRate, clip.Speed ?? 1, clip.Semitones ?? 0, clip.PreservePitch ?? true);
+                    sources[MusicTransform.SourceKey(clip)] = new MemoryMusicSource(transformed);
+                }
                 var (left, right) = await Task.Run(() => MusicMixer.Render(project, sources, start, frames, id, metronome: project.Metronome.InExport), token);
                 MusicMeasures? measures = null;
                 double? gain = null;
