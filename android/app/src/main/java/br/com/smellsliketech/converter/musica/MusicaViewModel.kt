@@ -63,8 +63,8 @@ class MusicaViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) {
     var salvarAutomaticamente by mutableStateOf(preferencias.getBoolean("salvar-automaticamente", false)); private set
     var analises by mutableStateOf<Map<String, AnaliseMusical>>(emptyMap()); private set
     private val alinhamentos = aplicacao.getSharedPreferences("criacao-musical-alinhamento", Context.MODE_PRIVATE)
-    private val midiasAbertas = HashMap<String, FonteMapeada>()
-    private val transformadas = HashMap<String, FonteMapeada>()
+    private val midiasAbertas = HashMap<String, FonteWav>()
+    private val transformadas = HashMap<String, FonteWav>()
     private var preparacao = 0
     private var preparacaoJob: Job? = null
     private var chavesEmPreparacao: Set<String> = emptySet()
@@ -133,6 +133,7 @@ class MusicaViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) {
         relogio?.cancel()
         relogio = viewModelScope.launch {
             while (isActive) {
+                m.consumirErroDeLeitura()?.let { mensagem = it }
                 posicao = m.posicao
                 tocando = m.tocando
                 medidores = m.medidores
@@ -176,12 +177,12 @@ class MusicaViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) {
     private fun carregarMidia(p: ProjetoMusical, midia: MidiaMusical) {
         val arquivo = biblioteca.midia(p.id, midia.id)
         if (!arquivo.exists()) return
-        val fonteOriginal = FonteMapeada(arquivo)
+        val fonteOriginal = FonteWav(arquivo)
         midiasAbertas.put(midia.id, fonteOriginal)?.close()
         garantirMotor().definirFonte(midia.id, fonteOriginal)
         viewModelScope.launch(Dispatchers.Default) {
             val pico = runCatching {
-                FonteMapeada(arquivo).use { fonte ->
+                FonteWav(arquivo).use { fonte ->
                     val colunas = ((fonte.quadros + 1023) / 1024).toInt()
                     val resultado = FloatArray(colunas * 2)
                     val b = FloatArray(1024)
@@ -283,10 +284,16 @@ class MusicaViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) {
         prepararTransformacoes(p)
         atualizarPassos()
         salvarJob?.cancel()
-        if (salvarAutomaticamente) salvarJob = viewModelScope.launch(Dispatchers.IO) {
+        if (salvarAutomaticamente) salvarJob = viewModelScope.launch {
             delay(700)
-            biblioteca.salvar(p)
-            withContext(Dispatchers.Main) { if (projeto == p) alteracoesPendentes = false }
+            try {
+                withContext(Dispatchers.IO) { biblioteca.salvar(p) }
+                if (projeto == p) alteracoesPendentes = false
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                mensagem = e.message ?: "Não foi possível salvar o projeto automaticamente."
+            }
         }
     }
 
@@ -452,7 +459,7 @@ class MusicaViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) {
             andamento = "Identificando BPM e tonalidade" to 0.5
             try {
                 val resultado = withContext(Dispatchers.Default) {
-                    FonteMapeada(biblioteca.midia(p.id, clipe.midia)).use { AnaliseDaMusica.analisar(TransformacaoDaMusica.lerTudo(it, p.taxa * 60L), p.taxa) }
+                    FonteWav(biblioteca.midia(p.id, clipe.midia)).use { AnaliseDaMusica.analisar(TransformacaoDaMusica.lerTudo(it, p.taxa * 60L), p.taxa) }
                 }
                 analises = analises + (clipeId to resultado)
                 mensagem = if (resultado.bpm == null && resultado.tonalidade == null) "Não foi possível estimar este áudio. Tente um trecho com ritmo ou notas mais claros."
@@ -496,7 +503,7 @@ class MusicaViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) {
                         biblioteca.reduzirRuido(arquivo, destino, p.taxa)
                         arquivo.delete()
                     } else check(arquivo.renameTo(destino)) { "Não foi possível guardar a faixa ${definicao.rotulo}." }
-                    val quadros = FonteMapeada(destino).use { it.quadros }
+                    val quadros = FonteWav(destino).use { it.quadros }
                     definicao to MidiaMusical(midiaId, "${definicao.rotulo}.wav", "wav", p.taxa, 2, quadros, origem = clipe.midia, instrumento = definicao.id, modelo = SeparacaoDaMusica.MODELO_ID, versaoDoModelo = "1")
                 }
                 mudar { q ->
@@ -531,7 +538,7 @@ class MusicaViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) {
             try {
                 val midiaId = novoId("limpa")
                 biblioteca.reduzirRuido(biblioteca.midia(p.id, clipe.midia), biblioteca.midia(p.id, midiaId), p.taxa)
-                val quadros = FonteMapeada(biblioteca.midia(p.id, midiaId)).use { it.quadros }
+                val quadros = FonteWav(biblioteca.midia(p.id, midiaId)).use { it.quadros }
                 val midia = MidiaMusical(midiaId, "Sem ruído.wav", "wav", p.taxa, 2, quadros, origem = clipe.midia)
                 mudarFaixa(faixaId) { f -> f.copy(clipes = f.clipes.map { if (it.id == clipeId) it.copy(midia = midiaId, nome = "${it.nome ?: "Clipe"} (sem ruído)") else it }) }
                 mudar { q -> q.copy(midias = q.midias + midia) }

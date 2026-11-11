@@ -35,7 +35,7 @@ class FluxoDaMusicaTest {
             val preset = MasterDaMusica.PRESETS.first { it.id == "streaming" }
             val ganho = EscritorDeWav(arquivo, 2, taxa).use { MasterDaMusica.limitar(blocos, it, taxa, preset) {} }
             assertEquals(esperado.ganhoDb, ganho, 1e-9)
-            FonteMapeada(arquivo).use { fonte ->
+            FonteWav(arquivo).use { fonte ->
                 assertEquals(esperado.depois.lufs, MasterDaMusica.medir(fonte, taxa) {}.lufs, 1e-9)
                 val saida = ByteArrayOutputStream()
                 MasterDaMusica.escreverWav(saida, fonte, taxa, 24, verificar = {})

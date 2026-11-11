@@ -1,6 +1,7 @@
 package br.com.smellsliketech.converter.ui
 
 import android.media.MediaPlayer
+import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -85,6 +86,8 @@ private fun CatalogoOpenverse(modelo: EstudioViewModel, fechar: () -> Unit) {
     var proxima by remember { mutableStateOf(false) }
     var buscando by remember { mutableStateOf(false) }
     var erro by remember { mutableStateOf("") }
+    var aviso by remember { mutableStateOf("") }
+    var salvarItem by rememberSaveable { mutableStateOf<String?>(null) }
     var download by remember { mutableStateOf("") }
     var operacao by remember { mutableStateOf<Job?>(null) }
     var previa by remember { mutableStateOf<File?>(null) }
@@ -111,23 +114,39 @@ private fun CatalogoOpenverse(modelo: EstudioViewModel, fechar: () -> Unit) {
     }
     DisposableEffect(previa) {
         val arquivo = previa
-        val player = if (arquivo != null) MediaPlayer() else null
+        val player = if (arquivo != null) runCatching { MediaPlayer() }.getOrElse {
+            erro = "Não foi possível abrir a prévia."
+            previa = null
+            null
+        } else null
         if (player != null && arquivo != null) {
             runCatching {
                 player.setDataSource(arquivo.absolutePath)
-                player.setOnPreparedListener { it.start() }
+                player.setOnPreparedListener {
+                    runCatching { it.start() }.onFailure { erro = "Não foi possível ouvir a faixa."; previa = null }
+                }
                 player.setOnCompletionListener { previa = null }
                 player.setOnErrorListener { _, _, _ -> erro = "Não foi possível ouvir a faixa."; previa = null; true }
                 player.prepareAsync()
             }.onFailure { erro = "Não foi possível ouvir a faixa."; previa = null }
         }
-        onDispose { player?.release(); arquivo?.delete() }
+        onDispose {
+            runCatching {
+                player?.setOnPreparedListener(null)
+                player?.setOnCompletionListener(null)
+                player?.setOnErrorListener(null)
+                player?.release()
+            }
+            arquivo?.delete()
+        }
     }
 
-    fun obter(item: JSONObject, inserir: Boolean) {
+    val contexto = LocalContext.current
+    fun obter(item: JSONObject, inserir: Boolean, salvarEm: Uri? = null) {
         if (operacao?.isActive == true || item.optString("estado") != "APPROVED") return
-        previa = null
+        if (!inserir && salvarEm == null) previa = null
         erro = ""
+        aviso = ""
         download = "Conferindo a faixa…"
         val projeto = modelo.projeto
         val instante = modelo.instante
@@ -144,7 +163,14 @@ private fun CatalogoOpenverse(modelo: EstudioViewModel, fechar: () -> Unit) {
                     if (inserir) {
                         modelo.inserirAudioOpenverse(projeto, instante, baixado, duracao, fonte)
                         manter = true
-                        fechar()
+                        aviso = "Adicionado ao projeto: ${item.optString("titulo")}"
+                    } else if (salvarEm != null) {
+                        withContext(Dispatchers.IO) {
+                            val saida = contexto.contentResolver.openOutputStream(salvarEm, "wt")
+                                ?: error("Não foi possível salvar o áudio.")
+                            saida.use { out -> baixado.inputStream().use { it.copyTo(out) } }
+                        }
+                        aviso = "Áudio baixado."
                     } else {
                         modelo.tocandoPrevia = false
                         previa = baixado
@@ -165,6 +191,12 @@ private fun CatalogoOpenverse(modelo: EstudioViewModel, fechar: () -> Unit) {
         }
     }
 
+    val salvar = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("audio/*")) { uri ->
+        val item = salvarItem
+        salvarItem = null
+        if (uri != null && item != null) obter(JSONObject(item), false, uri)
+    }
+
     AlertDialog(
         onDismissRequest = fechar,
         title = { Text("Músicas grátis") },
@@ -179,6 +211,7 @@ private fun CatalogoOpenverse(modelo: EstudioViewModel, fechar: () -> Unit) {
                     }
                     OutlinedTextField(termo, { termo = it.take(200); pagina = 1 }, label = { Text("Pesquisar") }, singleLine = true, enabled = download.isEmpty())
                     if (buscando) Text("Buscando faixas…")
+                    if (aviso.isNotEmpty()) Text(aviso)
                     if (erro.isNotEmpty()) {
                         Text(erro)
                         TextButton({ tentativa++ }) { Text("Tentar novamente") }
@@ -202,13 +235,27 @@ private fun CatalogoOpenverse(modelo: EstudioViewModel, fechar: () -> Unit) {
                             else -> "Licença em verificação"
                         }
                         Text(listOfNotNull(item.optString("autor").takeUnless { it.isEmpty() || it == "null" }, item.optString("fonte"), duracao, status).joinToString(" · "))
-                        Row {
-                            TextButton({ links.openUri(item.getString("origem")) }) { Text("Origem") }
-                            TextButton({ links.openUri(item.getString("licenca")) }) { Text("CC0 1.0") }
+                        if (estado == "APPROVED") {
+                            Button({ obter(item, true) }, enabled = download.isEmpty() && modelo.projeto != null && modelo.ocupado == null) { Text("Adicionar ao projeto") }
+                            Row {
+                                TextButton({ obter(item, false) }, enabled = download.isEmpty()) { Text("Ouvir") }
+                                TextButton({
+                                    val formato = item.optString("midia").substringBefore('?').substringAfterLast('.').lowercase()
+                                    val ext = formato.takeIf { it in setOf("mp3", "wav", "ogg", "oga") } ?: "ogg"
+                                    val nome = item.optString("titulo").take(70)
+                                        .map { c -> if (c.isISOControl() || c in "\\/:*?\"<>|") '_' else c }.joinToString("")
+                                        .trim(' ', '.').ifEmpty { "Áudio" }
+                                    salvarItem = item.toString()
+                                    try { salvar.launch("$nome.$ext") }
+                                    catch (e: Exception) { salvarItem = null; erro = "Não foi possível abrir a opção de salvar áudio." }
+                                }, enabled = download.isEmpty() && salvarItem == null) { Text("Baixar") }
+                            }
                         }
-                        if (estado == "APPROVED") Row {
-                            TextButton({ obter(item, false) }, enabled = download.isEmpty()) { Text("Ouvir") }
-                            Button({ obter(item, true) }, enabled = download.isEmpty() && modelo.total > 0 && modelo.ocupado == null) { Text("Adicionar") }
+                        var creditos by remember { mutableStateOf(false) }
+                        TextButton({ creditos = !creditos }) { Text("Créditos e licença") }
+                        if (creditos) Row {
+                            TextButton({ runCatching { links.openUri(item.getString("origem")) }.onFailure { erro = "Não foi possível abrir a origem." } }) { Text("Origem") }
+                            TextButton({ runCatching { links.openUri(item.getString("licenca")) }.onFailure { erro = "Não foi possível abrir a licença." } }) { Text("CC0 1.0") }
                         }
                     }
                 }

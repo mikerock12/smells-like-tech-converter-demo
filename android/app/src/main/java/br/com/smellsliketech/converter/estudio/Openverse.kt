@@ -41,59 +41,68 @@ internal object Openverse {
     suspend fun buscar(categoria: String, termo: String, pagina: Int) =
         consultar("category=$categoria&page=$pagina&q=${URLEncoder.encode(termo.trim(), "UTF-8")}")
 
-    suspend fun baixar(categoria: String, id: String, pasta: File, progresso: (Long) -> Unit): Pair<File, JSONObject> = withContext(Dispatchers.IO) {
-        if (!idValido.matches(id)) throw ErroDeConversao("Identificador de faixa inválido.")
-        val item = consultar("category=$categoria&id=$id")
-        if (item.optString("estado") != "APPROVED" || item.optString("id") != id) throw ErroDeConversao("A faixa precisa de nova revisão.")
-        val uri = URI(item.getString("midia"))
-        val formato = uri.path.substringAfterLast('.').lowercase()
-        if (uri.scheme != "https" || uri.host != "upload.wikimedia.org" || uri.port !in listOf(-1, 443) ||
-            uri.userInfo != null || !uri.path.startsWith("/wikipedia/commons/") ||
-            formato !in formatos) throw ErroDeConversao("A origem ou o formato da faixa é incompatível.")
-
-        pasta.mkdirs()
-        val temporario = File(pasta, "${UUID.randomUUID()}.parcial.$formato")
-        val destino = File(pasta, "${UUID.randomUUID()}.$formato")
-        val conexao = conectar(uri).apply {
-            setRequestProperty("User-Agent", "SmellsLikeTechConverter/1.0 (Android; https://converter.smellsliketech.com.br)")
-        }
+    suspend fun baixar(categoria: String, id: String, pasta: File, progresso: (Long) -> Unit): Pair<File, JSONObject> {
+        var arquivoPronto: File? = null
         try {
-            if (conexao.responseCode != 200) throw ErroDeConversao("A origem da faixa está indisponível.")
-            if ((conexao.getHeaderField("Content-Length")?.toLongOrNull() ?: 0) > LIMITE) throw ErroDeConversao("O arquivo excede o limite de 80 MiB.")
-            val tipo = conexao.contentType?.substringBefore(';')?.trim()?.lowercase().orEmpty()
-            if (!tipo.startsWith("audio/") && tipo !in listOf("application/ogg", "application/octet-stream")) {
-                throw ErroDeConversao("A origem devolveu um arquivo que não é áudio.")
-            }
-            val hash = MessageDigest.getInstance("SHA-256")
-            var total = 0L
-            var ultimaMedida = 0L
-            conexao.inputStream.use { entrada ->
-                temporario.outputStream().use { saida ->
-                    val buffer = ByteArray(65536)
-                    while (true) {
-                        ensureActive()
-                        val lidos = entrada.read(buffer)
-                        if (lidos < 0) break
-                        total += lidos
-                        if (total > LIMITE) throw ErroDeConversao("O arquivo excede o limite de 80 MiB.")
-                        hash.update(buffer, 0, lidos)
-                        saida.write(buffer, 0, lidos)
-                        if (total - ultimaMedida >= 262144) {
-                            withContext(Dispatchers.Main) { progresso(total) }
-                            ultimaMedida = total
+            return withContext(Dispatchers.IO) {
+                if (!idValido.matches(id)) throw ErroDeConversao("Identificador de faixa inválido.")
+                val item = consultar("category=$categoria&id=$id")
+                if (item.optString("estado") != "APPROVED" || item.optString("id") != id) throw ErroDeConversao("A faixa precisa de nova revisão.")
+                val uri = URI(item.getString("midia"))
+                val formato = uri.path.substringAfterLast('.').lowercase()
+                if (uri.scheme != "https" || uri.host != "upload.wikimedia.org" || uri.port !in listOf(-1, 443) ||
+                    uri.userInfo != null || !uri.path.startsWith("/wikipedia/commons/") ||
+                    formato !in formatos) throw ErroDeConversao("A origem ou o formato da faixa é incompatível.")
+
+                pasta.mkdirs()
+                val temporario = File(pasta, "${UUID.randomUUID()}.parcial.$formato")
+                val destino = File(pasta, "${UUID.randomUUID()}.$formato")
+                val conexao = conectar(uri).apply {
+                    setRequestProperty("User-Agent", "SmellsLikeTechConverter/1.0 (Android; https://converter.smellsliketech.com.br)")
+                }
+                try {
+                    if (conexao.responseCode != 200) throw ErroDeConversao("A origem da faixa está indisponível.")
+                    if ((conexao.getHeaderField("Content-Length")?.toLongOrNull() ?: 0) > LIMITE) throw ErroDeConversao("O arquivo excede o limite de 80 MiB.")
+                    val tipo = conexao.contentType?.substringBefore(';')?.trim()?.lowercase().orEmpty()
+                    if (!tipo.startsWith("audio/") && tipo !in listOf("application/ogg", "application/octet-stream")) {
+                        throw ErroDeConversao("A origem devolveu um arquivo que não é áudio.")
+                    }
+                    val hash = MessageDigest.getInstance("SHA-256")
+                    var total = 0L
+                    var ultimaMedida = 0L
+                    conexao.inputStream.use { entrada ->
+                        temporario.outputStream().use { saida ->
+                            val buffer = ByteArray(65536)
+                            while (true) {
+                                ensureActive()
+                                val lidos = entrada.read(buffer)
+                                if (lidos < 0) break
+                                total += lidos
+                                if (total > LIMITE) throw ErroDeConversao("O arquivo excede o limite de 80 MiB.")
+                                hash.update(buffer, 0, lidos)
+                                saida.write(buffer, 0, lidos)
+                                if (total - ultimaMedida >= 262144) {
+                                    withContext(Dispatchers.Main) { progresso(total) }
+                                    ultimaMedida = total
+                                }
+                            }
                         }
                     }
+                    if (hash.digest().joinToString("") { "%02x".format(it) } != item.optString("sha256")) {
+                        throw ErroDeConversao("O arquivo da fonte mudou e precisa de nova revisão.")
+                    }
+                    ensureActive()
+                    if (!temporario.renameTo(destino)) throw ErroDeConversao("Não foi possível guardar o áudio.")
+                    arquivoPronto = destino
+                    destino to item
+                } finally {
+                    conexao.disconnect()
+                    temporario.delete()
                 }
             }
-            if (hash.digest().joinToString("") { "%02x".format(it) } != item.optString("sha256")) {
-                throw ErroDeConversao("O arquivo da fonte mudou e precisa de nova revisão.")
-            }
-            ensureActive()
-            if (!temporario.renameTo(destino)) throw ErroDeConversao("Não foi possível guardar o áudio.")
-            destino to item
-        } finally {
-            conexao.disconnect()
-            temporario.delete()
+        } catch (erro: Throwable) {
+            arquivoPronto?.delete()
+            throw erro
         }
     }
 }

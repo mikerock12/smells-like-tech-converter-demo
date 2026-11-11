@@ -136,17 +136,18 @@ export default function PaginaDePrivacidade() {
             data do começo do teste ficam guardadas no próprio app e são apagadas quando ele é desinstalado.
           </p>
           <p>
-            O app usa a internet para uma coisa só: baixar um modelo de transcrição (Whisper), quando você pede, na tela
-            &quot;Modelos de transcrição&quot;. O download é feito pelo gerenciador de downloads do Android, direto do
-            repositório público do whisper.cpp no Hugging Face, que recebe, como qualquer site, o endereço IP e a
-            identificação do aparelho que baixa. O pedido leva só o nome do arquivo, e o áudio transcrito nunca sai do
-            celular.
+            O app usa conexão para baixar modelos quando você pede, para compras e restauração pelo Google Play e para
+            consultar catálogos online. Ao usar o Openverse, a pesquisa envia o termo digitado e a categoria ao serviço
+            de catálogo, e os arquivos escolhidos são baixados da origem. Ao buscar GIFs e figurinhas, o termo é usado
+            para consultar o catálogo correspondente. Os servidores acessados recebem dados técnicos da conexão,
+            como o endereço IP. As gravações, os arquivos de entrada e os projetos não são enviados nesses fluxos.
           </p>
           <p>
             Quando o app é instalado pela Google Play, a compra é feita pelo Google Play, que trata o pagamento conforme a política de
             privacidade do Google. Não recebemos dados do seu cartão. O app só confere, no próprio celular, o recibo da compra
             que a Play Store entrega a ele.
           </p>
+          <p>Consulte também os <a href="/android/termos">Termos de Serviço do app Android</a>.</p>
         </section>
 
         <section className="plugin-page__secao">
@@ -156,7 +157,7 @@ export default function PaginaDePrivacidade() {
             <br />
             Dúvidas e pedidos sobre dados: <a className="converter__link" href="mailto:converter@smellsliketech.com.br">converter@smellsliketech.com.br</a>.
           </p>
-          <p>Última atualização: setembro de 2026.</p>
+          <p>Última atualização: 11 de novembro de 2026.</p>
         </section>
       </main>
       <SiteFooter />

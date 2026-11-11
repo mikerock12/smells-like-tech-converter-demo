@@ -335,17 +335,17 @@ class EstudioViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) {
     internal suspend fun validarAudioOpenverse(arquivo: File): Double {
         val info = Ffmpeg.sondar(contexto, arquivo)
         val duracao = info.duracaoSegundos ?: 0.0
-        if (!info.temAudio || duracao <= 0 || duracao > 900) throw ErroDeConversao("Formato incompatível ou duração fora do limite de 15 minutos.")
+        if (!info.temAudio || !duracao.isFinite() || duracao <= 0 || duracao > 900) throw ErroDeConversao("Formato incompatível ou duração fora do limite de 15 minutos.")
         return duracao
     }
 
     internal fun inserirAudioOpenverse(original: Projeto?, cursor: Double, arquivo: File, duracao: Double, fonte: JSONObject) {
-        if (original == null || projeto !== original || total <= 0 || ocupado != null) {
+        if (original == null || projeto !== original || ocupado != null) {
             throw ErroDeConversao("O projeto mudou durante a importação. Tente novamente.")
         }
         val origem = JSONObject(fonte.toString()).put("importadoEm", java.time.Instant.now().toString())
         val entrada = cursor.coerceIn(0.0, maxOf(0.0, total - 1.0 / original.fps))
-        val fim = minOf(duracao, total - entrada)
+        val fim = if (total > 0) minOf(duracao, total - entrada) else duracao
         infos[arquivo.absolutePath] = InfoDaMidia(fonte.optString("titulo", "Áudio"), duracao, null, null, true)
         val audio = AudioExtra(novoId("ov"), arquivo.absolutePath, entrada, 0.0, fim, .8, 0.0, minOf(1.0, fim), origem)
         mudar { it.copy(audios = it.audios + audio) }

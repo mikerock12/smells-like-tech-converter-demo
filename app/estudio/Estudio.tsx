@@ -664,7 +664,7 @@ export default function Estudio() {
           {aba === "audio" && (
             <div className="estudio__lista">
               <NarracaoDoEstudio projeto={projeto} instante={instante} desabilitado={!!andamento||!projeto.clipes.length} adicionar={(f,entrada)=>adicionarMusica(f,entrada,true)} />
-              <BibliotecaOpenverse podeAdicionar={!andamento && total > 0} pararEstudio={() => setTocando(false)}
+              <BibliotecaOpenverse podeAdicionar={!andamento} pararEstudio={() => setTocando(false)}
                 adicionar={(arquivo, duracao, openverse) => void adicionarMusica(arquivo, Math.max(0, Math.min(instante, total - 1 / projeto.fps)), false, { duracao, openverse })} />
               <EscolherArquivos rotulo="Adicionar música ou áudio" aceita="audio/*,video/*" aoEscolher={(lista) => lista[0] && void adicionarMusica(lista[0])} />
               {projeto.audios.length === 0 && <p className="estudio__dica">A música toca por cima do som dos vídeos. Escolha o trecho, onde ela entra, o volume e o fade.</p>}

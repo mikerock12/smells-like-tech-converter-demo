@@ -71,7 +71,7 @@ class CapturasDaMusicaTest {
         val midias = mapa.values.map { id ->
             val destino = biblioteca.midia(p.id, id).apply { parentFile?.mkdirs() }
             File(demo, "$id.wav").copyTo(destino, overwrite = true)
-            FonteMapeada(destino).use { MidiaMusical(id, "$id.wav", "wav", taxa, it.canais, it.quadros) }
+            FonteWav(destino).use { MidiaMusical(id, "$id.wav", "wav", taxa, it.canais, it.quadros) }
         }
         p = p.copy(
             midias = midias,

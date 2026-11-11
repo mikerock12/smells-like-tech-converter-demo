@@ -60,7 +60,7 @@ class BibliotecaDaMusica(private val contexto: Context) {
         val conhecidas = p.midias.map { it.id }.toSet()
         return File(pasta(p.id), "midias").listFiles { f -> f.name.endsWith(".wav") }.orEmpty()
             .filter { it.nameWithoutExtension !in conhecidas && it.length() > 44 }
-            .mapNotNull { f -> runCatching { FonteMapeada(f).use { MidiaMusical(f.nameWithoutExtension, f.name, "wav", p.taxa, it.canais, it.quadros) } }.getOrNull() }
+            .mapNotNull { f -> runCatching { FonteWav(f).use { MidiaMusical(f.nameWithoutExtension, f.name, "wav", p.taxa, it.canais, it.quadros) } }.getOrNull() }
     }
 
     private suspend fun ffmpeg(argumentos: List<String>) = Ffmpeg.executar(contexto, listOf("-hide_banner", "-nostdin", "-y") + argumentos, null)
@@ -74,18 +74,26 @@ class BibliotecaDaMusica(private val contexto: Context) {
     }
 
     /** A fonte transformada fica em disco, com a mesma duração em quadros usada no mixer. */
-    internal suspend fun prepararClipe(p: ProjetoMusical, clipe: ClipeMusical): FonteMapeada {
-        val origem = midia(p.id, clipe.midia)
-        val destino = File.createTempFile("tempo-tom-", ".wav", temporaria)
+    internal suspend fun prepararClipe(p: ProjetoMusical, clipe: ClipeMusical): FonteWav {
+        var fontePronta: FonteWav? = null
         try {
-            FonteMapeada(origem).use { fonte ->
-                transformarArquivo(origem, destino, p.taxa, fonte, clipe.velocidade ?: 1.0, clipe.semitons ?: 0.0, clipe.preservarTom ?: true)
+            return withContext(Dispatchers.IO) {
+                val origem = midia(p.id, clipe.midia)
+                val destino = File.createTempFile("tempo-tom-", ".wav", temporaria)
+                try {
+                    FonteWav(origem).use { fonte ->
+                        transformarArquivo(origem, destino, p.taxa, fonte, clipe.velocidade ?: 1.0, clipe.semitons ?: 0.0, clipe.preservarTom ?: true)
+                    }
+                    coroutineContext.ensureActive()
+                    FonteWav(destino, apagarAoFechar = true).also { fontePronta = it }
+                } finally {
+                    if (fontePronta == null) destino.delete()
+                }
             }
-            coroutineContext.ensureActive()
-            return FonteMapeada(destino)
-        } finally {
-            // No Android o mapeamento continua válido após desvincular o nome do arquivo.
-            destino.delete()
+        } catch (erro: Throwable) {
+            // A troca de dispatcher pode descartar o resultado se o ajuste mudou durante a leitura.
+            fontePronta?.close()
+            throw erro
         }
     }
 
@@ -93,7 +101,7 @@ class BibliotecaDaMusica(private val contexto: Context) {
     suspend fun importar(entrada: File, projeto: String, midia: String, taxa: Int): Pair<Long, Int> {
         val destino = midia(projeto, midia).apply { parentFile?.mkdirs() }
         ffmpeg(listOf("-i", entrada.absolutePath, "-vn", "-af", "aformat=channel_layouts=mono|stereo", "-ar", "$taxa", "-c:a", "pcm_f32le", destino.absolutePath))
-        return FonteMapeada(destino).use { require(it.quadros <= taxa * 7200L) { "O áudio passa de 2 horas." }; it.quadros to it.canais }
+        return FonteWav(destino).use { require(it.quadros <= taxa * 7200L) { "O áudio passa de 2 horas." }; it.quadros to it.canais }
     }
 
     /** A mistura (com master), cada faixa ou uma faixa, no formato pedido. */
@@ -117,7 +125,7 @@ class BibliotecaDaMusica(private val contexto: Context) {
             progresso(if (id == null) "Mixando" else "Mixando $nomeDoArquivo", i.toDouble() / alvos.size)
             val contextoDaExportacao = coroutineContext
             val verificar = { contextoDaExportacao.ensureActive() }
-            val fontes = mutableMapOf<String, FonteMapeada>()
+            val fontes = mutableMapOf<String, FonteWav>()
             val temporarios = mutableListOf<File>()
             fun temp() = File.createTempFile("exportar-", ".wav", temporaria).also { temporarios.add(it) }
             val arquivo = File(pasta, "$nomeDoArquivo.${formato.extensao}")
@@ -125,7 +133,7 @@ class BibliotecaDaMusica(private val contexto: Context) {
                 val clipes = p.faixas.filter { id == null || it.id == id }.flatMap { it.clipes }.filterNot { it.mudo }
                 for (midia in clipes.map { it.midia }.distinct()) {
                     verificar()
-                    fontes[midia] = FonteMapeada(midia(p.id, midia))
+                    fontes[midia] = FonteWav(midia(p.id, midia))
                 }
                 val transformacoes = clipes.filter(TransformacaoDaMusica::temTransformacao).distinctBy(TransformacaoDaMusica::chaveDaFonte)
                 for (clipe in transformacoes) {
@@ -141,7 +149,7 @@ class BibliotecaDaMusica(private val contexto: Context) {
                     progresso("Masterizando", (i + 0.8) / alvos.size)
                     if (p.master.velocidade != 1.0 || p.master.semitons != 0.0) {
                         val ajustada = temp()
-                        FonteMapeada(mistura).use {
+                        FonteWav(mistura).use {
                             transformarArquivo(mistura, ajustada, p.taxa, it, p.master.velocidade, p.master.semitons, p.master.preservarTom)
                         }
                         mistura.delete()
@@ -149,12 +157,12 @@ class BibliotecaDaMusica(private val contexto: Context) {
                     }
                     val preset = MasterDaMusica.PRESETS.firstOrNull { it.id == master } ?: MasterDaMusica.PRESETS[0]
                     val limitada = temp()
-                    ganho = FonteMapeada(mistura).use { fonte ->
+                    ganho = FonteWav(mistura).use { fonte ->
                         EscritorDeWav(limitada, 2, p.taxa).use { MasterDaMusica.limitar(fonte, it, p.taxa, preset, verificar) }
                     }
                     mistura.delete()
                     mistura = limitada
-                    FonteMapeada(mistura).use { fonte ->
+                    FonteWav(mistura).use { fonte ->
                         val depois = MasterDaMusica.medir(fonte, p.taxa, verificar)
                         if (depois.realDb > preset.tetoDbtp) {
                             corte = 10.0.pow((preset.tetoDbtp - depois.realDb - 0.05) / 20)
@@ -165,7 +173,7 @@ class BibliotecaDaMusica(private val contexto: Context) {
                 progresso("Codificando", (i + 0.9) / alvos.size)
                 try {
                     if (formato.extensao == "wav") {
-                        FonteMapeada(mistura).use { fonte ->
+                        FonteWav(mistura).use { fonte ->
                             arquivo.outputStream().buffered().use {
                                 MasterDaMusica.escreverWav(it, fonteComGanho(fonte, corte), p.taxa, formato.bits, verificar = verificar)
                             }
@@ -260,7 +268,7 @@ class BibliotecaDaMusica(private val contexto: Context) {
             val escritores = definicao.faixas.map { EscritorDeWav(File(trabalho, "${it.id}-44k.wav"), 2, SeparacaoDaMusica.TAXA) }
             val esquerdos = arrayOfNulls<FloatArray>(definicao.faixas.size)
             val forma = longArrayOf(1, 2, SeparacaoDaMusica.QUADROS_POR_TRECHO.toLong(), SeparacaoDaMusica.BANDAS.toLong())
-            FonteMapeada(a44).use { fonte ->
+            FonteWav(a44).use { fonte ->
                 InferenciaOnnx(modelo.absolutePath, maxOf(1, Runtime.getRuntime().availableProcessors() - 1)).use { sessao ->
                     try {
                         SeparacaoDaMusica.separar(
@@ -294,7 +302,7 @@ class BibliotecaDaMusica(private val contexto: Context) {
 
     /** Redução de ruído offline numa mídia: escreve um WAV novo (estéreo). */
     suspend fun reduzirRuido(entrada: File, saida: File, taxa: Int) = withContext(Dispatchers.Default) {
-        FonteMapeada(entrada).use { fonte ->
+        FonteWav(entrada).use { fonte ->
             EscritorDeWav(saida, 2, taxa).use { escritor ->
                 var esquerdo: FloatArray? = null
                 SeparacaoDaMusica.reduzirRuido(fonte.quadros, fonte.canais, { c, inicio, n, d -> fonte.copiar(c, inicio, n, d) }, EmissorDeAmostras { c, _, amostras, n ->

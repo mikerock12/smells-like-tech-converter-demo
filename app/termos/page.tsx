@@ -6,7 +6,7 @@ import { SiteFooter, SiteHeader } from "../SiteChrome";
 
 export const metadata: Metadata = {
   title: "Termos de uso — Smells Like Tech Converter",
-  description: "As regras do uso do site, do plugin e do aplicativo, e das licenças.",
+  description: "Termos do site, plugin e aplicativo Windows, com acesso aos Termos de Serviço do app Android.",
 };
 
 export default function PaginaDeTermos() {
@@ -21,6 +21,10 @@ export default function PaginaDeTermos() {
             <br />
             <em>escritas para gente.</em>
           </h1>
+          <p className="plugin-page__lead">
+            Instalou o Converter no celular? Leia os <a href="/android/termos">Termos de Serviço do app Android</a>,
+            incluindo assinatura, compra única, cancelamento, reembolso e suporte.
+          </p>
         </header>
 
         <section className="plugin-page__secao">
@@ -51,7 +55,7 @@ export default function PaginaDeTermos() {
         <section className="plugin-page__secao">
           <h2 className="panel__title">3. Pagamento, garantia e reembolso</h2>
           <p>
-            Os pagamentos são processados pelo Mercado Pago. Você tem 7 dias corridos após a compra para pedir
+            Os pagamentos feitos no site são processados pelo Mercado Pago. Você tem 7 dias corridos após a compra no site para pedir
             reembolso integral, por qualquer motivo, informando o número do pedido. Após o reembolso, a chave
             correspondente deixa de ser válida.
           </p>
@@ -81,7 +85,10 @@ export default function PaginaDeTermos() {
 
         <section className="plugin-page__secao">
           <h2 className="panel__title">6. Foro</h2>
-          <p>Fica eleito o foro de Porto Alegre/RS. Última atualização: setembro de 2026.</p>
+          <p>
+            Aplicam-se os direitos e o foro que a legislação assegura ao consumidor. Quando a escolha de foro for permitida,
+            fica eleito o foro de Porto Alegre/RS. Última atualização: 11 de novembro de 2026.
+          </p>
         </section>
       </main>
       <SiteFooter />

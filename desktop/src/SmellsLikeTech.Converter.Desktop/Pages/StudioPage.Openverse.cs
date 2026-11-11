@@ -4,6 +4,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Automation;
 using SmellsLikeTech.Converter.Core.Studio;
 using SmellsLikeTech.Converter.Desktop.Services;
 using Windows.Media.Core;
@@ -21,7 +22,11 @@ public sealed partial class StudioPage
     private FrameworkElement OpenverseControls()
     {
         var button = Action("Músicas grátis");
-        button.Click += async (_, _) => await ShowOpenverseAsync();
+        button.Click += async (_, _) =>
+        {
+            try { await ShowOpenverseAsync(); }
+            catch (Exception e) { ShowStatus(e.Message, InfoBarSeverity.Error); }
+        };
         return button;
     }
 
@@ -128,10 +133,22 @@ public sealed partial class StudioPage
         cancel.IsEnabled = false;
         var status = Muted("");
         var results = new StackPanel { Spacing = 10 };
-        var player = new MediaPlayer();
-        player.MediaFailed += (_, _) => DispatcherQueue.TryEnqueue(() => status.Text = "Não foi possível ouvir a faixa.");
-        var media = new MediaPlayerElement { AreTransportControlsEnabled = true, Height = 56, Visibility = Visibility.Collapsed };
-        media.SetMediaPlayer(player);
+        MediaPlayer? player = null;
+        MediaSource? source = null;
+        var play = Action("Pausar");
+        var seek = new Slider { Minimum = 0, Maximum = 1, StepFrequency = .1, SmallChange = 1, LargeChange = 5, IsEnabled = false };
+        AutomationProperties.SetName(seek, "Posição da prévia");
+        var clock = Muted("0:00 / 0:00");
+        var previewControls = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+        previewControls.Children.Add(play);
+        previewControls.Children.Add(clock);
+        var media = new StackPanel { Visibility = Visibility.Collapsed };
+        media.Children.Add(previewControls);
+        media.Children.Add(seek);
+        var dispatcher = DispatcherQueue;
+        var timer = dispatcher.CreateTimer();
+        timer.Interval = TimeSpan.FromMilliseconds(200);
+        bool updatingSeek = false;
         var controls = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
         foreach (var control in new[] { search, previous, next, cancel }) controls.Children.Add(control);
         var body = new StackPanel { Spacing = 10, MinWidth = 360 };
@@ -144,20 +161,103 @@ public sealed partial class StudioPage
         body.Children.Add(new ScrollViewer { Content = results, MaxHeight = 350 });
         var dialog = new ContentDialog { Title = "Músicas grátis", Content = body, CloseButtonText = "Fechar", XamlRoot = XamlRoot };
         CancellationTokenSource? operation = null;
+        TaskCompletionSource? finishing = null;
         string? previewFile = null;
         var closed = false;
         int page = 1;
         bool hasNext = false;
         string Category() => category.SelectedIndex == 0 ? "music" : "sound_effect";
 
+        static void DeleteTemporary(string? path)
+        {
+            if (path is null) return;
+            try { File.Delete(path); }
+            catch (IOException) { }
+            catch (UnauthorizedAccessException) { }
+        }
+
         void StopPreview()
         {
-            player.Pause();
-            player.Source = null;
+            timer.Stop();
             media.Visibility = Visibility.Collapsed;
-            if (previewFile is not null) { try { File.Delete(previewFile); } catch (IOException) { } }
-            previewFile = null;
+            seek.IsEnabled = false;
+            var previousPlayer = player;
+            var previousSource = source;
+            player = null;
+            source = null;
+            try
+            {
+                if (previousPlayer is not null)
+                {
+                    previousPlayer.MediaFailed -= OnMediaFailed;
+                    try
+                    {
+                        if (previousPlayer.PlaybackSession.CanPause) previousPlayer.Pause();
+                        previousPlayer.Source = null;
+                    }
+                    finally { previousPlayer.Dispose(); }
+                }
+            }
+            finally
+            {
+                try { previousSource?.Dispose(); }
+                finally { DeleteTemporary(previewFile); previewFile = null; }
+            }
         }
+
+        void PreviewFailed()
+        {
+            try { StopPreview(); }
+            catch (Exception e) { System.Diagnostics.Debug.WriteLine(e); }
+            if (!closed) status.Text = "Não foi possível ouvir a faixa.";
+        }
+
+        void OnMediaFailed(MediaPlayer sender, MediaPlayerFailedEventArgs _) => dispatcher.TryEnqueue(() =>
+        {
+            if (!closed && ReferenceEquals(player, sender)) PreviewFailed();
+        });
+
+        static string TimeLabel(TimeSpan time) => time.ToString(@"m\:ss");
+        timer.Tick += (_, _) =>
+        {
+            if (closed || player is null) return;
+            try
+            {
+                var session = player.PlaybackSession;
+                var length = session.NaturalDuration;
+                var position = session.Position;
+                updatingSeek = true;
+                seek.Maximum = Math.Max(.1, length.TotalSeconds);
+                seek.Value = Math.Clamp(position.TotalSeconds, 0, seek.Maximum);
+                seek.IsEnabled = session.CanSeek && length > TimeSpan.Zero;
+                clock.Text = $"{TimeLabel(position)} / {TimeLabel(length)}";
+                play.Content = session.PlaybackState is MediaPlaybackState.Playing or MediaPlaybackState.Buffering ? "Pausar" : "Reproduzir";
+            }
+            catch (Exception) { PreviewFailed(); }
+            finally { updatingSeek = false; }
+        };
+        play.Click += (_, _) =>
+        {
+            if (closed || player is null) return;
+            try
+            {
+                var session = player.PlaybackSession;
+                if (session.PlaybackState is MediaPlaybackState.Playing or MediaPlaybackState.Buffering) player.Pause();
+                else
+                {
+                    if (session.CanSeek && session.NaturalDuration > TimeSpan.Zero && session.Position >= session.NaturalDuration)
+                        session.Position = TimeSpan.Zero;
+                    player.Play();
+                }
+            }
+            catch (Exception) { PreviewFailed(); }
+        };
+        seek.ValueChanged += (_, e) =>
+        {
+            if (updatingSeek || !seek.IsEnabled || closed || player is null) return;
+            try { player.PlaybackSession.Position = TimeSpan.FromSeconds(e.NewValue); }
+            catch (Exception) { PreviewFailed(); }
+        };
 
         void UpdateButtons()
         {
@@ -175,16 +275,28 @@ public sealed partial class StudioPage
             if (operation is not null || closed) return;
             using var current = new CancellationTokenSource(TimeSpan.FromSeconds(seconds));
             operation = current;
+            var done = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            finishing = done;
             UpdateButtons();
             try { await action(current.Token); }
             catch (OperationCanceledException) { if (!closed) status.Text = "Operação cancelada ou tempo de resposta excedido."; }
             catch (Exception e) { if (!closed) status.Text = e.Message; }
-            finally { operation = null; if (!closed) UpdateButtons(); }
+            finally
+            {
+                operation = null;
+                finishing = null;
+                done.SetResult();
+                if (!closed) UpdateButtons();
+            }
         }
 
-        Task ObtainAsync(string id, bool insert) => RunAsync(async token =>
+        Task ObtainAsync(string id, string action) => RunAsync(async token =>
         {
-            StopPreview();
+            var insert = action == "adicionar";
+            var download = action == "baixar";
+            var destination = download ? FileDialogs.PickOutputFolder(App.MainWindow) : null;
+            if (download && destination is null) return;
+            if (!insert && !download) StopPreview();
             var original = project;
             var position = Math.Max(0, Math.Min(TimeSlider.Value, Total - 1d / (original?.Fps ?? 30)));
             status.Text = "Conferindo a faixa…";
@@ -201,55 +313,89 @@ public sealed partial class StudioPage
             Directory.CreateDirectory(folder);
             var title = item.GetProperty("titulo").GetString() ?? "Áudio";
             var safe = string.Concat(title.Take(70).Select(c => Path.GetInvalidFileNameChars().Contains(c) ? '_' : c)).Trim(' ', '.');
+            if (safe.Length == 0) safe = "Áudio";
             var file = Path.Combine(folder, $"{safe}-{Guid.NewGuid():N}{extension}");
             var pending = Path.Combine(folder, $"{Guid.NewGuid():N}.parcial{extension}");
             var keep = false;
+            string? wav = null;
+            string? partialDownload = null;
             try
             {
                 await DownloadOpenverseAsync(item, uri, pending, bytes => status.Text = $"Baixando áudio · {bytes / 1048576d:0.0} MiB", token);
                 var inspected = await App.Services.Inspector.InspectAsync(pending, token);
                 var duration = inspected.Duration?.TotalSeconds ?? 0;
-                if (!inspected.HasAudio || duration is <= 0 or > 900)
+                if (!inspected.HasAudio || !double.IsFinite(duration) || duration is <= 0 or > 900)
                     throw new IOException("Formato incompatível ou duração fora do limite de 15 minutos.");
                 token.ThrowIfCancellationRequested();
                 File.Move(pending, file);
                 if (insert)
                 {
-                    if (original is null || !ReferenceEquals(original, project) || Total <= 0)
+                    if (original is null || !ReferenceEquals(original, project))
                         throw new IOException("O projeto mudou durante a importação. Tente novamente.");
                     var origin = JsonNode.Parse(item.GetRawText())!.AsObject();
                     origin["importadoEm"] = DateTimeOffset.UtcNow.ToString("O");
+                    var length = Total > 0 ? Math.Min(duration, Total - position) : duration;
                     var audio = new StudioAudio
                     {
-                        Id = NewId("ov"), File = file, At = position, Start = 0, End = Math.Min(duration, Total - position),
-                        Volume = .8, FadeIn = 0, FadeOut = Math.Min(1, Math.Min(duration, Total - position)),
+                        Id = NewId("ov"), File = file, At = position, Start = 0, End = length,
+                        Volume = .8, FadeIn = 0, FadeOut = Math.Min(1, length),
                         Openverse = JsonSerializer.SerializeToElement(origin),
                     };
                     infos[file] = inspected;
                     openId = audio.Id;
-                    ChangeAndRefresh(p => p with { Audios = [.. p.Audios, audio] });
-                    keep = true;
-                    dialog.Hide();
+                    try { ChangeAndRefresh(p => p with { Audios = [.. p.Audios, audio] }); }
+                    finally { keep = project?.Audios.Any(a => a.Id == audio.Id) == true; }
+                    status.Text = $"Adicionado ao projeto: {title}";
                     ShowStatus("Faixa adicionada à linha do tempo.", InfoBarSeverity.Success);
+                }
+                else if (destination is not null)
+                {
+                    partialDownload = Path.Combine(destination, $".{Guid.NewGuid():N}.parcial");
+                    await using (var input = File.OpenRead(file))
+                    await using (var output = new FileStream(partialDownload, FileMode.CreateNew))
+                        await input.CopyToAsync(output, token);
+                    token.ThrowIfCancellationRequested();
+                    var saved = Path.Combine(destination, safe + extension);
+                    if (File.Exists(saved)) saved = Path.Combine(destination, $"{safe}-{Guid.NewGuid():N}{extension}");
+                    File.Move(partialDownload, saved);
+                    status.Text = $"Baixado: {Path.GetFileName(saved)}";
                 }
                 else
                 {
-                    var wav = Path.ChangeExtension(file, ".previa.wav");
-                    previewFile = wav;
+                    wav = Path.ChangeExtension(file, ".previa.wav");
                     await App.Services.MusicTools.ImportAsync(file, wav, 48000, token);
                     var storage = await StorageFile.GetFileFromPathAsync(wav);
                     token.ThrowIfCancellationRequested();
                     StopPlayback(keepPosition: true);
-                    player.Source = MediaSource.CreateFromStorageFile(storage);
-                    media.Visibility = Visibility.Visible;
-                    player.Play();
+                    try
+                    {
+                        player = new MediaPlayer { AudioCategory = MediaPlayerAudioCategory.Media };
+                        player.MediaFailed += OnMediaFailed;
+                        source = MediaSource.CreateFromStorageFile(storage);
+                        player.Source = source;
+                        previewFile = wav;
+                        wav = null;
+                        seek.Value = 0;
+                        clock.Text = $"0:00 / {TimeLabel(TimeSpan.FromSeconds(duration))}";
+                        play.Content = "Pausar";
+                        media.Visibility = Visibility.Visible;
+                        player.Play();
+                        timer.Start();
+                    }
+                    catch
+                    {
+                        PreviewFailed();
+                        throw;
+                    }
                     status.Text = title;
                 }
             }
             finally
             {
-                File.Delete(pending);
-                if (!keep) File.Delete(file);
+                DeleteTemporary(pending);
+                DeleteTemporary(wav);
+                DeleteTemporary(partialDownload);
+                if (!keep) DeleteTemporary(file);
             }
         }, 65);
 
@@ -285,14 +431,17 @@ public sealed partial class StudioPage
                 if (state == "APPROVED")
                 {
                     var listen = Action("Ouvir");
-                    listen.Click += async (_, _) => await ObtainAsync(id, false);
-                    var add = Action("Adicionar");
-                    add.IsEnabled = Total > 0;
-                    add.Click += async (_, _) => await ObtainAsync(id, true);
-                    links.Children.Add(listen);
-                    links.Children.Add(add);
+                    listen.Click += async (_, _) => await ObtainAsync(id, "ouvir");
+                    var add = Action("Adicionar ao projeto");
+                    add.IsEnabled = project is not null;
+                    add.Click += async (_, _) => await ObtainAsync(id, "adicionar");
+                    var download = Action("Baixar");
+                    download.Click += async (_, _) => await ObtainAsync(id, "baixar");
+                    var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
+                    foreach (var button in new[] { listen, add, download }) actions.Children.Add(button);
+                    row.Children.Add(actions);
                 }
-                row.Children.Add(links);
+                row.Children.Add(new Expander { Header = "Créditos e licença", Content = links });
                 results.Children.Add(row);
             }
         }, 18);
@@ -303,8 +452,17 @@ public sealed partial class StudioPage
         next.Click += async (_, _) => await SearchAsync(page + 1);
         category.SelectionChanged += async (_, _) => await SearchAsync(1);
         dialog.Opened += async (_, _) => await SearchAsync(1);
-        dialog.Closed += (_, _) => { closed = true; operation?.Cancel(); StopPreview(); player.Dispose(); };
-        UpdateButtons();
-        await dialog.ShowAsync();
+        try
+        {
+            UpdateButtons();
+            await dialog.ShowAsync();
+        }
+        finally
+        {
+            closed = true;
+            operation?.Cancel();
+            try { StopPreview(); }
+            finally { if (finishing is { } done) await done.Task; }
+        }
     }
 }

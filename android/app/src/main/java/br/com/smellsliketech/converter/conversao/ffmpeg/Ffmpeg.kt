@@ -3,7 +3,10 @@ package br.com.smellsliketech.converter.conversao.ffmpeg
 import android.content.Context
 import br.com.smellsliketech.converter.conversao.Entrada
 import br.com.smellsliketech.converter.conversao.ErroDeConversao
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.runInterruptible
@@ -38,16 +41,25 @@ object Ffmpeg {
             val processo = ProcessBuilder(listOf(programa.absolutePath) + argumentos)
                 .directory(context.cacheDir)
                 .start()
+            // Interromper a thread nem sempre libera a leitura bloqueante do pipe.
+            val cancelar = launch(start = CoroutineStart.UNDISPATCHED) {
+                try { awaitCancellation() }
+                finally { if (processo.isAlive) processo.destroyForcibly() }
+            }
             val erros = StringBuilder()
             val leitorDeErros = Thread {
-                processo.errorStream.bufferedReader().useLines { linhas ->
-                    linhas.forEach { linha ->
-                        aoLerLog?.invoke(linha)
-                        synchronized(erros) {
-                            erros.appendLine(linha)
-                            if (erros.length > 16_000) erros.delete(0, erros.length - 8_000)
+                try {
+                    processo.errorStream.bufferedReader().useLines { linhas ->
+                        linhas.forEach { linha ->
+                            aoLerLog?.invoke(linha)
+                            synchronized(erros) {
+                                erros.appendLine(linha)
+                                if (erros.length > 16_000) erros.delete(0, erros.length - 8_000)
+                            }
                         }
                     }
+                } catch (_: java.io.IOException) {
+                    // Cancelar a conversão pode fechar o pipe enquanto o leitor ainda está ativo.
                 }
             }.apply { isDaemon = true; start() }
             try {
@@ -64,6 +76,7 @@ object Ffmpeg {
                     processo.waitFor()
                 }
             } finally {
+                cancelar.cancel()
                 if (processo.isAlive) processo.destroyForcibly()
             }
             leitorDeErros.join(2_000)

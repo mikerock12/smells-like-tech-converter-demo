@@ -1,5 +1,7 @@
 package br.com.smellsliketech.converter.musica
 
+import java.io.IOException
+import java.util.concurrent.atomic.AtomicReference
 import android.annotation.SuppressLint
 import android.content.Context
 import android.media.AudioAttributes
@@ -82,6 +84,9 @@ class MotorDaMusica(private val contexto: Context, private val taxa: Int = Music
         var aoTerminar: ((Tomada) -> Unit)? = null
     }
 
+    private val erroDeLeitura = AtomicReference<String?>()
+    fun consumirErroDeLeitura(): String? = erroDeLeitura.getAndSet(null)
+
     val posicao get() = cursor.get()
     val gravando get() = gravacao != null
 
@@ -124,7 +129,14 @@ class MotorDaMusica(private val contexto: Context, private val taxa: Int = Music
                 if (p == null || !tocando) {
                     for (i in 0 until n) { intercalado[i * 2] = if (monitorarParado) entE[i] else 0f; intercalado[i * 2 + 1] = if (monitorarParado) entD[i] else 0f }
                 } else {
-                    misturador.processar(inicio, n, esq, dir, if (metronomo) comClique else semClique)
+                    try {
+                        misturador.processar(inicio, n, esq, dir, if (metronomo) comClique else semClique)
+                    } catch (e: IOException) {
+                        tocando = false
+                        erroDeLeitura.set(e.message ?: "Não foi possível ler o áudio do projeto.")
+                        esq.fill(0f)
+                        dir.fill(0f)
+                    }
                     for (i in 0 until n) { intercalado[i * 2] = esq[i]; intercalado[i * 2 + 1] = dir[i] }
                     var depois = inicio + n
                     if (gravacao == null && p.loop.ligado && p.loop.fim > p.loop.inicio && depois >= p.loop.fim) depois = p.loop.inicio

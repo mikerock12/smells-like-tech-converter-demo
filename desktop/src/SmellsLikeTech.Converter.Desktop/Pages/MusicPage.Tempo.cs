@@ -1,3 +1,4 @@
+using SmellsLikeTech.Converter.Desktop.Services;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
@@ -128,13 +129,12 @@ public sealed partial class MusicPage
         engine?.Stop();
         var folder = Path.Combine(App.Services.Paths.Temp, "musica-master", Guid.NewGuid().ToString("N"));
         using var cancel = new CancellationTokenSource();
-        using var player = new Windows.Media.Playback.MediaPlayer();
+        var player = new Windows.Media.Playback.MediaPlayer();
         var media = new MediaPlayerElement { AreTransportControlsEnabled = true, Height = 60, Visibility = Visibility.Collapsed };
         media.SetMediaPlayer(player);
         var status = Label("Montando a prévia…");
         var content = new StackPanel { MinWidth = 320, Spacing = 8, Children = { status, media } };
         var dialog = new ContentDialog { Title = "Prévia da master", Content = content, CloseButtonText = "Fechar", XamlRoot = XamlRoot };
-        dialog.Closing += (_, _) => { cancel.Cancel(); player.Pause(); player.Source = null; };
         string? file = null;
         async Task GenerateAsync()
         {
@@ -146,7 +146,7 @@ public sealed partial class MusicPage
                 file = result[0].Path;
                 var storage = await Windows.Storage.StorageFile.GetFileFromPathAsync(file);
                 cancel.Token.ThrowIfCancellationRequested();
-                player.Source = Windows.Media.Core.MediaSource.CreateFromStorageFile(storage);
+                media.Source = Windows.Media.Core.MediaSource.CreateFromStorageFile(storage);
                 media.Visibility = Visibility.Visible;
                 status.Text = "Mistura completa com tempo e tom da master";
                 player.Play();
@@ -155,10 +155,20 @@ public sealed partial class MusicPage
             catch (Exception e) { status.Text = e.Message; }
         }
         var generating = GenerateAsync();
-        await dialog.ShowAsync();
-        await generating;
-        if (file is not null) File.Delete(file);
-        if (Directory.Exists(folder) && !Directory.EnumerateFileSystemEntries(folder).Any()) Directory.Delete(folder);
+        try { await dialog.ShowAsync(); }
+        finally
+        {
+            cancel.Cancel();
+            PreviewMedia.Close(media, player);
+            await generating;
+            try
+            {
+                if (file is not null) File.Delete(file);
+                if (Directory.Exists(folder) && !Directory.EnumerateFileSystemEntries(folder).Any()) Directory.Delete(folder);
+            }
+            catch (IOException e) { System.Diagnostics.Debug.WriteLine(e); }
+            catch (UnauthorizedAccessException e) { System.Diagnostics.Debug.WriteLine(e); }
+        }
     }
 
     private async Task AnalyzeClip(MusicClip clip, TextBlock? output)

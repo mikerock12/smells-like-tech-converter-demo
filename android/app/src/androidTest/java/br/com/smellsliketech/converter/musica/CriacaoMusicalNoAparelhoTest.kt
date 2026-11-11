@@ -118,7 +118,7 @@ class CriacaoMusicalNoAparelhoTest {
         biblioteca.salvar(p)
         val pasta = File(contexto.cacheDir, "tempo-tom-teste").apply { deleteRecursively() }
         val resultado = biblioteca.exportar(p, "wav-32f", "sem-alvo", false, false, false, null, pasta) { _, _ -> }.single()
-        FonteMapeada(resultado.arquivo).use { fonte ->
+        FonteWav(resultado.arquivo).use { fonte ->
             assertEquals(taxa.toLong(), fonte.quadros)
             val dados = FloatArray(taxa)
             fonte.copiar(0, 0, taxa, dados)
@@ -127,6 +127,52 @@ class CriacaoMusicalNoAparelhoTest {
         biblioteca.apagar(id)
         pasta.deleteRecursively()
         Unit
+    }
+
+    @Test fun trocaVelocidadeMantendoTomComMotorTocando() = runBlocking {
+        val biblioteca = BibliotecaDaMusica(contexto)
+        val taxa = 48000
+        val id = "teste-velocidade-previa"
+        val arquivo = biblioteca.midia(id, "seno")
+        val motor = MotorDaMusica(contexto)
+        val fontes = mutableListOf<FonteWav>()
+        try {
+            wav(arquivo, listOf(seno(440.0, taxa * 3, taxa), seno(440.0, taxa * 3, taxa)), taxa)
+            val midia = MidiaMusical("seno", taxa = taxa, canais = 2, quadros = taxa * 3L)
+            val clipe = ClipeMusical("c", "seno", 0, 0, midia.quadros)
+            val p = Musica.projetoDoModelo("vazio", id, "Velocidade").copy(
+                midias = listOf(midia), faixas = listOf(Musica.novaFaixa("f", "Seno").copy(clipes = listOf(clipe))),
+            )
+            motor.iniciar()
+            motor.definirProjeto(p)
+            val original = FonteWav(arquivo).also { fontes += it }
+            motor.definirFonte(midia.id, original)
+            motor.tocar(0, false)
+            var chaveAnterior: String? = null
+            for (velocidade in listOf(.25, 1.5, 4.0)) {
+                val alterado = TransformacaoDaMusica.comVelocidade(clipe, midia, velocidade).copy(preservarTom = true)
+                val novo = p.copy(faixas = p.faixas.map { it.copy(clipes = listOf(alterado)) })
+                motor.definirProjeto(novo)
+                motor.posicionar(0)
+                chaveAnterior?.let { motor.definirFonte(it, null); fontes.last().close() }
+                val fonte = biblioteca.prepararClipe(novo, alterado).also { fontes += it }
+                assertEquals(alterado.duracao, fonte.quadros)
+                val dados = FloatArray(taxa / 4)
+                fonte.copiar(1, taxa / 8L, dados.size, dados)
+                val cruzamentos = (1 until dados.size).count { dados[it - 1] <= 0f && dados[it] > 0f }
+                assertTrue("Velocidade $velocidade produziu $cruzamentos ciclos em 250 ms", cruzamentos in 105..115)
+                chaveAnterior = TransformacaoDaMusica.chaveDaFonte(alterado)
+                motor.definirFonte(chaveAnterior, fonte)
+                motor.posicionar(0)
+                kotlinx.coroutines.delay(120)
+                assertTrue("O transporte parou durante a troca de velocidade", motor.tocando && motor.posicao > 0)
+                assertEquals(null, motor.consumirErroDeLeitura())
+            }
+        } finally {
+            motor.desligar()
+            fontes.forEach { it.close() }
+            biblioteca.apagar(id)
+        }
     }
 
     @Test fun exportaTempoETomNaMasterSemAlterarFaixasIndividuais() = runBlocking {
@@ -142,7 +188,7 @@ class CriacaoMusicalNoAparelhoTest {
                 midias = listOf(midia), faixas = listOf(faixa), master = Master(velocidade = 2.0, semitons = 12.0),
             )
             val mistura = biblioteca.exportar(projeto, "wav-32f", "sem-alvo", false, false, false, null, pasta) { _, _ -> }.single()
-            FonteMapeada(mistura.arquivo).use { fonte ->
+            FonteWav(mistura.arquivo).use { fonte ->
                 assertEquals(taxa.toLong(), fonte.quadros)
                 val dados = FloatArray(taxa / 2)
                 fonte.copiar(0, taxa / 4L, dados.size, dados)
@@ -150,7 +196,7 @@ class CriacaoMusicalNoAparelhoTest {
                 assertTrue("A oitava acima produziu $cruzamentos ciclos em meio segundo.", cruzamentos in 425..455)
             }
             val stem = biblioteca.exportar(projeto, "wav-32f", "sem-alvo", false, true, false, null, pasta) { _, _ -> }.single()
-            FonteMapeada(stem.arquivo).use { assertEquals(taxa * 2L, it.quadros) }
+            FonteWav(stem.arquivo).use { assertEquals(taxa * 2L, it.quadros) }
         } finally {
             biblioteca.apagar(id)
             pasta.deleteRecursively()
@@ -184,7 +230,7 @@ class CriacaoMusicalNoAparelhoTest {
         assertEquals(listOf("vozes", "bateria", "baixo", "outros"), faixas.map { it.first.id })
         val soma = DoubleArray(n)
         val energias = mutableMapOf<String, Double>()
-        for ((definicao, arquivo) in faixas) FonteMapeada(arquivo).use { fonte ->
+        for ((definicao, arquivo) in faixas) FonteWav(arquivo).use { fonte ->
             val d = FloatArray(n)
             fonte.copiar(0, 0, n, d)
             var e = 0.0

@@ -153,9 +153,9 @@ export default function PaginaDoAndroid() {
           <h2 className="panel__title">Antes de instalar, saiba</h2>
           <ul className="ressalvas">
             <li>
-              <strong>A internet só baixa os modelos de transcrição.</strong> A conversão, a transcrição, o OCR e a narração
-              acontecem no aparelho. O Whisper precisa de um modelo, baixado uma vez quando você pede (de 74 MB a 1 GB); o
-              Small, recomendado, tem 465 MB.
+              <strong>O processamento é no celular.</strong> Internet é usada na loja, nos catálogos online e para baixar
+              modelos sob demanda. O Whisper precisa de um modelo, baixado quando você pede (de 74 MB a 1 GB); o Small,
+              recomendado, tem 465 MB.
             </li>
             <li>
               <strong>Transcrever pesa.</strong> Quanto maior o modelo, mais preciso e mais lento; num celular simples, o Medium
@@ -167,6 +167,7 @@ export default function PaginaDoAndroid() {
               qualidade reduzida. A compra do Android é separada da licença do Windows; o “Tudo, para sempre” vale nos dois.
             </li>
           </ul>
+          <p><a className="converter__link" href="/android/termos">Termos de Serviço do app Android</a></p>
         </section>
       </main>
 

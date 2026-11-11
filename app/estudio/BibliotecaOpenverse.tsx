@@ -20,6 +20,7 @@ export default function BibliotecaOpenverse({ adicionar, pararEstudio, podeAdici
   const [busca, setBusca] = useState<ResultadoDaBusca | null>(null);
   const [carregando, setCarregando] = useState(false);
   const [download, setDownload] = useState("");
+  const [aviso, setAviso] = useState("");
   const [erro, setErro] = useState("");
   const [tentativa, setTentativa] = useState(0);
   const [previa, setPrevia] = useState<{ titulo: string; url: string } | null>(null);
@@ -58,19 +59,32 @@ export default function BibliotecaOpenverse({ adicionar, pararEstudio, podeAdici
   useEffect(() => () => { baixando.current?.abort(); }, []);
   useEffect(() => () => { if (previa) URL.revokeObjectURL(previa.url); }, [previa]);
 
-  async function obter(item: ResultadoOpenverse, inserir: boolean) {
+  async function obter(item: ResultadoOpenverse, acao: "ouvir" | "adicionar" | "baixar") {
     if (baixando.current || item.estado !== "APPROVED") return;
     const controle = new AbortController();
     baixando.current = controle;
-    setPrevia(null);
+    if (acao === "ouvir") setPrevia(null);
     setErro("");
+    setAviso("");
     setDownload("Conferindo a faixa…");
     try {
       const { arquivo, duracao, proveniencia } = await baixarAudioOpenverse(item, controle.signal, (bytes, total) =>
         setDownload(total > 0 ? `Baixando áudio · ${Math.min(100, Math.round(bytes * 100 / total))}%` : `Baixando áudio · ${(bytes / 1048576).toFixed(1)} MiB`));
       controle.signal.throwIfAborted();
-      if (inserir) adicionar(arquivo, duracao, proveniencia);
-      else {
+      if (acao === "adicionar") {
+        adicionar(arquivo, duracao, proveniencia);
+        setAviso(`Adicionado ao projeto: ${item.titulo}`);
+      } else if (acao === "baixar") {
+        const url = URL.createObjectURL(arquivo);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = arquivo.name;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 60_000);
+        setAviso("Download enviado ao navegador.");
+      } else {
         pararEstudio();
         setPrevia({ titulo: item.titulo, url: URL.createObjectURL(arquivo) });
       }
@@ -96,6 +110,7 @@ export default function BibliotecaOpenverse({ adicionar, pararEstudio, podeAdici
         <label>Pesquisar <input type="search" maxLength={200} value={termo} onChange={(e) => { setTermo(e.target.value); setPagina(1); }} /></label>
         {carregando && <p role="status">Buscando faixas…</p>}
         {erro && <div role="status">{erro} {!esperar && <button type="button" className="button" onClick={() => setTentativa((n) => n + 1)}>Tentar novamente</button>}</div>}
+        {aviso && <p role="status">{aviso}</p>}
         {download && <div role="status">{download} <button type="button" className="button" onClick={cancelarDownload}>Cancelar</button></div>}
         {previa && <div>
           <p>{previa.titulo}</p>
@@ -108,11 +123,15 @@ export default function BibliotecaOpenverse({ adicionar, pararEstudio, podeAdici
           <article className="estudio__card" key={item.id}>
             <strong>{item.titulo}</strong>
             <p>{[item.autor, item.fonte, item.duracaoMs ? `${Math.round(item.duracaoMs / 1000)} s` : null, ...item.generos].filter(Boolean).join(" · ")}</p>
-            <p>{estados[item.estado]} · <a href={item.origem} target="_blank" rel="noreferrer">Origem</a> · <a href={item.licenca} target="_blank" rel="noreferrer">CC0 1.0</a></p>
             {item.estado === "APPROVED" && <div className="estudio__acoes">
-              <button type="button" className="button" disabled={!!download} onClick={() => void obter(item, false)}>Ouvir</button>
-              <button type="button" className="button" disabled={!podeAdicionar || !!download} onClick={() => void obter(item, true)}>Adicionar</button>
+              <button type="button" className="button" disabled={!!download} onClick={() => void obter(item, "ouvir")}>Ouvir</button>
+              <button type="button" className="button" disabled={!podeAdicionar || !!download} onClick={() => void obter(item, "adicionar")}>Adicionar ao projeto</button>
+              <button type="button" className="button" disabled={!!download} onClick={() => void obter(item, "baixar")}>Baixar</button>
             </div>}
+            <details>
+              <summary>Créditos e licença · {estados[item.estado]}</summary>
+              <p><a href={item.origem} target="_blank" rel="noreferrer">Origem</a> · <a href={item.licenca} target="_blank" rel="noreferrer">CC0 1.0</a></p>
+            </details>
           </article>
         ))}
         {busca && (pagina > 1 || busca.proxima) && <div className="estudio__acoes">

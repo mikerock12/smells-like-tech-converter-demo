@@ -4,16 +4,19 @@ import java.io.File
 import java.io.RandomAccessFile
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
-import java.nio.FloatBuffer
-import java.nio.channels.FileChannel
+import java.io.IOException
 
 /**
- * WAV float32 lido direto do disco por memória mapeada: a música longa não precisa caber na
- * RAM do celular, e o sistema guarda em cache só o que toca. Cada mixer usa a sua instância.
+ * WAV float32 lido do disco em janelas reutilizáveis de 64 KiB. Um clipe longo ou
+ * desacelerado não exige mapear todo o arquivo. Cada mixer usa sua própria instância.
  */
-class FonteMapeada(arquivo: File) : FonteDeAudio, AutoCloseable {
+class FonteWav(private val arquivo: File, private val apagarAoFechar: Boolean = false) : FonteDeAudio, AutoCloseable {
     private val canal = RandomAccessFile(arquivo, "r").channel
-    private val dados: FloatBuffer
+    private val inicioDosDados: Long
+    private var fechado = false
+    private var janela: ByteBuffer? = null
+    private var inicioDaJanela = -1L
+    private var fimDaJanela = -1L
     override val canais: Int
     override val quadros: Long
 
@@ -22,10 +25,9 @@ class FonteMapeada(arquivo: File) : FonteDeAudio, AutoCloseable {
             val cabecalho = ByteBuffer.allocate(minOf(4096L, canal.size()).toInt()).order(ByteOrder.LITTLE_ENDIAN)
             canal.read(cabecalho, 0)
             val (c, inicio, tamanho) = ler(cabecalho.array(), canal.size())
-            require(tamanho <= Int.MAX_VALUE) { "O WAV é grande demais para abrir neste aparelho." }
             canais = c
+            inicioDosDados = inicio
             quadros = tamanho / (4L * c)
-            dados = canal.map(FileChannel.MapMode.READ_ONLY, inicio, tamanho).order(ByteOrder.LITTLE_ENDIAN).asFloatBuffer()
         } catch (erro: Throwable) {
             canal.close()
             throw erro
@@ -41,8 +43,9 @@ class FonteMapeada(arquivo: File) : FonteDeAudio, AutoCloseable {
             val id = String(h, p, 4, Charsets.US_ASCII)
             var tamanho = b.getInt(p + 4).toLong() and 0xffffffffL
             if (id == "fmt ") {
+                require(tamanho >= 16 && p + 24 <= h.size) { "Cabeçalho WAV incompleto." }
                 tipo = b.getShort(p + 8).toInt() and 0xffff
-                if (tipo == 0xfffe && tamanho >= 26) tipo = b.getShort(p + 32).toInt() and 0xffff
+                if (tipo == 0xfffe && tamanho >= 26 && p + 34 <= h.size) tipo = b.getShort(p + 32).toInt() and 0xffff
                 canais = b.getShort(p + 10).toInt() and 0xffff
                 bits = b.getShort(p + 22).toInt() and 0xffff
             } else if (id == "data") {
@@ -51,21 +54,58 @@ class FonteMapeada(arquivo: File) : FonteDeAudio, AutoCloseable {
                 if (tamanho == 0L || tamanho > disponivel) tamanho = disponivel
                 return Triple(canais, (p + 8).toLong(), tamanho - tamanho % (4L * canais))
             }
-            p += 8 + tamanho.toInt() + (tamanho and 1).toInt()
+            val proximo = p + 8L + tamanho + (tamanho and 1)
+            if (proximo > h.size) break
+            p = proximo.toInt()
         }
         error("WAV sem dados.")
     }
 
+    @Synchronized
     override fun copiar(canal: Int, inicio: Long, n: Int, destino: FloatArray) {
-        val c = minOf(canal, canais - 1)
-        val disponivel = (quadros - inicio).coerceIn(0, n.toLong()).toInt()
-        // Leitura absoluta: nada de alocação na thread de áudio.
-        val base = (inicio * canais).toInt() + c
-        for (i in 0 until disponivel) destino[i] = dados.get(base + i * canais)
-        for (i in maxOf(0, disponivel) until n) destino[i] = 0f
+        // O mixer pode terminar um bloco com a fonte anterior após uma edição.
+        if (fechado || inicio >= quadros || inicio <= -n.toLong()) {
+            destino.fill(0f, 0, n)
+            return
+        }
+        val c = canal.coerceIn(0, canais - 1)
+        val bytesPorQuadro = 4 * canais
+        var i = (-inicio).coerceAtLeast(0L).toInt()
+        destino.fill(0f, 0, i)
+        val fim = minOf(n.toLong(), quadros - inicio).toInt()
+        val dados = janela ?: ByteBuffer.allocateDirect(65536).order(ByteOrder.LITTLE_ENDIAN).also { janela = it }
+        while (i < fim) {
+            val posicao = (inicio + i) * bytesPorQuadro
+            if (posicao < inicioDaJanela || posicao >= fimDaJanela) {
+                val base = posicao / dados.capacity() * dados.capacity()
+                val tamanho = minOf(dados.capacity().toLong(), quadros * bytesPorQuadro - base).toInt()
+                dados.clear().limit(tamanho)
+                while (dados.hasRemaining()) {
+                    if (this.canal.read(dados, inicioDosDados + base + dados.position()) <= 0) {
+                        throw IOException("O arquivo de áudio foi interrompido durante a leitura.")
+                    }
+                }
+                dados.flip()
+                inicioDaJanela = base
+                fimDaJanela = base + tamanho
+            }
+            val ate = minOf(fim, i + ((fimDaJanela - posicao) / bytesPorQuadro).toInt())
+            var indice = (posicao - inicioDaJanela).toInt() + c * 4
+            while (i < ate) {
+                destino[i++] = dados.getFloat(indice)
+                indice += bytesPorQuadro
+            }
+        }
+        destino.fill(0f, i, n)
     }
 
-    override fun close() = canal.close()
+    @Synchronized
+    override fun close() {
+        if (fechado) return
+        fechado = true
+        janela = null
+        try { canal.close() } finally { if (apagarAoFechar) arquivo.delete() }
+    }
 }
 
 /**

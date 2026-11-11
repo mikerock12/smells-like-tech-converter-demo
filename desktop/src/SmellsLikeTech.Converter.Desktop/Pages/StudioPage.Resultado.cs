@@ -322,6 +322,7 @@ public sealed partial class StudioPage
         painel.Children.Add(Muted(Path.GetFileName(caminho)));
 
         MediaPlayer? player = null;
+        MediaPlayerElement? elemento = null;
         var extensao = Path.GetExtension(caminho).ToLowerInvariant();
         if (extensao is ".png" or ".gif" or ".jpg" or ".jpeg" or ".webp")
         {
@@ -330,9 +331,9 @@ public sealed partial class StudioPage
         else if (extensao is not ".txt")
         {
             player = new MediaPlayer();
-            var elemento = new MediaPlayerElement { AreTransportControlsEnabled = true, AutoPlay = true, MaxHeight = 420 };
+            elemento = new MediaPlayerElement { AreTransportControlsEnabled = true, AutoPlay = true, MaxHeight = 420 };
             elemento.SetMediaPlayer(player);
-            player.Source = MediaSource.CreateFromUri(new Uri(caminho));
+            elemento.Source = MediaSource.CreateFromUri(new Uri(caminho));
             painel.Children.Add(elemento);
         }
 
@@ -369,7 +370,10 @@ public sealed partial class StudioPage
             CloseButtonText = "Fechar",
             XamlRoot = raiz
         };
-        dialogo.Closed += (_, _) => player?.Dispose();
+        dialogo.Closed += (_, _) =>
+        {
+            if (player is not null && elemento is not null) PreviewMedia.Close(elemento, player);
+        };
         _ = dialogo.ShowAsync();
     }
 }
