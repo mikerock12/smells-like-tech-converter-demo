@@ -129,6 +129,34 @@ class CriacaoMusicalNoAparelhoTest {
         Unit
     }
 
+    @Test fun exportaTempoETomNaMasterSemAlterarFaixasIndividuais() = runBlocking {
+        val biblioteca = BibliotecaDaMusica(contexto)
+        val taxa = 48000
+        val id = "teste-tempo-master"
+        val pasta = File(contexto.cacheDir, id)
+        try {
+            wav(biblioteca.midia(id, "seno"), listOf(seno(440.0, taxa * 2, taxa)), taxa)
+            val midia = MidiaMusical("seno", taxa = taxa, canais = 1, quadros = taxa * 2L)
+            val faixa = Musica.novaFaixa("f", "Seno").copy(clipes = listOf(ClipeMusical("c", "seno", 0, 0, taxa * 2L)))
+            val projeto = Musica.projetoDoModelo("vazio", id, "Tempo na master").copy(
+                midias = listOf(midia), faixas = listOf(faixa), master = Master(velocidade = 2.0, semitons = 12.0),
+            )
+            val mistura = biblioteca.exportar(projeto, "wav-32f", "sem-alvo", false, false, false, null, pasta) { _, _ -> }.single()
+            FonteMapeada(mistura.arquivo).use { fonte ->
+                assertEquals(taxa.toLong(), fonte.quadros)
+                val dados = FloatArray(taxa / 2)
+                fonte.copiar(0, taxa / 4L, dados.size, dados)
+                val cruzamentos = (1 until dados.size).count { dados[it - 1] <= 0f && dados[it] > 0f }
+                assertTrue("A oitava acima produziu $cruzamentos ciclos em meio segundo.", cruzamentos in 425..455)
+            }
+            val stem = biblioteca.exportar(projeto, "wav-32f", "sem-alvo", false, true, false, null, pasta) { _, _ -> }.single()
+            FonteMapeada(stem.arquivo).use { assertEquals(taxa * 2L, it.quadros) }
+        } finally {
+            biblioteca.apagar(id)
+            pasta.deleteRecursively()
+        }
+    }
+
     /** O build R8 `validacao` não é depurável (sem run-as): o modelo posto pelo adb em
      *  /data/local/tmp/spleeter.onnx chega pelo shell da instrumentação. */
     private fun copiarModeloDoAdb(destino: File) {

@@ -36,6 +36,16 @@ public sealed partial class MusicPage
             selectedTrack = clips[chosen.SelectedIndex].Track.Id;
             BuildPanels();
         };
+        var masterSpeed = new NumberBox { Header = "Velocidade da master (%)", Minimum = 25, Maximum = 400, SmallChange = 1, Value = (project.Master.Speed ?? 1) * 100, SpinButtonPlacementMode = NumberBoxSpinButtonPlacementMode.Compact };
+        masterSpeed.ValueChanged += (_, e) => { if (double.IsFinite(e.NewValue)) Edit(p => p.Master.Speed = e.NewValue / 100, "velocidade-master", false); };
+        var masterPitch = new NumberBox { Header = "Transposição da master (semitons)", Minimum = -12, Maximum = 12, SmallChange = 1, Value = project.Master.Semitones ?? 0, SpinButtonPlacementMode = NumberBoxSpinButtonPlacementMode.Compact };
+        masterPitch.ValueChanged += (_, e) => { if (double.IsFinite(e.NewValue)) Edit(p => p.Master.Semitones = e.NewValue, "tom-master", false); };
+        var masterPreserve = new ToggleSwitch { Header = "Preservar o tom da master", IsOn = project.Master.PreservePitch ?? true };
+        masterPreserve.Toggled += (_, _) => Edit(p => p.Master.PreservePitch = masterPreserve.IsOn, rebuild: false);
+        var masterPreview = new Button { Content = "Ouvir a master" };
+        masterPreview.Click += async (_, _) => await PreviewMasterAsync();
+        panel.Children.Add(Section("Master · mistura completa", masterSpeed, masterPitch, masterPreserve, masterPreview,
+            Label("Aplicado à prévia da master e à exportação da mistura. A linha do tempo mantém o ritmo da edição.")));
         panel.Children.Add(chosen);
 
         var analysisText = Label("Ainda não analisado.");
@@ -109,6 +119,46 @@ public sealed partial class MusicPage
         UpdateMatch();
         panel.Children.Add(Section("4. Igualar o ritmo de outra faixa", origin, target, both, matchText, apply, Label("O destino é acelerado ou desacelerado com o tom preservado. Escolha qualquer clipe como origem e qualquer outro como destino.")));
         return panel;
+    }
+
+    private async Task PreviewMasterAsync()
+    {
+        var snapshot = project;
+        if (snapshot is null || engine?.IsRecording == true) return;
+        engine?.Stop();
+        var folder = Path.Combine(App.Services.Paths.Temp, "musica-master", Guid.NewGuid().ToString("N"));
+        using var cancel = new CancellationTokenSource();
+        using var player = new Windows.Media.Playback.MediaPlayer();
+        var media = new MediaPlayerElement { AreTransportControlsEnabled = true, Height = 60, Visibility = Visibility.Collapsed };
+        media.SetMediaPlayer(player);
+        var status = Label("Montando a prévia…");
+        var content = new StackPanel { MinWidth = 320, Spacing = 8, Children = { status, media } };
+        var dialog = new ContentDialog { Title = "Prévia da master", Content = content, CloseButtonText = "Fechar", XamlRoot = XamlRoot };
+        dialog.Closing += (_, _) => { cancel.Cancel(); player.Pause(); player.Source = null; };
+        string? file = null;
+        async Task GenerateAsync()
+        {
+            try
+            {
+                var request = new MusicExportRequest("wav-16", "sem-alvo", false, false, true);
+                var result = await Tools.ExportAsync(snapshot, m => Library.MediaPath(snapshot.Id, m.Id), request, folder,
+                    new Progress<(string Stage, double Fraction)>(p => status.Text = p.Stage), cancel.Token);
+                file = result[0].Path;
+                var storage = await Windows.Storage.StorageFile.GetFileFromPathAsync(file);
+                cancel.Token.ThrowIfCancellationRequested();
+                player.Source = Windows.Media.Core.MediaSource.CreateFromStorageFile(storage);
+                media.Visibility = Visibility.Visible;
+                status.Text = "Mistura completa com tempo e tom da master";
+                player.Play();
+            }
+            catch (OperationCanceledException) { }
+            catch (Exception e) { status.Text = e.Message; }
+        }
+        var generating = GenerateAsync();
+        await dialog.ShowAsync();
+        await generating;
+        if (file is not null) File.Delete(file);
+        if (Directory.Exists(folder) && !Directory.EnumerateFileSystemEntries(folder).Any()) Directory.Delete(folder);
     }
 
     private async Task AnalyzeClip(MusicClip clip, TextBlock? output)

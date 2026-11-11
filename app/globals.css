@@ -1032,7 +1032,9 @@ audio.previa__midia { background: transparent; cursor: default; }
 .musica__resultados { display: flex; flex-direction: column; gap: 6px; padding-left: 18px; }
 @media (max-width: 720px) {
   .musica__transporte { gap: 6px; }
-  .musica__campo--zoom { display: none; }
+  .musica__campo--zoom { flex: 1 1 105px; min-width: 0; }
+  .musica__campo--zoom input { width: 100%; min-width: 0; margin: 0; }
+  .musica__transporte .musica__campo input[type="number"] { width: 68px; font-size: 16px; }
   .musica__tempo { --musica-cabeca: 170px; }
   .musica__cabeca { width: var(--musica-cabeca) !important; }
   .musica__menu-fundo { display: block; position: fixed; inset: 0; z-index: 98; padding: 0; border: 0; background: rgba(0, 0, 0, .6); }

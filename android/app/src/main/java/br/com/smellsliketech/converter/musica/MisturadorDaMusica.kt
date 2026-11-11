@@ -263,5 +263,26 @@ class MisturadorDaMusica(private val taxa: Int, private val bloco: Int = Musica.
             }
             return Pair(esq, dir)
         }
+
+        /** Exporta o mesmo trecho por blocos, mantendo o estado dos efeitos entre eles. */
+        internal fun renderizarEmWav(p: ProjetoMusical, fontes: Map<String, FonteDeAudio>, inicio: Long, quadros: Long,
+            somente: String?, destino: EscritorDeWav, verificar: () -> Unit) {
+            val mixer = MisturadorDaMusica(p.taxa)
+            fontes.forEach { (id, fonte) -> mixer.definirFonte(id, fonte) }
+            mixer.definirProjeto(p)
+            val esq = FloatArray(4096)
+            val dir = FloatArray(4096)
+            val intercalado = FloatArray(8192)
+            val opcoes = OpcoesDoMisturador(somente = somente, metronomo = p.metronomo.naExportacao)
+            var feitos = 0L
+            while (feitos < quadros) {
+                verificar()
+                val n = min(esq.size.toLong(), quadros - feitos).toInt()
+                mixer.processar(inicio + feitos, n, esq, dir, opcoes)
+                for (i in 0 until n) { intercalado[i * 2] = esq[i]; intercalado[i * 2 + 1] = dir[i] }
+                destino.escrever(intercalado, n)
+                feitos += n
+            }
+        }
     }
 }

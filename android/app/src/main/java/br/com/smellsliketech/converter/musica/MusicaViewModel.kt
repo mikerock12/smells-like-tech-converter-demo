@@ -12,6 +12,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import br.com.smellsliketech.converter.conversao.Saida
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -62,9 +63,11 @@ class MusicaViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) {
     var salvarAutomaticamente by mutableStateOf(preferencias.getBoolean("salvar-automaticamente", false)); private set
     var analises by mutableStateOf<Map<String, AnaliseMusical>>(emptyMap()); private set
     private val alinhamentos = aplicacao.getSharedPreferences("criacao-musical-alinhamento", Context.MODE_PRIVATE)
-    private val transformadas = HashMap<String, FonteDeAudio>()
+    private val midiasAbertas = HashMap<String, FonteMapeada>()
+    private val transformadas = HashMap<String, FonteMapeada>()
     private var preparacao = 0
     private var preparacaoJob: Job? = null
+    private var chavesEmPreparacao: Set<String> = emptySet()
 
     init { recarregar() }
 
@@ -114,6 +117,8 @@ class MusicaViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) {
 
     fun abrir(p: ProjetoMusical) {
         val m = garantirMotor()
+        m.parar()
+        liberarMidias()
         antes.clear(); depois.clear(); atualizarPassos()
         projeto = p
         alteracoesPendentes = false
@@ -147,6 +152,7 @@ class MusicaViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) {
 
     private fun finalizarFechamento(salvar: Boolean) {
         motor?.parar()
+        liberarMidias()
         val p = projeto
         perguntarSaida = false
         relogio?.cancel()
@@ -170,7 +176,9 @@ class MusicaViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) {
     private fun carregarMidia(p: ProjetoMusical, midia: MidiaMusical) {
         val arquivo = biblioteca.midia(p.id, midia.id)
         if (!arquivo.exists()) return
-        garantirMotor().definirFonte(midia.id, FonteMapeada(arquivo))
+        val fonteOriginal = FonteMapeada(arquivo)
+        midiasAbertas.put(midia.id, fonteOriginal)?.close()
+        garantirMotor().definirFonte(midia.id, fonteOriginal)
         viewModelScope.launch(Dispatchers.Default) {
             val pico = runCatching {
                 FonteMapeada(arquivo).use { fonte ->
@@ -192,31 +200,64 @@ class MusicaViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) {
         }
     }
 
+    private fun liberarMidias() {
+        preparacao++
+        preparacaoJob?.cancel()
+        chavesEmPreparacao = emptySet()
+        for (fontes in listOf(midiasAbertas, transformadas)) {
+            for ((chave, fonte) in fontes) {
+                motor?.definirFonte(chave, null)
+                fonte.close()
+            }
+            fontes.clear()
+        }
+        if (andamento?.first == "Preparando tempo e tom") andamento = null
+    }
+
     private fun prepararTransformacoes(p: ProjetoMusical) {
-        val faltantes = p.faixas.flatMap { it.clipes }.filter { TransformacaoDaMusica.temTransformacao(it) }
-            .distinctBy { TransformacaoDaMusica.chaveDaFonte(it) }
-            .filter { !transformadas.containsKey(TransformacaoDaMusica.chaveDaFonte(it)) }
-        if (faltantes.isEmpty()) return
+        val desejadas = p.faixas.flatMap { it.clipes }.filter(TransformacaoDaMusica::temTransformacao)
+            .associateBy(TransformacaoDaMusica::chaveDaFonte)
+        for (chave in transformadas.keys.filterNot(desejadas::containsKey)) {
+            motor?.definirFonte(chave, null)
+            transformadas.remove(chave)?.close()
+        }
+        val faltantes = desejadas.filterKeys { it !in transformadas }
+        if (preparacaoJob?.isActive == true && faltantes.keys == chavesEmPreparacao) return
         val numero = ++preparacao
         preparacaoJob?.cancel()
+        chavesEmPreparacao = faltantes.keys
+        if (faltantes.isEmpty()) {
+            if (andamento?.first == "Preparando tempo e tom") andamento = null
+            return
+        }
         preparacaoJob = viewModelScope.launch {
-            delay(250)
-            if (andamento == null) andamento = "Preparando tempo e tom" to 0.0
-            val novas = withContext(Dispatchers.Default) {
-                faltantes.mapIndexed { i, clipe ->
-                    val chave = TransformacaoDaMusica.chaveDaFonte(clipe)
-                    val canais = FonteMapeada(biblioteca.midia(p.id, clipe.midia)).use(TransformacaoDaMusica::lerTudo)
-                    chave to FonteNaMemoria(TransformacaoDaMusica.transformar(canais, p.taxa, clipe.velocidade ?: 1.0, clipe.semitons ?: 0.0, clipe.preservarTom ?: true)).also {
-                        viewModelScope.launch { if (numero == preparacao) andamento = "Preparando tempo e tom" to (i + 1).toDouble() / faltantes.size }
+            try {
+                delay(250)
+                if (andamento == null) andamento = "Preparando tempo e tom" to 0.0
+                for ((i, entrada) in faltantes.entries.withIndex()) {
+                    val (chave, clipe) = entrada
+                    val fonte = biblioteca.prepararClipe(p, clipe)
+                    if (!isActive || numero != preparacao || projeto?.id != p.id) {
+                        fonte.close()
+                        return@launch
                     }
+                    transformadas[chave] = fonte
+                    motor?.definirFonte(chave, fonte)
+                    if (andamento?.first == "Preparando tempo e tom") andamento = "Preparando tempo e tom" to (i + 1).toDouble() / faltantes.size
+                    chavesEmPreparacao = chavesEmPreparacao - chave
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                mensagem = e.message ?: "Não foi possível preparar o tempo e o tom deste clipe."
+            } catch (_: OutOfMemoryError) {
+                mensagem = "O aparelho ficou sem memória para preparar este clipe. Feche outros projetos e tente novamente."
+            } finally {
+                if (numero == preparacao) {
+                    chavesEmPreparacao = emptySet()
+                    if (andamento?.first == "Preparando tempo e tom") andamento = null
                 }
             }
-            if (numero != preparacao) return@launch
-            for ((chave, fonte) in novas) {
-                transformadas[chave] = fonte
-                motor?.definirFonte(chave, fonte)
-            }
-            if (andamento?.first == "Preparando tempo e tom") andamento = null
         }
     }
 
@@ -411,7 +452,7 @@ class MusicaViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) {
             andamento = "Identificando BPM e tonalidade" to 0.5
             try {
                 val resultado = withContext(Dispatchers.Default) {
-                    FonteMapeada(biblioteca.midia(p.id, clipe.midia)).use { AnaliseDaMusica.analisar(TransformacaoDaMusica.lerTudo(it), p.taxa) }
+                    FonteMapeada(biblioteca.midia(p.id, clipe.midia)).use { AnaliseDaMusica.analisar(TransformacaoDaMusica.lerTudo(it, p.taxa * 60L), p.taxa) }
                 }
                 analises = analises + (clipeId to resultado)
                 mensagem = if (resultado.bpm == null && resultado.tonalidade == null) "Não foi possível estimar este áudio. Tente um trecho com ritmo ou notas mais claros."
@@ -500,6 +541,12 @@ class MusicaViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) {
         }
     }
 
+    internal suspend fun gerarPreviaDaMaster(p: ProjetoMusical, pasta: File): File {
+        check(gravando == null) { "Pare a gravação para ouvir a master." }
+        motor?.parar()
+        return biblioteca.exportar(p, "wav-16", "sem-alvo", false, false, true, null, pasta) { _, _ -> }.first().arquivo
+    }
+
     fun exportar(formato: String, master: String, soLoop: Boolean, cadaFaixa: Boolean, cauda: Boolean, faixa: String?) {
         val p = projeto ?: return
         val app = getApplication<Application>()
@@ -551,6 +598,7 @@ class MusicaViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) {
     }
 
     override fun onCleared() {
+        liberarMidias()
         motor?.desligar()
         motor = null
         super.onCleared()

@@ -157,6 +157,12 @@ public sealed class MusicTools(Func<string> ffmpegPath, ProcessRunner runner, st
                 if (id is null)
                 {
                     progress?.Report(("Masterizando", (i + 0.8) / targets.Count));
+                    if (project.Master.Speed is not (null or 1) || project.Master.Semitones is not (null or 0))
+                    {
+                        var channels = await Task.Run(() => MusicTransform.Transform([left, right], project.SampleRate,
+                            project.Master.Speed ?? 1, project.Master.Semitones ?? 0, project.Master.PreservePitch ?? true), token);
+                        (left, right) = (channels[0], channels[1]);
+                    }
                     var mastered = await Task.Run(() => MusicMastering.Master(left, right, project.SampleRate, request.Master), token);
                     (left, right, measures, gain) = (mastered.Left, mastered.Right, mastered.After, mastered.GainDb);
                 }

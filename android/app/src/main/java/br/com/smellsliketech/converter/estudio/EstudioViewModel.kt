@@ -330,6 +330,28 @@ class EstudioViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) {
         atualizarPrevia()
     }
 
+    internal fun pastaOpenverse(inserir: Boolean) = File(if (inserir) pasta else contexto.cacheDir, "openverse")
+
+    internal suspend fun validarAudioOpenverse(arquivo: File): Double {
+        val info = Ffmpeg.sondar(contexto, arquivo)
+        val duracao = info.duracaoSegundos ?: 0.0
+        if (!info.temAudio || duracao <= 0 || duracao > 900) throw ErroDeConversao("Formato incompatível ou duração fora do limite de 15 minutos.")
+        return duracao
+    }
+
+    internal fun inserirAudioOpenverse(original: Projeto?, cursor: Double, arquivo: File, duracao: Double, fonte: JSONObject) {
+        if (original == null || projeto !== original || total <= 0 || ocupado != null) {
+            throw ErroDeConversao("O projeto mudou durante a importação. Tente novamente.")
+        }
+        val origem = JSONObject(fonte.toString()).put("importadoEm", java.time.Instant.now().toString())
+        val entrada = cursor.coerceIn(0.0, maxOf(0.0, total - 1.0 / original.fps))
+        val fim = minOf(duracao, total - entrada)
+        infos[arquivo.absolutePath] = InfoDaMidia(fonte.optString("titulo", "Áudio"), duracao, null, null, true)
+        val audio = AudioExtra(novoId("ov"), arquivo.absolutePath, entrada, 0.0, fim, .8, 0.0, minOf(1.0, fim), origem)
+        mudar { it.copy(audios = it.audios + audio) }
+        audioAberto = audio.id
+    }
+
     fun adicionarAudio(uri: Uri) = executar("Copiando a música…") {
         val (arquivo, nome, _) = copiar(uri)
         val sondagem = Ffmpeg.sondar(contexto, arquivo)
@@ -433,6 +455,25 @@ class EstudioViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) {
     }
 
     fun mudarAudio(id: String, mudanca: (AudioExtra) -> AudioExtra) = mudar { p -> p.copy(audios = p.audios.map { if (it.id == id) mudanca(it) else it }) }
+
+    fun editarTrechoDeAudio(id: String, dividir: Boolean) {
+        val audio = projeto?.audios?.firstOrNull { it.id == id } ?: return
+        val entrada = audio.entrada ?: 0.0
+        val fim = entrada + audio.fim - audio.inicio
+        val novo = novoId("m")
+        if (dividir) {
+            if (instante - entrada < .05 || fim - instante < .05) return
+            val corte = audio.inicio + instante - entrada
+            val primeiro = audio.copy(fim = corte, fadeSaida = 0.0)
+            val segundo = audio.copy(id = novo, entrada = instante, inicio = corte, fadeEntrada = 0.0)
+            mudar { p -> p.copy(audios = p.audios.flatMap { if (it.id == id) listOf(primeiro, segundo) else listOf(it) }) }
+        } else {
+            if (fim >= total) return
+            val copia = audio.copy(id = novo, entrada = fim, fim = minOf(audio.fim, audio.inicio + total - fim))
+            mudar { p -> p.copy(audios = p.audios + copia) }
+        }
+        audioAberto = novo
+    }
 
     fun removerAudio(id: String) {
         val audio = projeto?.audios?.firstOrNull { it.id == id } ?: return

@@ -94,6 +94,8 @@ public sealed record StudioAudio
     [JsonPropertyName("volume")] public double? Volume { get; init; }
     [JsonPropertyName("fadeEntrada")] public double? FadeIn { get; init; }
     [JsonPropertyName("fadeSaida")] public double? FadeOut { get; init; }
+    [JsonPropertyName("mudo")] public bool? Mute { get; init; }
+    [JsonPropertyName("openverse")] public System.Text.Json.JsonElement? Openverse { get; init; }
 }
 
 /// <summary>Destino pronto (rede e formato), lido de estudio-presets.json.</summary>

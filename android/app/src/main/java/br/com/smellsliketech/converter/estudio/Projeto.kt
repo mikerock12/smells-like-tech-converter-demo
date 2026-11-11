@@ -152,10 +152,12 @@ data class AudioExtra(
     val volume: Double? = 1.0,
     val fadeEntrada: Double? = null,
     val fadeSaida: Double? = null,
+    val openverse: JSONObject? = null,
+    val mudo: Boolean = false,
 ) {
     fun paraJson(): JSONObject = JSONObject().put("id", id).put("arquivo", arquivo).putOpt("entrada", entrada)
         .put("inicio", inicio).put("fim", fim).putOpt("volume", volume)
-        .putOpt("fadeEntrada", fadeEntrada).putOpt("fadeSaida", fadeSaida)
+        .putOpt("fadeEntrada", fadeEntrada).putOpt("fadeSaida", fadeSaida).putOpt("openverse", openverse).put("mudo", mudo)
 
     companion object {
         fun deJson(json: JSONObject) = AudioExtra(
@@ -167,6 +169,8 @@ data class AudioExtra(
             volume = json.numero("volume"),
             fadeEntrada = json.numero("fadeEntrada"),
             fadeSaida = json.numero("fadeSaida"),
+            openverse = json.optJSONObject("openverse"),
+            mudo = json.optBoolean("mudo"),
         )
     }
 }

@@ -124,7 +124,7 @@ public static class StudioRecipe
                 args.AddRange(["-ss", N(music.Start), "-t", N(music.End - music.Start), "-i", inputs.Audios[k]]);
                 var n = inputIndex++;
                 var length = music.End - music.Start;
-                var chain = new List<string> { "aresample=48000", "aformat=channel_layouts=stereo", $"volume={N(music.Volume ?? 1)}" };
+                var chain = new List<string> { "aresample=48000", "aformat=channel_layouts=stereo", $"volume={N(music.Mute == true ? 0 : music.Volume ?? 1)}" };
                 if ((music.FadeIn ?? 0) > 0)
                 {
                     chain.Add($"afade=t=in:st=0:d={N(music.FadeIn!.Value)}");
@@ -145,7 +145,8 @@ public static class StudioRecipe
                 labels.Add($"[m{k}]");
             }
 
-            filters.Add($"[ab]{string.Concat(labels)}amix=inputs={labels.Count + 1}:duration=first:normalize=0[am]");
+            var limiter = project.Audios.Any(a => a.Openverse is not null) ? ",alimiter=limit=0.95:level=0:latency=1" : "";
+            filters.Add($"[ab]{string.Concat(labels)}amix=inputs={labels.Count + 1}:duration=first:normalize=0{limiter}[am]");
             audio = "am";
         }
 

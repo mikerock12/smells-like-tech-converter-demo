@@ -134,6 +134,33 @@ public sealed class MusicEngineTests(ITestOutputHelper output) : IDisposable
     }
 
     [Fact]
+    public async Task AppliesTempoAndPitchToTheMasterMixOnly()
+    {
+        const int rate = 48000;
+        var project = MusicRules.NewProject("tempo-master", "Tempo na master");
+        var path = Path.Combine(folder, "seno.wav");
+        await File.WriteAllBytesAsync(path, MusicMastering.EncodeWav([Sine(440, rate * 2, rate)], rate, 32));
+        project.Media.Add(new MusicMedia { Id = "seno", SampleRate = rate, Channels = 1, Frames = rate * 2 });
+        project.Tracks.Add(new MusicTrack { Id = "f", Name = "Seno", Clips = [new MusicClip { Id = "c", Media = "seno", Duration = rate * 2 }] });
+        project.Master.Speed = 2;
+        project.Master.Semitones = 12;
+        project.Master.PreservePitch = true;
+        var tools = Tools();
+        var request = new MusicExportRequest("wav-32f", "sem-alvo", false, false, false);
+        var mix = await tools.ExportAsync(project, _ => path, request, Path.Combine(folder, "master"), null, CancellationToken.None);
+        using var result = new MappedWavSource(Assert.Single(mix).Path);
+        Assert.Equal(rate, result.Frames);
+        var data = new float[rate / 2];
+        result.Copy(0, rate / 4, data.Length, data);
+        var crossings = data.Zip(data.Skip(1)).Count(pair => pair.First <= 0 && pair.Second > 0);
+        Assert.InRange(crossings, 425, 455);
+
+        var stems = await tools.ExportAsync(project, _ => path, request with { EachTrack = true }, Path.Combine(folder, "faixas"), null, CancellationToken.None);
+        using var stem = new MappedWavSource(Assert.Single(stems).Path);
+        Assert.Equal(rate * 2, stem.Frames);
+    }
+
+    [Fact]
     public async Task RecordsWhilePlayingWithAStableOffsetOnRealWasapi()
     {
         MusicAudioEngine engine;

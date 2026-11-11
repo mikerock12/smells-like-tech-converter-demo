@@ -18,12 +18,18 @@ class FonteMapeada(arquivo: File) : FonteDeAudio, AutoCloseable {
     override val quadros: Long
 
     init {
-        val cabecalho = ByteBuffer.allocate(minOf(4096L, canal.size()).toInt()).order(ByteOrder.LITTLE_ENDIAN)
-        canal.read(cabecalho, 0)
-        val (c, inicio, tamanho) = ler(cabecalho.array(), canal.size())
-        canais = c
-        quadros = tamanho / (4L * c)
-        dados = canal.map(FileChannel.MapMode.READ_ONLY, inicio, quadros * 4 * c).order(ByteOrder.LITTLE_ENDIAN).asFloatBuffer()
+        try {
+            val cabecalho = ByteBuffer.allocate(minOf(4096L, canal.size()).toInt()).order(ByteOrder.LITTLE_ENDIAN)
+            canal.read(cabecalho, 0)
+            val (c, inicio, tamanho) = ler(cabecalho.array(), canal.size())
+            require(tamanho <= Int.MAX_VALUE) { "O WAV é grande demais para abrir neste aparelho." }
+            canais = c
+            quadros = tamanho / (4L * c)
+            dados = canal.map(FileChannel.MapMode.READ_ONLY, inicio, tamanho).order(ByteOrder.LITTLE_ENDIAN).asFloatBuffer()
+        } catch (erro: Throwable) {
+            canal.close()
+            throw erro
+        }
     }
 
     private fun ler(h: ByteArray, comprimento: Long): Triple<Int, Long, Long> {
@@ -40,7 +46,7 @@ class FonteMapeada(arquivo: File) : FonteDeAudio, AutoCloseable {
                 canais = b.getShort(p + 10).toInt() and 0xffff
                 bits = b.getShort(p + 22).toInt() and 0xffff
             } else if (id == "data") {
-                require(tipo == 3 && bits == 32) { "As mídias do projeto são WAV float32." }
+                require(tipo == 3 && bits == 32 && canais in 1..2) { "As mídias do projeto são WAV float32 mono ou estéreo." }
                 val disponivel = comprimento - (p + 8)
                 if (tamanho == 0L || tamanho > disponivel) tamanho = disponivel
                 return Triple(canais, (p + 8).toLong(), tamanho - tamanho % (4L * canais))

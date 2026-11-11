@@ -332,7 +332,7 @@ private fun Editor(modelo: EstudioViewModel, podeExportar: Boolean, abrirLicenca
                 items(projeto.textos, key = { it.id }) { texto -> CartaoDoTexto(modelo, texto) }
             }
             AbaDoEstudio.AUDIO -> {
-                item { NarracaoDoEstudio(modelo,podeExportar,abrirLicenca); BotaoDeAudio(modelo) }
+                item { NarracaoDoEstudio(modelo,podeExportar,abrirLicenca); BibliotecaOpenverse(modelo); CreditosOpenverse(modelo, projeto); BotaoDeAudio(modelo) }
                 items(projeto.audios, key = { it.id }) { audio -> CartaoDoAudio(modelo, audio) }
             }
             AbaDoEstudio.CAMADAS -> item { PainelDeCamadasDoEstudio(modelo) }
@@ -657,6 +657,13 @@ private fun CartaoDoAudio(modelo: EstudioViewModel, audio: AudioExtra) {
         }
         if (!aberto) return@Painel
         Text("Trecho da música: ${tempo(audio.inicio)} até ${tempo(audio.fim)}", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        val entrada = audio.entrada ?: 0.0
+        val fim = entrada + audio.fim - audio.inicio
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FilterChip(audio.mudo, { modelo.mudarAudio(audio.id) { it.copy(mudo = !it.mudo) } }, { Text("Silenciar") })
+            TextButton({ modelo.editarTrechoDeAudio(audio.id, true) }, enabled = modelo.instante - entrada >= .05 && fim - modelo.instante >= .05) { Text("Dividir no cursor") }
+            TextButton({ modelo.editarTrechoDeAudio(audio.id, false) }, enabled = fim < total) { Text("Repetir após o trecho") }
+        }
         RangeSlider(
             value = audio.inicio.toFloat()..audio.fim.toFloat().coerceAtMost(duracaoDoArquivo.toFloat()),
             valueRange = 0f..duracaoDoArquivo.toFloat().coerceAtLeast(0.2f),

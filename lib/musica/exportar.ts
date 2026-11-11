@@ -6,6 +6,7 @@ import { AudioSample, AudioSampleSource, BufferTarget, FlacOutputFormat, Mp4Outp
 import { duracaoEmQuadros, type ProjetoMusical } from "@/packages/converter-core/musica.mjs";
 import { Misturador, caudaEmQuadros, type FonteDeAudio } from "@/packages/converter-core/musica-mixer.mjs";
 import { FORMATOS_DE_EXPORTACAO, codificarWav, masterizar, type Medidas } from "@/packages/converter-core/musica-master.mjs";
+import { transformarCanais } from "@/packages/converter-core/musica-transformacao.mjs";
 
 /**
  * Exportação da criação musical no navegador: a mesma mistura que toca (musica-mixer.mjs),
@@ -146,6 +147,10 @@ export async function exportarMusica(projeto: ProjetoMusical, fontes: Map<string
     if (!alvo.id) {
       progresso("Masterizando", parte(0.82));
       await pausa();
+      if (cancelado()) throw new DOMException("Exportação cancelada.", "AbortError");
+      if ((projeto.master.velocidade ?? 1) !== 1 || (projeto.master.semitons ?? 0) !== 0) {
+        [esq, dir] = transformarCanais([esq, dir], projeto.taxa, projeto.master);
+      }
       const m = masterizar(esq, dir, projeto.taxa, opcoes.master);
       esq = m.esq;
       dir = m.dir;

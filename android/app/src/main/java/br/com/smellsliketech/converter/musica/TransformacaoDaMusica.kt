@@ -33,6 +33,24 @@ object TransformacaoDaMusica {
         return (origem / destino).coerceIn(VELOCIDADE_MINIMA, VELOCIDADE_MAXIMA)
     }
 
+    /** Filtros do FFmpeg para processar o WAV em fluxo. O ajuste de taxa muda o tom,
+     * e o atempo compensa a duração sem mudar novamente a afinação. */
+    internal fun filtroEmFluxo(taxa: Int, quadros: Long, velocidade: Double, semitons: Double, preservarTom: Boolean): String {
+        require(velocidade in VELOCIDADE_MINIMA..VELOCIDADE_MAXIMA && semitons in -12.0..12.0)
+        val tom = 2.0.pow(semitons / 12)
+        val fator = if (preservarTom) tom else tom * velocidade
+        val novaTaxa = Musica.arredondar(taxa * fator)
+        var tempo = velocidade * taxa / novaTaxa
+        val filtros = mutableListOf<String>()
+        if (novaTaxa != taxa.toLong()) filtros += listOf("asetrate=$novaTaxa", "aresample=$taxa")
+        while (tempo > 2.0) { filtros += "atempo=2"; tempo /= 2 }
+        while (tempo < 0.5) { filtros += "atempo=0.5"; tempo *= 2 }
+        if (abs(tempo - 1) > 1e-9) filtros += "atempo=$tempo"
+        val saida = max(1L, Musica.arredondar(quadros / velocidade))
+        filtros += listOf("apad=whole_len=$saida", "atrim=end_sample=$saida")
+        return filtros.joinToString(",")
+    }
+
     fun reamostrar(canais: Array<FloatArray>, fator: Double): Array<FloatArray> {
         if (fator == 1.0) return Array(canais.size) { canais[it].copyOf() }
         return Array(canais.size) { c ->
@@ -109,13 +127,14 @@ object TransformacaoDaMusica {
         return esticar(reamostrar(canais, velocidade * tom), taxa, 1 / tom)
     }
 
-    fun lerTudo(fonte: FonteDeAudio): Array<FloatArray> = Array(fonte.canais) { canal ->
-        val dados = FloatArray(fonte.quadros.toInt())
+    fun lerTudo(fonte: FonteDeAudio, limite: Long = fonte.quadros): Array<FloatArray> = Array(fonte.canais) { canal ->
+        val quadros = min(limite, fonte.quadros)
+        val dados = FloatArray(quadros.toInt())
         var inicio = 0L
         val passo = 65536
         val buffer = FloatArray(passo)
-        while (inicio < fonte.quadros) {
-            val n = min(passo.toLong(), fonte.quadros - inicio).toInt()
+        while (inicio < quadros) {
+            val n = min(passo.toLong(), quadros - inicio).toInt()
             fonte.copiar(canal, inicio, n, buffer)
             System.arraycopy(buffer, 0, dados, inicio.toInt(), n)
             inicio += n

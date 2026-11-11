@@ -28,7 +28,7 @@ export interface Midia {
 export interface Marcador { id: string; quadro: number; nome: string }
 export interface ProjetoMusical {
   versao: number; id: string; titulo: string; taxa: number; profundidade: number; bpm: number; compasso: Compasso;
-  faixas: Faixa[]; barramentos: Barramento[]; master: { ganhoDb: number; efeitos: EfeitoDaMusica[] };
+  faixas: Faixa[]; barramentos: Barramento[]; master: { ganhoDb: number; efeitos: EfeitoDaMusica[]; velocidade?: number; semitons?: number; preservarTom?: boolean };
   marcadores: Marcador[]; midias: Midia[];
   metronomo: { ligado: boolean; volumeDb: number; naExportacao: boolean };
   contagem: number; latencia: { entrada: number; saida: number; medida: boolean; ajuste?: number };

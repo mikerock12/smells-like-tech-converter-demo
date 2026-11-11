@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -17,12 +18,15 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -45,6 +49,7 @@ fun AbaDeTempoETom(modelo: MusicaViewModel, projeto: ProjetoMusical) {
         return
     }
     var escolhido by rememberSaveable { mutableStateOf<String?>(null) }
+    var ouvirMaster by rememberSaveable { mutableStateOf(false) }
     var origem by rememberSaveable { mutableStateOf<String?>(null) }
     var destino by rememberSaveable { mutableStateOf<String?>(null) }
     val atual = clipes.firstOrNull { it.second.id == escolhido } ?: clipes.first()
@@ -57,6 +62,29 @@ fun AbaDeTempoETom(modelo: MusicaViewModel, projeto: ProjetoMusical) {
     }
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Card(Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Master · mistura completa", fontWeight = FontWeight.Bold)
+                Text("Aplicado à prévia da master e à exportação da mistura. A linha do tempo mantém o ritmo da edição.")
+                Text("Velocidade da master · ${Musica.arredondar(projeto.master.velocidade * 100)}%")
+                AjusteDaMusica("Velocidade da master", projeto.master.velocidade * 100, 25.0, 400.0, 1.0) { valor ->
+                    modelo.mudar("velocidade-master") { it.copy(master = it.master.copy(velocidade = valor / 100)) }
+                }
+                Text("Transposição da master · ${Musica.arredondar(projeto.master.semitons)} semitons")
+                AjusteDaMusica("Transposição da master", projeto.master.semitons, -12.0, 12.0, 1.0) { valor ->
+                    modelo.mudar("tom-master") { it.copy(master = it.master.copy(semitons = valor)) }
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Preservar o tom da master", Modifier.weight(1f))
+                    Switch(projeto.master.preservarTom, { ligado ->
+                        modelo.mudar { it.copy(master = it.master.copy(preservarTom = ligado)) }
+                    }, Modifier.semantics { contentDescription = "Preservar o tom da master" })
+                }
+                OutlinedButton(onClick = { ouvirMaster = true }, enabled = modelo.gravando == null && modelo.andamento == null) {
+                    Text("Ouvir a master")
+                }
+            }
+        }
         Text("Tempo e tom por clipe", fontWeight = FontWeight.Bold, fontSize = 18.sp)
         SeletorDeClipe("Clipe para editar ou analisar", clipes, atual.second.id) { escolhido = it }
         Card(Modifier.fillMaxWidth()) {
@@ -110,6 +138,35 @@ fun AbaDeTempoETom(modelo: MusicaViewModel, projeto: ProjetoMusical) {
             }
         }
     }
+    if (ouvirMaster) PreviaDaMaster(modelo, projeto) { ouvirMaster = false }
+}
+
+@Composable
+private fun PreviaDaMaster(modelo: MusicaViewModel, projeto: ProjetoMusical, fechar: () -> Unit) {
+    val cache = LocalContext.current.cacheDir
+    var estado by rememberSaveable { mutableStateOf("Montando a prévia…") }
+    LaunchedEffect(projeto) {
+        val pasta = java.io.File(cache, "musica-master-${java.util.UUID.randomUUID()}")
+        val player = android.media.MediaPlayer()
+        try {
+            val arquivo = modelo.gerarPreviaDaMaster(projeto, pasta)
+            player.setDataSource(arquivo.absolutePath)
+            player.setOnPreparedListener { it.start(); estado = "Tocando a mistura completa com tempo e tom da master." }
+            player.setOnCompletionListener { estado = "Prévia concluída." }
+            player.setOnErrorListener { _, _, _ -> estado = "Não foi possível ouvir a master."; true }
+            player.prepareAsync()
+            kotlinx.coroutines.awaitCancellation()
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            estado = e.message ?: "Não foi possível montar a prévia."
+        } finally {
+            player.release()
+            pasta.deleteRecursively()
+        }
+    }
+    AlertDialog(onDismissRequest = fechar, title = { Text("Prévia da master") }, text = { Text(estado) },
+        confirmButton = { TextButton(onClick = fechar) { Text("Fechar") } })
 }
 
 @Composable

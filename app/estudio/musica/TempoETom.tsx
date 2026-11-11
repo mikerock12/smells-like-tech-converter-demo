@@ -1,15 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { analisarMusica, type AnaliseMusical } from "@/packages/converter-core/musica-analise.mjs";
 import { clipeComVelocidade, velocidadeParaIgualar } from "@/packages/converter-core/musica-transformacao.mjs";
 import type { Clipe, Faixa, ProjetoMusical } from "@/packages/converter-core/musica.mjs";
+import type { FonteDeAudio } from "@/packages/converter-core/musica-mixer.mjs";
+import { exportarMusica } from "@/lib/musica/exportar";
 import type { Mudar } from "./CriacaoMusical";
 import { AjusteMusical } from "./AjusteMusical";
 
 type Par = { faixa: Faixa; clipe: Clipe };
 
-export default function TempoETom({ projeto, mudar, canaisDe }: { projeto: ProjetoMusical; mudar: Mudar; canaisDe: (id: string) => Float32Array[] | undefined }) {
+export default function TempoETom({ projeto, mudar, canaisDe, fontes, parar, gravando }: {
+  projeto: ProjetoMusical; mudar: Mudar; canaisDe: (id: string) => Float32Array[] | undefined;
+  fontes: () => Promise<Map<string, FonteDeAudio>>; parar: () => void; gravando: boolean;
+}) {
   const clipes: Par[] = projeto.faixas.flatMap((faixa) => faixa.clipes.filter((c) => !c.mudo).map((clipe) => ({ faixa, clipe })));
   const [escolhido, setEscolhido] = useState<string | null>(null);
   const [origem, setOrigem] = useState<string | null>(null);
@@ -17,6 +22,31 @@ export default function TempoETom({ projeto, mudar, canaisDe }: { projeto: Proje
   const [analises, setAnalises] = useState<Record<string, AnaliseMusical>>({});
   const [processando, setProcessando] = useState(false);
   const [aviso, setAviso] = useState<string | null>(null);
+  const [previa, setPrevia] = useState<{ url: string; projeto: ProjetoMusical } | null>(null);
+  const [preparando, setPreparando] = useState(false);
+  const geracao = useRef<AbortController | null>(null);
+  useEffect(() => () => { geracao.current?.abort(); }, [projeto, gravando]);
+  useEffect(() => () => { if (previa) URL.revokeObjectURL(previa.url); }, [previa]);
+
+  const ouvirMaster = async () => {
+    if (gravando || geracao.current) return;
+    const controle = new AbortController();
+    geracao.current = controle;
+    setPrevia(null);
+    setPreparando(true);
+    setAviso(null);
+    try {
+      const [resultado] = await exportarMusica(projeto, await fontes(), { formato: "wav-16", master: "sem-alvo", alcance: "projeto", cadaFaixa: false, cauda: true }, () => {}, () => controle.signal.aborted);
+      if (controle.signal.aborted) return;
+      parar();
+      setPrevia({ url: URL.createObjectURL(resultado.blob), projeto });
+    } catch (erro) {
+      if (!controle.signal.aborted) setAviso(erro instanceof Error ? erro.message : "Não foi possível montar a prévia da master.");
+    } finally {
+      geracao.current = null;
+      setPreparando(false);
+    }
+  };
   if (!clipes.length) return <p className="estudio__dica">Importe ou grave um áudio para ajustar tempo e tom.</p>;
   const atual = clipes.find((p) => p.clipe.id === escolhido) ?? clipes[0];
   const referencia = clipes.find((p) => p.clipe.id === origem) ?? clipes[0];
@@ -57,6 +87,25 @@ export default function TempoETom({ projeto, mudar, canaisDe }: { projeto: Proje
 
   return (
     <div className="musica__tempo-tom">
+      <div className="musica__colunas">
+        <section>
+          <h3>Master · mistura completa</h3>
+          <p className="estudio__dica">Aplicado à prévia da master e à exportação da mistura. A linha do tempo mantém o ritmo da edição.</p>
+          <label className="musica__rotulo">Velocidade da master · {Math.round((projeto.master.velocidade ?? 1) * 100)}%
+            <AjusteMusical valor={(projeto.master.velocidade ?? 1) * 100} min={25} max={400} passo={1} rotulo="Velocidade da master" padrao={100}
+              mudar={(v) => mudar((p) => ({ ...p, master: { ...p.master, velocidade: v / 100 } }), "velocidade-master")} />
+          </label>
+          <button type="button" className="button" disabled={gravando || preparando} onClick={() => void ouvirMaster()}>{preparando ? "Montando a prévia…" : "Ouvir a master"}</button>
+          {/* eslint-disable-next-line jsx-a11y/media-has-caption -- Prévia da mistura criada pela própria pessoa. */}
+          {!gravando && previa?.projeto === projeto && <audio controls autoPlay src={previa.url} onPlay={parar} aria-label="Prévia da master" />}
+          <label className="estudio__chave"><input type="checkbox" checked={projeto.master.preservarTom ?? true}
+            onChange={(e) => mudar((p) => ({ ...p, master: { ...p.master, preservarTom: e.target.checked } }))} /> Preservar o tom da master</label>
+          <label className="musica__rotulo">Transposição da master · {projeto.master.semitons ?? 0} semitons
+            <AjusteMusical valor={projeto.master.semitons ?? 0} min={-12} max={12} passo={1} rotulo="Transposição da master" padrao={0}
+              mudar={(v) => mudar((p) => ({ ...p, master: { ...p.master, semitons: v } }), "tom-master")} />
+          </label>
+        </section>
+      </div>
       <label className="musica__campo">Clipe para editar ou analisar
         <select value={atual.clipe.id} onChange={(e) => setEscolhido(e.target.value)}>{clipes.map((p) => <option key={p.clipe.id} value={p.clipe.id}>{p.faixa.nome} · {p.clipe.nome ?? "Clipe"}</option>)}</select>
       </label>

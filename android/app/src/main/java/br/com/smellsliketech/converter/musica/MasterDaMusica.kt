@@ -61,19 +61,30 @@ object MasterDaMusica {
         return arrayOf(prateleira, passaAlta)
     }
 
-    fun loudnessIntegrado(esq: FloatArray, dir: FloatArray, taxa: Int): Double {
+    fun loudnessIntegrado(esq: FloatArray, dir: FloatArray, taxa: Int): Double =
+        loudnessIntegrado(FonteNaMemoria(arrayOf(esq, dir)), taxa) {}
+
+    private fun loudnessIntegrado(fonte: FonteDeAudio, taxa: Int, verificar: () -> Unit): Double {
         val c = coeficientesK(taxa)
         val f1 = BiquadMusical(c[0]); val f2 = BiquadMusical(c[1])
-        val n = esq.size
+        val n = fonte.quadros
         val tamanho = Musica.arredondar(taxa * 0.4).toInt()
         val passo = Musica.arredondar(taxa * 0.1).toInt()
         if (n < tamanho) return Double.NEGATIVE_INFINITY
-        val partes = n / passo
+        val partes = (n / passo).toInt()
         val energia = DoubleArray(partes)
-        for (i in 0 until partes * passo) {
-            val e = f2.amostra(f1.amostra(esq[i].toDouble(), 0), 0)
-            val d = f2.amostra(f1.amostra(dir[i].toDouble(), 1), 1)
-            energia[i / passo] += e * e + d * d
+        val esq = FloatArray(passo)
+        val dir = FloatArray(passo)
+        for (parte in 0 until partes) {
+            verificar()
+            val inicio = parte.toLong() * passo
+            fonte.copiar(0, inicio, passo, esq)
+            fonte.copiar(1, inicio, passo, dir)
+            for (i in 0 until passo) {
+                val e = f2.amostra(f1.amostra(esq[i].toDouble(), 0), 0)
+                val d = f2.amostra(f1.amostra(dir[i].toDouble(), 1), 1)
+                energia[parte] += e * e + d * d
+            }
         }
         val blocos = ArrayList<Double>()
         var b = 0
@@ -96,23 +107,35 @@ object MasterDaMusica {
         }
     }
 
-    fun picos(esq: FloatArray, dir: FloatArray): Pair<Double, Double> {
+    fun picos(esq: FloatArray, dir: FloatArray): Pair<Double, Double> =
+        picos(FonteNaMemoria(arrayOf(esq, dir))) {}
+
+    private fun picos(fonte: FonteDeAudio, verificar: () -> Unit): Pair<Double, Double> {
         val fases = fasesDoPicoReal()
         var amostra = 0.0
         var real = 0.0
-        for (canal in arrayOf(esq, dir)) {
-            for (i in canal.indices) {
-                val v = abs(canal[i].toDouble())
-                if (v > amostra) amostra = v
-                for (f in 1 until 4) {
-                    val c = fases[f]
-                    var soma = 0.0
-                    for (k in 0 until 12) {
-                        val j = i + k - 5
-                        if (j >= 0 && j < canal.size) soma += canal[j] * c[k]
+        val bloco = 8192
+        val dados = FloatArray(bloco + 11)
+        for (canal in 0 until fonte.canais) {
+            var inicio = 0L
+            while (inicio < fonte.quadros) {
+                verificar()
+                val n = min(bloco.toLong(), fonte.quadros - inicio).toInt()
+                val anterior = min(5L, inicio).toInt()
+                fonte.copiar(canal, inicio - anterior, n + anterior + 6, dados)
+                for (i in anterior until anterior + n) {
+                    amostra = max(amostra, abs(dados[i].toDouble()))
+                    for (f in 1 until 4) {
+                        val c = fases[f]
+                        var soma = 0.0
+                        for (k in 0 until 12) {
+                            val j = i + k - 5
+                            if (j >= 0) soma += dados[j] * c[k]
+                        }
+                        real = max(real, abs(soma))
                     }
-                    if (abs(soma) > real) real = abs(soma)
                 }
+                inicio += n
             }
         }
         real = max(real, amostra)
@@ -120,9 +143,44 @@ object MasterDaMusica {
         return Pair(dbfs(amostra), dbfs(real))
     }
 
-    fun medir(esq: FloatArray, dir: FloatArray, taxa: Int): Medidas {
-        val (a, r) = picos(esq, dir)
-        return Medidas(loudnessIntegrado(esq, dir, taxa), a, r)
+    fun medir(esq: FloatArray, dir: FloatArray, taxa: Int): Medidas =
+        medir(FonteNaMemoria(arrayOf(esq, dir)), taxa) {}
+
+    internal fun medir(fonte: FonteDeAudio, taxa: Int, verificar: () -> Unit): Medidas {
+        val (a, r) = picos(fonte, verificar)
+        return Medidas(loudnessIntegrado(fonte, taxa, verificar), a, r)
+    }
+
+    /** Limita o sinal por blocos, mantendo o envelope de liberação entre blocos. */
+    internal fun limitar(fonte: FonteDeAudio, destino: EscritorDeWav, taxa: Int, preset: PresetDeMaster, verificar: () -> Unit): Double {
+        val lufs = if (preset.alvoLufs == null) Double.NEGATIVE_INFINITY else loudnessIntegrado(fonte, taxa, verificar)
+        val ganhoDb = if (preset.alvoLufs == null || !lufs.isFinite()) 0.0 else min(24.0, preset.alvoLufs - lufs)
+        val g = 10.0.pow(ganhoDb / 20)
+        val teto = 10.0.pow((preset.tetoDbtp - 0.3) / 20)
+        val liberacao = exp(-1 / (taxa * 0.05))
+        val esq = FloatArray(8192)
+        val dir = FloatArray(8192)
+        val intercalado = FloatArray(16384)
+        var ganho = 1.0
+        var inicio = 0L
+        while (inicio < fonte.quadros) {
+            verificar()
+            val n = min(esq.size.toLong(), fonte.quadros - inicio).toInt()
+            fonte.copiar(0, inicio, n, esq)
+            fonte.copiar(1, inicio, n, dir)
+            for (i in 0 until n) {
+                val a = esq[i] * g
+                val b = dir[i] * g
+                val pico = max(abs(a), abs(b))
+                val alvo = if (pico > teto) teto / pico else 1.0
+                ganho = if (alvo < ganho) alvo else liberacao * ganho + (1 - liberacao) * alvo
+                intercalado[i * 2] = (a * ganho).toFloat()
+                intercalado[i * 2 + 1] = (b * ganho).toFloat()
+            }
+            destino.escrever(intercalado, n)
+            inicio += n
+        }
+        return ganhoDb
     }
 
     fun masterizar(esq: FloatArray, dir: FloatArray, taxa: Int, presetId: String): ResultadoDoMaster {
@@ -183,14 +241,23 @@ object MasterDaMusica {
     }
 
     fun escreverWav(saida: OutputStream, canais: List<FloatArray>, taxa: Int, bits: Int = 24, dither: Boolean = true, semente: Int = 0x12345678) {
-        val n = canais[0].size
-        val c = canais.size
-        saida.write(cabecalhoWav(c, taxa, bits, n.toLong()))
+        escreverWav(saida, FonteNaMemoria(canais.toTypedArray()), taxa, bits, dither, semente) {}
+    }
+
+    internal fun escreverWav(saida: OutputStream, fonte: FonteDeAudio, taxa: Int, bits: Int = 24, dither: Boolean = true, semente: Int = 0x12345678, verificar: () -> Unit) {
+        val c = fonte.canais
+        saida.write(cabecalhoWav(c, taxa, bits, fonte.quadros))
         val ruido = if (bits != 32 && dither) Ruido(semente) else null
         val bpa = bits / 8
-        val buffer = ByteBuffer.allocate(min(n, 8192).coerceAtLeast(1) * c * bpa).order(ByteOrder.LITTLE_ENDIAN)
-        for (i in 0 until n) {
-            for (k in 0 until c) {
+        val bloco = 8192
+        val buffer = ByteBuffer.allocate(bloco * c * bpa).order(ByteOrder.LITTLE_ENDIAN)
+        val canais = Array(c) { FloatArray(bloco) }
+        var inicio = 0L
+        while (inicio < fonte.quadros) {
+            verificar()
+            val n = min(bloco.toLong(), fonte.quadros - inicio).toInt()
+            for (k in 0 until c) fonte.copiar(k, inicio, n, canais[k])
+            for (i in 0 until n) for (k in 0 until c) {
                 val x = canais[k][i]
                 if (bits == 32) buffer.putFloat(x)
                 else {
@@ -199,12 +266,10 @@ object MasterDaMusica {
                     if (bits == 24) buffer.put(((q shr 16) and 0xff).toByte())
                 }
             }
-            if (buffer.remaining() < c * bpa) {
-                saida.write(buffer.array(), 0, buffer.position())
-                buffer.clear()
-            }
+            saida.write(buffer.array(), 0, buffer.position())
+            buffer.clear()
+            inicio += n
         }
-        saida.write(buffer.array(), 0, buffer.position())
     }
 
     fun codificarWav(canais: List<FloatArray>, taxa: Int, bits: Int = 24, dither: Boolean = true): ByteArray =

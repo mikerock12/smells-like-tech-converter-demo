@@ -149,6 +149,9 @@ public sealed class MusicMaster
 {
     [JsonPropertyName("ganhoDb")] public double GainDb { get; set; }
     [JsonPropertyName("efeitos")] public List<MusicEffect> Effects { get; set; } = [];
+    [JsonPropertyName("velocidade")] public double? Speed { get; set; }
+    [JsonPropertyName("semitons")] public double? Semitones { get; set; }
+    [JsonPropertyName("preservarTom")] public bool? PreservePitch { get; set; }
 }
 
 public sealed class MusicMarker

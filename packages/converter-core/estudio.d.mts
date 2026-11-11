@@ -65,6 +65,8 @@ export type AudioExtra = {
   volume?: number;
   fadeEntrada?: number;
   fadeSaida?: number;
+  mudo?: boolean;
+  openverse?: import("./openverse.d.mts").ProvenienciaOpenverse;
 };
 
 export type Projeto = {

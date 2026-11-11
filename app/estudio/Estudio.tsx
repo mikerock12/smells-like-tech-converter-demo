@@ -54,6 +54,7 @@ import LinhaDoTempo from "./LinhaDoTempo";
 import ProjetosDoEstudio from "./ProjetosDoEstudio";
 import ResultadoFinal from "./ResultadoFinal";
 import NarracaoDoEstudio from "./NarracaoDoEstudio";
+import BibliotecaOpenverse from "./BibliotecaOpenverse";
 import PainelDeCamadas from "./PainelDeCamadas";
 import { CampoDeTempo, Deslizante } from "./Deslizante";
 
@@ -224,15 +225,19 @@ export default function Estudio() {
     mudar((p) => ({ ...p, clipes: [...p.clipes, ...clipes] }));
   };
 
-  const adicionarMusica = async (arquivo: File, entrada = 0, inteira = false) => {
+  const adicionarMusica = async (arquivo: File, entrada = 0, inteira = false, confirmada?: { duracao: number; openverse: NonNullable<AudioExtra["openverse"]> }) => {
     const chave = novoId("a");
-    const duracao = (await duracaoDaMidia(arquivo)) ?? 30;
+    const duracao = confirmada?.duracao ?? (await duracaoDaMidia(arquivo)) ?? 30;
     setArquivos((atuais) => new Map(atuais).set(chave, arquivo));
     setInfos((atuais) => ({ ...atuais, [chave]: { nome: arquivo.name, duracao } }));
     const id = novoId("m");
     mudar((p) => ({
       ...p,
-      audios: [...p.audios, { id, arquivo: chave, entrada, inicio: 0, fim: inteira ? duracao : Math.min(duracao, duracaoTotal(p) || duracao), volume: inteira ? 1 : 0.8, fadeEntrada: 0, fadeSaida: inteira ? 0 : 1 }],
+      audios: [...p.audios, { id, arquivo: chave, entrada, inicio: 0,
+        fim: inteira ? duracao : Math.min(duracao, duracaoTotal(p) ? Math.max(0.001, duracaoTotal(p) - entrada) : duracao),
+        volume: inteira ? 1 : 0.8, fadeEntrada: 0, fadeSaida: inteira ? 0 : Math.min(1, duracao),
+        ...(confirmada ? { openverse: confirmada.openverse } : {}),
+      }],
     }));
     setAberto(id);
   };
@@ -253,6 +258,23 @@ export default function Estudio() {
   const mudarClipe = (id: string, m: (c: Clipe) => Clipe) => mudar((p) => ({ ...p, clipes: p.clipes.map((c) => (c.id === id ? m(c) : c)) }));
   const mudarTexto = (id: string, m: (t: Texto) => Texto) => mudar((p) => ({ ...p, textos: p.textos.map((t) => (t.id === id ? m(t) : t)) }));
   const mudarAudio = (id: string, m: (a: AudioExtra) => AudioExtra) => mudar((p) => ({ ...p, audios: p.audios.map((a) => (a.id === id ? m(a) : a)) }));
+
+  const editarTrechoDeAudio = (audio: AudioExtra, dividir: boolean) => {
+    const entrada = audio.entrada ?? 0;
+    const fim = entrada + audio.fim - audio.inicio;
+    const novo = novoId("m");
+    if (dividir) {
+      const corte = audio.inicio + instante - entrada;
+      if (corte - audio.inicio < 0.05 || audio.fim - corte < 0.05) return;
+      mudar((p) => ({ ...p, audios: p.audios.flatMap((a) => a.id === audio.id
+        ? [{ ...a, fim: corte, fadeSaida: 0 }, { ...a, id: novo, inicio: corte, entrada: instante, fadeEntrada: 0 }]
+        : [a]) }));
+    } else {
+      if (fim >= total) return;
+      mudar((p) => ({ ...p, audios: [...p.audios, { ...audio, id: novo, entrada: fim, fim: Math.min(audio.fim, audio.inicio + total - fim) }] }));
+    }
+    setAberto(novo);
+  };
   const moverClipe = (id: string, passo: number) =>
     mudar((p) => {
       const lista = [...p.clipes];
@@ -565,7 +587,7 @@ export default function Estudio() {
       </div>
 
       {projetos}
-      <LinhaDoTempo projeto={projeto} instante={instante} irPara={setInstante} selecionar={(id,tipo)=>{setAberto(id);setAba(tipo);}} />
+      <LinhaDoTempo projeto={projeto} instante={instante} irPara={setInstante} selecionar={(id,tipo)=>{setAberto(id);setAba(tipo);}} moverAudio={(id,entrada)=>mudarAudio(id,(a)=>({...a,entrada}))} />
       <div className="estudio__grade">
         <Previa
           projeto={projeto}
@@ -642,8 +664,20 @@ export default function Estudio() {
           {aba === "audio" && (
             <div className="estudio__lista">
               <NarracaoDoEstudio projeto={projeto} instante={instante} desabilitado={!!andamento||!projeto.clipes.length} adicionar={(f,entrada)=>adicionarMusica(f,entrada,true)} />
+              <BibliotecaOpenverse podeAdicionar={!andamento && total > 0} pararEstudio={() => setTocando(false)}
+                adicionar={(arquivo, duracao, openverse) => void adicionarMusica(arquivo, Math.max(0, Math.min(instante, total - 1 / projeto.fps)), false, { duracao, openverse })} />
               <EscolherArquivos rotulo="Adicionar música ou áudio" aceita="audio/*,video/*" aoEscolher={(lista) => lista[0] && void adicionarMusica(lista[0])} />
               {projeto.audios.length === 0 && <p className="estudio__dica">A música toca por cima do som dos vídeos. Escolha o trecho, onde ela entra, o volume e o fade.</p>}
+              {projeto.audios.some((audio) => audio.openverse) && <button type="button" className="button button--ghost" onClick={() => {
+                const faixas = [...new Map(projeto.audios.flatMap((a) => a.openverse ? [[a.openverse.id, a.openverse] as const] : [])).values()];
+                const blob = new Blob([JSON.stringify({ faixas, fonte: "Openverse", endosso: false }, null, 2)], { type: "application/json" });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement("a");
+                link.href = url;
+                link.download = "creditos-openverse.json";
+                link.click();
+                setTimeout(() => URL.revokeObjectURL(url), 1000);
+              }}>Baixar créditos do Openverse</button>}
               {projeto.audios.map((audio) => (
                 <CartaoDoAudio
                   key={audio.id}
@@ -653,6 +687,8 @@ export default function Estudio() {
                   aberto={aberto === audio.id}
                   abrir={() => setAberto(aberto === audio.id ? null : audio.id)}
                   mudar={(m) => mudarAudio(audio.id, m)}
+                  instante={instante}
+                  editarTrecho={(dividir) => editarTrechoDeAudio(audio, dividir)}
                   remover={() => mudar((p) => ({ ...p, audios: p.audios.filter((a) => a.id !== audio.id) }))}
                 />
               ))}
@@ -1137,6 +1173,8 @@ function CartaoDoAudio({
   aberto,
   abrir,
   mudar,
+  instante,
+  editarTrecho,
   remover,
 }: {
   audio: AudioExtra;
@@ -1145,9 +1183,13 @@ function CartaoDoAudio({
   aberto: boolean;
   abrir: () => void;
   mudar: (m: (a: AudioExtra) => AudioExtra) => void;
+  instante: number;
+  editarTrecho: (dividir: boolean) => void;
   remover: () => void;
 }) {
   const duracaoDoArquivo = info?.duracao ?? audio.fim;
+  const entrada = audio.entrada ?? 0;
+  const fim = entrada + audio.fim - audio.inicio;
   return (
     <div className="estudio__item">
       <div className="estudio__cabeca">
@@ -1159,6 +1201,13 @@ function CartaoDoAudio({
       </div>
       {aberto && (
         <div className="estudio__detalhe">
+          {audio.openverse && <p className="estudio__dica">{audio.openverse.autor ?? "Autoria não informada"} · {typeof audio.openverse.origem === "string" && audio.openverse.origem.startsWith("https://commons.wikimedia.org/") &&
+            <a href={audio.openverse.origem} target="_blank" rel="noreferrer">Origem da faixa CC0</a>}</p>}
+          <div className="estudio__acoes">
+            <label className="estudio__chave"><input type="checkbox" checked={audio.mudo ?? false} onChange={(e) => mudar((a) => ({ ...a, mudo: e.target.checked }))} /> Silenciar</label>
+            <button type="button" className="button" disabled={instante - entrada < 0.05 || fim - instante < 0.05} onClick={() => editarTrecho(true)}>Dividir no cursor</button>
+            <button type="button" className="button" disabled={fim >= total} onClick={() => editarTrecho(false)}>Repetir após o trecho</button>
+          </div>
           <Controle rotulo={`Começa a música em ${tempo(audio.inicio)}`}>
             <input type="range" min={0} max={duracaoDoArquivo} step={0.1} value={audio.inicio} onChange={(e) => mudar((a) => ({ ...a, inicio: Math.min(Number(e.target.value), a.fim - 0.1) }))} />
           </Controle>

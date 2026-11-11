@@ -348,7 +348,7 @@ export function receitaFfmpeg(projeto, entradas, otimizar = false) {
       args.push("-ss", numero(musica.inicio), "-t", numero(musica.fim - musica.inicio), "-i", entradas.audios[k]);
       const n = indiceDaEntrada++;
       const comprimento = musica.fim - musica.inicio;
-      const cadeia = [`aresample=48000`, `aformat=channel_layouts=stereo`, `volume=${numero(musica.volume ?? 1)}`];
+      const cadeia = [`aresample=48000`, `aformat=channel_layouts=stereo`, `volume=${numero(musica.mudo ? 0 : musica.volume ?? 1)}`];
       if ((musica.fadeEntrada ?? 0) > 0) cadeia.push(`afade=t=in:st=0:d=${numero(musica.fadeEntrada)}`);
       if ((musica.fadeSaida ?? 0) > 0) cadeia.push(`afade=t=out:st=${numero(Math.max(0, comprimento - musica.fadeSaida))}:d=${numero(musica.fadeSaida)}`);
       const atraso = Math.round((musica.entrada ?? 0) * 1000);
@@ -356,7 +356,8 @@ export function receitaFfmpeg(projeto, entradas, otimizar = false) {
       filtros.push(`[${n}:a]${cadeia.join(",")}[m${k}]`);
       return `[m${k}]`;
     });
-    filtros.push(`[ab]${rotulos.join("")}amix=inputs=${rotulos.length + 1}:duration=first:normalize=0[am]`);
+    const limiter = projeto.audios.some((a) => a.openverse) ? ",alimiter=limit=0.95:level=0:latency=1" : "";
+    filtros.push(`[ab]${rotulos.join("")}amix=inputs=${rotulos.length + 1}:duration=first:normalize=0${limiter}[am]`);
     audio = "am";
   }
 

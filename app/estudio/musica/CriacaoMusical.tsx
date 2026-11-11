@@ -69,6 +69,7 @@ export default function CriacaoMusical() {
   const [painel, setPainel] = useState<Painel>("mixer");
   const [selecao, setSelecao] = useState<Selecao>({ faixa: null, clipe: null, efeitos: "master" });
   const [zoom, setZoom] = useState(60);
+  const [bpmEmEdicao, setBpmEmEdicao] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [bloqueio, setBloqueio] = useState<string | null>(null);
@@ -606,7 +607,17 @@ export default function CriacaoMusical() {
           </select>
         </label>
         <label className="musica__campo">BPM
-          <input type="number" min={BPM_MINIMO} max={BPM_MAXIMO} step={1} value={projeto.bpm} onChange={(e) => { const v = Number(e.target.value); if (v >= BPM_MINIMO && v <= BPM_MAXIMO) mudar((p) => ({ ...p, bpm: v }), "bpm"); }} />
+          <input type="number" inputMode="numeric" min={BPM_MINIMO} max={BPM_MAXIMO} step={1}
+            value={bpmEmEdicao ?? projeto.bpm}
+            onChange={(e) => setBpmEmEdicao(e.target.value)}
+            onBlur={(e) => {
+              const bpm = e.currentTarget.valueAsNumber;
+              if (Number.isInteger(bpm) && bpm >= BPM_MINIMO && bpm <= BPM_MAXIMO && bpm !== projeto.bpm) {
+                mudar((p) => ({ ...p, bpm }), "bpm");
+              }
+              setBpmEmEdicao(null);
+            }}
+            onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }} />
         </label>
         <label className="musica__campo">Compasso
           <select value={`${projeto.compasso[0]}/${projeto.compasso[1]}`} onChange={(e) => { const [a, b] = e.target.value.split("/").map(Number); mudar((p) => ({ ...p, compasso: [a, b] })); }}>
@@ -644,7 +655,7 @@ export default function CriacaoMusical() {
       </nav>
       <div className="musica__painel">
         {painel === "mixer" && <MixerMusical projeto={projeto} estado={estado} mudar={mudar} abrirEfeitos={(id) => { setSelecao((s) => ({ ...s, efeitos: id })); setPainel("efeitos"); }} />}
-        {painel === "tempo" && <TempoETom projeto={projeto} mudar={mudar} canaisDe={(id) => midias.current.get(id)} />}
+        {painel === "tempo" && <TempoETom projeto={projeto} mudar={mudar} canaisDe={(id) => midias.current.get(id)} fontes={fontes} parar={() => motor.current?.parar()} gravando={!!gravando} />}
         {painel === "efeitos" && <EfeitosMusicais projeto={projeto} alvo={selecao.efeitos} escolher={(id) => setSelecao((s) => ({ ...s, efeitos: id }))} mudar={mudar} />}
         {painel === "gravacao" && (
           <PainelDeGravacao projeto={projeto} mudar={mudar} entrada={entrada} saidaEstimada={saidaEstimada} quadro={estado.quadro}

@@ -220,11 +220,19 @@ data class Barramento(val id: String, val nome: String, val ganhoDb: Double = 0.
     }
 }
 
-data class Master(val ganhoDb: Double = 0.0, val efeitos: List<EfeitoMusical> = emptyList()) {
+data class Master(
+    val ganhoDb: Double = 0.0,
+    val efeitos: List<EfeitoMusical> = emptyList(),
+    val velocidade: Double = 1.0,
+    val semitons: Double = 0.0,
+    val preservarTom: Boolean = true,
+) {
     fun paraJson(): JSONObject = JSONObject().put("ganhoDb", ganhoDb).put("efeitos", JSONArray(efeitos.map { it.paraJson() }))
+        .put("velocidade", velocidade).put("semitons", semitons).put("preservarTom", preservarTom)
 
     companion object {
-        fun deJson(j: JSONObject) = Master(j.optDouble("ganhoDb", 0.0), j.lista("efeitos").map(EfeitoMusical::deJson))
+        fun deJson(j: JSONObject) = Master(j.optDouble("ganhoDb", 0.0), j.lista("efeitos").map(EfeitoMusical::deJson),
+            j.optDouble("velocidade", 1.0), j.optDouble("semitons", 0.0), j.optBoolean("preservarTom", true))
     }
 }
 

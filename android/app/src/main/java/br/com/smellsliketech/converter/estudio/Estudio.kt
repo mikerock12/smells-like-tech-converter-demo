@@ -283,7 +283,7 @@ object Estudio {
                 args += listOf("-ss", numero(musica.inicio), "-t", numero(musica.fim - musica.inicio), "-i", entradas.audios[k])
                 val n = indiceDaEntrada++
                 val comprimento = musica.fim - musica.inicio
-                val cadeia = mutableListOf("aresample=48000", "aformat=channel_layouts=stereo", "volume=${numero(musica.volume ?: 1.0)}")
+                val cadeia = mutableListOf("aresample=48000", "aformat=channel_layouts=stereo", "volume=${numero(if (musica.mudo) 0.0 else musica.volume ?: 1.0)}")
                 val fadeEntrada = musica.fadeEntrada ?: 0.0
                 val fadeSaida = musica.fadeSaida ?: 0.0
                 if (fadeEntrada > 0) cadeia += "afade=t=in:st=0:d=${numero(fadeEntrada)}"
@@ -293,7 +293,8 @@ object Estudio {
                 filtros += "[$n:a]${cadeia.joinToString(",")}[m$k]"
                 "[m$k]"
             }
-            filtros += "[ab]${rotulos.joinToString("")}amix=inputs=${rotulos.size + 1}:duration=first:normalize=0[am]"
+            val limitador = if (projeto.audios.any { it.openverse != null }) ",alimiter=limit=0.95:level=0:latency=1" else ""
+            filtros += "[ab]${rotulos.joinToString("")}amix=inputs=${rotulos.size + 1}:duration=first:normalize=0$limitador[am]"
             audio = "am"
         }
 

@@ -83,7 +83,7 @@ export class PreviaDoEstudio {
           if(dentro) {
             if(v.paused) v.currentTime=a.inicio+t-entrada;
             const fator=Math.min(1,(a.fadeEntrada??0)>0?(t-entrada)/a.fadeEntrada!:1,(a.fadeSaida??0)>0?(entrada+duracao-t)/a.fadeSaida!:1);
-            v.volume=Math.min(1,Math.max(0,(a.volume??1)*fator));if(v.paused) await v.play();
+            v.volume=Math.min(1,Math.max(0,(a.mudo ? 0 : a.volume ?? 1)*fator));if(v.paused) await v.play();
           } else v.pause();
         }
         await this.desenhar(projeto,arquivos,t);

@@ -289,7 +289,7 @@ export async function misturarAudio(projeto: Projeto, arquivos: ArquivosDoProjet
     if (!buffer) throw new Error("Este navegador não lê uma das músicas. Tente MP3 ou M4A, ou use o plugin.");
     const comprimento = musica.fim - musica.inicio;
     const entrada = musica.entrada ?? 0;
-    const volume = musica.volume ?? 1;
+    const volume = musica.mudo ? 0 : musica.volume ?? 1;
     const fonte = mesa.createBufferSource();
     fonte.buffer = buffer;
     const ganho = mesa.createGain();
@@ -306,6 +306,19 @@ export async function misturarAudio(projeto: Projeto, arquivos: ArquivosDoProjet
   }
 
   const resultado = await mesa.startRendering();
+  if (projeto.audios.some((a) => a.openverse)) {
+    let pico = 0.95;
+    for (let c = 0; c < resultado.numberOfChannels; c += 1) {
+      for (const amostra of resultado.getChannelData(c)) pico = Math.max(pico, Math.abs(amostra));
+    }
+    if (pico > 0.95) {
+      const ganho = 0.95 / pico;
+      for (let c = 0; c < resultado.numberOfChannels; c += 1) {
+        const dados = resultado.getChannelData(c);
+        for (let i = 0; i < dados.length; i += 1) dados[i] *= ganho;
+      }
+    }
+  }
   andamento(1);
   return resultado;
 }

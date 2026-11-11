@@ -544,6 +544,8 @@ public sealed partial class StudioPage : Page
     {
         AudiosPanel.Children.Clear();
         AudiosPanel.Children.Add(NarrationControls());
+        AudiosPanel.Children.Add(OpenverseControls());
+        if (project!.Audios.Any(audio => audio.Openverse is not null)) AudiosPanel.Children.Add(OpenverseCredits());
         var adicionar = Action("Adicionar música ou áudio");
         adicionar.Click += async (_, _) => await AddAudioAsync();
         AudiosPanel.Children.Add(adicionar);
@@ -560,7 +562,11 @@ public sealed partial class StudioPage : Page
 
     private Border AudioCard(StudioAudio audio)
     {
-        var nome = infos.TryGetValue(audio.File, out var info) ? info.FileName : Path.GetFileName(audio.File);
+        infos.TryGetValue(audio.File, out var info);
+        var nome = audio.Openverse is { ValueKind: System.Text.Json.JsonValueKind.Object } origem &&
+            origem.TryGetProperty("titulo", out var titulo) && titulo.ValueKind == System.Text.Json.JsonValueKind.String
+            ? titulo.GetString() ?? Path.GetFileName(audio.File)
+            : info?.FileName ?? Path.GetFileName(audio.File);
         var duracao = info?.Duration?.TotalSeconds ?? audio.End;
         string Resumo(StudioAudio a) => $"Trecho {Clock(a.Start)}–{Clock(a.End)} · entra em {Clock(a.At ?? 0)} · {Math.Round((a.Volume ?? 1) * 100)}%";
         var resumo = Muted(Resumo(audio));
@@ -574,6 +580,15 @@ public sealed partial class StudioPage : Page
         }
 
         void Atualizar() => resumo.Text = Resumo(project!.Audios.First(a => a.Id == audio.Id));
+        var mute = new CheckBox { Content = "Silenciar", IsChecked = audio.Mute == true };
+        mute.Click += (_, _) => Change(p => WithAudio(p, audio.Id, a => a with { Mute = mute.IsChecked == true }));
+        corpo.Children.Add(mute);
+        var split = Action("Dividir no cursor");
+        split.Click += (_, _) => EditOpenverseAudioSegment(audio.Id, true);
+        corpo.Children.Add(split);
+        var repeat = Action("Repetir após o trecho");
+        repeat.Click += (_, _) => EditOpenverseAudioSegment(audio.Id, false);
+        corpo.Children.Add(repeat);
         corpo.Children.Add(Slider("Começa a música em {0}", audio.Start, 0, duracao, 0.1, v => Clock(v),
             v => Change(p => WithAudio(p, audio.Id, a => a with { Start = Math.Min(v, a.End - 0.1) })), Atualizar));
         corpo.Children.Add(Slider("Termina a música em {0}", audio.End, 0, duracao, 0.1, v => Clock(v),

@@ -39,6 +39,49 @@ public sealed partial class StudioPage
             grid.ColumnDefinitions.Add(new ColumnDefinition {Width=new GridLength(Math.Max(.0001,Total-item.End),GridUnitType.Star)});
             var button=Action($"{item.Start.ToString("0.#",PtBr)} s");button.HorizontalAlignment=HorizontalAlignment.Stretch;button.Padding=new Thickness(2,0,2,0);Grid.SetColumn(button,1);
             double? clicked=null;
+            if (item.Kind == "audio")
+            {
+                double? press = null;
+                var move = new Microsoft.UI.Xaml.Media.TranslateTransform();
+                button.RenderTransform = move;
+                grid.AddHandler(PointerPressedEvent, new Microsoft.UI.Xaml.Input.PointerEventHandler((_, e) =>
+                {
+                    if (grid.ActualWidth <= 0) return;
+                    var x = e.GetCurrentPoint(grid).Position.X;
+                    var time = x / grid.ActualWidth * Total;
+                    if (time < item.Start || time > item.End) return;
+                    press = x;
+                    if (grid.CapturePointer(e.Pointer)) e.Handled = true;
+                    else press = null;
+                }), handledEventsToo: true);
+                grid.PointerMoved += (_, e) =>
+                {
+                    if (press is { } x) move.X = e.GetCurrentPoint(grid).Position.X - x;
+                };
+                grid.PointerCaptureLost += (_, _) => { press = null; move.X = 0; };
+                grid.PointerReleased += (_, e) =>
+                {
+                    if (press is not { } x) return;
+                    press = null;
+                    var delta = e.GetCurrentPoint(grid).Position.X - x;
+                    move.X = 0;
+                    grid.ReleasePointerCapture(e.Pointer);
+                    e.Handled = true;
+                    if (grid.ActualWidth <= 0) return;
+                    if (Math.Abs(delta) < 4)
+                    {
+                        TimeSlider.Value = Math.Clamp(x / grid.ActualWidth * Total, 0, Total);
+                        openId = item.Id;
+                        EditorPivot.SelectedIndex = 3;
+                        RefreshPanels();
+                        return;
+                    }
+                    var at = Math.Clamp(item.Start + delta / grid.ActualWidth * Total, 0, Math.Max(0, Total - 1d / project!.Fps));
+                    openId = item.Id;
+                    EditorPivot.SelectedIndex = 3;
+                    ChangeAndRefresh(p => WithAudio(p, item.Id, a => a with { At = at }));
+                };
+            }
             button.PointerPressed+=(_,args)=>{if(grid.ActualWidth>0) clicked=args.GetCurrentPoint(grid).Position.X/grid.ActualWidth*Total;};
             button.Click+=(_,_)=>{TimeSlider.Value=Math.Clamp(clicked??item.Start,0,Total);clicked=null;openId=item.Id;EditorPivot.SelectedIndex=item.Kind=="camadas"?1:item.Kind=="audio"?3:0;RefreshPanels();};grid.Children.Add(button);row.Children.Add(grid);panel.Children.Add(row);
         }
