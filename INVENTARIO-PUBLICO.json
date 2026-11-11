@@ -1,5 +1,5 @@
 {
-  "commit": "7a3cb271d0a08a6d3c1c5cac8b51975cf6c61b34",
+  "commit": "c171b31d1d7f4ed5ba7a05869d5f57cf19044886",
   "repository": "https://github.com/mikerock12/smells-like-tech-converter-demo",
   "originals": [
     {
@@ -34,7 +34,7 @@
     },
     {
       "path": "android/app/build.gradle.kts",
-      "sha256": "35ad280e0481a270dbd8be3cba2bab756fea1fcd995a3f0fa6b4b80751ea6359",
+      "sha256": "0f0ae06f93a2ec6777a75a6ccebc086ef083a49e26e438266919f9b89e80018d",
       "bytes": 8960
     },
     {
@@ -679,8 +679,8 @@
     },
     {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/estudio/Openverse.kt",
-      "sha256": "60bfa9be73d7245fde11c5af84d3ccebb0d3e422f92dc65c450e774eed622d5d",
-      "bytes": 4894
+      "sha256": "af70f3b5ae82dcc3eb50fe6570352f0446c4556026a486910414baa0059e656a",
+      "bytes": 5039
     },
     {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/estudio/PreviaDoEstudio.kt",
@@ -1488,6 +1488,11 @@
       "bytes": 645
     },
     {
+      "path": "android/play/ficha-1.0.20.md",
+      "sha256": "f73918c9cf7f7c8f232f20d8ac1edec16eb3b0679189f76e190c0c88ae36d15d",
+      "bytes": 178
+    },
+    {
       "path": "android/play/ficha-1.0.6.md",
       "sha256": "a6d922dcfb5d3bc7d38963c2ab2746d1d74d69d932a28b1c0ae3873408310d2c",
       "bytes": 3763
@@ -1889,7 +1894,7 @@
     },
     {
       "path": "desktop/Directory.Build.props",
-      "sha256": "2c1ee8851b1a9750e0ed654c18d8a37140dc8caa775c35597e0031b130bb39f8",
+      "sha256": "afe157920a28dcf28fb867740811d82ec479d0f58275d564f4fb1214e316d062",
       "bytes": 473
     },
     {
@@ -2594,8 +2599,8 @@
     },
     {
       "path": "desktop/src/SmellsLikeTech.Converter.Desktop/Pages/StudioPage.Openverse.cs",
-      "sha256": "d84c35a6ec5ad3e70767bc9070981a296095d6d8a99a49a238b8d776fc6f4b3b",
-      "bytes": 16346
+      "sha256": "dde089d43337300b0abe17c232e5f0584cc74c3295166beffd1b3d38d27c5079",
+      "bytes": 16647
     },
     {
       "path": "desktop/src/SmellsLikeTech.Converter.Desktop/Pages/StudioPage.Player.cs",
@@ -4184,12 +4189,12 @@
     },
     {
       "path": "public/baixar/app.json",
-      "sha256": "9a75154ddfb8c30e257bea10b9a41d3f7b9754c4c6779a824c019d7e1db92c53",
+      "sha256": "7ee8142abf7e8b675c680ba2af3d7ffd01b328ae3adf16a0b447c0992b0861ec",
       "bytes": 212
     },
     {
       "path": "public/baixar/plugin.json",
-      "sha256": "8ff67bbf0ae9c31236f3bea4dc5756078aa0badda488b25a2bdce9828c5eabc6",
+      "sha256": "5b58032e5042fb5bad4535c780b077ad6be863ab1cbfe397d04dc976c7fb46ef",
       "bytes": 209
     },
     {

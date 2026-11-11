@@ -91,7 +91,9 @@ public sealed partial class StudioPage
 
     private static async Task DownloadOpenverseAsync(JsonElement item, Uri uri, string file, Action<long> progress, CancellationToken token)
     {
-        using var response = await OpenverseHttp.GetAsync(uri, HttpCompletionOption.ResponseHeadersRead, token);
+        using var request = new HttpRequestMessage(HttpMethod.Get, uri);
+        request.Headers.UserAgent.ParseAdd("SmellsLikeTechConverter/1.0 (Windows; https://converter.smellsliketech.com.br)");
+        using var response = await OpenverseHttp.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, token);
         if (response.StatusCode != HttpStatusCode.OK) throw new IOException("A origem da faixa está indisponível.");
         if (response.Content.Headers.ContentLength > MaxOpenverseBytes) throw new IOException("O arquivo excede o limite de 80 MiB.");
         var mime = response.Content.Headers.ContentType?.MediaType ?? "";
@@ -192,6 +194,7 @@ public sealed partial class StudioPage
             var uri = new Uri(item.GetProperty("midia").GetString()!);
             var extension = Path.GetExtension(uri.AbsolutePath).ToLowerInvariant();
             if (uri.Scheme != "https" || !uri.IsDefaultPort || uri.UserInfo.Length != 0 || uri.Host != "upload.wikimedia.org" ||
+                !uri.AbsolutePath.StartsWith("/wikipedia/commons/", StringComparison.Ordinal) ||
                 extension is not (".mp3" or ".wav" or ".ogg" or ".oga"))
                 throw new IOException("A origem ou o formato da faixa é incompatível.");
             var folder = Path.Combine(insert ? App.Services.Paths.Root : App.Services.Paths.Temp, "estudio", "openverse");

@@ -54,7 +54,9 @@ internal object Openverse {
         pasta.mkdirs()
         val temporario = File(pasta, "${UUID.randomUUID()}.parcial.$formato")
         val destino = File(pasta, "${UUID.randomUUID()}.$formato")
-        val conexao = conectar(uri)
+        val conexao = conectar(uri).apply {
+            setRequestProperty("User-Agent", "SmellsLikeTechConverter/1.0 (Android; https://converter.smellsliketech.com.br)")
+        }
         try {
             if (conexao.responseCode != 200) throw ErroDeConversao("A origem da faixa está indisponível.")
             if ((conexao.getHeaderField("Content-Length")?.toLongOrNull() ?: 0) > LIMITE) throw ErroDeConversao("O arquivo excede o limite de 80 MiB.")
