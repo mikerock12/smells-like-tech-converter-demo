@@ -34,8 +34,8 @@ android {
         minSdk = 28
         // A Google Play exige o Android 16 como alvo desde 31/08/2026.
         targetSdk = 36
-        versionCode = 46
-        versionName = "1.0.21"
+        versionCode = 47
+        versionName = "1.0.22"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         if (providers.gradleProperty("validacaoR8").orNull == "true")
             testApplicationId = "br.com.smellsliketech.converter.validacao.test"
@@ -48,6 +48,7 @@ android {
         // As arquiteturas do FFmpeg compilado (android/nativos): celulares ARM e, em x86_64,
         // Chromebooks e o emulador. A Google Play entrega a cada aparelho só a sua.
         ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64") }
+        externalNativeBuild { cmake { arguments += "-DANDROID_STL=c++_shared" } }
     }
 
     // O mesmo app, vendido de dois jeitos. "site": o APK baixado do site, com a licença
@@ -124,7 +125,9 @@ android {
     buildFeatures {
         compose = true
         buildConfig = true
+        prefab = true
     }
+    sourceSets.getByName("main").assets.directories.add("../../packages/converter-core/musica-catalogo")
     packaging {
         resources.excludes += setOf("META-INF/DEPENDENCIES", "META-INF/LICENSE*", "META-INF/NOTICE*")
         // O FFmpeg é um executável (libffmpeg.so): o Android precisa extraí-lo para a pasta
@@ -139,6 +142,7 @@ kotlin {
 
 dependencies {
     implementation(files("libs/sherpa-onnx-1.13.8.aar"))
+    implementation("com.google.oboe:oboe:1.11.0")
     implementation("androidx.core:core-ktx:1.17.0")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")

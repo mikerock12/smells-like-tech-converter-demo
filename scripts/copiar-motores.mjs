@@ -47,3 +47,9 @@ for (const nome of ["ort-wasm-simd-threaded.mjs", "ort-wasm-simd-threaded.wasm"]
 }
 for (const nome of ["u2netp.onnx", "LICENSE", "README.md"]) copyFileSync(join(raiz, "packages", "recorte", nome), join(recorte, nome));
 copyFileSync(join(raiz, "packages", "recorte", "LICENSE-ONNX-Runtime"), join(recorte, "LICENSE-ONNX-Runtime"));
+
+const nativo = join(raiz, "public", "motores", "nativo");
+mkdirSync(nativo, { recursive: true });
+for (const nome of ["slt_native.wasm", "slt_native.json"]) {
+  copyFileSync(join(raiz, "packages", "nativo", nome), join(nativo, nome));
+}

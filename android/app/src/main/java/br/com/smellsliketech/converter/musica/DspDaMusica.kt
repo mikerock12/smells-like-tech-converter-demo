@@ -79,6 +79,7 @@ object DspDaMusica {
     fun parametro(e: EfeitoMusical, id: String): Double = e.numero(id) ?: definicao(e.tipo)!!.parametros.first { it.id == id }.padrao
 
     fun validar(e: EfeitoMusical): String? {
+        if (e.tipo == "vst3") return if (e.ligado == null) "VST3: falta dizer se está ligado." else null
         val d = definicao(e.tipo) ?: return "efeito desconhecido (${e.tipo})."
         if (e.ligado == null) return "${d.rotulo}: falta dizer se está ligado."
         for (item in d.parametros) {
@@ -498,7 +499,7 @@ class CadeiaMusical(private val taxa: Int) {
 
     fun sincronizar(efeitos: List<EfeitoMusical>) {
         val anteriores = itens.associateBy { it.id }
-        itens = efeitos.map { e ->
+        itens = efeitos.filter { it.tipo != "vst3" }.map { e ->
             val anterior = anteriores[e.id]
             if (anterior != null && anterior.tipo == e.tipo) {
                 anterior.processador.atualizar(e)

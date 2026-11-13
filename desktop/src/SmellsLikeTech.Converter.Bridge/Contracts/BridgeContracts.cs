@@ -26,6 +26,8 @@ public sealed record ApresentacaoResposta
     public required string Versao { get; init; }
     public required int Protocolo { get; init; }
     public int VersaoDoEstudio { get; init; } = SmellsLikeTech.Converter.Core.Studio.StudioRules.ProjectVersion;
+    public IReadOnlyList<string>? MascarasDaSeparacaoMusical { get; init; }
+    public IReadOnlyList<string>? PerfisDaSeparacaoMusical { get; init; }
     public required MaquinaResumo Maquina { get; init; }
     public required IReadOnlyList<OperacaoResumo> Operacoes { get; init; }
     public required string PastaDeSaida { get; init; }

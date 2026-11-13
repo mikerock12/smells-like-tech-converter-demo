@@ -77,6 +77,7 @@ public static class MusicDsp
 
     public static string? Validate(MusicEffect effect)
     {
+        if (effect.Kind == "vst3") return effect.Enabled is null ? "VST3: falta dizer se está ligado." : null;
         var definition = Definition(effect.Kind ?? "");
         if (definition is null) return $"efeito desconhecido ({effect.Kind}).";
         if (effect.Enabled is null) return $"{definition.Label}: falta dizer se está ligado.";
@@ -716,7 +717,7 @@ public sealed class MusicChain(int rate)
     public void Sync(IReadOnlyList<MusicEffect>? effects)
     {
         var previous = items.ToDictionary(i => i.Id);
-        items = [.. (effects ?? []).Select(effect =>
+        items = [.. (effects ?? []).Where(effect => effect.Kind != "vst3").Select(effect =>
         {
             if (previous.TryGetValue(effect.Id, out var old) && old.Kind == effect.Kind)
             {

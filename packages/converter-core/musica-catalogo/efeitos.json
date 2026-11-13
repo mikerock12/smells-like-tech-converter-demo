@@ -1,0 +1,31 @@
+{
+  "cadeias": [
+    {"id":"voz-limpa","grupo":"Voz","nome":"Voz limpa","efeitos":[{"tipo":"passa-alta","frequencia":80},{"tipo":"desesser","frequencia":6500,"reducaoMaxDb":6},{"tipo":"compressor","limiarDb":-18,"razao":2.5,"ataqueMs":12,"liberacaoMs":120}]},
+    {"id":"voz-espaco","grupo":"Voz","nome":"Voz com espaço","efeitos":[{"tipo":"atraso","tempoMs":310,"retorno":0.32,"mistura":0.13},{"tipo":"reverberacao","tamanho":0.82,"amortecimento":0.55,"mistura":0.22}]},
+    {"id":"guitarra-drive","grupo":"Guitarra","nome":"Guitarra DI com drive","efeitos":[{"tipo":"passa-alta","frequencia":80},{"tipo":"saturacao","driveDb":13,"mistura":0.84,"saidaDb":-5},{"tipo":"passa-baixa","frequencia":5200}]},
+    {"id":"guitarra-distorcao","grupo":"Guitarra","nome":"Guitarra com distorção forte","efeitos":[{"tipo":"passa-alta","frequencia":115},{"tipo":"saturacao","driveDb":23,"mistura":1,"saidaDb":-10},{"tipo":"passa-baixa","frequencia":4100},{"tipo":"equalizador","mediosFrequencia":1250,"mediosDb":-2.5}]},
+    {"id":"guitarra-crunch-britanico","grupo":"Guitarra","nome":"Crunch britânico","efeitos":[{"tipo":"passa-alta","frequencia":85},{"tipo":"equalizador","mediosFrequencia":850,"mediosDb":4,"mediosQ":0.85},{"tipo":"saturacao","driveDb":17,"mistura":1,"saidaDb":-8},{"tipo":"passa-baixa","frequencia":4800}]},
+    {"id":"guitarra-limpa-tremolo","grupo":"Guitarra","nome":"Guitarra limpa com tremolo","efeitos":[{"tipo":"compressor","limiarDb":-15,"razao":2},{"tipo":"tremolo","taxaHz":4.2,"profundidade":0.36},{"tipo":"reverberacao","tamanho":0.5,"mistura":0.14}]},
+    {"id":"baixo-drive","grupo":"Baixo","nome":"Baixo DI com definição","efeitos":[{"tipo":"compressor","limiarDb":-21,"razao":3,"ataqueMs":18,"liberacaoMs":140},{"tipo":"saturacao","driveDb":8,"mistura":0.28,"saidaDb":-2},{"tipo":"equalizador","gravesDb":1.5,"mediosFrequencia":720,"mediosDb":2}]},
+    {"id":"baixo-limpo","grupo":"Baixo","nome":"Baixo limpo e comprimido","efeitos":[{"tipo":"passa-alta","frequencia":35},{"tipo":"compressor","limiarDb":-18,"razao":3.5,"ataqueMs":22,"liberacaoMs":145},{"tipo":"equalizador","gravesDb":2,"mediosFrequencia":370,"mediosDb":-2}]},
+    {"id":"baixo-coro","grupo":"Baixo","nome":"Baixo com coro leve","efeitos":[{"tipo":"compressor","limiarDb":-18,"razao":3,"ataqueMs":18,"liberacaoMs":140},{"tipo":"coro","taxaHz":0.43,"profundidadeMs":1.8,"mistura":0.12}]},
+    {"id":"textura-arco","grupo":"Texturas de instrumento","nome":"Textura de violino","efeitos":[{"tipo":"compressor","limiarDb":-24,"razao":4,"ataqueMs":2,"liberacaoMs":170},{"tipo":"equalizador","mediosFrequencia":900,"mediosDb":2,"agudosDb":-3},{"tipo":"coro","taxaHz":0.46,"profundidadeMs":2,"mistura":0.2},{"tipo":"reverberacao","tamanho":0.9,"amortecimento":0.58,"mistura":0.3}]},
+    {"id":"textura-violoncelo","grupo":"Texturas de instrumento","nome":"Textura de violoncelo","efeitos":[{"tipo":"compressor","limiarDb":-25,"razao":4,"ataqueMs":2,"liberacaoMs":230},{"tipo":"equalizador","gravesDb":2,"mediosFrequencia":280,"mediosDb":3,"presencaDb":-4},{"tipo":"passa-baixa","frequencia":3500},{"tipo":"reverberacao","tamanho":0.82,"amortecimento":0.62,"mistura":0.26}]},
+    {"id":"textura-gaita","grupo":"Texturas de instrumento","nome":"Textura de gaita","efeitos":[{"tipo":"passa-alta","frequencia":380},{"tipo":"equalizador","mediosFrequencia":1250,"mediosDb":7,"mediosQ":1.9},{"tipo":"saturacao","driveDb":6,"mistura":0.4,"saidaDb":-4},{"tipo":"passa-baixa","frequencia":4600},{"tipo":"tremolo","taxaHz":4.8,"profundidade":0.17}]},
+    {"id":"textura-teclado","grupo":"Texturas de instrumento","nome":"Textura de teclado harmônico","efeitos":[{"tipo":"compressor","limiarDb":-23,"razao":3.5,"ataqueMs":4,"liberacaoMs":195},{"tipo":"coro","taxaHz":0.58,"profundidadeMs":4,"mistura":0.38},{"tipo":"atraso","tempoMs":180,"retorno":0.25,"mistura":0.2},{"tipo":"reverberacao","tamanho":0.86,"mistura":0.25}]}
+  ],
+  "plugins": [
+    {"grupo":"Voz","nome":"TDR Nova","uso":"Equalizador dinâmico para ressonâncias e sibilância.","url":"https://www.tokyodawn.net/tdr-nova/"},
+    {"grupo":"Voz e texturas","nome":"Graillon 3 Free","uso":"Correção de afinação, transposição e formantes.","url":"https://www.auburnsounds.com/products/Graillon.html"},
+    {"grupo":"Espaço","nome":"TAL-Reverb-4","uso":"Reverb de placa com modulação.","url":"https://tal-software.com/products/tal-reverb-4"},
+    {"grupo":"Guitarra e baixo","nome":"Neural Amp Modeler Gateway","uso":"Carrega capturas de amplificadores e pedais. A seleção de capturas exige o editor do plugin.","url":"https://www.neuralampmodeler.com/users"},
+    {"grupo":"Guitarra","nome":"Chow Centaur","uso":"Overdrive inspirado no Klon Centaur. Compatibilidade no Converter em avaliação.","url":"https://chowdsp.com/products.html"},
+    {"grupo":"Guitarra","nome":"Ignite Emissary e NadIR","uso":"Amplificador de alto ganho e carregador de respostas de caixa. Compatibilidade no Converter em avaliação.","url":"https://www.igniteamps.com/?lang=en"},
+    {"grupo":"Guitarra e baixo","nome":"AmpliTube 5 CS","uso":"A edição gratuita inclui overdrive, wah, pré-amplificador de baixo, caixa, compressor e modulação. Compatibilidade no Converter em avaliação.","url":"https://www.ikmultimedia.com/products/amplitube5cs/?p=gear"},
+    {"grupo":"Guitarra","nome":"Roker Pack","uso":"Pedais gratuitos Bronza (fuzz), Grelka (overdrive) e Metalluga (distorção pesada). Compatibilidade no Converter em avaliação.","url":"https://psemiletov.github.io/rokerpack/"},
+    {"grupo":"Guitarra e baixo","nome":"OpenRiffBox","uso":"Pedaleira gratuita com amplificador e caixa. Compatibilidade no Converter em avaliação.","url":"https://github.com/dlujic/open-riff-box"},
+    {"grupo":"Guitarra e baixo","nome":"Helix Native","uso":"Suite comercial com modelos baseados em BOSS, Orange, Marshall, Fender, Ampeg e outros. Compatibilidade no Converter em avaliação.","url":"https://line6.com/helix-models/?locale=en_US"},
+    {"grupo":"Guitarra e baixo","nome":"AmpliTube Orange","uso":"Coleção comercial de amplificadores e caixas Orange. Compatibilidade no Converter em avaliação.","url":"https://www.ikmultimedia.com/products/orangecs/"},
+    {"grupo":"Texturas","nome":"TAL-Vocoder","uso":"Vocoder com sintetizador interno e opções de roteamento para a portadora.","url":"https://tal-software.com/products/tal-vocoder"}
+  ]
+}

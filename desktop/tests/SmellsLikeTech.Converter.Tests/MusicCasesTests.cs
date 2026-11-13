@@ -269,5 +269,42 @@ public sealed class MusicCasesTests
             Assert.Equal(stems[i].GetProperty("id").GetString(), mode.Stems[i].Id);
             Summary(stems[i], outputs[i][0], outputs[i][1], $"separação {mode.Stems[i].Id}");
         }
+
+        if (!MusicNative.IsAvailable) return;
+        const int janela = MusicSeparation.Window, passo = MusicSeparation.Hop;
+        const int porTrecho = MusicSeparation.FramesPerChunk, bandas = MusicSeparation.Bands;
+        using var nativo = new MusicNative.Separator((ulong)length, janela, passo, porTrecho, bandas, 4, (uint)outputs.Length);
+        Assert.Equal(expected.GetProperty("trechos").GetUInt32(), nativo.Chunks);
+        var magnitude = new float[2 * porTrecho * bandas];
+        var esquerda = new float[porTrecho * passo + janela];
+        var direita = new float[esquerda.Length];
+        var nomes = new[] { "vozes", "bateria", "baixo", "outros" };
+        for (uint trecho = 0; trecho < nativo.Chunks; trecho++)
+        {
+            var (inicio, n, _) = nativo.Window(trecho);
+            var fonteE = new float[n];
+            var fonteD = new float[n];
+            for (var i = 0; i < n; i++)
+            {
+                var quadro = inicio + i;
+                if (quadro < 0 || quadro >= length) continue;
+                fonteE[i] = original[0][quadro];
+                fonteD[i] = original[^1][quadro];
+            }
+            nativo.Analyze(trecho, fonteE, fonteD, magnitude);
+            var estimativas = FakeEstimates(magnitude, porTrecho, bandas, 4);
+            for (var faixa = 0; faixa < outputs.Length; faixa++)
+            {
+                var indices = mode.Stems[faixa].Id == "instrumental"
+                    ? new uint[] { 1, 2, 3 }
+                    : new[] { checked((uint)Array.IndexOf(nomes, mode.Stems[faixa].Id)) };
+                var (posicao, amostras) = nativo.Synthesize(trecho, (uint)faixa, estimativas, indices, esquerda, direita);
+                for (var i = 0; i < amostras; i++)
+                {
+                    Assert.InRange(Math.Abs(esquerda[i] - outputs[faixa][0][posicao + i]), 0, 2e-6f);
+                    Assert.InRange(Math.Abs(direita[i] - outputs[faixa][1][posicao + i]), 0, 2e-6f);
+                }
+            }
+        }
     }
 }

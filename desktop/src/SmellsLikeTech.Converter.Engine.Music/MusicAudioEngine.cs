@@ -28,6 +28,7 @@ public sealed record MusicTake(long AlignedFrame, long Frames, int Channels);
 /// </summary>
 public sealed class MusicAudioEngine : IDisposable
 {
+    public static bool UsesNativeOutput => Environment.GetEnvironmentVariable("SLT_MUSIC_OUTPUT") is "wasapi" or "asio";
     private readonly int rate;
     private readonly MusicMixer mixer;
     private readonly ConcurrentQueue<Action> commands = new();
@@ -51,6 +52,14 @@ public sealed class MusicAudioEngine : IDisposable
     private Recording? recording;
     private Dictionary<string, float[]> meters = [];
     private int blocks;
+    private readonly object nativeGate = new();
+    private MusicNative.Mixer? nativeMixer;
+    private MusicNative.Stream? nativeStream;
+    private string? selectedOutput;
+    private int selectedLatency;
+    private MusicProject? nativeProject;
+    private readonly Dictionary<string, IMusicSource> nativeSources = [];
+    private readonly bool nativeRequested = UsesNativeOutput;
     // Ultima leitura do relogio da saida: quadros que ja soaram e o instante (100 ns). O par vai
     // numa referencia so: com dois campos, a captura podia ler o quadro novo com o instante velho
     // e errar um periodo inteiro (~10 ms) na tomada, o que aparecia com o PC carregado.
@@ -77,8 +86,12 @@ public sealed class MusicAudioEngine : IDisposable
         withoutClick = new MusicMixOptions { InputLeft = inLeft, InputRight = inRight, Metronome = false };
     }
 
-    public long Position => Interlocked.Read(ref cursor);
+    public long Position
+    {
+        get { lock (nativeGate) return nativeMixer?.Position ?? Interlocked.Read(ref cursor); }
+    }
     public bool Playing => playing;
+    public bool IsUsingNativeOutput { get { lock (nativeGate) return nativeStream is not null; } }
     public bool IsRecording => recording is not null;
     public MusicInputInfo? Input { get; private set; }
     public string? OutputName { get; private set; }
@@ -89,7 +102,20 @@ public sealed class MusicAudioEngine : IDisposable
     /// <summary>Atraso que sobra depois do alinhamento pelos relogios: so os conversores (desconhecido sem calibrar).</summary>
     public int OutputLatencyFrames => 0;
 
-    public IReadOnlyDictionary<string, float[]> Meters => Volatile.Read(ref meters);
+    public IReadOnlyDictionary<string, float[]> Meters
+    {
+        get
+        {
+            lock (nativeGate)
+            {
+                if (nativeMixer is null || nativeProject is null) return Volatile.Read(ref meters);
+                var snapshot = new Dictionary<string, float[]> { ["master"] = nativeMixer.Meters("master") };
+                foreach (var track in nativeProject.Tracks) snapshot.TryAdd(track.Id, nativeMixer.Meters(track.Id));
+                foreach (var bus in nativeProject.Buses) snapshot.TryAdd(bus.Id, nativeMixer.Meters(bus.Id));
+                return snapshot;
+            }
+        }
+    }
 
     public static IReadOnlyList<MusicDevice> Outputs() => Devices(DataFlow.Render);
 
@@ -103,12 +129,45 @@ public sealed class MusicAudioEngine : IDisposable
 
     // ==================== saída ====================
 
-    public void Start(string? outputId = null, int latencyMs = 20)
+    public void Start(string? outputId = null, int latencyMs = 20) => Start(outputId, latencyMs, true);
+
+    private void Start(string? outputId, int latencyMs, bool allowNative)
     {
+        lock (nativeGate)
+        {
+            selectedOutput = outputId;
+            selectedLatency = latencyMs;
+            StopNative();
+        }
         StopRender();
         var enumerator = new MMDeviceEnumerator();
         var device = outputId is null ? enumerator.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia) : enumerator.GetDevice(outputId);
         OutputName = device.FriendlyName;
+        if (allowNative && Input is null && !playing && nativeRequested && MusicNative.IsAvailable)
+        {
+            lock (nativeGate)
+            {
+                try
+                {
+                    nativeMixer = new MusicNative.Mixer(rate);
+                    foreach (var (id, source) in nativeSources) CopyNativeSource(id, source);
+                    if (nativeProject is not null) PublishNative(nativeProject);
+                    var asio = Environment.GetEnvironmentVariable("SLT_MUSIC_OUTPUT") == "asio";
+                    nativeStream = nativeMixer.Open(asio ? 2u : 1u,
+                        asio ? Environment.GetEnvironmentVariable("SLT_MUSIC_ASIO_DEVICE") : outputId,
+                        bufferFrames: (uint)Math.Max(0, latencyMs * (long)rate / 1000));
+                    nativeStream.Start();
+                    OutputBufferMs = nativeStream.Info.BufferFrames * 1000.0 / rate;
+                    if (asio) OutputName = "ASIO";
+                    enumerator.Dispose();
+                    return;
+                }
+                catch (Exception e) when (e is InvalidOperationException or IOException)
+                {
+                    StopNative();
+                }
+            }
+        }
         var client = device.AudioClient;
         var format = WaveFormat.CreateIeeeFloatWaveFormat(rate, 2);
         client.Initialize(AudioClientShareMode.Shared, AudioClientStreamFlags.EventCallback | AudioClientStreamFlags.AutoConvertPcm | AudioClientStreamFlags.SrcDefaultQuality, latencyMs * 10_000L, 0, format, Guid.Empty);
@@ -173,28 +232,141 @@ public sealed class MusicAudioEngine : IDisposable
         return point.Frames + MusicRules.Round((qpc - point.At) / 1e7 * rate);
     }
 
-    public void SetProject(MusicProject value) => Volatile.Write(ref pendingProject, value.Clone());
-
-    public void SetSource(string media, IMusicSource? source) => commands.Enqueue(() => mixer.SetSource(media, source));
-
-    public void Play(long from, bool withMetronome) => commands.Enqueue(() =>
+    public void SetProject(MusicProject value)
     {
-        Interlocked.Exchange(ref cursor, Math.Max(0, from));
-        metronome = withMetronome;
-        mixer.SetCountIn([], -1);
-        playing = true;
-    });
+        var copia = value.Clone();
+        Volatile.Write(ref pendingProject, copia);
+        lock (nativeGate)
+        {
+            nativeProject = copia;
+            if (nativeMixer is not null)
+            {
+                try { PublishNative(copia); }
+                catch (InvalidOperationException) { UseManagedOutput(); }
+            }
+        }
+    }
 
-    public void Stop() => commands.Enqueue(() =>
+    public void SetSource(string media, IMusicSource? source)
     {
-        playing = false;
-        mixer.SetCountIn([], -1);
-        var r = recording;
-        recording = null;
-        if (r is not null) r.Done.TrySetResult(new MusicTake(r.Aligned == long.MinValue ? Position : r.Aligned, r.Frames, r.Channels));
-    });
+        commands.Enqueue(() => mixer.SetSource(media, source));
+        if (!nativeRequested) return;
+        lock (nativeGate)
+        {
+            if (source is null) nativeSources.Remove(media);
+            else nativeSources[media] = source;
+            if (nativeMixer is null) return;
+            try
+            {
+                if (source is null) nativeMixer.RemoveSource(media);
+                else CopyNativeSource(media, source);
+                if (nativeProject is not null) nativeMixer.Refresh();
+            }
+            catch (Exception e) when (e is InvalidOperationException or IOException)
+            {
+                UseManagedOutput();
+            }
+        }
+    }
 
-    public void Seek(long frame) => commands.Enqueue(() => Interlocked.Exchange(ref cursor, Math.Max(0, frame)));
+    private void CopyNativeSource(string id, IMusicSource source)
+    {
+        if (source.Frames <= 0 || source.Frames > 4L * 60 * rate)
+            throw new InvalidOperationException("Fonte acima do limite do mixer nativo experimental.");
+        var l = new float[(int)source.Frames];
+        source.Copy(0, 0, l.Length, l);
+        if (source.Channels == 1)
+        {
+            nativeMixer!.SetSource(id, l);
+            return;
+        }
+        var r = new float[l.Length];
+        source.Copy(1, 0, r.Length, r);
+        nativeMixer!.SetSource(id, l, r);
+    }
+
+    public void Play(long from, bool withMetronome)
+    {
+        lock (nativeGate)
+        {
+            if (nativeMixer is not null)
+            {
+                nativeMixer.SetMetronome(withMetronome);
+                metronome = withMetronome;
+                nativeMixer.Play(Math.Max(0, from));
+                playing = true;
+                return;
+            }
+        }
+        commands.Enqueue(() =>
+        {
+            Interlocked.Exchange(ref cursor, Math.Max(0, from));
+            metronome = withMetronome;
+            mixer.SetCountIn([], -1);
+            playing = true;
+        });
+    }
+
+    public void Stop()
+    {
+        lock (nativeGate)
+        {
+            if (nativeMixer is not null)
+            {
+                nativeMixer.Stop();
+                playing = false;
+                return;
+            }
+        }
+        commands.Enqueue(() =>
+        {
+            playing = false;
+            mixer.SetCountIn([], -1);
+            var r = recording;
+            recording = null;
+            if (r is not null) r.Done.TrySetResult(new MusicTake(r.Aligned == long.MinValue ? Position : r.Aligned, r.Frames, r.Channels));
+        });
+    }
+
+    public void Seek(long frame)
+    {
+        lock (nativeGate)
+        {
+            if (nativeMixer is not null)
+            {
+                nativeMixer.Play(Math.Max(0, frame));
+                if (!playing) nativeMixer.Stop();
+                return;
+            }
+        }
+        commands.Enqueue(() => Interlocked.Exchange(ref cursor, Math.Max(0, frame)));
+    }
+
+    private void PublishNative(MusicProject value)
+    {
+        nativeMixer!.SetProject(value);
+        nativeMixer.SetLoop(value.Loop.Start, value.Loop.Enabled ? value.Loop.End : value.Loop.Start);
+    }
+
+    private void StopNative()
+    {
+        if (nativeMixer is null) return;
+        Interlocked.Exchange(ref cursor, nativeMixer.Position);
+        nativeMixer.Dispose();
+        nativeMixer = null;
+        nativeStream = null;
+    }
+
+    private void UseManagedOutput()
+    {
+        lock (nativeGate)
+        {
+            if (nativeMixer is null) return;
+            StopNative();
+            if (playing) Play(Interlocked.Read(ref cursor), metronome);
+        }
+        Start(selectedOutput, selectedLatency, allowNative: false);
+    }
 
     public void MonitorWhileStopped(bool enabled) => monitorStopped = enabled;
 
@@ -202,6 +374,7 @@ public sealed class MusicAudioEngine : IDisposable
 
     public MusicInputInfo OpenInput(string? inputId, int channels)
     {
+        UseManagedOutput();
         CloseInput();
         var enumerator = new MMDeviceEnumerator();
         var device = inputId is null ? enumerator.GetDefaultAudioEndpoint(DataFlow.Capture, Role.Communications) : enumerator.GetDevice(inputId);
@@ -211,6 +384,7 @@ public sealed class MusicAudioEngine : IDisposable
     /// <summary>Grava o som que sai do computador (loopback): áudio de outro programa, ou conferir a saída sem microfone.</summary>
     public MusicInputInfo OpenLoopbackInput()
     {
+        UseManagedOutput();
         CloseInput();
         var enumerator = new MMDeviceEnumerator();
         var device = enumerator.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia);
@@ -440,6 +614,8 @@ public sealed class MusicAudioEngine : IDisposable
         Stop();
         CloseInput();
         StopRender();
+        lock (nativeGate) StopNative();
+        nativeSources.Clear();
     }
 
     /// <summary>Anel de um produtor (captura) e um consumidor (saída) para o monitoramento.</summary>

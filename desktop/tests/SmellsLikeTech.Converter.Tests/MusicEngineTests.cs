@@ -37,6 +37,17 @@ public sealed class MusicEngineTests(ITestOutputHelper output) : IDisposable
     }
 
     [Fact]
+    public async Task RejeitaCacheComTamanhoCorretoEShaInvalido()
+    {
+        var tools = Tools();
+        Directory.CreateDirectory(Path.GetDirectoryName(tools.ModelPath)!);
+        using (var model = File.Create(tools.ModelPath)) model.SetLength(MusicSeparation.ModelBytes);
+        var falha = await Assert.ThrowsAsync<SmellsLikeTech.Converter.Core.ConversionException>(() =>
+            tools.SeparateAsync("entrada.wav", folder, "2", 44_100, null, default));
+        Assert.Equal("model_mismatch", falha.Code);
+    }
+
+    [Fact]
     public async Task ImportsAnyRateAndExportsEveryFormat()
     {
         if (!HasFfmpeg()) { output.WriteLine("FFmpeg ausente: teste não executado."); return; }
@@ -163,6 +174,7 @@ public sealed class MusicEngineTests(ITestOutputHelper output) : IDisposable
     [Fact]
     public async Task RecordsWhilePlayingWithAStableOffsetOnRealWasapi()
     {
+        if (Environment.GetEnvironmentVariable("SLT_TESTE_LOOPBACK_WASAPI") != "1") return;
         MusicAudioEngine engine;
         try
         {
@@ -227,6 +239,7 @@ public sealed class MusicEngineTests(ITestOutputHelper output) : IDisposable
     [Fact]
     public async Task LongRecordingKeepsEveryFrame()
     {
+        if (Environment.GetEnvironmentVariable("SLT_TESTE_LOOPBACK_WASAPI") != "1") return;
         var minutes = double.TryParse(Environment.GetEnvironmentVariable("SLT_GRAVACAO_LONGA_MIN"), System.Globalization.CultureInfo.InvariantCulture, out var m) ? m : 0.5;
         MusicAudioEngine engine;
         try

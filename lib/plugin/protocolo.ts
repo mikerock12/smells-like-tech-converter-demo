@@ -30,6 +30,8 @@ export type Apresentacao = {
   protocolo: number;
   /** Capacidade opcional desde o plugin 0.8.0; protocolo de transporte permanece 1. */
   versaoDoEstudio?: number;
+  mascarasDaSeparacaoMusical?: ("classica" | "refinada")[];
+  perfisDaSeparacaoMusical?: ("legacy" | "studio" | "maximum")[];
   maquina: Maquina;
   operacoes: Operacao[];
   pastaDeSaida: string;
@@ -85,6 +87,14 @@ export type ArquivoEscolhido = {
   caminho: string;
   nome: string;
   bytes: number;
+};
+
+export type PedidoDeSeparacaoMusical = {
+  operation: "music.separate";
+  Mode: string;
+  SampleRate: number;
+  QualityProfile?: "legacy" | "studio" | "maximum";
+  MaskProfile?: "classica" | "refinada";
 };
 
 /** Como o site enxerga o plugin em cada momento. */

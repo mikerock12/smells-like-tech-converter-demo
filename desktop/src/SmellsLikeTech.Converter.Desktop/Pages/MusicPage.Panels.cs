@@ -8,6 +8,7 @@ using Path = System.IO.Path;
 using Microsoft.UI.Xaml.Media;
 using SmellsLikeTech.Converter.Core.Music;
 using SmellsLikeTech.Converter.Engine.Music;
+using System.Text.Json;
 
 namespace SmellsLikeTech.Converter.Desktop.Pages;
 
@@ -165,6 +166,7 @@ public sealed partial class MusicPage
         };
         // Um embaixo do outro: um nome de faixa longo não empurra o "Acrescentar" para fora da tela.
         panel.Children.Add(new StackPanel { Spacing = 8, Children = { target, add } });
+        panel.Children.Add(CatalogoDeEfeitos());
         var chain = ChainOf(project, effectsTarget);
         if (chain.Count == 0) panel.Children.Add(Label("Nenhum efeito nesta cadeia. A ordem conta: o sinal passa de cima para baixo. Os efeitos não têm atraso (latência zero)."));
         for (var i = 0; i < chain.Count; i++)
@@ -172,26 +174,29 @@ public sealed partial class MusicPage
             var effect = chain[i];
             var index = i;
             var definition = MusicDsp.Definition(effect.Kind);
-            if (definition is null) continue;
+            if (definition is null && effect.Kind != "vst3") continue;
+            var nomeDoEfeito = definition?.Label ??
+                (effect.Extra?.TryGetValue("nome", out var nome) == true && nome.ValueKind == JsonValueKind.String
+                    ? nome.GetString() ?? "VST3" : "VST3");
             var box = new StackPanel { Spacing = 4, Padding = new Thickness(10), CornerRadius = new CornerRadius(8), BorderThickness = new Thickness(1), BorderBrush = (Brush)Application.Current.Resources["BrandStrokeBrush"], Opacity = effect.IsEnabled ? 1 : 0.6 };
-            var enabled = new CheckBox { Content = definition.Label, IsChecked = effect.IsEnabled };
+            var enabled = new CheckBox { Content = nomeDoEfeito, IsChecked = effect.IsEnabled };
             enabled.Click += (_, _) => Edit(p => ChainOf(p, effectsTarget)[index].Enabled = enabled.IsChecked == true);
             var up = new Button { Content = "↑", IsEnabled = i > 0 };
             up.Click += (_, _) => Edit(p => { var c = ChainOf(p, effectsTarget); (c[index - 1], c[index]) = (c[index], c[index - 1]); });
             var down = new Button { Content = "↓", IsEnabled = i < chain.Count - 1 };
             down.Click += (_, _) => Edit(p => { var c = ChainOf(p, effectsTarget); (c[index + 1], c[index]) = (c[index], c[index + 1]); });
             var remove = new Button { Content = "✕" };
-            AutomationProperties.SetName(remove, $"Remover {definition.Label}");
+            AutomationProperties.SetName(remove, $"Remover {nomeDoEfeito}");
             remove.Click += (_, _) => Edit(p => ChainOf(p, effectsTarget).RemoveAt(index));
             box.Children.Add(new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, Children = { enabled, up, down, remove } });
             var grid = new VariableSizedWrapGrid { Orientation = Orientation.Horizontal, ItemWidth = 280 };
-            foreach (var parameter in definition.Parameters)
+            foreach (var parameter in definition?.Parameters ?? [])
             {
                 var slider = new Slider { Header = $"{parameter.Label}{(parameter.Unit.Length > 0 ? $" ({parameter.Unit})" : "")}", Minimum = parameter.Min, Maximum = parameter.Max, StepFrequency = parameter.Max - parameter.Min > 100 ? 1 : parameter.Max - parameter.Min > 10 ? 0.1 : 0.01, Value = MusicDsp.Param(effect, parameter.Id), Margin = new Thickness(0, 0, 12, 0) };
-                AutomationProperties.SetName(slider, $"{definition.Label}: {parameter.Label}");
+                AutomationProperties.SetName(slider, $"{nomeDoEfeito}: {parameter.Label}");
                 slider.ValueChanged += (_, e) => Edit(p => ChainOf(p, effectsTarget)[index].Set(parameter.Id, e.NewValue), $"{effect.Id}-{parameter.Id}", false);
                 var (step, relative) = MusicRules.StepFor(parameter.Min, parameter.Max, parameter.Unit);
-                grid.Children.Add(Fine(slider, step, relative, $"{definition.Label}: {parameter.Label}"));
+                grid.Children.Add(Fine(slider, step, relative, $"{nomeDoEfeito}: {parameter.Label}"));
             }
 
             box.Children.Add(grid);
@@ -199,6 +204,99 @@ public sealed partial class MusicPage
         }
 
         return panel;
+    }
+
+    private UIElement CatalogoDeEfeitos()
+    {
+        using var stream = typeof(MusicDsp).Assembly.GetManifestResourceStream("musica-efeitos.json")
+            ?? throw new InvalidOperationException("Catálogo de efeitos indisponível.");
+        using var catalogo = JsonDocument.Parse(stream);
+        var cadeias = new StackPanel { Spacing = 6 };
+        string? grupo = null;
+        foreach (var item in catalogo.RootElement.GetProperty("cadeias").EnumerateArray())
+        {
+            var proximoGrupo = item.GetProperty("grupo").GetString();
+            if (grupo != proximoGrupo)
+            {
+                grupo = proximoGrupo;
+                cadeias.Children.Add(Label(grupo ?? "Efeitos"));
+                if (grupo == "Texturas de instrumento")
+                    cadeias.Children.Add(Label("Use em solos de guitarra. Ajuste a transposição no clipe para escolher o registro."));
+            }
+            var efeitos = item.GetProperty("efeitos").Clone();
+            var botao = new Button { Content = item.GetProperty("nome").GetString() };
+            botao.Click += (_, _) => Edit(p =>
+            {
+                var cadeia = ChainOf(p, effectsTarget);
+                foreach (var etapa in efeitos.EnumerateArray())
+                {
+                    var tipo = etapa.GetProperty("tipo").GetString()!;
+                    var efeito = MusicDsp.NewEffect(tipo, NewId("fx"));
+                    foreach (var parametro in MusicDsp.Definition(tipo)!.Parameters)
+                        if (etapa.TryGetProperty(parametro.Id, out var valor))
+                            efeito.Set(parametro.Id, valor.GetDouble());
+                    cadeia.Add(efeito);
+                }
+            });
+            cadeias.Children.Add(botao);
+        }
+        var plugins = new StackPanel { Spacing = 8 };
+        if (MusicNative.HasVst3 && MusicAudioEngine.UsesNativeOutput)
+        {
+            var instalados = new ComboBox { Header = "Efeitos instalados", PlaceholderText = "Busque plugins VST3" };
+            var buscar = new Button { Content = "Buscar plugins instalados" };
+            var adicionar = new Button { Content = "Adicionar à cadeia", IsEnabled = false };
+            buscar.Click += async (_, _) =>
+            {
+                buscar.IsEnabled = false;
+                try
+                {
+                    var encontrados = await Task.Run(() => MusicNative.ScanPlugins());
+                    instalados.ItemsSource = encontrados.Select(p => new ComboBoxItem { Content = p.Name, Tag = p }).ToList();
+                    if (encontrados.Count == 0) Status("Nenhum efeito VST3 encontrado.", InfoBarSeverity.Informational);
+                }
+                catch (InvalidOperationException e) { Status(e.Message, InfoBarSeverity.Error); }
+                finally { buscar.IsEnabled = true; }
+            };
+            instalados.SelectionChanged += (_, _) => adicionar.IsEnabled = instalados.SelectedItem is ComboBoxItem;
+            adicionar.Click += (_, _) =>
+            {
+                if (instalados.SelectedItem is not ComboBoxItem { Tag: MusicNative.PluginInfo item }) return;
+                Edit(p => ChainOf(p, effectsTarget).Add(new MusicEffect
+                {
+                    Id = NewId("fx"), Kind = "vst3", Enabled = true,
+                    Extra = new Dictionary<string, JsonElement>
+                    {
+                        ["caminho"] = JsonSerializer.SerializeToElement(item.Path),
+                        ["classe"] = JsonSerializer.SerializeToElement(item.ClassId),
+                        ["nome"] = JsonSerializer.SerializeToElement(item.Name),
+                    },
+                }));
+            };
+            plugins.Children.Add(buscar);
+            plugins.Children.Add(instalados);
+            plugins.Children.Add(adicionar);
+        }
+        foreach (var item in catalogo.RootElement.GetProperty("plugins").EnumerateArray())
+        {
+            var nome = item.GetProperty("nome").GetString();
+            var link = new HyperlinkButton
+            {
+                Content = nome,
+                NavigateUri = new Uri(item.GetProperty("url").GetString()!),
+            };
+            plugins.Children.Add(link);
+            plugins.Children.Add(Label($"{item.GetProperty("grupo").GetString()}. {item.GetProperty("uso").GetString()}"));
+        }
+        return new StackPanel
+        {
+            Spacing = 8,
+            Children =
+            {
+                new Expander { Header = "Cadeias prontas", Content = cadeias },
+                new Expander { Header = "Plugins VST3 para Windows", Content = plugins },
+            },
+        };
     }
 
     // ==================== gravação ====================
@@ -239,7 +337,7 @@ public sealed partial class MusicPage
         };
         panel.Children.Add(new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, Children = { device, channels, open } });
         panel.Children.Add(info);
-        panel.Children.Add(Label("Use fones com fio ou uma interface de áudio. Com fone Bluetooth o atraso varia. Sem fones, deixe o MON desligado para não dar microfonia. A gravação é sempre seca: os efeitos só tocam, não entram no arquivo gravado. O aplicativo grava em WASAPI compartilhado; ASIO e plugins VST3 de terceiros não estão nesta versão."));
+        panel.Children.Add(Label("Use fones com fio ou uma interface de áudio. Com fone Bluetooth o atraso varia. Sem fones, deixe o MON desligado para evitar microfonia. A gravação usa WASAPI compartilhado e salva o sinal seco. A saída nativa experimental com WASAPI ou ASIO e os efeitos VST3 ficam disponíveis durante a reprodução."));
         var latency = project!.Latency.Measured
             ? $"Latência medida: {(project.Latency.Input + project.Latency.Output) * 1000 / Rate:0.0} ms de ida e volta."
             : engine?.Input is not null ? $"A tomada é alinhada pelo relógio do dispositivo: os {engine.OutputBufferMs:0} ms de buffer do Windows já são descontados. Calibre para descontar também o atraso dos conversores." : "Abra a entrada para gravar.";
@@ -310,11 +408,26 @@ public sealed partial class MusicPage
             source.Items.Add(text);
         }
 
-        var mode = new RadioButtons { Header = "2. Em quantas faixas", SelectedIndex = 1, ItemsSource = MusicSeparation.Modes.Select(m => $"{m.Stems.Count} faixas: {m.Label}").ToList() };
+        var modes = MusicSeparation.Modes.ToList();
+        if (MusicTools.HasExperimentalRoFormer)
+            modes.Add(new("6", "RoFormer experimental · voz, bateria, baixo, guitarra, piano e resíduo", MusicTools.ExperimentalRoFormerStems));
+        var mode = new RadioButtons { Header = "2. Em quantas faixas", SelectedIndex = 1, ItemsSource = modes.Select(m => $"{m.Stems.Count} faixas: {m.Label}").ToList() };
         var names = Label("");
-        void ShowNames() => names.Text = "As faixas novas entram com o nome do que são: " + string.Join(", ", MusicSeparation.Modes[Math.Max(0, mode.SelectedIndex)].Stems.Select(st => MusicRules.SeparatedTrackName(st.Label, "…"))) + ".";
+        var warning = Label("");
+        var refine = new ToggleSwitch { Header = "Refinar agudos (experimental)", IsEnabled = MusicNative.IsAvailable };
+        void ShowNames()
+        {
+            var selected = modes[Math.Max(0, mode.SelectedIndex)];
+            refine.IsEnabled = MusicNative.IsAvailable && selected.Id != "6";
+            names.Text = "As faixas novas entram com o nome do que são: " + string.Join(", ", selected.Stems.Select(st => MusicRules.SeparatedTrackName(st.Label, "…"))) + ".";
+            if (selected.Id == "6") names.Text += " A separação pode demorar e usar vários gigabytes de RAM.";
+            warning.Text = selected.Id == "6"
+                ? "Pode haver vazamento entre as faixas separadas. A faixa original fica no projeto para comparação."
+                : MusicSeparation.Warning;
+        }
         ShowNames();
         mode.SelectionChanged += (_, _) => ShowNames();
+        var restore = new Slider { Header = "Restauração por instrumento (%)", Minimum = 0, Maximum = 100, StepFrequency = 1, IsEnabled = MusicNative.IsAvailable };
         var clean = new ToggleSwitch { Header = "Reduzir ruído nas faixas separadas", IsOn = false };
         var cleanHelp = Label("Tira o chiado e o ruído constante que a separação costuma deixar em cada faixa (mais útil na voz). Deixe desligado se a música original já é limpa.");
         var progress = new ProgressBar { Maximum = 1, Width = 320, Visibility = Visibility.Collapsed };
@@ -326,21 +439,28 @@ public sealed partial class MusicPage
         run.Click += async (_, _) =>
         {
             var (track, clip) = clips[Math.Max(0, source.SelectedIndex)];
-            var modeId = MusicSeparation.Modes[Math.Max(0, mode.SelectedIndex)].Id;
+            var modeId = modes[Math.Max(0, mode.SelectedIndex)].Id;
+            var roformer = modeId == "6";
+            var modelId = roformer ? MusicTools.ExperimentalRoFormerId : MusicSeparation.ModelId;
+            var refined = !roformer && refine.IsOn;
+            var intensity = (int)restore.Value;
             work = new CancellationTokenSource();
             run.IsEnabled = false;
             cancel.Visibility = progress.Visibility = Visibility.Visible;
             try
             {
-                if (!Tools.ModelReady)
+                if (!roformer)
                 {
-                    stage.Text = "Baixando o modelo (78 MB, só na primeira vez)";
+                    if (!Tools.ModelReady) stage.Text = "Baixando o modelo (78 MB, só na primeira vez)";
                     await Tools.EnsureModelAsync(App.Services.Http, new Progress<double>(f => progress.Value = f), work.Token);
                 }
 
                 var folder = Path.Combine(Library.Folder(project.Id), "midias");
-                var stems = (await Tools.SeparateAsync(Library.MediaPath(project.Id, clip.Media), folder, modeId, Rate,
-                    new Progress<(string Stage, double Fraction)>(p => { stage.Text = p.Stage; progress.Value = p.Fraction; }), work.Token)).ToList();
+                var input = Library.MediaPath(project.Id, clip.Media);
+                var reports = new Progress<(string Stage, double Fraction)>(p => { stage.Text = p.Stage; progress.Value = p.Fraction; });
+                var stems = (roformer
+                    ? await Tools.SeparateRoFormerAsync(input, folder, Rate, reports, work.Token)
+                    : await Tools.SeparateAsync(input, folder, modeId, Rate, reports, work.Token, refined)).ToList();
                 if (clean.IsOn)
                 {
                     // Cada faixa separada passa pela redução de ruído antes de entrar no projeto.
@@ -355,7 +475,19 @@ public sealed partial class MusicPage
                         stems[k] = (stem, cleaned);
                     }
                 }
+                var restored = new Dictionary<string, string>();
+                if (intensity > 0)
+                {
+                    foreach (var (stem, raw) in stems)
+                    {
+                        var output = Path.Combine(folder, $"{Path.GetFileNameWithoutExtension(raw)}-restaurada.wav");
+                        stage.Text = $"Restaurando {stem.Label}";
+                        await MusicTools.RestoreStemAsync(raw, output, Rate, stem.Id, intensity, work.Token);
+                        restored[stem.Id] = output;
+                    }
+                }
                 var added = new List<MusicMedia>();
+                var active = new List<MusicMedia>();
                 Edit(p =>
                 {
                     var i = p.Tracks.FindIndex(t => t.Id == track.Id);
@@ -367,19 +499,32 @@ public sealed partial class MusicPage
                         var mediaId = NewId("stem");
                         File.Move(path, Library.MediaPath(p.Id, mediaId), true);
                         using var wav = new MappedWavSource(Library.MediaPath(p.Id, mediaId));
-                        var media = new MusicMedia { Id = mediaId, Name = $"{stem.Label}.wav", SampleRate = Rate, Channels = 2, Frames = wav.Frames, Origin = origin?.Id, Instrument = stem.Id, Model = MusicSeparation.ModelId, ModelVersion = "1" };
+                        var media = new MusicMedia { Id = mediaId, Name = $"{stem.Label}.wav", SampleRate = Rate, Channels = 2, Frames = wav.Frames, Origin = origin?.Id, Instrument = stem.Id, Model = modelId, ModelVersion = "1" };
                         p.Media.Add(media);
                         added.Add(media);
+                        if (restored.TryGetValue(stem.Id, out var derived))
+                        {
+                            var derivedId = NewId("restaurada");
+                            File.Move(derived, Library.MediaPath(p.Id, derivedId), true);
+                            media = new MusicMedia { Id = derivedId, Name = $"{stem.Label} restaurada.wav", SampleRate = Rate,
+                                Channels = 2, Frames = wav.Frames, Origin = mediaId, Instrument = stem.Id, Model = modelId,
+                                ModelVersion = "1", Restoration = new MusicRestoration(intensity, 1) };
+                            p.Media.Add(media);
+                            added.Add(media);
+                        }
+                        active.Add(media);
                         var newTrack = MusicRules.NewTrack(NewId("faixa"), MusicRules.SeparatedTrackName(stem.Label, track.Name), i + k + 1);
                         var c = clip.Copy();
                         c.Id = NewId("clipe");
-                        c.Media = mediaId;
+                        c.Media = media.Id;
                         c.Name = stem.Label;
                         newTrack.Clips.Add(c);
                         p.Tracks.Insert(i + k + 1, newTrack);
                     }
 
-                    p.Separations.Add(new MusicSeparationRecord { Id = NewId("sep"), Media = clip.Media, Mode = modeId, Model = MusicSeparation.ModelId, Tracks = [.. added.Select(m => m.Id)] });
+                    p.Separations.Add(new MusicSeparationRecord { Id = NewId("sep"), Media = clip.Media, Mode = modeId, Model = modelId,
+                        Tracks = [.. active.Select(m => m.Id)], QualityProfile = roformer ? "maximum" : "legacy",
+                        MaskProfile = roformer ? null : refined ? "refinada" : "classica" });
                 });
                 foreach (var media in added) LoadMedia(media);
                 Status($"Pronto: {stems.Count} faixas novas abaixo de “{track.Name}”, que ficou muda como referência.{(clean.IsOn ? " O ruído de fundo foi reduzido em cada uma." : "")}", InfoBarSeverity.Success);
@@ -400,13 +545,25 @@ public sealed partial class MusicPage
         };
         panel.Children.Add(source);
         panel.Children.Add(mode);
+        if (MusicNative.IsAvailable) panel.Children.Add(refine);
+        if (restore.IsEnabled) panel.Children.Add(restore);
+        var comparar = new Button { Content = "Alternar bruta / restaurada (volume igualado)" };
+        comparar.Click += (_, _) =>
+        {
+            var (track, clip) = clips[Math.Max(0, source.SelectedIndex)];
+            var atual = project.Media.Find(m => m.Id == clip.Media);
+            var destino = atual?.Restoration is not null ? atual.Origin : project.Media.Find(m => m.Origin == atual?.Id && m.Restoration is not null)?.Id;
+            if (destino is null) return;
+            Edit(p => Track(p, track.Id).Clips.Find(c => c.Id == clip.Id)!.Media = destino);
+        };
+        panel.Children.Add(comparar);
         panel.Children.Add(names);
         panel.Children.Add(clean);
         panel.Children.Add(cleanHelp);
         panel.Children.Add(new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, Children = { run, cancel } });
         panel.Children.Add(progress);
         panel.Children.Add(stage);
-        panel.Children.Add(Label(MusicSeparation.Warning));
+        panel.Children.Add(warning);
         panel.Children.Add(Label($"Modelo: Spleeter 4 faixas (Deezer), licença {MusicSeparation.ModelLicense}. Roda neste computador; o áudio não sai daqui. {(Tools.ModelReady ? "O modelo já está baixado." : "O modelo (78 MB) é baixado na primeira separação, conferido pelo SHA-256.")}"));
         panel.Children.Add(Label("Separar músicas de outras pessoas não muda os direitos autorais delas: use em gravações suas ou que você tem direito de usar."));
         return panel;

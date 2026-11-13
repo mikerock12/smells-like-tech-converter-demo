@@ -24,6 +24,7 @@ export interface Barramento { id: string; nome: string; ganhoDb: number; pan: nu
 export interface Midia {
   id: string; nome: string; formato: string; taxa: number; canais: number; quadros: number; bits: number;
   sha256?: string; origem?: string | null; instrumento?: string | null; modelo?: string | null; versaoDoModelo?: string | null;
+  restauracao?: { intensidade: number; versao: number };
 }
 export interface Marcador { id: string; quadro: number; nome: string }
 export interface ProjetoMusical {
@@ -34,7 +35,7 @@ export interface ProjetoMusical {
   contagem: number; latencia: { entrada: number; saida: number; medida: boolean; ajuste?: number };
   loop: { ligado: boolean; inicio: number; fim: number };
   punch: { ligado: boolean; entrada: number; saida: number };
-  separacoes: { id: string; midia: string; modo: string; modelo: string; faixas: string[] }[];
+  separacoes: { id: string; midia: string; modo: string; modelo: string; faixas: string[]; perfilDeQualidade?: "legacy" | "studio" | "maximum"; perfilDeMascara?: "classica" | "refinada" }[];
 }
 export interface Clique { quadro: number; forte: boolean }
 export interface PlanoDaGravacao { inicioDoTransporte: number; inicioDaTomada: number; fimDaTomada: number | null; cliquesDaContagem: Clique[]; preRolagem: number }

@@ -46,7 +46,10 @@ if ($ApenasPublicarNoSite) { $SkipPublish = $true; $SkipVerify = $true }
 if (-not $SkipPublish) {
     Write-Host "-> publicando (Release, self-contained, win-x64)…" -ForegroundColor Cyan
     if (Test-Path $payloadDir) { Remove-Item $payloadDir -Recurse -Force }
-    dotnet publish $project -c Release -o $payloadDir --nologo
+    $native = Join-Path $desktopDir "..\build\nativo\windows-vst3\Release\slt_native.dll"
+    if (-not (Test-Path -LiteralPath $native)) { throw "Compile slt_native.dll com VST3 em build/nativo/windows-vst3 antes de gerar o instalador." }
+    $native = (Resolve-Path -LiteralPath $native).Path
+    dotnet publish $project -c Release -o $payloadDir --nologo "-p:SltNativeDll=$native"
     if ($LASTEXITCODE -ne 0) { throw "Falha ao publicar o aplicativo." }
 }
 

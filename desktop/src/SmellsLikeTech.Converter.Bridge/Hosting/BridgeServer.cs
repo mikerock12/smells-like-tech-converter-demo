@@ -15,6 +15,7 @@ using SmellsLikeTech.Converter.Core;
 using SmellsLikeTech.Converter.Core.Abstractions;
 using SmellsLikeTech.Converter.Core.Jobs;
 using SmellsLikeTech.Converter.Core.Media;
+using SmellsLikeTech.Converter.Core.Music;
 using SmellsLikeTech.Converter.Core.Operations;
 using SmellsLikeTech.Converter.Core.Options;
 
@@ -91,6 +92,9 @@ public sealed class BridgeServer(AppServices servicos, BridgeOptions opcoes, UiT
         {
             Versao = typeof(BridgeServer).Assembly.GetName().Version?.ToString(3) ?? "0.1.0",
             Protocolo = Protocolo,
+            MascarasDaSeparacaoMusical = MusicNative.IsAvailable ? ["classica", "refinada"] : ["classica"],
+            PerfisDaSeparacaoMusical = SmellsLikeTech.Converter.Engine.Music.MusicTools.HasExperimentalRoFormer
+                ? ["legacy", "maximum"] : ["legacy"],
             PastaDeSaida = servicos.OutputDirectory,
             Maquina = new MaquinaResumo
             {

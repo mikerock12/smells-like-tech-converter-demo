@@ -256,13 +256,30 @@ function lerComZeros(ler, canal, inicio, n, destino, comprimento) {
 
 /* ------------------------------------------------------------------ máscaras */
 
+/** Perfis da máscara acima das bandas do modelo (~11 kHz): o clássico continua o padrão. */
+export const PERFIS_DE_MASCARA = [
+  { id: "classica", rotulo: "Clássica", descricao: "Acima de 11 kHz, cada faixa recebe a média do que ela tem nas bandas de baixo." },
+  { id: "refinada", rotulo: "Agudos refinados", descricao: "Acima de 11 kHz, cada faixa recebe o que ela tem na oitava de cima (5,5 a 11 kHz), pesado pela energia da música. Costuma deixar pratos e sibilantes na faixa certa." },
+];
+
+const TRANSICAO_DA_MASCARA = 64;
+const BORDA_DA_MASCARA = 16;
+const PISO_DA_CONFIANCA = 1e-3;
+
 /**
  * Máscaras de Wiener (expoente 2) a partir das estimativas do modelo, para uma faixa do modo
- * escolhido (a soma das máscaras dos instrumentos dela). Acima das `bandas` do modelo, a
- * máscara de cada quadro é a média dela nas bandas de baixo, para não perder os agudos.
+ * escolhido (a soma das máscaras dos instrumentos dela). Acima das `bandas` do modelo a
+ * máscara precisa ser inventada:
+ *  - clássica (sem `refino`): a média dela nas bandas de baixo, para não perder os agudos;
+ *  - refinada (`refino` = { re, im } do trecho analisado): a máscara da oitava de cima que o
+ *    modelo enxerga, pesada pela energia da mistura; quando essa oitava está quase vazia,
+ *    volta para a média; e logo acima do limite continua de onde as últimas bandas pararam.
+ * As duas são combinações lineares da máscara de baixo com pesos que só dependem da mistura:
+ * a soma das máscaras de todos os instrumentos continua 1 (a soma das faixas é a mistura).
  * `estimativas`: [instrumentos, 2, T, bandas]. `destino`: [2][T*B].
+ * Espelho de produção da refinada: native/slt-media-engine/src/mascaras.cpp.
  */
-export function mascaraDaFaixa(estimativas, instrumentos, indices, q, T, bandas, B, destino) {
+export function mascaraDaFaixa(estimativas, instrumentos, indices, q, T, bandas, B, destino, refino = null) {
   const eps = 1e-10;
   const plano = 2 * T * bandas;
   for (let c = 0; c < 2; c += 1) {
@@ -286,7 +303,34 @@ export function mascaraDaFaixa(estimativas, instrumentos, indices, q, T, bandas,
         somaDaLinha += valor;
       }
       const media = somaDaLinha / bandas;
-      for (let k = bandas; k < B; k += 1) m[f * B + k] = media;
+      if (!refino || bandas < 2 * BORDA_DA_MASCARA) {
+        for (let k = bandas; k < B; k += 1) m[f * B + k] = media;
+        continue;
+      }
+      const re = refino.re[c];
+      const im = refino.im[c];
+      let energiaDaLinha = 0;
+      let energiaDeCima = 0;
+      let pesada = 0;
+      for (let k = 0; k < bandas; k += 1) {
+        const e = re[f * B + k] * re[f * B + k] + im[f * B + k] * im[f * B + k];
+        energiaDaLinha += e;
+        if (k >= bandas / 2) {
+          energiaDeCima += e;
+          pesada += e * m[f * B + k];
+        }
+      }
+      const confianca = energiaDeCima / (energiaDeCima + PISO_DA_CONFIANCA * energiaDaLinha + 1e-20);
+      const deCima = energiaDeCima > 0 ? pesada / energiaDeCima : media;
+      const alvo = confianca * deCima + (1 - confianca) * media;
+      let borda = 0;
+      for (let k = bandas - BORDA_DA_MASCARA; k < bandas; k += 1) borda += m[f * B + k];
+      borda /= BORDA_DA_MASCARA;
+      for (let k = bandas; k < B; k += 1) {
+        const distancia = k - bandas;
+        const t = distancia >= TRANSICAO_DA_MASCARA ? 1 : (distancia + 1) / (TRANSICAO_DA_MASCARA + 1);
+        m[f * B + k] = borda + (alvo - borda) * t;
+      }
     }
   }
 }
@@ -294,9 +338,10 @@ export function mascaraDaFaixa(estimativas, instrumentos, indices, q, T, bandas,
 /**
  * Separação completa com o modelo injetado: `executar(tensor [1,2,T,bandas]) → Promise<Float32Array [1,4,2,T,bandas]>`.
  * `ler(canal, inicio, n, destino)` lê o original a 44,1 kHz; `emitir(faixa, canal, inicio, amostras, n)`
- * recebe o resultado em pedaços, na ordem. `progresso(fracao)` e `cancelado()` opcionais.
+ * recebe o resultado em pedaços, na ordem. `mascara`: "classica" (padrão) ou "refinada".
+ * `progresso(fracao)` e `cancelado()` opcionais.
  */
-export async function separar({ comprimento, canais, ler, executar, emitir, modo = "4", progresso = () => {}, cancelado = () => false }) {
+export async function separar({ comprimento, canais, ler, executar, emitir, modo = "4", mascara: perfilDaMascara = "classica", progresso = () => {}, cancelado = () => false }) {
   const definicao = modoDeSeparacao(modo);
   if (!definicao) throw new Error(`Modo de separação desconhecido: ${modo}`);
   const m = MODELO_DE_SEPARACAO;
@@ -310,7 +355,7 @@ export async function separar({ comprimento, canais, ler, executar, emitir, modo
     processador.magnitude(q, m.bandas, entrada);
     const estimativas = await executar(entrada);
     for (let f = 0; f < definicao.faixas.length; f += 1) {
-      mascaraDaFaixa(estimativas, m.instrumentos.length, indices[f], q, m.quadrosPorTrecho, m.bandas, processador.B, mascara);
+      mascaraDaFaixa(estimativas, m.instrumentos.length, indices[f], q, m.quadrosPorTrecho, m.bandas, processador.B, mascara, perfilDaMascara === "refinada" ? processador : null);
       processador.sintetizar(s, f, mascara, (canal, inicio, amostras, n) => emitir(f, canal, inicio, amostras, n));
     }
     progresso((s + 1) / processador.trechos);

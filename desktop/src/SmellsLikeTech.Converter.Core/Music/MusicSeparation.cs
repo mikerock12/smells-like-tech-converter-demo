@@ -53,9 +53,16 @@ public static class MusicSeparation
         Action<int, int, long, float[], int> emit,
         string mode,
         IProgress<double>? progress,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool refined = false)
     {
         var definition = Mode(mode) ?? throw new ArgumentException($"Modo de separação desconhecido: {mode}");
+        if (refined || Environment.GetEnvironmentVariable("SLT_MUSIC_NATIVE") == "1" && MusicNative.IsAvailable)
+        {
+            if (!MusicNative.IsAvailable)
+                throw new ConversionException("native_missing", "O núcleo nativo é necessário para refinar os agudos.");
+            return await SeparateNativeAsync(length, channels, read, run, emit, definition, progress, cancellationToken, refined).ConfigureAwait(false);
+        }
         var processor = new MusicSpectralProcessor(length, Window, Hop, FramesPerChunk, definition.Stems.Count);
         var input = new float[2 * FramesPerChunk * Bands];
         float[][] mask = [new float[FramesPerChunk * processor.B], new float[FramesPerChunk * processor.B]];
@@ -76,6 +83,48 @@ public static class MusicSeparation
             progress?.Report((s + 1) / (double)processor.Chunks);
         }
 
+        return definition.Stems;
+    }
+
+    private static async Task<IReadOnlyList<MusicStemDefinition>> SeparateNativeAsync(
+        long length, int channels, Reader read, Func<float[], CancellationToken, Task<float[]>> run,
+        Action<int, int, long, float[], int> emit, MusicSeparationMode definition,
+        IProgress<double>? progress, CancellationToken token, bool refined)
+    {
+        using var processor = new MusicNative.Separator((ulong)length, Window, Hop, FramesPerChunk, Bands,
+            (uint)Instruments.Length, (uint)definition.Stems.Count, refined);
+        var input = new float[2 * FramesPerChunk * Bands];
+        var left = new float[FramesPerChunk * Hop + Window];
+        var right = new float[left.Length];
+        var source = new float[left.Length];
+        var indices = definition.Stems.Select(s => s.From.Select(name => (uint)Array.IndexOf(Instruments, name)).ToArray()).ToArray();
+        var chunks = processor.Chunks;
+        for (uint chunk = 0; chunk < chunks; chunk++)
+        {
+            token.ThrowIfCancellationRequested();
+            var (start, count, _) = processor.Window(chunk);
+            var first = Math.Max(0, start);
+            var n = (int)Math.Max(0, Math.Min(length, start + count) - first);
+            var offset = (int)(first - start);
+            for (var c = 0; c < 2; c++)
+            {
+                var destination = c == 0 ? left : right;
+                Array.Clear(destination, 0, count);
+                if (n == 0) continue;
+                read(Math.Min(c, channels - 1), first, n, source);
+                Array.Copy(source, 0, destination, offset, n);
+            }
+            processor.Analyze(chunk, left.AsSpan(0, count), right.AsSpan(0, count), input);
+            var estimates = await run(input, token).ConfigureAwait(false);
+            for (var stem = 0; stem < indices.Length; stem++)
+            {
+                var (position, frames) = processor.Synthesize(chunk, (uint)stem, estimates, indices[stem], left, right);
+                if (frames == 0) continue;
+                emit(stem, 0, position, left, frames);
+                emit(stem, 1, position, right, frames);
+            }
+            progress?.Report((chunk + 1) / (double)chunks);
+        }
         return definition.Stems;
     }
 

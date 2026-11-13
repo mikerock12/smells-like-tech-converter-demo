@@ -125,6 +125,7 @@ export function parametro(efeito, id) {
 
 /** O que está errado num efeito, ou null. */
 export function validarEfeito(efeito) {
+  if (efeito?.tipo === "vst3") return typeof efeito.ligado === "boolean" ? null : "VST3: falta dizer se está ligado.";
   const definicao = definicaoDoEfeito(efeito?.tipo);
   if (!definicao) return `efeito desconhecido (${efeito?.tipo}).`;
   if (typeof efeito.ligado !== "boolean") return `${definicao.rotulo}: falta dizer se está ligado.`;
@@ -660,7 +661,7 @@ export class Cadeia {
 
   sincronizar(efeitos) {
     const anteriores = new Map(this.itens.map((item) => [item.id, item]));
-    this.itens = (efeitos ?? []).map((efeito) => {
+    this.itens = (efeitos ?? []).filter((efeito) => efeito.tipo !== "vst3").map((efeito) => {
       const anterior = anteriores.get(efeito.id);
       if (anterior && anterior.tipo === efeito.tipo) {
         anterior.processador.atualizar(efeito);

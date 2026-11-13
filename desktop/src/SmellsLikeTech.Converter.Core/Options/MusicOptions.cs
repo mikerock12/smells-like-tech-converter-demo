@@ -19,11 +19,21 @@ public sealed record MusicSeparateOptions : JobOptions
     /// <summary>Taxa de amostragem das faixas devolvidas.</summary>
     public int SampleRate { get; init; } = MusicRules.DefaultSampleRate;
 
+    public string? QualityProfile { get; init; }
+    public string? MaskProfile { get; init; }
+
     public override void Validate()
     {
-        if (MusicSeparation.Mode(Mode) is null) throw new ConversionException("invalid_mode", "Modo de separação desconhecido: use 2 ou 4 faixas.");
+        if (QualityProfile == "maximum" ? Mode != "6" : MusicSeparation.Mode(Mode) is null)
+            throw new ConversionException("invalid_mode", "O modo escolhido é incompatível com o perfil de separação.");
         if (!MusicRules.SampleRates.Contains(SampleRate)) throw new ConversionException("invalid_rate", "Taxa de amostragem não suportada (44,1, 48 ou 96 kHz).");
+        if (QualityProfile is not (null or "legacy" or "maximum"))
+            throw new ConversionException("invalid_profile", "O perfil de qualidade solicitado ainda não está disponível.");
+        if (MaskProfile is not (null or "classica" or "refinada"))
+            throw new ConversionException("invalid_mask", "Perfil de máscara desconhecido.");
+        if (QualityProfile == "maximum" && MaskProfile is not null)
+            throw new ConversionException("invalid_mask", "O RoFormer usa máscaras próprias.");
     }
 
-    public override string Summary() => $"Separar em {MusicSeparation.Mode(Mode)?.Stems.Count ?? 4} faixas";
+    public override string Summary() => $"Separar em {Mode} faixas";
 }

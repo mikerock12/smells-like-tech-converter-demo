@@ -174,6 +174,7 @@ public sealed class MusicMedia
     [JsonPropertyName("origem")] public string? Origin { get; set; }
     [JsonPropertyName("instrumento")] public string? Instrument { get; set; }
     [JsonPropertyName("modelo")] public string? Model { get; set; }
+    [JsonPropertyName("restauracao")] public MusicRestoration? Restoration { get; set; }
     [JsonPropertyName("versaoDoModelo")] public string? ModelVersion { get; set; }
 }
 
@@ -206,6 +207,10 @@ public sealed class MusicPunch
     [JsonPropertyName("saida")] public long Out { get; set; }
 }
 
+public sealed record MusicRestoration(
+    [property: JsonPropertyName("intensidade")] int Intensity,
+    [property: JsonPropertyName("versao")] int Version);
+
 public sealed class MusicSeparationRecord
 {
     [JsonPropertyName("id")] public string Id { get; set; } = "";
@@ -213,4 +218,6 @@ public sealed class MusicSeparationRecord
     [JsonPropertyName("modo")] public string Mode { get; set; } = "4";
     [JsonPropertyName("modelo")] public string Model { get; set; } = "";
     [JsonPropertyName("faixas")] public List<string> Tracks { get; set; } = [];
+    [JsonPropertyName("perfilDeQualidade")] public string? QualityProfile { get; set; }
+    [JsonPropertyName("perfilDeMascara")] public string? MaskProfile { get; set; }
 }

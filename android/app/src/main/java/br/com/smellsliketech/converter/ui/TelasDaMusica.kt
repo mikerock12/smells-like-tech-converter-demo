@@ -62,6 +62,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.material3.Switch
 import androidx.compose.material3.RadioButton
 import androidx.compose.foundation.clickable
@@ -84,9 +85,11 @@ import br.com.smellsliketech.converter.musica.FaixaMusical
 import br.com.smellsliketech.converter.musica.MasterDaMusica
 import br.com.smellsliketech.converter.musica.Musica
 import br.com.smellsliketech.converter.musica.MusicaViewModel
+import br.com.smellsliketech.converter.musica.NucleoNativo
 import br.com.smellsliketech.converter.musica.ProjetoMusical
 import br.com.smellsliketech.converter.musica.SeparacaoDaMusica
 import java.util.UUID
+import org.json.JSONObject
 import kotlin.math.log10
 import kotlin.math.roundToLong
 
@@ -531,6 +534,13 @@ private fun AbaDeEfeitos(modelo: MusicaViewModel, projeto: ProjetoMusical) {
     }
     var menuAlvo by remember { mutableStateOf(false) }
     var menuNovo by remember { mutableStateOf(false) }
+    var verCadeias by rememberSaveable { mutableStateOf(false) }
+    var verPlugins by rememberSaveable { mutableStateOf(false) }
+    val contexto = LocalContext.current
+    val navegador = LocalUriHandler.current
+    val catalogo = remember(contexto) {
+        contexto.assets.open("efeitos.json").bufferedReader().use { JSONObject(it.readText()) }
+    }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         // O alvo ocupa a linha toda e corta nomes longos; o botão de novo efeito fica sempre visível embaixo.
         Text("Efeitos de", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -544,6 +554,45 @@ private fun AbaDeEfeitos(modelo: MusicaViewModel, projeto: ProjetoMusical) {
             Button(onClick = { menuNovo = true }, Modifier.fillMaxWidth()) { Text("+ Efeito") }
             DropdownMenu(menuNovo, { menuNovo = false }) {
                 DspDaMusica.CATALOGO.forEach { d -> DropdownMenuItem(text = { Text("${d.grupo}: ${d.rotulo}") }, onClick = { menuNovo = false; trocar { it + DspDaMusica.novoEfeito(d.tipo, novoId("fx")) } }) }
+            }
+        }
+        OutlinedButton(onClick = { verCadeias = !verCadeias }) { Text("Cadeias prontas") }
+        if (verCadeias) {
+            val cadeias = catalogo.getJSONArray("cadeias")
+            var grupoAnterior = ""
+            repeat(cadeias.length()) { i ->
+                val preset = cadeias.getJSONObject(i)
+                val grupo = preset.getString("grupo")
+                if (grupoAnterior != grupo) {
+                    grupoAnterior = grupo
+                    Text(grupo, fontWeight = FontWeight.SemiBold)
+                    if (grupo == "Texturas de instrumento") {
+                        Text("Use em solos de guitarra. Ajuste a transposição no clipe para escolher o registro.", fontSize = 13.sp)
+                    }
+                }
+                TextButton(onClick = {
+                    val etapas = preset.getJSONArray("efeitos")
+                    trocar { lista -> lista + List(etapas.length()) { j ->
+                        val etapa = etapas.getJSONObject(j)
+                        val tipo = etapa.getString("tipo")
+                        val efeito = DspDaMusica.novoEfeito(tipo, novoId("fx"))
+                        DspDaMusica.definicao(tipo)!!.parametros.fold(efeito) { atual, parametro ->
+                            if (etapa.has(parametro.id)) atual.com(parametro.id, etapa.getDouble(parametro.id)) else atual
+                        }
+                    } }
+                }) { Text(preset.getString("nome")) }
+            }
+        }
+        OutlinedButton(onClick = { verPlugins = !verPlugins }) { Text("Plugins VST3 para Windows") }
+        if (verPlugins) {
+            Text("Plugins externos exigem um host VST3 no Windows. As cadeias prontas funcionam neste estúdio.", fontSize = 13.sp)
+            val plugins = catalogo.getJSONArray("plugins")
+            repeat(plugins.length()) { i ->
+                val plugin = plugins.getJSONObject(i)
+                TextButton(onClick = { navegador.openUri(plugin.getString("url")) }) {
+                    Text(plugin.getString("nome"))
+                }
+                Text("${plugin.getString("grupo")}. ${plugin.getString("uso")}", fontSize = 13.sp)
             }
         }
         val efeitos = cadeia(projeto)
@@ -577,6 +626,8 @@ private fun AbaDeSeparar(modelo: MusicaViewModel, projeto: ProjetoMusical) {
     var escolhido by rememberSaveable { mutableStateOf<String?>(null) }
     var modo by rememberSaveable { mutableStateOf("4") }
     var limpar by rememberSaveable { mutableStateOf(false) }
+    var refinada by rememberSaveable { mutableStateOf(false) }
+    var intensidade by rememberSaveable { mutableIntStateOf(0) }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text("Separar faixas por IA", fontWeight = FontWeight.Bold)
         if (clipes.isEmpty()) { Text("Importe ou grave um áudio primeiro."); return@Column }
@@ -610,7 +661,36 @@ private fun AbaDeSeparar(modelo: MusicaViewModel, projeto: ProjetoMusical) {
             Text("Reduzir ruído nas faixas separadas", Modifier.weight(1f))
         }
         Text("Tira o chiado e o ruído constante que a separação costuma deixar em cada faixa (mais útil na voz). Fica desligado se a música original já é limpa.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Button(onClick = { modelo.separar(faixa.id, clipe.id, modo, limpar) }, enabled = modelo.andamento == null, modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Separar faixas" }) { Text("Separar") }
+        if (NucleoNativo.disponivel) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Switch(refinada, { refinada = it }, enabled = modelo.andamento == null)
+                Text("Refinar agudos (experimental)", Modifier.padding(start = 8.dp))
+            }
+            Text("Restauração por instrumento ($intensidade%)", fontSize = 13.sp)
+            AjusteDaMusica("Intensidade da restauração", intensidade.toDouble(), 0.0, 100.0, 1.0, false) {
+                intensidade = it.toInt()
+            }
+        }
+        Button(onClick = { modelo.separar(faixa.id, clipe.id, modo, limpar, refinada && NucleoNativo.disponivel,
+            if (NucleoNativo.disponivel) intensidade else 0) }, enabled = modelo.andamento == null, modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Separar faixas" }) { Text("Separar") }
+        val atual = projeto.midias.firstOrNull { it.id == clipe.midia }
+        val restaurada = atual?.takeIf { it.restauracao != null }
+            ?: projeto.midias.firstOrNull { it.origem == atual?.id && it.restauracao != null }
+        val bruta = restaurada?.origem
+        if (bruta != null) {
+            Text("Comparar em volume igualado", fontSize = 13.sp)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                for ((rotulo, id) in listOf("Bruta" to bruta, "Restaurada" to restaurada.id)) {
+                    FilterChip(atual?.id == id, {
+                        modelo.mudar { p -> p.copy(faixas = p.faixas.map { f ->
+                            if (f.id == faixa.id) f.copy(clipes = f.clipes.map { c ->
+                                if (c.id == clipe.id) c.copy(midia = id) else c
+                            }) else f
+                        }) }
+                    }, { Text(rotulo) })
+                }
+            }
+        }
         Text(SeparacaoDaMusica.AVISO, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Text("Modelo: Spleeter 4 faixas (Deezer), licença ${SeparacaoDaMusica.LICENCA}. Roda no celular; o áudio não sai daqui. ${if (modelo.biblioteca.modeloPronto) "O modelo já está baixado." else "O modelo (78 MB) é baixado na primeira separação e conferido pelo SHA-256."} Músicas longas levam minutos e gastam bateria; aparelhos com pouca memória podem não dar conta.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Text("Separar músicas de outras pessoas não muda os direitos autorais delas: use em gravações suas ou que você tem direito de usar.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)

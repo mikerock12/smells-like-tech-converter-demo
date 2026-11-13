@@ -19,6 +19,8 @@ Modelos de transcrição (baixados só quando você pede)
   https://huggingface.co/ggerganov/whisper.cpp
 
 Bibliotecas do app
+- Oboe 1.11.0 (saída do Estúdio de Música) — Apache 2.0 — https://github.com/google/oboe
+  Texto completo em licenca-oboe-apache-2.0.txt nos assets do app.
 - Kotlin, kotlinx.coroutines — Apache 2.0 — https://kotlinlang.org
 - AndroidX e Jetpack Compose — Apache 2.0 — https://developer.android.com/jetpack
 - PdfBox-Android (Apache PDFBox) — Apache 2.0 — https://github.com/TomRoush/PdfBox-Android

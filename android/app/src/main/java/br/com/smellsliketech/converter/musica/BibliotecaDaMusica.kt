@@ -29,6 +29,59 @@ class BibliotecaDaMusica(private val contexto: Context) {
     private val temporaria get() = File(contexto.cacheDir, "musica").apply { mkdirs() }
     val modelo = File(contexto.filesDir, "modelos/${SeparacaoDaMusica.ARQUIVO}")
     private val travaDaTransformacao = Mutex()
+    private val travaDoModelo = Mutex()
+
+    suspend fun restaurarFaixa(entrada: File, saida: File, taxa: Int, instrumento: String, intensidade: Int) = withContext(Dispatchers.IO) {
+        val perfil = when (instrumento) { "vozes" -> 0; "bateria" -> 1; "baixo" -> 2; else -> 3 }
+        val temp = File.createTempFile("stem-", ".wav", temporaria)
+        val e = FloatArray(65536)
+        val d = FloatArray(e.size)
+        val diretoE = NucleoNativo.plano(e.size)
+        val diretoD = NucleoNativo.plano(d.size)
+        val canais = listOf(e, d)
+        try {
+            NucleoNativo.Restaurador(taxa, perfil, intensidade.toFloat()).use { rest ->
+                FonteWav(entrada).use { fonte ->
+                    EscritorDeWav(temp, 2, taxa).use { escritor ->
+                        var inicio = 0L
+                        while (inicio < fonte.quadros) {
+                            coroutineContext.ensureActive()
+                            val n = minOf(e.size.toLong(), fonte.quadros - inicio).toInt()
+                            fonte.copiar(0, inicio, n, e)
+                            fonte.copiar(1, inicio, n, d)
+                            diretoE.asFloatBuffer().put(e, 0, n)
+                            diretoD.asFloatBuffer().put(d, 0, n)
+                            rest.processar(n, diretoE, diretoD)
+                            diretoE.asFloatBuffer().get(e, 0, n)
+                            diretoD.asFloatBuffer().get(d, 0, n)
+                            escritor.escreverCanais(canais, n)
+                            inicio += n
+                        }
+                    }
+                }
+                val ganho = rest.ganho()
+                FonteWav(temp).use { fonte ->
+                    EscritorDeWav(saida, 2, taxa).use { escritor ->
+                        var inicio = 0L
+                        while (inicio < fonte.quadros) {
+                            coroutineContext.ensureActive()
+                            val n = minOf(e.size.toLong(), fonte.quadros - inicio).toInt()
+                            fonte.copiar(0, inicio, n, e)
+                            fonte.copiar(1, inicio, n, d)
+                            for (j in 0 until n) { e[j] *= ganho; d[j] *= ganho }
+                            escritor.escreverCanais(canais, n)
+                            inicio += n
+                        }
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            saida.delete()
+            throw e
+        } finally {
+            temp.delete()
+        }
+    }
 
     fun pasta(id: String) = File(raiz, id)
     fun midia(projeto: String, midia: String) = File(pasta(projeto), "midias/$midia.wav")
@@ -216,11 +269,26 @@ class BibliotecaDaMusica(private val contexto: Context) {
 
     val modeloPronto get() = modelo.exists() && modelo.length() == SeparacaoDaMusica.BYTES
 
+    private suspend fun conferirModelo(): Boolean {
+        if (!modeloPronto) return false
+        val resumo = MessageDigest.getInstance("SHA-256")
+        modelo.inputStream().use { entrada ->
+            val b = ByteArray(1 shl 16)
+            while (true) {
+                coroutineContext.ensureActive()
+                val n = entrada.read(b)
+                if (n < 0) break
+                resumo.update(b, 0, n)
+            }
+        }
+        return resumo.digest().joinToString("") { "%02x".format(it) } == SeparacaoDaMusica.SHA256
+    }
+
     /** Baixa o modelo (78 MB) na primeira vez e confere o SHA-256 antes de usar. */
-    suspend fun garantirModelo(progresso: (Double) -> Unit) = withContext(Dispatchers.IO) {
-        if (modeloPronto) return@withContext
+    suspend fun garantirModelo(progresso: (Double) -> Unit) = withContext(Dispatchers.IO) { travaDoModelo.withLock {
+        if (conferirModelo()) return@withLock
         modelo.parentFile?.mkdirs()
-        val temp = File(modelo.path + ".baixando")
+        val temp = File.createTempFile("spleeter-", ".baixando", modelo.parentFile)
         val conexao = URL(SeparacaoDaMusica.URL).openConnection() as HttpURLConnection
         conexao.connectTimeout = 20_000
         conexao.readTimeout = 60_000
@@ -236,28 +304,30 @@ class BibliotecaDaMusica(private val contexto: Context) {
                         coroutineContext.ensureActive()
                         val n = entrada.read(b)
                         if (n < 0) break
+                        recebido += n
+                        check(recebido <= SeparacaoDaMusica.BYTES) { "O modelo de separação é maior que o esperado." }
                         saida.write(b, 0, n)
                         resumo.update(b, 0, n)
-                        recebido += n
                         progresso(recebido.toDouble() / total)
                     }
                 }
             }
             val hex = resumo.digest().joinToString("") { "%02x".format(it) }
-            if (hex != SeparacaoDaMusica.SHA256) { temp.delete(); error("O modelo baixado não confere (SHA-256 diferente) e foi descartado.") }
+            check(hex == SeparacaoDaMusica.SHA256 && temp.length() == SeparacaoDaMusica.BYTES) { "O modelo baixado não confere e foi descartado." }
             check(temp.renameTo(modelo)) { "Não foi possível guardar o modelo." }
         } finally {
             conexao.disconnect()
+            temp.delete()
         }
-    }
+    } }
 
     /**
      * Separa uma mídia do projeto: converte para 44,1 kHz, roda o modelo em trechos (memória
      * limitada), escreve uma faixa por WAV e volta para a taxa do projeto. Devolve os arquivos
      * na ordem do modo.
      */
-    suspend fun separar(entrada: File, saida: File, modo: String, taxa: Int, progresso: (String, Double) -> Unit): List<Pair<FaixaDoModo, File>> = withContext(Dispatchers.Default) {
-        check(modeloPronto) { "O modelo de separação não está baixado." }
+    suspend fun separar(entrada: File, saida: File, modo: String, taxa: Int, refinada: Boolean = false, progresso: (String, Double) -> Unit): List<Pair<FaixaDoModo, File>> = withContext(Dispatchers.Default) {
+        check(withContext(Dispatchers.IO) { conferirModelo() }) { "O modelo de separação está ausente ou não confere." }
         val trabalhoAtual = coroutineContext[kotlinx.coroutines.Job]
         val trabalho = File(temporaria, "separacao-${System.nanoTime()}").apply { mkdirs() }
         try {
@@ -282,6 +352,8 @@ class BibliotecaDaMusica(private val contexto: Context) {
                             modo,
                             progresso = { progresso("Separando as faixas", it) },
                             cancelado = { trabalhoAtual?.isActive == false },
+                            nativo = contexto.getSharedPreferences("criacao-musical", Context.MODE_PRIVATE).getBoolean("motor-nativo", false),
+                            refinada = refinada,
                         )
                     } finally {
                         escritores.forEach { it.close() }

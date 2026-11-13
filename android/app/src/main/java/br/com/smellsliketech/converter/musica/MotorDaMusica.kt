@@ -46,7 +46,7 @@ data class RotaDeAudio(val chave: String, val nome: String)
 class MotorDaMusica(private val contexto: Context, private val taxa: Int = Musica.TAXA_PADRAO) {
     private val misturador = MisturadorDaMusica(taxa)
     private val comandos = ConcurrentLinkedQueue<() -> Unit>()
-    @Volatile private var projetoPendente: ProjetoMusical? = null
+    private val projetoPendente = AtomicReference<ProjetoMusical?>()
     private var projeto: ProjetoMusical? = null
     private val cursor = AtomicLong(0)
     @Volatile var tocando = false
@@ -71,6 +71,11 @@ class MotorDaMusica(private val contexto: Context, private val taxa: Int = Music
     var burst = 256
         private set
     @Volatile private var trilhaAtual: AudioTrack? = null
+    private val usarOboe = contexto.getSharedPreferences("criacao-musical", Context.MODE_PRIVATE).getBoolean("motor-oboe", false)
+    @Volatile private var permitirOboe = true
+    private val controleDaSaida = Any()
+    @Volatile private var nativo: NucleoNativo.Mixer? = null
+    private var projetoNativo = false
 
     private class Gravacao(val canais: Int, val escrever: (FloatArray) -> Unit) {
         var primeiroEscrito = -1L
@@ -89,9 +94,23 @@ class MotorDaMusica(private val contexto: Context, private val taxa: Int = Music
 
     val posicao get() = cursor.get()
     val gravando get() = gravacao != null
+    internal val usandoOboe get() = nativo != null
 
-    fun iniciar() {
+    fun iniciar() = synchronized(controleDaSaida) {
         if (ligado) return
+        if (permitirOboe && usarOboe && NucleoNativo.disponivel) {
+            val mixer = runCatching { NucleoNativo.Mixer(taxa) }.getOrNull()
+            if (mixer != null) {
+                val fluxo = runCatching { mixer.abrirFluxo().also { it.iniciar() } }.getOrNull()
+                if (fluxo != null) {
+                    nativo = mixer
+                    ligado = true
+                    saida = Thread({ lacoOboe(mixer, fluxo) }, "criacao-musical-controle-oboe").apply { start() }
+                    return
+                }
+                mixer.close()
+            }
+        }
         val gerenciador = contexto.getSystemService(AudioManager::class.java)
         burst = gerenciador.getProperty(AudioManager.PROPERTY_OUTPUT_FRAMES_PER_BUFFER)?.toIntOrNull()?.takeIf { it in 64..2048 } ?: 256
         val minimo = AudioTrack.getMinBufferSize(taxa, AudioFormat.CHANNEL_OUT_STEREO, AudioFormat.ENCODING_PCM_FLOAT)
@@ -105,6 +124,50 @@ class MotorDaMusica(private val contexto: Context, private val taxa: Int = Music
         ligado = true
         trilhaAtual = trilha
         saida = Thread({ lacoDaSaida(trilha) }, "criacao-musical-saida").apply { start() }
+    }
+
+    private fun lacoOboe(mixer: NucleoNativo.Mixer, fluxo: NucleoNativo.Mixer.Fluxo) {
+        try {
+            while (ligado) {
+                while (true) (comandos.poll() ?: break).invoke()
+                projetoPendente.getAndSet(null)?.let { p ->
+                    projeto = p
+                    misturador.definirProjeto(p)
+                    val json = p.paraJson()
+                    val faixas = json.getJSONArray("faixas")
+                    for ((f, faixa) in p.faixas.withIndex()) {
+                        val clipes = faixas.getJSONObject(f).getJSONArray("clipes")
+                        for ((c, clipe) in faixa.clipes.withIndex()) {
+                            if (TransformacaoDaMusica.temTransformacao(clipe))
+                                clipes.getJSONObject(c).put("_fonte", TransformacaoDaMusica.chaveDaFonte(clipe))
+                        }
+                    }
+                    mixer.projeto(json.toString().toByteArray())
+                    mixer.loop(p.loop.inicio, if (p.loop.ligado) p.loop.fim else p.loop.inicio)
+                    projetoNativo = true
+                }
+                cursor.set(mixer.posicao())
+                if (projetoNativo) projeto?.let { p ->
+                    medidores = (listOf("master") + p.faixas.map { it.id } + p.barramentos.map { it.id })
+                        .associateWith(mixer::medidores)
+                }
+                if (fluxo.info().perdido) throw IOException("A saída Oboe foi desconectada.")
+                Thread.sleep(12)
+            }
+        } catch (e: Exception) {
+            erroDeLeitura.set(e.message ?: "O Oboe encerrou a saída de áudio.")
+        } finally {
+            mixer.close()
+            nativo = null
+            projetoNativo = false
+        }
+        synchronized(controleDaSaida) {
+            if (ligado) {
+                permitirOboe = false
+                ligado = false
+                iniciar()
+            }
+        }
     }
 
     private fun lacoDaSaida(trilha: AudioTrack) {
@@ -122,7 +185,7 @@ class MotorDaMusica(private val contexto: Context, private val taxa: Int = Music
             trilha.play()
             while (ligado) {
                 while (true) (comandos.poll() ?: break).invoke()
-                projetoPendente?.let { projetoPendente = null; projeto = it; misturador.definirProjeto(it) }
+                projetoPendente.getAndSet(null)?.let { projeto = it; misturador.definirProjeto(it) }
                 anel.ler(entE, entD, n, monitorarParado || tocando)
                 val p = projeto
                 val inicio = if (tocando && p != null) cursor.get() else -1L
@@ -177,29 +240,64 @@ class MotorDaMusica(private val contexto: Context, private val taxa: Int = Music
         return ponto.quadro + Musica.arredondar((nano - ponto.em) / 1e9 * taxa)
     }
 
-    fun definirProjeto(p: ProjetoMusical) { projetoPendente = p }
+    fun definirProjeto(p: ProjetoMusical) { projetoPendente.set(p) }
 
-    fun definirFonte(midia: String, fonte: FonteDeAudio?) { comandos.add { misturador.definirFonte(midia, fonte) } }
+    fun definirFonte(midia: String, fonte: FonteDeAudio?) { comandos.add {
+        misturador.definirFonte(midia, fonte)
+        nativo?.let { mixer ->
+            if (fonte == null) mixer.removerFonte(midia)
+            else {
+                check(fonte.quadros in 1L..(4L * 60 * taxa)) { "Fonte acima do limite do mixer Oboe experimental." }
+                val n = fonte.quadros.toInt()
+                val amostras = FloatArray(n)
+                fonte.copiar(0, 0, n, amostras)
+                val e = NucleoNativo.plano(n).also { it.asFloatBuffer().put(amostras) }
+                val d = if (fonte.canais > 1) {
+                    fonte.copiar(1, 0, n, amostras)
+                    NucleoNativo.plano(n).also { it.asFloatBuffer().put(amostras) }
+                } else null
+                mixer.fonte(midia, e, d, n)
+            }
+            if (projetoNativo) mixer.atualizar()
+        }
+    } }
 
     fun tocar(de: Long, comMetronomo: Boolean) = comandos.add {
         cursor.set(max(0L, de)); metronomo = comMetronomo; misturador.definirContagem(emptyList(), -1); tocando = true
+        nativo?.let { it.metronomo(comMetronomo); it.tocar(cursor.get()) }
     }
 
     fun parar() = comandos.add {
         tocando = false
+        nativo?.parar()
         misturador.definirContagem(emptyList(), -1)
         val g = gravacao
         gravacao = null
         if (g != null) g.aoTerminar?.invoke(Tomada(if (g.alinhado == Long.MIN_VALUE) cursor.get() else g.alinhado, g.quadros, g.canais, g.peloRelogio, g.medidas))
     }
 
-    fun posicionar(quadro: Long) = comandos.add { cursor.set(max(0L, quadro)) }
+    fun posicionar(quadro: Long) = comandos.add {
+        cursor.set(max(0L, quadro))
+        nativo?.let { it.tocar(cursor.get()); if (!tocando) it.parar() }
+    }
 
     fun monitorarParado(ligar: Boolean) { monitorarParado = ligar }
 
     /** Abre o microfone (precisa da permissão RECORD_AUDIO já concedida). */
     @SuppressLint("MissingPermission")
     fun abrirEntrada(canais: Int): EntradaAberta {
+        val anterior = synchronized(controleDaSaida) {
+            if (nativo == null) null else {
+                permitirOboe = false
+                ligado = false
+                saida
+            }
+        }
+        if (anterior != null) {
+            anterior.join(1000)
+            check(nativo == null) { "Não foi possível fechar a saída Oboe." }
+            iniciar()
+        }
         fecharEntrada()
         val gerenciador = contexto.getSystemService(AudioManager::class.java)
         val semProcesso = gerenciador.getProperty(AudioManager.PROPERTY_SUPPORT_AUDIO_SOURCE_UNPROCESSED) == "true"
@@ -307,9 +405,12 @@ class MotorDaMusica(private val contexto: Context, private val taxa: Int = Music
     fun desligar() {
         parar()
         fecharEntrada()
-        ligado = false
-        saida?.join(1000)
-        saida = null
+        val anterior = synchronized(controleDaSaida) {
+            ligado = false
+            saida
+        }
+        anterior?.join(1000)
+        synchronized(controleDaSaida) { if (saida === anterior) saida = null }
     }
 
     companion object {

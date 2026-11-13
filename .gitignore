@@ -76,3 +76,6 @@ yarn-error.log*
 /android/app/src/main/assets/kokoro/
 /android/app/libs/*.aar
 /desktop/tests/**/TestResults/
+
+# Núcleo nativo: saída do CMake e toolchains baixados
+/build/nativo/

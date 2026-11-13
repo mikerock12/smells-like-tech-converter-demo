@@ -26,6 +26,7 @@ export declare class ProcessadorEspectral {
 }
 export declare function mascaraDaFaixa(estimativas: Float32Array, instrumentos: number, indices: number[], q: number, T: number, bandas: number, B: number, destino: Float32Array[]): void;
 export declare function separar(opcoes: {
+  mascara?: "classica" | "refinada";
   comprimento: number;
   canais: number;
   ler: Ler;

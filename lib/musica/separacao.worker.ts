@@ -6,16 +6,31 @@
  */
 
 import { MODELO_DE_SEPARACAO, separar } from "@/packages/converter-core/musica-separacao.mjs";
+import { carregarNucleoNativo } from "@/packages/converter-core/nativo.mjs";
 
-type Pedido = { tipo: "separar"; canais: Float32Array[]; modo: string } | { tipo: "cancelar" };
+type Pedido = { tipo: "separar"; canais: Float32Array[]; modo: string; nativo: boolean; mascara: "classica" | "refinada" }
+  | { tipo: "restaurar"; canais: Float32Array[]; taxa: number; perfil: string; intensidade: number }
+  | { tipo: "cancelar" };
 
 let cancelado = false;
+
+async function carregarWasm() {
+  const resposta = await fetch("/motores/nativo/slt_native.wasm");
+  if (!resposta.ok) throw new Error("Não foi possível carregar o núcleo de áudio.");
+  return carregarNucleoNativo(await resposta.arrayBuffer());
+}
 
 async function modelo(): Promise<ArrayBuffer> {
   const raiz = await navigator.storage.getDirectory();
   const pasta = await raiz.getDirectoryHandle("modelos", { create: true });
   const arquivo = await (await pasta.getFileHandle(MODELO_DE_SEPARACAO.arquivo)).getFile();
-  return arquivo.arrayBuffer();
+  if (arquivo.size !== MODELO_DE_SEPARACAO.bytes) throw new Error("O tamanho do modelo de separação não confere.");
+  const bytes = await arquivo.arrayBuffer();
+  const hash = new Uint8Array(await crypto.subtle.digest("SHA-256", bytes));
+  if (Array.from(hash, (b) => b.toString(16).padStart(2, "0")).join("") !== MODELO_DE_SEPARACAO.sha256) {
+    throw new Error("O modelo de separação não confere. Apague o modelo salvo e tente novamente.");
+  }
+  return bytes;
 }
 
 self.onmessage = async (evento: MessageEvent<Pedido>) => {
@@ -26,6 +41,12 @@ self.onmessage = async (evento: MessageEvent<Pedido>) => {
   }
   cancelado = false;
   try {
+    if (p.tipo === "restaurar") {
+      const nucleo = await carregarWasm();
+      const pronto = nucleo.restaurar(p);
+      self.postMessage({ tipo: "restaurado", ...pronto }, pronto.canais.map((c: Float32Array) => c.buffer));
+      return;
+    }
     const ort = await import("onnxruntime-web/wasm");
     ort.env.wasm.wasmPaths = new URL("/motores/recorte/", self.location.href).href;
     ort.env.wasm.numThreads = self.crossOriginIsolated ? Math.max(1, Math.min(4, (navigator.hardwareConcurrency || 2) - 1)) : 1;
@@ -33,10 +54,11 @@ self.onmessage = async (evento: MessageEvent<Pedido>) => {
     const m = MODELO_DE_SEPARACAO;
     const comprimento = p.canais[0].length;
     const faixas: Float32Array[][] = [];
-    const definicao = await separar({
+    const opcoes: Parameters<typeof separar>[0] = {
       comprimento,
       canais: p.canais.length,
       modo: p.modo,
+      mascara: p.mascara,
       ler: (c, inicio, n, destino) => destino.set(p.canais[Math.min(c, p.canais.length - 1)].subarray(inicio, inicio + n)),
       executar: async (entrada) => {
         const tensor = new ort.Tensor("float32", entrada, [1, 2, m.quadrosPorTrecho, m.bandas]);
@@ -49,8 +71,14 @@ self.onmessage = async (evento: MessageEvent<Pedido>) => {
       },
       progresso: (fracao) => self.postMessage({ tipo: "progresso", fracao }),
       cancelado: () => cancelado,
-    });
-    await sessao.release();
+    };
+    const nucleo = p.nativo ? await carregarWasm().catch(() => null) : null;
+    let definicao: Awaited<ReturnType<typeof separar>>;
+    try {
+      definicao = nucleo?.tem("separador") ? await nucleo.separar(opcoes) : await separar(opcoes);
+    } finally {
+      await sessao.release();
+    }
     const buffers = faixas.flatMap((f) => f.map((c) => c.buffer));
     self.postMessage({ tipo: "pronto", faixas: definicao.map((d, i) => ({ id: d.id, rotulo: d.rotulo, canais: faixas[i] })) }, buffers);
   } catch (erro) {

@@ -2,6 +2,7 @@
 
 import { AJUSTE_MAXIMO_DB, AJUSTE_MINIMO_DB, PASSOS_DA_MUSICA, passoDoParametro, percentualParaVolume, textoDoPan, volumeParaPercentual, type EfeitoDaMusica, type ProjetoMusical } from "@/packages/converter-core/musica.mjs";
 import { EFEITOS_DA_MUSICA, definicaoDoEfeito, novoEfeito, parametro } from "@/packages/converter-core/musica-dsp.mjs";
+import catalogo from "@/packages/converter-core/musica-catalogo/efeitos.json";
 import type { EstadoDoMotor } from "@/lib/musica/motor";
 import { novoId, type Mudar } from "./CriacaoMusical";
 import { AjusteMusical } from "./AjusteMusical";
@@ -139,6 +140,36 @@ export function EfeitosMusicais({ projeto, alvo, escolher, mudar }: { projeto: P
           </select>
         </label>
       </div>
+      <details>
+        <summary>Cadeias prontas</summary>
+        {[...new Set(catalogo.cadeias.map((preset) => preset.grupo))].map((grupo) => (
+          <fieldset key={grupo} className="musica__escolha">
+            <legend>{grupo}</legend>
+            {grupo === "Texturas de instrumento" && <small className="estudio__dica">Use em solos de guitarra. Ajuste a transposição no clipe para escolher o registro.</small>}
+            <div className="musica__linha">
+              {catalogo.cadeias.filter((preset) => preset.grupo === grupo).map((preset) => (
+                <button key={preset.id} type="button" className="button button--ghost"
+                  onClick={() => mudarEfeitos((lista) => [...lista, ...preset.efeitos.map(({ tipo, ...ajustes }) => {
+                    const efeito = novoEfeito(tipo, novoId("fx"));
+                    for (const [id, valor] of Object.entries(ajustes)) {
+                      if (typeof valor === "number") efeito[id] = valor;
+                    }
+                    return efeito;
+                  })])}>
+                  {preset.nome}
+                </button>
+              ))}
+            </div>
+          </fieldset>
+        ))}
+      </details>
+      <details>
+        <summary>Plugins VST3 para Windows</summary>
+        <p className="estudio__dica">Plugins externos exigem um host VST3 no Windows. As cadeias prontas acima funcionam neste estúdio.</p>
+        <ul>
+          {catalogo.plugins.map((plugin) => <li key={plugin.nome}><a href={plugin.url} target="_blank" rel="noreferrer">{plugin.nome}</a> · {plugin.grupo}. {plugin.uso}</li>)}
+        </ul>
+      </details>
       {cadeia.efeitos.length === 0 && <p className="estudio__dica">Nenhum efeito em {cadeia.nome}. A ordem conta: o sinal passa de cima para baixo. Os efeitos não têm atraso (latência zero), então não há compensação a fazer.</p>}
       {cadeia.efeitos.map((efeito, i) => {
         const def = definicaoDoEfeito(efeito.tipo);

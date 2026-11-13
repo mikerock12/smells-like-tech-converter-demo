@@ -96,6 +96,13 @@ https://openfontlicense.org
 Permanent Marker: Apache License 2.0 — https://www.apache.org/licenses/LICENSE-2.0
 
 --------------------------------------------------------------------------
+VST3 SDK (Steinberg)
+--------------------------------------------------------------------------
+Usado pelo host de efeitos VST3 de slt_native.dll. Licença MIT, com texto
+completo em Steinberg-VST3-SDK-MIT.txt nesta pasta.
+https://github.com/steinbergmedia/vst3sdk/tree/v3.8.1_build_84
+
+--------------------------------------------------------------------------
 Inno Setup
 --------------------------------------------------------------------------
 Usado apenas para gerar este instalador.

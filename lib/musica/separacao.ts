@@ -2,6 +2,8 @@
 
 import { MODELO_DE_SEPARACAO } from "@/packages/converter-core/musica-separacao.mjs";
 
+export type PerfilDeMascara = "classica" | "refinada";
+
 /**
  * Separação de faixas no site: baixa o modelo uma vez (78 MB, conferido pelo SHA-256 e
  * guardado no navegador), converte o áudio para 44,1 kHz, separa no worker e devolve as
@@ -9,6 +11,24 @@ import { MODELO_DE_SEPARACAO } from "@/packages/converter-core/musica-separacao.
  */
 
 export type FaixaSeparada = { id: string; rotulo: string; canais: Float32Array[] };
+
+export async function restaurarFaixa(canais: Float32Array[], taxa: number, perfil: string, intensidade: number) {
+  const { default: Fabrica } = await import("./separacao.worker?worker");
+  const worker = new Fabrica({ name: "restauracao-de-faixa" });
+  const entrada = canais.map((c) => c.slice());
+  try {
+    return await new Promise<{ canais: Float32Array[]; ganho: number; versao: number }>((resolver, rejeitar) => {
+      worker.onmessage = (evento) => {
+        if (evento.data.tipo === "restaurado") resolver(evento.data);
+        if (evento.data.tipo === "erro") rejeitar(new Error(evento.data.mensagem));
+      };
+      worker.onerror = (evento) => rejeitar(new Error(evento.message || "A restauração parou com um erro."));
+      worker.postMessage({ tipo: "restaurar", canais: entrada, taxa, perfil, intensidade }, entrada.map((c) => c.buffer));
+    });
+  } finally {
+    worker.terminate();
+  }
+}
 
 const caminhoDoModelo = () => new URL(MODELO_DE_SEPARACAO.url).pathname;
 
@@ -19,7 +39,8 @@ async function pastaDosModelos() {
 export async function modeloBaixado(): Promise<boolean> {
   try {
     const arquivo = await (await (await pastaDosModelos()).getFileHandle(MODELO_DE_SEPARACAO.arquivo)).getFile();
-    return arquivo.size === MODELO_DE_SEPARACAO.bytes;
+    return arquivo.size === MODELO_DE_SEPARACAO.bytes &&
+      hex(await crypto.subtle.digest("SHA-256", await arquivo.arrayBuffer())) === MODELO_DE_SEPARACAO.sha256;
   } catch {
     return false;
   }
@@ -47,6 +68,10 @@ export async function garantirModelo(progresso: (fracao: number) => void, sinal?
     if (done) break;
     pedacos.push(value);
     recebido += value.length;
+    if (recebido > MODELO_DE_SEPARACAO.bytes) {
+      await leitor.cancel();
+      throw new Error("O modelo de separação é maior que o esperado.");
+    }
     progresso(Math.min(1, recebido / total));
   }
   const bytes = new Uint8Array(recebido);
@@ -56,11 +81,16 @@ export async function garantirModelo(progresso: (fracao: number) => void, sinal?
     p += pedaco.length;
   }
   const soma = hex(await crypto.subtle.digest("SHA-256", bytes));
-  if (soma !== MODELO_DE_SEPARACAO.sha256) throw new Error("O modelo baixado não confere (SHA-256 diferente) e foi descartado.");
+  if (recebido !== MODELO_DE_SEPARACAO.bytes || soma !== MODELO_DE_SEPARACAO.sha256) throw new Error("O modelo baixado não confere e foi descartado.");
   const arquivo = await (await pastaDosModelos()).getFileHandle(MODELO_DE_SEPARACAO.arquivo, { create: true });
   const fluxo = await arquivo.createWritable();
-  await fluxo.write(bytes);
-  await fluxo.close();
+  try {
+    await fluxo.write(bytes);
+    await fluxo.close();
+  } catch (erro) {
+    await fluxo.abort().catch(() => undefined);
+    throw erro;
+  }
 }
 
 /** Troca a taxa de amostragem com o reamostrador do próprio navegador. */
@@ -81,7 +111,8 @@ export async function reamostrar(canais: Float32Array[], de: number, para: numbe
 export class SeparadorNoNavegador {
   private worker: Worker | null = null;
 
-  async separar(canais: Float32Array[], taxa: number, modo: string, progresso: (etapa: string, fracao: number) => void): Promise<FaixaSeparada[]> {
+  async separar(canais: Float32Array[], taxa: number, modo: string, progresso: (etapa: string, fracao: number) => void,
+                mascara: PerfilDeMascara = "classica"): Promise<FaixaSeparada[]> {
     progresso("Preparando o áudio", 0);
     const entrada = await reamostrar(canais, taxa, MODELO_DE_SEPARACAO.taxa);
     const { default: Fabrica } = await import("./separacao.worker?worker");
@@ -94,7 +125,9 @@ export class SeparadorNoNavegador {
         else if (m.tipo === "erro") rejeitar(new Error(m.mensagem));
       };
       this.worker!.onerror = (e) => rejeitar(new Error(e.message || "A separação parou com um erro."));
-      this.worker!.postMessage({ tipo: "separar", canais: entrada, modo }, entrada.map((c) => c.buffer as ArrayBuffer));
+      let nativo = false;
+      try { nativo = localStorage.getItem("criacao-musical:motor-wasm") === "1"; } catch { /* preferência indisponível */ }
+      this.worker!.postMessage({ tipo: "separar", canais: entrada, modo, mascara, nativo }, entrada.map((c) => c.buffer as ArrayBuffer));
     }).finally(() => {
       this.worker?.terminate();
       this.worker = null;

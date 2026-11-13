@@ -94,8 +94,14 @@ object SeparacaoDaMusica {
         modo: String = "4",
         progresso: (Double) -> Unit = {},
         cancelado: () -> Boolean = { false },
+        nativo: Boolean = false,
+        refinada: Boolean = false,
     ): List<FaixaDoModo> {
         val definicao = modo(modo) ?: error("Modo de separação desconhecido: $modo")
+        if (refinada || nativo && NucleoNativo.disponivel) {
+            check(NucleoNativo.disponivel) { "O núcleo nativo é necessário para refinar os agudos." }
+            return separarNativo(comprimento, canais, leitor, executar, emitir, definicao, progresso, cancelado, refinada)
+        }
         val p = ProcessadorEspectral(comprimento, JANELA, PASSO, QUADROS_POR_TRECHO, definicao.faixas.size)
         val entrada = FloatArray(2 * QUADROS_POR_TRECHO * BANDAS)
         val mascara = arrayOf(FloatArray(QUADROS_POR_TRECHO * p.B), FloatArray(QUADROS_POR_TRECHO * p.B))
@@ -112,6 +118,57 @@ object SeparacaoDaMusica {
             progresso((s + 1) / p.trechos.toDouble())
         }
         return definicao.faixas
+    }
+
+    private suspend fun separarNativo(
+        comprimento: Long, canais: Int, leitor: LeitorDeAmostras, executar: suspend (FloatArray) -> FloatArray,
+        emitir: (Int, Int, Long, FloatArray, Int) -> Unit, modo: ModoDeSeparacao,
+        progresso: (Double) -> Unit, cancelado: () -> Boolean, refinada: Boolean,
+    ): List<FaixaDoModo> {
+        val tamanho = 2 * QUADROS_POR_TRECHO * BANDAS
+        val capacidade = QUADROS_POR_TRECHO * PASSO + JANELA
+        val magnitude = NucleoNativo.plano(tamanho)
+        val estimativas = NucleoNativo.plano(tamanho * INSTRUMENTOS.size)
+        val canaisDiretos = List(2) { NucleoNativo.plano(capacidade) }
+        val fonte = FloatArray(capacidade)
+        val copia = FloatArray(capacidade)
+        val tensor = FloatArray(tamanho)
+        val indices = modo.faixas.map { f -> f.de.map(INSTRUMENTOS::indexOf).toIntArray() }
+        NucleoNativo.Separador(comprimento, JANELA, PASSO, QUADROS_POR_TRECHO, BANDAS,
+            INSTRUMENTOS.size, indices.size, refinada).use { sep ->
+            val trechos = sep.trechos()
+            for (trecho in 0 until trechos) {
+                if (cancelado()) throw kotlinx.coroutines.CancellationException("Separação cancelada.")
+                val janela = sep.janela(trecho)
+                val inicio = max(0, janela.inicio)
+                val n = max(0, min(comprimento, janela.inicio + janela.amostras) - inicio).toInt()
+                val deslocamento = (inicio - janela.inicio).toInt()
+                for (c in 0..1) {
+                    copia.fill(0f, 0, janela.amostras)
+                    if (n > 0) {
+                        leitor.ler(min(c, canais - 1), inicio, n, fonte)
+                        fonte.copyInto(copia, deslocamento, 0, n)
+                    }
+                    canaisDiretos[c].asFloatBuffer().put(copia, 0, janela.amostras)
+                }
+                sep.analisar(trecho, janela.amostras, canaisDiretos[0], canaisDiretos[1], magnitude, tamanho)
+                magnitude.asFloatBuffer().get(tensor)
+                val resultado = executar(tensor)
+                check(resultado.size == tamanho * INSTRUMENTOS.size) { "O modelo devolveu estimativas de tamanho inválido." }
+                estimativas.asFloatBuffer().put(resultado)
+                for ((f, ids) in indices.withIndex()) {
+                    val pronto = sep.sintetizar(trecho, f, estimativas, resultado.size, ids,
+                        canaisDiretos[0], canaisDiretos[1], capacidade)
+                    if (pronto.amostras == 0) continue
+                    for (c in 0..1) {
+                        canaisDiretos[c].asFloatBuffer().get(copia, 0, pronto.amostras)
+                        emitir(f, c, pronto.inicio, copia, pronto.amostras)
+                    }
+                }
+                progresso((trecho + 1) / trechos.toDouble())
+            }
+        }
+        return modo.faixas
     }
 
     /** Redução de ruído por porta espectral (perfil dos 10% de quadros mais quietos). */
