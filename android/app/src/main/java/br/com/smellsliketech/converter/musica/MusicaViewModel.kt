@@ -163,6 +163,13 @@ class MusicaViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) {
         relogio = viewModelScope.launch {
             while (isActive) {
                 m.consumirErroDeLeitura()?.let { mensagem = it }
+                // Todas as faixas acabaram: o player para e volta ao início (sem loop, sem
+                // gravação e fora da calibração, que toca cliques num projeto vazio).
+                val atual = projeto
+                if (m.tocando && atual != null && !calibrando && Musica.chegouAoFim(atual, m.posicao, gravando != null)) {
+                    m.parar()
+                    m.posicionar(0)
+                }
                 posicao = m.posicao
                 tocando = m.tocando
                 medidores = m.medidores
@@ -337,10 +344,20 @@ class MusicaViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) {
 
     fun tocarOuParar() {
         val m = garantirMotor(); val p = projeto ?: return
-        if (m.tocando) m.parar() else m.tocar(m.posicao, p.metronomo.ligado)
+        // Parado no fim: tocar de novo recomeça do início.
+        if (m.tocando) m.parar() else m.tocar(if (Musica.chegouAoFim(p, m.posicao)) 0 else m.posicao, p.metronomo.ligado)
     }
 
     fun irPara(quadro: Long) = motor?.posicionar(quadro)
+
+    /** ⏮, −15 s, +15 s, 15 s finais e a barra: movem todas as faixas juntas; nunca durante a gravação. */
+    fun saltar(acao: String, fracao: Double = 0.0) {
+        val p = projeto ?: return
+        if (gravando != null) return
+        val m = motor ?: return
+        m.posicionar(Musica.posicaoDoTransporte(p, m.posicao, acao, fracao))
+        posicao = m.posicao
+    }
 
     fun importar(uri: Uri) {
         val p = projeto ?: return

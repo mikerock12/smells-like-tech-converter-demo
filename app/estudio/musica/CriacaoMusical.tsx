@@ -8,10 +8,12 @@ import {
   MODELOS_DA_MUSICA,
   adicionarTomada,
   clipeDaTomada,
+  chegouAoFim,
   duracaoEmQuadros,
   medirLatencia,
   novaFaixa,
   planoDaGravacao,
+  posicaoDoTransporte,
   posicaoMusical,
   projetoDoModelo,
   quadrosPorCompasso,
@@ -344,7 +346,8 @@ export default function CriacaoMusical() {
     const p = atual.current;
     if (!p) return;
     if (m.estado.tocando) m.parar();
-    else await m.tocar(m.estado.quadro, p.metronomo.ligado);
+    // Parado no fim (ou depois dele): tocar de novo recomeça do início.
+    else await m.tocar(chegouAoFim(p, m.estado.quadro) ? 0 : m.estado.quadro, p.metronomo.ligado);
   }, [garantirMotor]);
 
   const parar = useCallback(() => motor.current?.parar(), []);
@@ -352,6 +355,24 @@ export default function CriacaoMusical() {
   const irPara = useCallback((quadro: number) => {
     motor.current?.posicionar(Math.max(0, Math.round(quadro)));
   }, []);
+
+  /** ⏮, −15 s, +15 s, 15 s finais e a barra: movem todas as faixas juntas, tocando ou não. */
+  const saltar = useCallback((acao: "inicio" | "voltar" | "avancar" | "final" | "barra", fracao = 0) => {
+    const p = atual.current;
+    const m = motor.current;
+    if (!p || gravando) return;
+    irPara(posicaoDoTransporte(p, m?.estado.quadro ?? 0, acao, fracao));
+  }, [gravando, irPara]);
+
+  // Quando todas as faixas acabam, o player para e volta ao início (sem loop, sem gravação e
+  // fora da calibração, que toca cliques num projeto vazio).
+  const calibrando = useRef(false);
+  useEffect(() => {
+    const p = atual.current;
+    if (!p || !estado.tocando || gravando || calibrando.current || !chegouAoFim(p, estado.quadro)) return;
+    motor.current?.parar();
+    motor.current?.posicionar(0);
+  }, [estado.quadro, estado.tocando, gravando]);
 
   const gravar = useCallback(async () => {
     const p = atual.current;
@@ -413,6 +434,7 @@ export default function CriacaoMusical() {
     setAviso("Calibrando: deixe o microfone perto do alto-falante (ou ligue a saída na entrada com um cabo) e fique em silêncio por 3 segundos.");
     const pulsos = [12000, 36000, 60000, 84000];
     const vazio = { ...p, faixas: [], barramentos: [], master: { ganhoDb: 0, efeitos: [] }, metronomo: { ...p.metronomo, volumeDb: 0 } };
+    calibrando.current = true;
     m.definirProjeto(vazio);
     const pedacos: Float32Array[] = [];
     const resultado = await new Promise<number | null>((resolver) => {
@@ -430,6 +452,7 @@ export default function CriacaoMusical() {
     });
     m.definirProjeto(atual.current!);
     m.posicionar(0);
+    calibrando.current = false;
     if (resultado === null) {
       setAviso("Não deu para ouvir os cliques de volta. Com fones, a calibração não funciona: use o valor estimado, ou ajuste a correção manual em milissegundos.");
       return;
@@ -458,14 +481,19 @@ export default function CriacaoMusical() {
       } else if (e.key.toLowerCase() === "r" && !e.ctrlKey && !e.metaKey) {
         void gravar();
       } else if (e.key === "Home") {
-        irPara(0);
+        saltar("inicio");
+      } else if (e.key === "End") {
+        saltar("final");
+      } else if ((e.key === "ArrowLeft" || e.key === "ArrowRight") && !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey) {
+        e.preventDefault();
+        saltar(e.key === "ArrowLeft" ? "voltar" : "avancar");
       } else if (e.key.toLowerCase() === "l" && !e.ctrlKey) {
         mudar((p) => ({ ...p, loop: { ...p.loop, ligado: !p.loop.ligado } }));
       }
     };
     window.addEventListener("keydown", tecla);
     return () => window.removeEventListener("keydown", tecla);
-  }, [desfazer, gravar, irPara, mudar, projeto, refazer, tocarOuParar]);
+  }, [desfazer, gravar, mudar, projeto, refazer, saltar, tocarOuParar]);
 
   const concluirFechamento = useCallback(async (salvar: boolean) => {
     motor.current?.parar();
@@ -596,8 +624,11 @@ export default function CriacaoMusical() {
       </header>
 
       <div className="musica__transporte" role="toolbar" aria-label="Transporte">
-        <button type="button" className="musica__botao" onClick={() => irPara(0)} aria-label="Voltar ao início" title="Início (Home)">⏮</button>
+        <button type="button" className="musica__botao" onClick={() => saltar("inicio")} disabled={!!gravando} aria-label="Voltar ao início" title="Início (Home)">⏮</button>
+        <button type="button" className="musica__botao" onClick={() => saltar("voltar")} disabled={!!gravando} aria-label="Recuar 15 segundos" title="Recuar 15 s (←)">−15</button>
         <button type="button" className="musica__botao musica__botao--tocar" onClick={() => void tocarOuParar()} aria-label={estado.tocando ? "Parar" : "Tocar"} title="Tocar/parar (Espaço)">{estado.tocando ? "⏹" : "▶"}</button>
+        <button type="button" className="musica__botao" onClick={() => saltar("avancar")} disabled={!!gravando} aria-label="Avançar 15 segundos" title="Avançar 15 s (→)">+15</button>
+        <button type="button" className="musica__botao" onClick={() => saltar("final")} disabled={!!gravando || duracao === 0} aria-label="Ir para os 15 segundos finais" title="15 s finais (End)">⏭</button>
         <button type="button" className={`musica__botao musica__botao--rec${gravando ? " musica__botao--gravando" : ""}`} onClick={() => (gravando ? parar() : void gravar())} aria-label={gravando ? "Parar a gravação" : "Gravar"} title={armada ? `Gravar em ${armada.nome} (R)` : "Arme uma faixa para gravar"}>{gravando ? "■ REC" : "● REC"}</button>
         <button type="button" className={`musica__alternar${projeto.loop.ligado ? " musica__alternar--ligado" : ""}`} onClick={() => mudar((p) => ({ ...p, loop: p.loop.fim > p.loop.inicio ? { ...p.loop, ligado: !p.loop.ligado } : { ligado: true, inicio: 0, fim: Math.max(Math.round(quadrosPorCompasso(p) * 4), duracao) } }))} title="Loop (L)">⟲ Loop</button>
         <button type="button" className={`musica__alternar${projeto.metronomo.ligado ? " musica__alternar--ligado" : ""}`} onClick={() => mudar((p) => ({ ...p, metronomo: { ...p.metronomo, ligado: !p.metronomo.ligado } }))}>♩ Metrônomo</button>
@@ -631,6 +662,14 @@ export default function CriacaoMusical() {
         <label className="musica__campo musica__campo--zoom">Zoom
           <input type="range" min={10} max={400} value={zoom} onChange={(e) => setZoom(Number(e.target.value))} aria-label="Zoom da linha do tempo" />
         </label>
+      </div>
+
+      <div className="musica__posicao">
+        <span>{tempoDoQuadro(projeto, Math.min(estado.quadro, duracao))}</span>
+        <input type="range" min={0} max={1000} step={1} value={duracao > 0 ? Math.round(Math.min(1, estado.quadro / duracao) * 1000) : 0}
+          disabled={!!gravando || duracao === 0} aria-label="Posição de todas as faixas"
+          onChange={(e) => saltar("barra", Number(e.target.value) / 1000)} />
+        <span>{tempoDoQuadro(projeto, duracao)}</span>
       </div>
 
       {gravando && <p className="musica__gravando" role="status">Gravando em {projeto.faixas.find((f) => f.id === gravando)?.nome} · {segundosGravados.toFixed(1)} s · a tomada vai direto para o disco</p>}

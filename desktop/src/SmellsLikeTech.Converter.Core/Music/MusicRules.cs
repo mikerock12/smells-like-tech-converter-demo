@@ -215,6 +215,37 @@ public static partial class MusicRules
         return last.Value;
     }
 
+    /// <summary>Quanto os botões de recuar e avançar pulam, e o tamanho de "os 15 s finais".</summary>
+    public const int TransportJumpSeconds = 15;
+
+    /// <summary>
+    /// Para onde vai o cursor: "inicio", "voltar" (−15 s), "avancar" (+15 s), "final" (15 s antes do
+    /// fim) ou "barra" (fração 0–1). Sempre em [0, duração]. Espelho de posicaoDoTransporte (musica.mjs).
+    /// </summary>
+    public static long Seek(MusicProject project, long frame, string action, double fraction = 0)
+    {
+        var duration = DurationInFrames(project);
+        var jump = (long)Math.Round(TransportJumpSeconds * (double)project.SampleRate);
+        var target = action switch
+        {
+            "inicio" => 0,
+            "voltar" => frame - jump,
+            "avancar" => frame + jump,
+            "final" => duration - jump,
+            "barra" => (long)Math.Round(Math.Clamp(fraction, 0, 1) * duration),
+            _ => throw new ArgumentException($"Ação de transporte desconhecida: {action}", nameof(action))
+        };
+        return Math.Clamp(target, 0, duration);
+    }
+
+    /// <summary>Se a reprodução para sozinha: passou do fim do último clipe, sem loop e sem gravação.</summary>
+    public static bool ReachedEnd(MusicProject project, long frame, bool recording = false)
+    {
+        if (recording || project.Loop.Enabled) return false;
+        var duration = DurationInFrames(project);
+        return duration > 0 && frame >= duration;
+    }
+
     public static long DurationInFrames(MusicProject project)
     {
         long end = 0;

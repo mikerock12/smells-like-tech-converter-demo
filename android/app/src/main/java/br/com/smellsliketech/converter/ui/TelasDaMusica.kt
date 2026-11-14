@@ -227,9 +227,16 @@ private fun ListaDeProjetosMusicais(modelo: MusicaViewModel, podeCriar: Boolean,
 @Composable
 private fun Transporte(modelo: MusicaViewModel, projeto: ProjetoMusical, podeCriar: Boolean, abrirLicenca: () -> Unit) {
     val posicao = Musica.posicao(projeto, modelo.posicao)
-    Row(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceVariant).horizontalScroll(rememberScrollState()).padding(6.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-        OutlinedButton(onClick = { modelo.irPara(0) }, modifier = Modifier.semantics { contentDescription = "Voltar ao início" }) { Text("⏮") }
+    val duracao = Musica.duracaoEmQuadros(projeto)
+    val livre = modelo.gravando == null
+    Column(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceVariant)) {
+    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(6.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        val compacto = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp)
+        OutlinedButton(onClick = { modelo.saltar("inicio") }, enabled = livre, contentPadding = compacto, modifier = Modifier.semantics { contentDescription = "Voltar ao início" }) { Text("⏮") }
+        OutlinedButton(onClick = { modelo.saltar("voltar") }, enabled = livre, contentPadding = compacto, modifier = Modifier.semantics { contentDescription = "Recuar 15 segundos" }) { Text("−15") }
         Button(onClick = modelo::tocarOuParar, modifier = Modifier.semantics { contentDescription = if (modelo.tocando) "Parar" else "Tocar" }) { Text(if (modelo.tocando) "⏹" else "▶") }
+        OutlinedButton(onClick = { modelo.saltar("avancar") }, enabled = livre, contentPadding = compacto, modifier = Modifier.semantics { contentDescription = "Avançar 15 segundos" }) { Text("+15") }
+        OutlinedButton(onClick = { modelo.saltar("final") }, enabled = livre && duracao > 0, contentPadding = compacto, modifier = Modifier.semantics { contentDescription = "Ir para os 15 segundos finais" }) { Text("⏭") }
         Button(
             onClick = { if (modelo.gravando != null) modelo.pararGravacao() else if (podeCriar) modelo.gravar() else abrirLicenca() },
             modifier = Modifier.semantics { contentDescription = if (modelo.gravando != null) "Parar a gravação" else "Gravar agora (REC)" },
@@ -244,6 +251,18 @@ private fun Transporte(modelo: MusicaViewModel, projeto: ProjetoMusical, podeCri
         OutlinedButton(onClick = { modelo.mudar("bpm") { p -> p.copy(bpm = (p.bpm - 1).coerceAtLeast(Musica.BPM_MINIMO)) } }) { Text("−") }
         Text("${projeto.bpm.roundToLong()} BPM")
         OutlinedButton(onClick = { modelo.mudar("bpm") { p -> p.copy(bpm = (p.bpm + 1).coerceAtMost(Musica.BPM_MAXIMO)) } }) { Text("+") }
+    }
+    // Barra de posição: move todas as faixas juntas, tocando ou não.
+    Row(Modifier.fillMaxWidth().padding(horizontal = 10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(Musica.tempo(projeto, minOf(modelo.posicao, duracao)), fontFamily = FontFamily.Monospace, fontSize = 11.sp)
+        Slider(
+            value = if (duracao > 0) (modelo.posicao.toFloat() / duracao).coerceIn(0f, 1f) else 0f,
+            onValueChange = { modelo.saltar("barra", it.toDouble()) },
+            enabled = livre && duracao > 0,
+            modifier = Modifier.weight(1f).semantics { contentDescription = "Posição de todas as faixas" },
+        )
+        Text(Musica.tempo(projeto, duracao), fontFamily = FontFamily.Monospace, fontSize = 11.sp)
+    }
     }
 }
 

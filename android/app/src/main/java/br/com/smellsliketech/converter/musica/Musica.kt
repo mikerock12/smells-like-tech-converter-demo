@@ -176,6 +176,34 @@ object Musica {
         return ultimo.valor
     }
 
+    /** Quanto os botões de recuar e avançar pulam, e o tamanho de "os 15 s finais". */
+    const val SALTO_DO_TRANSPORTE_SEGUNDOS = 15
+
+    /**
+     * Para onde vai o cursor: "inicio", "voltar" (−15 s), "avancar" (+15 s), "final" (15 s antes do
+     * fim) ou "barra" (fração 0–1). Sempre em [0, duração]. Espelho de posicaoDoTransporte (musica.mjs).
+     */
+    fun posicaoDoTransporte(p: ProjetoMusical, quadro: Long, acao: String, fracao: Double = 0.0): Long {
+        val duracao = duracaoEmQuadros(p)
+        val salto = Math.round(SALTO_DO_TRANSPORTE_SEGUNDOS * p.taxa.toDouble())
+        val alvo = when (acao) {
+            "inicio" -> 0L
+            "voltar" -> quadro - salto
+            "avancar" -> quadro + salto
+            "final" -> duracao - salto
+            "barra" -> Math.round(fracao.coerceIn(0.0, 1.0) * duracao)
+            else -> throw IllegalArgumentException("Ação de transporte desconhecida: $acao")
+        }
+        return alvo.coerceIn(0L, duracao)
+    }
+
+    /** Se a reprodução para sozinha: passou do fim do último clipe, sem loop e sem gravação. */
+    fun chegouAoFim(p: ProjetoMusical, quadro: Long, gravando: Boolean = false): Boolean {
+        if (gravando || p.loop.ligado) return false
+        val duracao = duracaoEmQuadros(p)
+        return duracao > 0 && quadro >= duracao
+    }
+
     fun duracaoEmQuadros(p: ProjetoMusical): Long = p.faixas.flatMap { it.clipes }.maxOfOrNull { it.inicio + it.duracao } ?: 0L
 
     fun envelopeDoClipe(c: ClipeMusical, deslocamento: Long): Double {

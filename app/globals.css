@@ -1153,3 +1153,7 @@ audio.previa__midia { background: transparent; cursor: default; }
 .faixas-do-pacote__marcas label { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
 .faixas-do-pacote__efeitos summary { cursor: pointer; font-weight: 600; padding: 6px 0; }
 .faixas-do-pacote fieldset { border: 0; padding: 0; margin: 0; display: grid; gap: 6px; }
+
+/* Barra de posição de todas as faixas, embaixo do transporte */
+.musica__posicao { display: flex; align-items: center; gap: 10px; margin: 6px 2px 0; font: 600 12px var(--font-geist-mono), monospace; color: var(--text-muted); }
+.musica__posicao input[type="range"] { flex: 1; min-width: 0; accent-color: var(--brand, #ff7a18); }

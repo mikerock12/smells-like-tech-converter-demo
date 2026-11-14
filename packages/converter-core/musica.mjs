@@ -251,6 +251,39 @@ export function duracaoEmQuadros(projeto) {
   return fim;
 }
 
+/* ------------------------------------------------------------------ transporte */
+
+/** Quanto os botões de recuar e avançar pulam, e quanto antes do fim fica "os 15 s finais". */
+export const SALTO_DO_TRANSPORTE_SEGUNDOS = 15;
+
+/**
+ * Para onde vai o cursor: "inicio", "voltar" (−15 s), "avancar" (+15 s), "final" (15 s antes
+ * do fim do último clipe) ou "barra" (a fração 0–1 da barra de posição). Nunca sai de
+ * [0, duração]; num projeto vazio, fica no zero. Espelhos: MusicRules.Seek e Musica.salto.
+ */
+export function posicaoDoTransporte(projeto, quadro, acao, fracao = 0) {
+  const duracao = duracaoEmQuadros(projeto);
+  const salto = Math.round(SALTO_DO_TRANSPORTE_SEGUNDOS * projeto.taxa);
+  let alvo;
+  if (acao === "inicio") alvo = 0;
+  else if (acao === "voltar") alvo = quadro - salto;
+  else if (acao === "avancar") alvo = quadro + salto;
+  else if (acao === "final") alvo = duracao - salto;
+  else if (acao === "barra") alvo = Math.round(Math.max(0, Math.min(1, fracao)) * duracao);
+  else throw new Error(`Ação de transporte desconhecida: ${acao}`);
+  return Math.max(0, Math.min(duracao, Math.round(alvo)));
+}
+
+/**
+ * Se a reprodução deve parar sozinha: passou do fim do último clipe, sem loop ligado e sem
+ * gravação (gravando, a pessoa decide quando parar). Antes, o player seguia em silêncio.
+ */
+export function chegouAoFim(projeto, quadro, gravando = false) {
+  if (gravando || projeto.loop?.ligado) return false;
+  const duracao = duracaoEmQuadros(projeto);
+  return duracao > 0 && quadro >= duracao;
+}
+
 /** Fator do clipe num ponto: ganho do clipe vezes as rampas de entrada e saída (lineares). */
 export function envelopeDoClipe(clipe, deslocamento) {
   let fator = clipe.ganhoDb === 0 ? 1 : dbParaLinear(clipe.ganhoDb);

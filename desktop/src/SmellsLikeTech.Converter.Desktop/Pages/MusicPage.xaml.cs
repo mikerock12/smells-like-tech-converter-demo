@@ -553,9 +553,23 @@ public sealed partial class MusicPage : Page
     private void BuildTransport()
     {
         TransportPanel.Children.Clear();
-        var start = new Button { Content = "⏮" };
-        AutomationProperties.SetName(start, "Voltar ao início");
-        start.Click += (_, _) => engine?.Seek(0);
+        Button Jump(string text, string name, string action)
+        {
+            var button = new Button { Content = text, MinWidth = 44 };
+            AutomationProperties.SetName(button, name);
+            ToolTipService.SetToolTip(button, name);
+            button.Click += (_, _) => SeekTo(action);
+            return button;
+        }
+
+        var start = Jump("⏮", "Voltar ao início", "inicio");
+        var back = Jump("−15", "Recuar 15 segundos", "voltar");
+        var forward = Jump("+15", "Avançar 15 segundos", "avancar");
+        var end = Jump("⏭", "Ir para os 15 segundos finais", "final");
+        // A barra move todas as faixas juntas; o Tick a acompanha sem disparar um novo salto.
+        seekBar = new Slider { Minimum = 0, Maximum = 1000, Width = 360, VerticalAlignment = VerticalAlignment.Center, IsThumbToolTipEnabled = false };
+        AutomationProperties.SetName(seekBar, "Posição de todas as faixas");
+        seekBar.ValueChanged += (_, e) => { if (!updatingSeekBar) SeekTo("barra", e.NewValue / 1000); };
         playButton = new Button { Content = "▶", Style = (Style)Application.Current.Resources["BrandActionButtonStyle"], MinWidth = 48 };
         AutomationProperties.SetName(playButton, "Tocar");
         playButton.Click += (_, _) => PlayOrStop();
@@ -597,15 +611,26 @@ public sealed partial class MusicPage : Page
         zoomSlider.ValueChanged += (_, e) => { zoom = e.NewValue; BuildLanes(); };
         var snapBox = new CheckBox { Content = "Encaixar nas batidas", IsChecked = snap };
         snapBox.Click += (_, _) => snap = snapBox.IsChecked == true;
-        foreach (var element in new UIElement[] { start, playButton, recordButton, loop, metronome, countIn, bpm, meter, new StackPanel { VerticalAlignment = VerticalAlignment.Center, Children = { positionText, timeText } }, zoomSlider, snapBox })
+        foreach (var element in new UIElement[] { start, back, playButton, forward, end, seekBar, recordButton, loop, metronome, countIn, bpm, meter, new StackPanel { VerticalAlignment = VerticalAlignment.Center, Children = { positionText, timeText } }, zoomSlider, snapBox })
             TransportPanel.Children.Add(element);
     }
+
+    private Slider? seekBar;
+    private bool updatingSeekBar;
 
     private void PlayOrStop()
     {
         if (engine is null || project is null) return;
         if (engine.Playing) engine.Stop();
-        else engine.Play(engine.Position, project.Metronome.Enabled);
+        // Parado no fim: tocar de novo recomeça do início.
+        else engine.Play(MusicRules.ReachedEnd(project, engine.Position) ? 0 : engine.Position, project.Metronome.Enabled);
+    }
+
+    /// <summary>⏮, −15 s, +15 s, 15 s finais e a barra (MusicRules.Seek), tocando ou não; nunca durante a gravação.</summary>
+    private void SeekTo(string action, double fraction = 0)
+    {
+        if (engine is null || project is null || engine.IsRecording) return;
+        engine.Seek(MusicRules.Seek(project, engine.Position, action, fraction));
     }
 
     private async Task RecordAsync()
@@ -675,6 +700,23 @@ public sealed partial class MusicPage : Page
     {
         if (engine is null || project is null || positionText is null) return;
         var position = engine.Position;
+        // Todas as faixas acabaram: o player para e volta ao início (sem loop e sem gravação).
+        if (engine.Playing && MusicRules.ReachedEnd(project, position, engine.IsRecording))
+        {
+            engine.Stop();
+            engine.Seek(0);
+            position = 0;
+        }
+
+        if (seekBar is not null)
+        {
+            var duration = MusicRules.DurationInFrames(project);
+            updatingSeekBar = true;
+            seekBar.IsEnabled = duration > 0 && !engine.IsRecording;
+            seekBar.Value = duration > 0 ? Math.Round(Math.Min(1, position / (double)duration) * 1000) : 0;
+            updatingSeekBar = false;
+        }
+
         positionText.Text = MusicRules.Position(project, position).Text;
         timeText!.Text = MusicRules.TimeOfFrame(project, position);
         playButton!.Content = engine.Playing ? "⏹" : "▶";
@@ -1125,6 +1167,22 @@ public sealed partial class MusicPage : Page
                     return;
                 case Windows.System.VirtualKey.Y when ctrl:
                     Redo();
+                    e.Handled = true;
+                    return;
+                case Windows.System.VirtualKey.Home:
+                    SeekTo("inicio");
+                    e.Handled = true;
+                    return;
+                case Windows.System.VirtualKey.End:
+                    SeekTo("final");
+                    e.Handled = true;
+                    return;
+                case Windows.System.VirtualKey.Left when !ctrl && e.OriginalSource is not Slider:
+                    SeekTo("voltar");
+                    e.Handled = true;
+                    return;
+                case Windows.System.VirtualKey.Right when !ctrl && e.OriginalSource is not Slider:
+                    SeekTo("avancar");
                     e.Handled = true;
                     return;
                 case Windows.System.VirtualKey.R when !ctrl:
