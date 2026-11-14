@@ -179,6 +179,13 @@ export class PluginClient {
     }
   }
 
+  async modelosMusicais(perfil?: "legacy" | "maximum", acao?: "baixar" | "excluir", signal?: AbortSignal) {
+    const caminho = perfil && acao ? `/v1/musica/modelos/${perfil}/${acao}` : "/v1/musica/modelos";
+    const resposta = await this.buscar(caminho, { method: acao ? "POST" : "GET", signal });
+    if (!resposta.ok) throw await this.erro(resposta);
+    return await resposta.json() as Record<"legacy" | "maximum", boolean>;
+  }
+
   private buscar(caminho: string, inicial: RequestInit, tempoLimiteMs?: number): Promise<Response> {
     const cabecalhos = new Headers(inicial.headers);
     cabecalhos.set(CABECALHO, "1");

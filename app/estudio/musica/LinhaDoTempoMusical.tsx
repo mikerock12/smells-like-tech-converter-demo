@@ -62,6 +62,7 @@ function Onda({ picos, clipe, largura, cor }: { picos: Float32Array | undefined;
 
 export default function LinhaDoTempoMusical({ projeto, picos, estado, zoom, mudar, irPara, selecao, selecionar, gravando, exportarFaixa, abrirEfeitos, limparClipe }: Props) {
   const [menu, setMenu] = useState<string | null>(null);
+  const [clipeDoMenu, setClipeDoMenu] = useState<string | null>(null);
   const [encaixe, setEncaixe] = useState(true);
   const arraste = useRef<{ clipe: string; faixa: string; x0: number; inicio0: number } | null>(null);
   const taxa = projeto.taxa;
@@ -85,6 +86,7 @@ export default function LinhaDoTempoMusical({ projeto, picos, estado, zoom, muda
 
   const comecarArraste = (e: EventoDoPonteiro, faixa: Faixa, clipe: Clipe) => {
     e.stopPropagation();
+    if (e.button !== 0) return;
     selecionar((s) => ({ ...s, faixa: faixa.id, clipe: clipe.id }));
     if (gravando) return;
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
@@ -100,6 +102,11 @@ export default function LinhaDoTempoMusical({ projeto, picos, estado, zoom, muda
 
   const selecionado = selecao.clipe ? projeto.faixas.flatMap((f) => f.clipes.map((c) => ({ faixa: f, clipe: c }))).find((x) => x.clipe.id === selecao.clipe) : null;
   const faixaDoMenu = menu ? visiveis.find((f) => f.id === menu) : undefined;
+  const alternativas = faixaDoMenu?.clipes.filter((c) => !clipeDoMenu || c.id === clipeDoMenu).flatMap((c) => {
+    const atual = projeto.midias.find((m) => m.id === c.midia);
+    const destino = atual?.restauracao ? atual.origem : projeto.midias.find((m) => m.origem === atual?.id && m.restauracao)?.id;
+    return destino ? [{ clipe: c, destino, versao: atual?.restauracao ? "bruta" : "restaurada" }] : [];
+  }) ?? [];
 
   const dividir = () => {
     if (!selecionado) return;
@@ -168,10 +175,10 @@ export default function LinhaDoTempoMusical({ projeto, picos, estado, zoom, muda
             const ativa = selecao.faixa === faixa.id;
             return (
               <div key={faixa.id} className={`musica__faixa${ativa ? " musica__faixa--ativa" : ""}${faixa.mudo ? " musica__faixa--muda" : ""}`}>
-                <div className={`musica__cabeca${menu === faixa.id ? " musica__cabeca--menu" : ""}`} role="group" aria-label={`Faixa ${faixa.nome}`} style={{ width: "var(--musica-cabeca)", borderLeftColor: faixa.cor }} onFocusCapture={() => selecionar((s) => ({ ...s, faixa: faixa.id }))} onContextMenu={(e) => { e.preventDefault(); setMenu(faixa.id); }}>
+                <div className={`musica__cabeca${menu === faixa.id ? " musica__cabeca--menu" : ""}`} role="group" aria-label={`Faixa ${faixa.nome}`} style={{ width: "var(--musica-cabeca)", borderLeftColor: faixa.cor }} onFocusCapture={() => selecionar((s) => ({ ...s, faixa: faixa.id }))} onContextMenu={(e) => { e.preventDefault(); setClipeDoMenu(null); setMenu(faixa.id); }}>
                   <div className="musica__linha">
                     <input className="musica__nome" aria-label="Nome da faixa" value={faixa.nome} maxLength={60} onChange={(e) => mudarFaixa(mudar, faixa.id, (f) => ({ ...f, nome: e.target.value }), `nome-${faixa.id}`)} />
-                    <button type="button" className="estudio__icone" aria-label={`Mais ações de ${faixa.nome}`} aria-haspopup="menu" aria-expanded={menu === faixa.id} onClick={(e) => { e.stopPropagation(); setMenu(menu === faixa.id ? null : faixa.id); }}>⋯</button>
+                    <button type="button" className="estudio__icone" aria-label={`Mais ações de ${faixa.nome}`} aria-haspopup="menu" aria-expanded={menu === faixa.id} onClick={(e) => { e.stopPropagation(); setClipeDoMenu(null); setMenu(menu === faixa.id ? null : faixa.id); }}>⋯</button>
                   </div>
                   <div className="musica__linha">
                     <button type="button" className={`musica__mini musica__mini--rec${faixa.gravar ? " musica__mini--ligado" : ""}`} aria-pressed={faixa.gravar} onClick={() => armar(faixa)} title="Armar para gravar" disabled={!!gravando}>REC</button>
@@ -190,11 +197,12 @@ export default function LinhaDoTempoMusical({ projeto, picos, estado, zoom, muda
                     </div>
                   </div>
                 </div>
-                <div className="musica__pista" style={{ width: largura }} onPointerDown={(e) => { if (e.target === e.currentTarget) irPara(ajustarAoTempo(quadroDe(e.clientX - e.currentTarget.getBoundingClientRect().left))); }}>
+                <div className="musica__pista" style={{ width: largura }} onContextMenu={(e) => { if (e.target === e.currentTarget) { e.preventDefault(); setClipeDoMenu(null); setMenu(faixa.id); } }} onPointerDown={(e) => { if (e.button === 0 && e.target === e.currentTarget) irPara(ajustarAoTempo(quadroDe(e.clientX - e.currentTarget.getBoundingClientRect().left))); }}>
                   {faixa.clipes.map((clipe) => (
                     <div key={clipe.id} className={`musica__clipe${clipe.mudo ? " musica__clipe--mudo" : ""}${selecao.clipe === clipe.id ? " musica__clipe--selecionado" : ""}`}
                       style={{ left: px(clipe.inicio), width: Math.max(2, px(clipe.duracao)), borderColor: faixa.cor }}
                       onPointerDown={(e) => comecarArraste(e, faixa, clipe)} onPointerMove={moverArraste} onPointerUp={() => { arraste.current = null; }}
+                      onContextMenu={(e) => { e.preventDefault(); setClipeDoMenu(clipe.id); setMenu(faixa.id); }}
                       role="button" tabIndex={0} aria-label={`${clipe.nome ?? "Clipe"} em ${(clipe.inicio / taxa).toFixed(2)} s`}>
                       <span className="musica__clipe-nome">{clipe.nome ?? "Clipe"}{clipe.mudo ? " (mudo)" : ""}</span>
                       <Onda picos={picos.get(clipe.midia)} clipe={clipe} largura={px(clipe.duracao)} cor={faixa.cor} />
@@ -212,7 +220,15 @@ export default function LinhaDoTempoMusical({ projeto, picos, estado, zoom, muda
         <>
           <button type="button" className="musica__menu-fundo" aria-label="Fechar o menu da faixa" onClick={() => setMenu(null)} />
           <div className="musica__menu" role="menu" aria-label={`Ações de ${faixaDoMenu.nome}`}>
-            {([["duplicar", "Duplicar"], ["acima", "Mover para cima"], ["abaixo", "Mover para baixo"], ["efeitos", "Efeitos"], ["barramento", "Criar barramento para ela"], ["exportar", "Exportar só esta faixa"], ["ocultar", "Ocultar"], ["remover", "Remover"]] as const).map(([id, rotulo]) => (
+            {alternativas.map(({ clipe, destino, versao }) => <button key={clipe.id} type="button" role="menuitem" onClick={() => {
+              mudarFaixa(mudar, faixaDoMenu.id, (f) => ({ ...f, clipes: f.clipes.map((c) => c.id === clipe.id ? { ...c, midia: destino } : c) }));
+              setMenu(null);
+            }}>Alternar para versão {versao}{alternativas.length > 1 ? ` · ${clipe.nome ?? "Clipe"}` : ""}</button>)}
+            <button type="button" role="menuitem" onClick={() => { mudarFaixa(mudar, faixaDoMenu.id, (f) => ({ ...f, mudo: !f.mudo })); setMenu(null); }}>{faixaDoMenu.mudo ? "Desmutar faixa" : "Mutar faixa"}</button>
+            <button type="button" role="menuitem" onClick={() => { mudarFaixa(mudar, faixaDoMenu.id, (f) => ({ ...f, solo: !f.solo })); setMenu(null); }}>{faixaDoMenu.solo ? "Desativar solo" : "Ouvir em solo"}</button>
+            <button type="button" role="menuitem" onClick={() => { const nome = prompt("Nome da faixa", faixaDoMenu.nome)?.trim(); if (nome) mudarFaixa(mudar, faixaDoMenu.id, (f) => ({ ...f, nome: nome.slice(0, 60) })); setMenu(null); }}>Renomear faixa</button>
+            <button type="button" role="menuitem" onClick={() => { selecionar((s) => ({ ...s, faixa: faixaDoMenu.id, clipe: clipeDoMenu ?? faixaDoMenu.clipes[0]?.id ?? null })); setMenu(null); }}>Propriedades</button>
+            {([["duplicar", "Duplicar"], ["acima", "Mover para cima"], ["abaixo", "Mover para baixo"], ["efeitos", "Filtros e efeitos"], ["barramento", "Criar barramento para ela"], ["exportar", "Exportar só esta faixa"], ["ocultar", "Ocultar"], ["remover", "Remover faixa"]] as const).map(([id, rotulo]) => (
               <button key={id} type="button" role="menuitem" onClick={(e) => { e.stopPropagation(); acaoDaFaixa(faixaDoMenu, id); }}>{rotulo}</button>
             ))}
           </div>

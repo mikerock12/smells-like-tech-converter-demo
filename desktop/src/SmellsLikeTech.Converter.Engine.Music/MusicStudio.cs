@@ -262,6 +262,8 @@ public sealed class MusicTools(Func<string> ffmpegPath, ProcessRunner runner, st
     }
 
     public string ModelPath => Path.Combine(modelsRoot, "musica", MusicSeparation.ModelFile);
+    private string RoFormerPath => Path.Combine(modelsRoot, "musica", MusicRoFormer.FileName);
+    private static readonly SemaphoreSlim ModelDownloads = new(1, 1);
 
     private static string? ExperimentalModelPath => Environment.GetEnvironmentVariable("SLT_MUSIC_ROFORMER_ONNX");
     private static readonly SemaphoreSlim RoFormerSlot = new(1, 1);
@@ -269,11 +271,21 @@ public sealed class MusicTools(Func<string> ffmpegPath, ProcessRunner runner, st
         ExperimentalModelPath is { Length: > 0 } path && File.Exists(path);
     public static string ExperimentalRoFormerId => MusicRoFormer.Id;
     public static IReadOnlyList<MusicStemDefinition> ExperimentalRoFormerStems => MusicRoFormer.Stems;
+    public static bool SupportsRoFormer => MusicNative.HasComplexStft;
+    public bool ModelInstalled(bool roformer) => Ready(roformer ? RoFormerPath : ModelPath,
+        roformer ? MusicRoFormer.Bytes : MusicSeparation.ModelBytes);
+
+    public async Task DeleteModelAsync(bool roformer, CancellationToken token)
+    {
+        await ModelDownloads.WaitAsync(token);
+        try { File.Delete(roformer ? RoFormerPath : ModelPath); }
+        finally { ModelDownloads.Release(); }
+    }
 
     public async Task<IReadOnlyList<(MusicStemDefinition Stem, string Path)>> SeparateRoFormerAsync(
         string input, string outputFolder, int rate, IProgress<(string Stage, double Fraction)>? progress, CancellationToken token)
     {
-        string? model = ExperimentalModelPath;
+        string? model = ModelInstalled(true) ? RoFormerPath : ExperimentalModelPath;
         if (!MusicNative.HasComplexStft || string.IsNullOrEmpty(model) || !File.Exists(model))
             throw new ConversionException("model_missing", "O RoFormer experimental não está instalado.");
         progress?.Report(("Conferindo o modelo RoFormer", 0));
@@ -334,26 +346,33 @@ public sealed class MusicTools(Func<string> ffmpegPath, ProcessRunner runner, st
         }
     }
 
-    public bool ModelReady => File.Exists(ModelPath) && new FileInfo(ModelPath).Length == MusicSeparation.ModelBytes;
+    public bool ModelReady => ModelInstalled(false);
+    private static bool Ready(string path, long bytes) => new FileInfo(path) is { Exists: true } info && info.Length == bytes;
 
-    private async Task<bool> VerifyModelAsync(string path, CancellationToken token)
+    private static async Task<bool> VerifyModelAsync(string path, CancellationToken token, bool roformer = false)
     {
         if (!File.Exists(path)) return false;
         await using var file = File.OpenRead(path);
-        return file.Length == MusicSeparation.ModelBytes &&
-            Convert.ToHexStringLower(await SHA256.HashDataAsync(file, token)) == MusicSeparation.ModelSha256;
+        return file.Length == (roformer ? MusicRoFormer.Bytes : MusicSeparation.ModelBytes) &&
+            Convert.ToHexStringLower(await SHA256.HashDataAsync(file, token)) == (roformer ? MusicRoFormer.Sha256 : MusicSeparation.ModelSha256);
     }
 
-    /// <summary>Baixa o modelo (78 MB) na primeira vez e confere o SHA-256 antes de usar.</summary>
-    public async Task EnsureModelAsync(HttpClient http, IProgress<double>? progress, CancellationToken token)
+    /// <summary>Baixa o modelo na primeira vez e confere o SHA-256 antes de usar.</summary>
+    public async Task EnsureModelAsync(HttpClient http, IProgress<double>? progress, CancellationToken token, bool roformer = false)
     {
-        if (await VerifyModelAsync(ModelPath, token)) return;
-        Directory.CreateDirectory(Path.GetDirectoryName(ModelPath)!);
-        var temp = ModelPath + $".{Guid.NewGuid():N}.baixando";
+        var path = roformer ? RoFormerPath : ModelPath;
+        var bytes = roformer ? MusicRoFormer.Bytes : MusicSeparation.ModelBytes;
+        var sha256 = roformer ? MusicRoFormer.Sha256 : MusicSeparation.ModelSha256;
+        var url = roformer ? $"https://converter.smellsliketech.com.br/modelos/{MusicRoFormer.FileName}" : MusicSeparation.ModelUrl;
+        var temp = path + $".{Guid.NewGuid():N}.baixando";
+        await ModelDownloads.WaitAsync(token);
         try
         {
-            using var response = await http.GetAsync(MusicSeparation.ModelUrl, HttpCompletionOption.ResponseHeadersRead, token);
+            if (await VerifyModelAsync(path, token, roformer)) return;
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            using var response = await http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, token);
             response.EnsureSuccessStatusCode();
+            using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
             await using (var input = await response.Content.ReadAsStreamAsync(token))
             await using (var output = File.Create(temp))
             {
@@ -363,17 +382,35 @@ public sealed class MusicTools(Func<string> ffmpegPath, ProcessRunner runner, st
                 while ((read = await input.ReadAsync(buffer, token)) > 0)
                 {
                     received += read;
-                    if (received > MusicSeparation.ModelBytes)
+                    if (received > bytes)
                         throw new ConversionException("model_mismatch", "O modelo de separação é maior que o esperado.");
                     await output.WriteAsync(buffer.AsMemory(0, read), token);
-                    progress?.Report(received / (double)MusicSeparation.ModelBytes);
+                    hash.AppendData(buffer, 0, read);
+                    progress?.Report(received / (double)bytes);
+                }
+                if (received != bytes || Convert.ToHexStringLower(hash.GetHashAndReset()) != sha256)
+                    throw new ConversionException("model_mismatch", "O modelo baixado não confere e foi descartado.");
+            }
+            for (var attempt = 0; ; attempt++)
+            {
+                token.ThrowIfCancellationRequested();
+                try
+                {
+                    File.Move(temp, path, overwrite: true);
+                    break;
+                }
+                catch (IOException e) when ((e.HResult & 0xffff) is 32 or 33 && attempt < 10)
+                {
+                    await Task.Delay(TimeSpan.FromMilliseconds(500), token);
                 }
             }
-            if (!await VerifyModelAsync(temp, token))
-                throw new ConversionException("model_mismatch", "O modelo baixado não confere e foi descartado.");
-            File.Move(temp, ModelPath, overwrite: true);
         }
-        finally { File.Delete(temp); }
+        finally
+        {
+            try { File.Delete(temp); }
+            catch (IOException e) when ((e.HResult & 0xffff) is 32 or 33) { }
+            finally { ModelDownloads.Release(); }
+        }
     }
 
     /// <summary>

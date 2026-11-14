@@ -1,6 +1,7 @@
 "use client";
 
 import { MODELO_DE_SEPARACAO } from "@/packages/converter-core/musica-separacao.mjs";
+import { ROFORMER_COMPACTO } from "@/packages/converter-core/musica-modelos.mjs";
 
 export type PerfilDeMascara = "classica" | "refinada";
 
@@ -30,24 +31,26 @@ export async function restaurarFaixa(canais: Float32Array[], taxa: number, perfi
   }
 }
 
-const caminhoDoModelo = () => new URL(MODELO_DE_SEPARACAO.url).pathname;
+const dadosDoModelo = (roformer: boolean) => roformer ? ROFORMER_COMPACTO : MODELO_DE_SEPARACAO;
 
 async function pastaDosModelos() {
   return (await navigator.storage.getDirectory()).getDirectoryHandle("modelos", { create: true });
 }
 
-export async function modeloBaixado(): Promise<boolean> {
+export async function modeloBaixado(roformer = false, verificar = false): Promise<boolean> {
+  const modelo = dadosDoModelo(roformer);
   try {
-    const arquivo = await (await (await pastaDosModelos()).getFileHandle(MODELO_DE_SEPARACAO.arquivo)).getFile();
-    return arquivo.size === MODELO_DE_SEPARACAO.bytes &&
-      hex(await crypto.subtle.digest("SHA-256", await arquivo.arrayBuffer())) === MODELO_DE_SEPARACAO.sha256;
+    const arquivo = await (await (await pastaDosModelos()).getFileHandle(modelo.arquivo)).getFile();
+    return arquivo.size === modelo.bytes &&
+      (!verificar || hex(await crypto.subtle.digest("SHA-256", await arquivo.arrayBuffer())) === modelo.sha256);
   } catch {
     return false;
   }
 }
 
-export async function apagarModelo(): Promise<void> {
-  await (await pastaDosModelos()).removeEntry(MODELO_DE_SEPARACAO.arquivo).catch(() => undefined);
+export async function apagarModelo(roformer = false): Promise<void> {
+  try { await (await pastaDosModelos()).removeEntry(dadosDoModelo(roformer).arquivo); }
+  catch (erro) { if (!(erro instanceof DOMException) || erro.name !== "NotFoundError") throw erro; }
 }
 
 function hex(buffer: ArrayBuffer) {
@@ -55,11 +58,12 @@ function hex(buffer: ArrayBuffer) {
 }
 
 /** Baixa o modelo se ainda não estiver aqui, conferindo o SHA-256 antes de guardar. */
-export async function garantirModelo(progresso: (fracao: number) => void, sinal?: AbortSignal): Promise<void> {
-  if (await modeloBaixado()) return;
-  const resposta = await fetch(caminhoDoModelo(), { signal: sinal });
+export async function garantirModelo(progresso: (fracao: number) => void, sinal?: AbortSignal, roformer = false): Promise<void> {
+  const modelo = dadosDoModelo(roformer);
+  if (await modeloBaixado(roformer, true)) return;
+  const resposta = await fetch(new URL(modelo.url).pathname, { signal: sinal });
   if (!resposta.ok || !resposta.body) throw new Error("Não foi possível baixar o modelo de separação. Confira a conexão e tente de novo.");
-  const total = Number(resposta.headers.get("Content-Length")) || MODELO_DE_SEPARACAO.bytes;
+  const total = Number(resposta.headers.get("Content-Length")) || modelo.bytes;
   const leitor = resposta.body.getReader();
   const pedacos: Uint8Array[] = [];
   let recebido = 0;
@@ -68,7 +72,7 @@ export async function garantirModelo(progresso: (fracao: number) => void, sinal?
     if (done) break;
     pedacos.push(value);
     recebido += value.length;
-    if (recebido > MODELO_DE_SEPARACAO.bytes) {
+    if (recebido > modelo.bytes) {
       await leitor.cancel();
       throw new Error("O modelo de separação é maior que o esperado.");
     }
@@ -81,8 +85,9 @@ export async function garantirModelo(progresso: (fracao: number) => void, sinal?
     p += pedaco.length;
   }
   const soma = hex(await crypto.subtle.digest("SHA-256", bytes));
-  if (recebido !== MODELO_DE_SEPARACAO.bytes || soma !== MODELO_DE_SEPARACAO.sha256) throw new Error("O modelo baixado não confere e foi descartado.");
-  const arquivo = await (await pastaDosModelos()).getFileHandle(MODELO_DE_SEPARACAO.arquivo, { create: true });
+  if (recebido !== modelo.bytes || soma !== modelo.sha256) throw new Error("O modelo baixado não confere e foi descartado.");
+  sinal?.throwIfAborted();
+  const arquivo = await (await pastaDosModelos()).getFileHandle(modelo.arquivo, { create: true });
   const fluxo = await arquivo.createWritable();
   try {
     await fluxo.write(bytes);
@@ -110,14 +115,20 @@ export async function reamostrar(canais: Float32Array[], de: number, para: numbe
 
 export class SeparadorNoNavegador {
   private worker: Worker | null = null;
+  private abortar = new AbortController();
 
   async separar(canais: Float32Array[], taxa: number, modo: string, progresso: (etapa: string, fracao: number) => void,
                 mascara: PerfilDeMascara = "classica"): Promise<FaixaSeparada[]> {
     progresso("Preparando o áudio", 0);
     const entrada = await reamostrar(canais, taxa, MODELO_DE_SEPARACAO.taxa);
     const { default: Fabrica } = await import("./separacao.worker?worker");
+    const sinal = this.abortar.signal;
+    sinal.throwIfAborted();
     this.worker = new Fabrica({ name: "separacao-de-faixas" });
+    let cancelar: (() => void) | undefined;
     const faixas = await new Promise<FaixaSeparada[]>((resolver, rejeitar) => {
+      cancelar = () => rejeitar(new Error("Separação cancelada."));
+      sinal.addEventListener("abort", cancelar, { once: true });
       this.worker!.onmessage = (evento: MessageEvent<{ tipo: string; fracao?: number; faixas?: FaixaSeparada[]; mensagem?: string }>) => {
         const m = evento.data;
         if (m.tipo === "progresso") progresso("Separando as faixas", m.fracao ?? 0);
@@ -129,6 +140,7 @@ export class SeparadorNoNavegador {
       try { nativo = localStorage.getItem("criacao-musical:motor-wasm") === "1"; } catch { /* preferência indisponível */ }
       this.worker!.postMessage({ tipo: "separar", canais: entrada, modo, mascara, nativo }, entrada.map((c) => c.buffer as ArrayBuffer));
     }).finally(() => {
+      if (cancelar) sinal.removeEventListener("abort", cancelar);
       this.worker?.terminate();
       this.worker = null;
     });
@@ -139,6 +151,6 @@ export class SeparadorNoNavegador {
   }
 
   cancelar() {
-    this.worker?.postMessage({ tipo: "cancelar" });
+    this.abortar.abort(new Error("Separação cancelada."));
   }
 }

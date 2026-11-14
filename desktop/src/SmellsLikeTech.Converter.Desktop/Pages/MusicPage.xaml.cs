@@ -738,8 +738,8 @@ public sealed partial class MusicPage : Page
         name.GotFocus += (_, _) => { selectedTrack = track.Id; };
         var more = new Button { Content = "⋯", Padding = new Thickness(8, 0, 8, 0) };
         AutomationProperties.SetName(more, $"Mais ações de {track.Name}");
-        more.Flyout = TrackMenu(track);
-        panel.ContextFlyout = TrackMenu(track);
+        more.Flyout = TrackMenu(track, () => name.Focus(FocusState.Programmatic));
+        panel.ContextFlyout = TrackMenu(track, () => name.Focus(FocusState.Programmatic));
         var row1 = new Grid { ColumnDefinitions = { new ColumnDefinition(), new ColumnDefinition { Width = GridLength.Auto } } };
         Grid.SetColumn(more, 1);
         row1.Children.Add(name);
@@ -782,7 +782,7 @@ public sealed partial class MusicPage : Page
         return panel;
     }
 
-    private MenuFlyout TrackMenu(MusicTrack track)
+    private MenuFlyout TrackMenu(MusicTrack track, Action? rename = null, string? clipId = null)
     {
         var menu = new MenuFlyout();
         void Item(string text, Action action)
@@ -792,6 +792,30 @@ public sealed partial class MusicPage : Page
             menu.Items.Add(item);
         }
 
+        var targets = track.Clips.Where(c => clipId is null || clipId == c.Id).Select(c =>
+        {
+            var media = project!.Media.Find(m => m.Id == c.Media);
+            var restored = media?.Restoration is not null;
+            var target = restored ? media!.Origin : project.Media.Find(m => m.Origin == media?.Id && m.Restoration is not null)?.Id;
+            return (Clip: c, Target: target, Restored: restored);
+        }).Where(x => x.Target is not null).ToArray();
+        foreach (var (clip, target, restored) in targets)
+        {
+            var suffix = targets.Length > 1 ? $" · {clip.Name ?? "Clipe"}" : "";
+            Item($"Alternar para versão {(restored ? "bruta" : "restaurada")}{suffix}", () =>
+                Edit(p => Track(p, track.Id).Clips.Find(c => c.Id == clip.Id)!.Media = target!));
+        }
+        if (targets.Length > 0) menu.Items.Add(new MenuFlyoutSeparator());
+        Item(track.Mute ? "Desmutar faixa" : "Mutar faixa", () => Edit(p => Track(p, track.Id).Mute = !track.Mute));
+        Item(track.Solo ? "Desativar solo" : "Ouvir em solo", () => Edit(p => Track(p, track.Id).Solo = !track.Solo));
+        if (rename is not null) Item("Renomear faixa", rename);
+        Item("Propriedades", () =>
+        {
+            selectedTrack = track.Id;
+            selectedClip = clipId ?? track.Clips.FirstOrDefault()?.Id;
+            BuildLanes();
+            BuildClipPanel();
+        });
         Item("Duplicar", () => Edit(p =>
         {
             var i = p.Tracks.FindIndex(t => t.Id == track.Id);
@@ -805,7 +829,7 @@ public sealed partial class MusicPage : Page
         }));
         Item("Mover para cima", () => Edit(p => Move(p, track.Id, -1)));
         Item("Mover para baixo", () => Edit(p => Move(p, track.Id, 1)));
-        Item("Efeitos", () => { effectsTarget = track.Id; BuildPanels(); Panels.SelectedIndex = 1; });
+        Item("Filtros e efeitos", () => { effectsTarget = track.Id; BuildPanels(); Panels.SelectedIndex = 1; });
         Item("Criar barramento para ela", () => Edit(p =>
         {
             var bus = new MusicBus { Id = NewId("bus"), Name = $"Bus {track.Name}" };
@@ -883,8 +907,13 @@ public sealed partial class MusicPage : Page
             var track = visible[r];
             var top = 36 + r * RowHeight;
             var lane = new Rectangle { Width = width, Height = RowHeight - 1, Fill = new SolidColorBrush(Color.FromArgb(track.Mute ? (byte)10 : (byte)18, 255, 255, 255)) };
+            lane.ContextFlyout = TrackMenu(track);
             Canvas.SetTop(lane, top);
-            lane.PointerPressed += (_, e) => engine?.Seek(Snap(e.GetCurrentPoint(lanesCanvas).Position.X / zoom * Rate));
+            lane.PointerPressed += (_, e) =>
+            {
+                var ponto = e.GetCurrentPoint(lanesCanvas);
+                if (!ponto.Properties.IsRightButtonPressed) engine?.Seek(Snap(ponto.Position.X / zoom * Rate));
+            };
             lanesCanvas.Children.Add(lane);
             foreach (var clip in track.Clips) lanesCanvas.Children.Add(ClipView(track, clip, top));
         }
@@ -935,7 +964,8 @@ public sealed partial class MusicPage : Page
             BorderBrush = clip.Id == selectedClip ? new SolidColorBrush(Colors.White) : new SolidColorBrush(color),
             Background = new SolidColorBrush(Color.FromArgb(20, 255, 255, 255)),
             Opacity = clip.Mute ? 0.4 : 1,
-            Child = grid
+            Child = grid,
+            ContextFlyout = TrackMenu(track, clipId: clip.Id),
         };
         AutomationProperties.SetName(border, $"Clipe {clip.Name ?? clip.Id}");
         Canvas.SetLeft(border, X(clip.Start));
@@ -944,6 +974,7 @@ public sealed partial class MusicPage : Page
         var startFrame = clip.Start;
         border.PointerPressed += (_, e) =>
         {
+            if (e.GetCurrentPoint(border).Properties.IsRightButtonPressed) return;
             selectedClip = clip.Id;
             selectedTrack = track.Id;
             startX = e.GetCurrentPoint(lanesCanvas).Position.X;

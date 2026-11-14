@@ -32,6 +32,7 @@ export type Apresentacao = {
   versaoDoEstudio?: number;
   mascarasDaSeparacaoMusical?: ("classica" | "refinada")[];
   perfisDaSeparacaoMusical?: ("legacy" | "studio" | "maximum")[];
+  gerenciaModelosMusicais?: boolean;
   maquina: Maquina;
   operacoes: Operacao[];
   pastaDeSaida: string;

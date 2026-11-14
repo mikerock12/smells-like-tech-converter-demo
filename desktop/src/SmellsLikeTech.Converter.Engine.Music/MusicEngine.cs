@@ -30,6 +30,11 @@ public sealed class MusicEngine(MusicTools tools, Func<HttpClient> http) : IConv
         IReadOnlyList<(MusicStemDefinition Stem, string Path)> stems;
         if (options.QualityProfile == "maximum")
         {
+            if (!MusicTools.HasExperimentalRoFormer || tools.ModelInstalled(true))
+                await tools.EnsureModelAsync(http(), new Progress<double>(f => context.Progress.Report(new JobProgress
+                {
+                    Percent = f * 0.1, Stage = JobStage.PreparingInput, Message = "Baixando o RoFormer",
+                })), cancellationToken, roformer: true);
             stems = await tools.SeparateRoFormerAsync(context.Job.InputPath, context.Workspace.WorkDirectory,
                 options.SampleRate, progress, cancellationToken);
         }

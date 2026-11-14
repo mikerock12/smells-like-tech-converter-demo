@@ -6,7 +6,7 @@ import { PASSOS_DA_MUSICA, nomeDaFaixaSeparada, novaFaixa, type ProjetoMusical }
 import type { FonteDeAudio } from "@/packages/converter-core/musica-mixer.mjs";
 import { FORMATOS_DE_EXPORTACAO, PRESETS_DE_MASTER } from "@/packages/converter-core/musica-master.mjs";
 import { AVISO_DA_SEPARACAO, MODELO_DE_SEPARACAO, MODOS_DE_SEPARACAO, reduzirRuido } from "@/packages/converter-core/musica-separacao.mjs";
-import { MODELOS_DE_SEPARACAO, MODO_ROFORMER_EXPERIMENTAL } from "@/packages/converter-core/musica-modelos.mjs";
+import { MODELOS_DE_SEPARACAO, MODO_ROFORMER_EXPERIMENTAL, ROFORMER_COMPACTO } from "@/packages/converter-core/musica-modelos.mjs";
 import { perfilDeRestauracaoDaFaixa } from "@/packages/converter-core/nativo.mjs";
 import { salvarMidia } from "@/lib/musica/armazenamento";
 import { codificarWav, lerWav } from "@/packages/converter-core/musica-master.mjs";
@@ -139,28 +139,56 @@ export function PainelDeSeparacao({ projeto, canaisDe, mudar, carregarMidia }: {
   const clipes = projeto.faixas.flatMap((f) => f.clipes.filter((c) => !c.mudo).map((c) => ({ faixa: f, clipe: c })));
   const [escolhido, setEscolhido] = useState(clipes[0]?.clipe.id ?? "");
   const [modoEscolhido, setModo] = useState("4");
+  const [roformer, setRoFormer] = useState(false);
   const [mascara, setMascara] = useState<PerfilDeMascara>("classica");
   const [intensidade, setIntensidade] = useState(0);
   const [limpar, setLimpar] = useState(false);
-  const [baixado, setBaixado] = useState<boolean | null>(null);
+  const [locais, setLocais] = useState([false, false]);
+  const [noPlugin, setNoPlugin] = useState({ legacy: false, maximum: false });
   const [andamento, setAndamento] = useState<{ etapa: string; fracao: number } | null>(null);
   const [mensagem, setMensagem] = useState<string | null>(null);
   const separador = useRef<SeparadorNoNavegador | null>(null);
   const plugin = usePlugin();
   const pluginDisponivel = plugin.apresentacao?.operacoes.some((o) => o.id === "music.separate" && o.disponivel) ?? false;
   const pluginRoFormer = pluginDisponivel && plugin.apresentacao?.perfisDaSeparacaoMusical?.includes("maximum") === true;
-  const modos = pluginRoFormer ? [...MODOS_DE_SEPARACAO, MODO_ROFORMER_EXPERIMENTAL] : MODOS_DE_SEPARACAO;
-  const modo = modoEscolhido === "6" && !pluginRoFormer ? "4" : modoEscolhido;
-  const roformer = modo === "6";
+  const modos = roformer ? [MODO_ROFORMER_EXPERIMENTAL] : MODOS_DE_SEPARACAO;
+  const modo = roformer ? "6" : modoEscolhido;
   const definicao = modos.find((m) => m.id === modo)!;
-  const modelo = roformer ? MODELOS_DE_SEPARACAO.maximum.onnxExperimental.id : MODELO_DE_SEPARACAO.id;
   const pluginSepara = pluginDisponivel && (roformer || mascara === "classica" ||
     plugin.apresentacao?.mascarasDaSeparacaoMusical?.includes(mascara) === true);
-  const [usarPlugin, setUsarPlugin] = useState(true);
+  const [usarPlugin, setUsarPlugin] = useState(false);
+  const delegar = usarPlugin && pluginSepara && (!roformer || pluginRoFormer);
+  const gerenciaPlugin = delegar && plugin.apresentacao?.gerenciaModelosMusicais === true;
+  const perfil = roformer ? "maximum" : "legacy";
+  const baixado = gerenciaPlugin ? noPlugin[perfil] : !delegar && locais[Number(roformer)];
+  const modelo = roformer ? (delegar ? MODELOS_DE_SEPARACAO.maximum.onnxExperimental.id : ROFORMER_COMPACTO.id) : MODELO_DE_SEPARACAO.id;
   const cancelarNoPlugin = useRef<(() => void) | null>(null);
+  const descarga = useRef<AbortController | null>(null);
   useEffect(() => {
-    void modeloBaixado().then(setBaixado);
+    void Promise.all([modeloBaixado(), modeloBaixado(true)]).then(setLocais);
+    return () => descarga.current?.abort();
   }, []);
+  useEffect(() => {
+    if (gerenciaPlugin) void plugin.cliente.modelosMusicais().then(setNoPlugin).catch(() => undefined);
+  }, [gerenciaPlugin, plugin.cliente]);
+
+  const atualizarModelo = async (excluir: boolean) => {
+    if (excluir && !confirm("Excluir o modelo baixado? As faixas já criadas ficam no projeto.")) return;
+    const controle = new AbortController();
+    descarga.current = controle;
+    setMensagem(null);
+    setAndamento({ etapa: excluir ? "Excluindo modelo" : "Baixando modelo", fracao: 0 });
+    try {
+      if (gerenciaPlugin) setNoPlugin(await plugin.cliente.modelosMusicais(perfil, excluir ? "excluir" : "baixar", controle.signal));
+      else {
+        if (excluir) await apagarModelo(roformer);
+        else await garantirModelo((fracao) => setAndamento({ etapa: "Baixando modelo", fracao }), controle.signal, roformer);
+        setLocais(await Promise.all([modeloBaixado(), modeloBaixado(true)]));
+      }
+      setMensagem(excluir ? "Modelo excluído." : "Modelo baixado e verificado.");
+    } catch (erro) { setMensagem(controle.signal.aborted ? "Operação cancelada." : String(erro instanceof Error ? erro.message : erro)); }
+    finally { descarga.current = null; setAndamento(null); }
+  };
 
   /** O plugin do Windows separa com o ONNX nativo: manda o áudio (WAV), recebe uma faixa por arquivo. */
   const separarNoPlugin = async (canais: Float32Array[]) => {
@@ -197,11 +225,14 @@ export function PainelDeSeparacao({ projeto, canaisDe, mudar, carregarMidia }: {
     setMensagem(null);
     try {
       let faixas;
-      if (pluginSepara && (roformer || usarPlugin)) faixas = await separarNoPlugin(canais);
+      if (delegar) faixas = await separarNoPlugin(canais);
       else {
-        setAndamento({ etapa: "Baixando o modelo (78 MB, só na primeira vez)", fracao: 0 });
-        await garantirModelo((f) => setAndamento({ etapa: "Baixando o modelo (78 MB, só na primeira vez)", fracao: f }));
-        setBaixado(true);
+        const controle = new AbortController();
+        descarga.current = controle;
+        setAndamento({ etapa: "Conferindo o modelo", fracao: 0 });
+        await garantirModelo((f) => setAndamento({ etapa: "Baixando o modelo", fracao: f }), controle.signal, roformer);
+        setLocais(await Promise.all([modeloBaixado(), modeloBaixado(true)]));
+        descarga.current = null;
         separador.current = new SeparadorNoNavegador();
         faixas = await separador.current.separar(canais.map((c) => c.slice()), projeto.taxa, modo, (etapa, fracao) => setAndamento({ etapa, fracao }), mascara);
       }
@@ -250,6 +281,8 @@ export function PainelDeSeparacao({ projeto, canaisDe, mudar, carregarMidia }: {
     } catch (e) {
       setMensagem(e instanceof Error ? e.message : String(e));
     } finally {
+      descarga.current = null;
+      if (gerenciaPlugin) void plugin.cliente.modelosMusicais().then(setNoPlugin).catch(() => undefined);
       setAndamento(null);
       separador.current = null;
       cancelarNoPlugin.current = null;
@@ -260,6 +293,20 @@ export function PainelDeSeparacao({ projeto, canaisDe, mudar, carregarMidia }: {
     <div className="musica__colunas">
       <section>
         <h3>Separar faixas por IA</h3>
+        <label className="musica__campo">Modelo de separação
+          <select value={perfil} disabled={!!andamento} onChange={(e) => setRoFormer(e.target.value === "maximum")}>
+            <option value="legacy">Spleeter · padrão</option>
+            <option value="maximum">RoFormer Mega 53 · experimental</option>
+          </select>
+        </label>
+        {pluginSepara && (!roformer || pluginRoFormer) && <label className="estudio__chave"><input type="checkbox" checked={usarPlugin} disabled={!!andamento} onChange={(e) => setUsarPlugin(e.target.checked)} /> Usar o plugin local do Windows</label>}
+        <p className="estudio__dica">{roformer
+          ? `${delegar ? "357" : "97"} MB no disco. Separa guitarra e piano além de voz, bateria, baixo e resíduo. Pode melhorar voz e baixo. A qualidade da guitarra varia. Referência em CPU de PC: ${delegar ? "3,9 GiB de RAM e cerca de 5 min" : "2,9 GiB de RAM e cerca de 2 min"} para 8 s de áudio. O tempo e a RAM variam neste aparelho. Comece por um trecho curto.`
+          : "78 MB no disco. Mais leve. Separa voz e instrumental ou quatro faixas, com guitarra e piano em Outros. Na bancada do PC, 8 s levaram cerca de 5 s e usaram cerca de 0,5 GiB de RAM."}</p>
+        {(!delegar || gerenciaPlugin) && <div className="musica__linha">
+          <span>{baixado ? "Modelo baixado" : "Disponível para baixar"}</span>
+          <button type="button" className="button button--ghost" disabled={!!andamento} onClick={() => void atualizarModelo(baixado)}>{baixado ? "Excluir modelo baixado" : "Baixar modelo"}</button>
+        </div>}
         {clipes.length === 0 ? <p className="estudio__dica">Importe ou grave um áudio primeiro.</p> : (
           <>
             <fieldset className="musica__escolha">
@@ -285,14 +332,11 @@ export function PainelDeSeparacao({ projeto, canaisDe, mudar, carregarMidia }: {
                 <label key={m.id} className="estudio__chave"><input type="radio" name="modo-de-separacao" checked={modo === m.id} disabled={!!andamento} onChange={() => setModo(m.id)} /> {m.faixas.length} faixas: {m.rotulo}</label>
               ))}
               <small className="estudio__dica">As faixas novas entram com o nome do que são: {definicao.faixas.map((f) => nomeDaFaixaSeparada(f.rotulo, "…")).join(", ")}.</small>
-              {roformer && <small className="estudio__dica">Roda no plugin deste computador. Pode demorar e usar vários gigabytes de RAM.</small>}
             </fieldset>
             <label className="estudio__chave"><input type="checkbox" role="switch" checked={limpar} onChange={(e) => setLimpar(e.target.checked)} /> Reduzir ruído nas faixas separadas</label>
             <small className="estudio__dica">Tira o chiado e o ruído constante que a separação costuma deixar em cada faixa (mais útil na voz). Deixe desligado se a música original já é limpa.</small>
-            {pluginSepara && !roformer && <label className="estudio__chave"><input type="checkbox" checked={usarPlugin} onChange={(e) => setUsarPlugin(e.target.checked)} /> Separar no plugin do Windows (o áudio não sai deste computador)</label>}
             <div className="musica__linha">
               <button type="button" className="button" onClick={() => void separar()} disabled={!!andamento}>Separar</button>
-              {andamento && <button type="button" className="button button--ghost" onClick={() => { separador.current?.cancelar(); cancelarNoPlugin.current?.(); }}>Cancelar</button>}
             </div>
           </>
         )}
@@ -300,27 +344,12 @@ export function PainelDeSeparacao({ projeto, canaisDe, mudar, carregarMidia }: {
           <div className="estudio__andamento" aria-live="polite">
             <span>{andamento.etapa}</span>
             <progress max={1} value={andamento.fracao} />
+            <button type="button" className="button button--ghost" onClick={() => { descarga.current?.abort(); separador.current?.cancelar(); cancelarNoPlugin.current?.(); }}>Cancelar</button>
           </div>
         )}
         {mensagem && <p className="musica__aviso" role="status">{mensagem}</p>}
-        {alvo && (() => {
-          const atual = projeto.midias.find((m) => m.id === alvo.clipe.midia);
-          const restaurada = atual?.restauracao ? atual : projeto.midias.find((m) => m.origem === atual?.id && m.restauracao);
-          if (!restaurada?.origem) return null;
-          const bruta = restaurada.origem;
-          return <div className="musica__linha" aria-label="Comparar faixa em volume igualado">
-            {[["Bruta", bruta], ["Restaurada", restaurada.id]].map(([rotulo, midia]) =>
-              <button key={midia} type="button" className="button button--ghost" aria-pressed={atual?.id === midia}
-                onClick={() => mudar((p) => ({ ...p, faixas: p.faixas.map((f) => f.id === alvo.faixa.id
-                  ? { ...f, clipes: f.clipes.map((c) => c.id === alvo.clipe.id ? { ...c, midia } : c) } : f) }))}>{rotulo}</button>)}
-          </div>;
-        })()}
         <p className="estudio__dica">{roformer ? "Pode haver vazamento entre as faixas separadas. A faixa original fica no projeto para comparação." : AVISO_DA_SEPARACAO}</p>
-        <p className="estudio__dica">
-          Modelo: {MODELO_DE_SEPARACAO.rotulo}, licença {MODELO_DE_SEPARACAO.licenca}. Roda neste aparelho; o áudio não sai daqui. Uma música de 4 minutos leva alguns minutos num computador comum, mais no celular.
-          {baixado ? " O modelo já está guardado neste navegador." : " O modelo (78 MB) é baixado na primeira separação e fica guardado."}
-        </p>
-        {baixado && <button type="button" className="button button--ghost" onClick={() => void apagarModelo().then(() => setBaixado(false))}>Apagar o modelo deste navegador</button>}
+        <p className="estudio__dica">Os pesos têm licença MIT. O áudio é processado neste aparelho.</p>
         <p className="estudio__dica">Separar músicas de outras pessoas não muda os direitos autorais delas: use em gravações suas ou que você tem direito de usar.</p>
       </section>
     </div>

@@ -62,6 +62,8 @@ public sealed class BridgeServer(AppServices servicos, BridgeOptions opcoes, UiT
     private void MapearRotas(WebApplication app)
     {
         app.MapGet("/v1/ola", Apresentar);
+        app.MapGet("/v1/musica/modelos", ModelosMusicais);
+        app.MapPost("/v1/musica/modelos/{perfil}/{acao}", (Delegate)AlterarModeloMusical);
         app.MapGet("/v1/trabalhos", () => Json(registro.Todos().Select(TrabalhoResposta.De)));
         app.MapGet("/v1/trabalhos/{id:guid}", (Guid id) => EncontrarOuErro(id, TrabalhoResposta.De));
         app.MapGet("/v1/trabalhos/{id:guid}/eventos", TransmitirEventos);
@@ -93,7 +95,8 @@ public sealed class BridgeServer(AppServices servicos, BridgeOptions opcoes, UiT
             Versao = typeof(BridgeServer).Assembly.GetName().Version?.ToString(3) ?? "0.1.0",
             Protocolo = Protocolo,
             MascarasDaSeparacaoMusical = MusicNative.IsAvailable ? ["classica", "refinada"] : ["classica"],
-            PerfisDaSeparacaoMusical = SmellsLikeTech.Converter.Engine.Music.MusicTools.HasExperimentalRoFormer
+            GerenciaModelosMusicais = true,
+            PerfisDaSeparacaoMusical = SmellsLikeTech.Converter.Engine.Music.MusicTools.SupportsRoFormer
                 ? ["legacy", "maximum"] : ["legacy"],
             PastaDeSaida = servicos.OutputDirectory,
             Maquina = new MaquinaResumo
@@ -109,6 +112,29 @@ public sealed class BridgeServer(AppServices servicos, BridgeOptions opcoes, UiT
             },
             Operacoes = [.. OperationCatalog.All.Select(operacao => Descrever(operacao, ffmpeg, modelos, vozes))]
         });
+    }
+
+    private IResult ModelosMusicais() => Json(new {
+        legacy = servicos.MusicTools.ModelInstalled(false), maximum = servicos.MusicTools.ModelInstalled(true),
+    });
+
+    private async Task<IResult> AlterarModeloMusical(string perfil, string acao, CancellationToken token)
+    {
+        if (perfil is not ("legacy" or "maximum") || acao is not ("baixar" or "excluir"))
+            return Results.BadRequest(new { mensagem = "Modelo ou ação desconhecida." });
+        var roformer = perfil == "maximum";
+        if (roformer && !SmellsLikeTech.Converter.Engine.Music.MusicTools.SupportsRoFormer)
+            return Results.BadRequest(new { mensagem = "O núcleo deste plugin não oferece suporte ao RoFormer." });
+        try
+        {
+            if (acao == "excluir") await servicos.MusicTools.DeleteModelAsync(roformer, token);
+            else await servicos.MusicTools.EnsureModelAsync(servicos.Http, null, token, roformer);
+            return ModelosMusicais();
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or HttpRequestException or ConversionException)
+        {
+            return Results.BadRequest(new { mensagem = e.Message });
+        }
     }
 
     /// <summary>

@@ -7,6 +7,8 @@
 
 import { MODELO_DE_SEPARACAO, separar } from "@/packages/converter-core/musica-separacao.mjs";
 import { carregarNucleoNativo } from "@/packages/converter-core/nativo.mjs";
+import { ROFORMER_COMPACTO } from "@/packages/converter-core/musica-modelos.mjs";
+import { separarRoFormer } from "./roformer";
 
 type Pedido = { tipo: "separar"; canais: Float32Array[]; modo: string; nativo: boolean; mascara: "classica" | "refinada" }
   | { tipo: "restaurar"; canais: Float32Array[]; taxa: number; perfil: string; intensidade: number }
@@ -20,14 +22,15 @@ async function carregarWasm() {
   return carregarNucleoNativo(await resposta.arrayBuffer());
 }
 
-async function modelo(): Promise<ArrayBuffer> {
+async function modelo(roformer: boolean): Promise<ArrayBuffer> {
+  const dados = roformer ? ROFORMER_COMPACTO : MODELO_DE_SEPARACAO;
   const raiz = await navigator.storage.getDirectory();
   const pasta = await raiz.getDirectoryHandle("modelos", { create: true });
-  const arquivo = await (await pasta.getFileHandle(MODELO_DE_SEPARACAO.arquivo)).getFile();
-  if (arquivo.size !== MODELO_DE_SEPARACAO.bytes) throw new Error("O tamanho do modelo de separação não confere.");
+  const arquivo = await (await pasta.getFileHandle(dados.arquivo)).getFile();
+  if (arquivo.size !== dados.bytes) throw new Error("O tamanho do modelo de separação não confere.");
   const bytes = await arquivo.arrayBuffer();
   const hash = new Uint8Array(await crypto.subtle.digest("SHA-256", bytes));
-  if (Array.from(hash, (b) => b.toString(16).padStart(2, "0")).join("") !== MODELO_DE_SEPARACAO.sha256) {
+  if (Array.from(hash, (b) => b.toString(16).padStart(2, "0")).join("") !== dados.sha256) {
     throw new Error("O modelo de separação não confere. Apague o modelo salvo e tente novamente.");
   }
   return bytes;
@@ -50,7 +53,24 @@ self.onmessage = async (evento: MessageEvent<Pedido>) => {
     const ort = await import("onnxruntime-web/wasm");
     ort.env.wasm.wasmPaths = new URL("/motores/recorte/", self.location.href).href;
     ort.env.wasm.numThreads = self.crossOriginIsolated ? Math.max(1, Math.min(4, (navigator.hardwareConcurrency || 2) - 1)) : 1;
-    const sessao = await ort.InferenceSession.create(new Uint8Array(await modelo()), { executionProviders: ["wasm"], graphOptimizationLevel: "all" });
+    const roformer = p.modo === "6";
+    const sessao = await ort.InferenceSession.create(new Uint8Array(await modelo(roformer)), {
+      executionProviders: ["wasm"], graphOptimizationLevel: "all", ...(roformer ? { enableCpuMemArena: false, enableMemPattern: false } : {}),
+    });
+    if (roformer) {
+      try {
+        const faixas = await separarRoFormer(p.canais, await carregarWasm(), async (espectro) => {
+          const entrada = new ort.Tensor("float32", espectro, [1, 431, 4100]);
+          try {
+            const { mascaras } = await sessao.run({ espectro: entrada });
+            try { return (mascaras.data as Float32Array).slice(); }
+            finally { mascaras.dispose(); }
+          } finally { entrada.dispose(); }
+        }, (fracao) => self.postMessage({ tipo: "progresso", fracao }));
+        self.postMessage({ tipo: "pronto", faixas }, faixas.flatMap((f) => f.canais.map((c) => c.buffer)));
+      } finally { await sessao.release(); }
+      return;
+    }
     const m = MODELO_DE_SEPARACAO;
     const comprimento = p.canais[0].length;
     const faixas: Float32Array[][] = [];

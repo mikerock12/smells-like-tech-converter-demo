@@ -390,6 +390,60 @@ public sealed partial class MusicPage
     private UIElement SeparationView()
     {
         var panel = new StackPanel { Spacing = 8, MaxWidth = 900, HorizontalAlignment = HorizontalAlignment.Left };
+        var modelo = new ComboBox { Header = "Modelo de separação", ItemsSource = MusicTools.SupportsRoFormer
+            ? new[] { "Spleeter · padrão", "RoFormer Mega 53 · experimental" } : new[] { "Spleeter · padrão" }, SelectedIndex = 0 };
+        var detalhes = Label("");
+        var instalado = Label("");
+        var baixar = new Button { Content = "Baixar modelo" };
+        var apagar = new Button { Content = "Excluir modelo baixado" };
+        var cancelarBaixa = new Button { Content = "Cancelar download", Visibility = Visibility.Collapsed };
+        var operando = false;
+        void AtualizarModelo()
+        {
+            var premium = modelo.SelectedIndex == 1;
+            detalhes.Text = premium
+                ? "357 MB no disco. Separa guitarra e piano, além de voz, bateria, baixo e resíduo. Pode melhorar voz e baixo, com qualidade variável em guitarra. Em CPU i5-6500, 8 s de áudio levaram 5 min e atingiram cerca de 3,9 GiB de RAM. Músicas inteiras podem levar muito mais."
+                : "78 MB no disco. Voz e instrumental ou quatro faixas, com guitarra e piano em Outros. Na bancada do PC, 8 s levaram cerca de 5 s e usaram cerca de 0,5 GiB de RAM. Tempos e memória variam.";
+            var pronto = Tools.ModelInstalled(premium);
+            instalado.Text = pronto ? "Baixado neste computador" : "Disponível para baixar";
+            baixar.IsEnabled = !operando && !pronto;
+            apagar.IsEnabled = !operando && pronto;
+            modelo.IsEnabled = !operando;
+        }
+        async Task AlterarModelo(bool excluir)
+        {
+            var premium = modelo.SelectedIndex == 1;
+            if (excluir && !await Confirm("Excluir o modelo baixado? As faixas já criadas ficam no projeto.")) return;
+            operando = true;
+            AtualizarModelo();
+            using var cancelamento = new CancellationTokenSource();
+            void CancelarBaixa(object sender, RoutedEventArgs e) => cancelamento.Cancel();
+            cancelarBaixa.Click += CancelarBaixa;
+            cancelarBaixa.Visibility = excluir ? Visibility.Collapsed : Visibility.Visible;
+            try
+            {
+                if (excluir) await Tools.DeleteModelAsync(premium, cancelamento.Token);
+                else await Tools.EnsureModelAsync(App.Services.Http, new Progress<double>(f => instalado.Text = $"Baixando · {f:P0}"), cancelamento.Token, premium);
+            }
+            catch (OperationCanceledException) { Status("Download cancelado.", InfoBarSeverity.Informational); }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException or System.Net.Http.HttpRequestException or Core.ConversionException)
+            { Status(e.Message, InfoBarSeverity.Error); }
+            finally
+            {
+                cancelarBaixa.Click -= CancelarBaixa;
+                cancelarBaixa.Visibility = Visibility.Collapsed;
+                operando = false;
+                AtualizarModelo();
+            }
+        }
+        baixar.Click += async (_, _) => await AlterarModelo(false);
+        apagar.Click += async (_, _) => await AlterarModelo(true);
+        modelo.SelectionChanged += (_, _) => AtualizarModelo();
+        AtualizarModelo();
+        panel.Children.Add(modelo);
+        panel.Children.Add(detalhes);
+        panel.Children.Add(instalado);
+        panel.Children.Add(new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { baixar, apagar, cancelarBaixa } });
         var clips = project!.Tracks.SelectMany(t => t.Clips.Where(c => !c.Mute).Select(c => (Track: t, Clip: c))).ToList();
         if (clips.Count == 0)
         {
@@ -409,9 +463,17 @@ public sealed partial class MusicPage
         }
 
         var modes = MusicSeparation.Modes.ToList();
-        if (MusicTools.HasExperimentalRoFormer)
-            modes.Add(new("6", "RoFormer experimental · voz, bateria, baixo, guitarra, piano e resíduo", MusicTools.ExperimentalRoFormerStems));
-        var mode = new RadioButtons { Header = "2. Em quantas faixas", SelectedIndex = 1, ItemsSource = modes.Select(m => $"{m.Stems.Count} faixas: {m.Label}").ToList() };
+        var mode = new RadioButtons { Header = "2. Em quantas faixas" };
+        void AtualizarFaixas()
+        {
+            modes = modelo.SelectedIndex == 1
+                ? [new("6", "Voz, bateria, baixo, guitarra, piano e resíduo", MusicTools.ExperimentalRoFormerStems)]
+                : MusicSeparation.Modes.ToList();
+            mode.ItemsSource = modes.Select(m => $"{m.Stems.Count} faixas: {m.Label}").ToList();
+            mode.SelectedIndex = modes.Count - 1;
+        }
+        AtualizarFaixas();
+        modelo.SelectionChanged += (_, _) => AtualizarFaixas();
         var names = Label("");
         var warning = Label("");
         var refine = new ToggleSwitch { Header = "Refinar agudos (experimental)", IsEnabled = MusicNative.IsAvailable };
@@ -438,6 +500,7 @@ public sealed partial class MusicPage
         cancel.Click += (_, _) => work?.Cancel();
         run.Click += async (_, _) =>
         {
+            if (operando) return;
             var (track, clip) = clips[Math.Max(0, source.SelectedIndex)];
             var modeId = modes[Math.Max(0, mode.SelectedIndex)].Id;
             var roformer = modeId == "6";
@@ -445,15 +508,14 @@ public sealed partial class MusicPage
             var refined = !roformer && refine.IsOn;
             var intensity = (int)restore.Value;
             work = new CancellationTokenSource();
+            operando = true;
+            AtualizarModelo();
             run.IsEnabled = false;
             cancel.Visibility = progress.Visibility = Visibility.Visible;
             try
             {
-                if (!roformer)
-                {
-                    if (!Tools.ModelReady) stage.Text = "Baixando o modelo (78 MB, só na primeira vez)";
-                    await Tools.EnsureModelAsync(App.Services.Http, new Progress<double>(f => progress.Value = f), work.Token);
-                }
+                if (!Tools.ModelInstalled(roformer)) stage.Text = "Baixando o modelo";
+                await Tools.EnsureModelAsync(App.Services.Http, new Progress<double>(f => progress.Value = f), work.Token, roformer);
 
                 var folder = Path.Combine(Library.Folder(project.Id), "midias");
                 var input = Library.MediaPath(project.Id, clip.Media);
@@ -539,6 +601,8 @@ public sealed partial class MusicPage
             }
             finally
             {
+                operando = false;
+                AtualizarModelo();
                 run.IsEnabled = true;
                 cancel.Visibility = progress.Visibility = Visibility.Collapsed;
             }
@@ -547,16 +611,6 @@ public sealed partial class MusicPage
         panel.Children.Add(mode);
         if (MusicNative.IsAvailable) panel.Children.Add(refine);
         if (restore.IsEnabled) panel.Children.Add(restore);
-        var comparar = new Button { Content = "Alternar bruta / restaurada (volume igualado)" };
-        comparar.Click += (_, _) =>
-        {
-            var (track, clip) = clips[Math.Max(0, source.SelectedIndex)];
-            var atual = project.Media.Find(m => m.Id == clip.Media);
-            var destino = atual?.Restoration is not null ? atual.Origin : project.Media.Find(m => m.Origin == atual?.Id && m.Restoration is not null)?.Id;
-            if (destino is null) return;
-            Edit(p => Track(p, track.Id).Clips.Find(c => c.Id == clip.Id)!.Media = destino);
-        };
-        panel.Children.Add(comparar);
         panel.Children.Add(names);
         panel.Children.Add(clean);
         panel.Children.Add(cleanHelp);
@@ -564,7 +618,7 @@ public sealed partial class MusicPage
         panel.Children.Add(progress);
         panel.Children.Add(stage);
         panel.Children.Add(warning);
-        panel.Children.Add(Label($"Modelo: Spleeter 4 faixas (Deezer), licença {MusicSeparation.ModelLicense}. Roda neste computador; o áudio não sai daqui. {(Tools.ModelReady ? "O modelo já está baixado." : "O modelo (78 MB) é baixado na primeira separação, conferido pelo SHA-256.")}"));
+        panel.Children.Add(Label("Os dois modelos usam licença MIT. A separação roda neste computador e os pesos são conferidos por SHA-256."));
         panel.Children.Add(Label("Separar músicas de outras pessoas não muda os direitos autorais delas: use em gravações suas ou que você tem direito de usar."));
         return panel;
     }

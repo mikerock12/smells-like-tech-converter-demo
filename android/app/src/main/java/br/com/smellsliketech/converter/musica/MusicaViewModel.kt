@@ -482,6 +482,29 @@ class MusicaViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) {
 
     // ==================== separação, limpeza e exportação ====================
 
+    var revisaoDosModelos by mutableStateOf(0)
+        private set
+    var alvoDeEfeitos by mutableStateOf("master")
+
+    fun alterarModelo(roformer: Boolean, excluir: Boolean) {
+        if (andamento != null) return
+        andamento = (if (excluir) "Excluindo modelo" else "Baixando modelo") to 0.0
+        trabalho = viewModelScope.launch {
+            try {
+                if (excluir) biblioteca.excluirModelo(roformer)
+                else biblioteca.garantirModelo(roformer) { f -> viewModelScope.launch { if (andamento?.first == "Baixando modelo") andamento = "Baixando modelo" to f } }
+                mensagem = if (excluir) "Modelo excluído." else "Modelo baixado e verificado."
+            } catch (_: kotlinx.coroutines.CancellationException) {
+                mensagem = "Operação cancelada."
+            } catch (e: Exception) {
+                mensagem = e.message
+            } finally {
+                revisaoDosModelos++
+                andamento = null
+            }
+        }
+    }
+
     /** Separa o clipe em faixas novas (voz_, bateria_...). Com [reduzirRuido], cada faixa separada
      *  passa pela redução de ruído antes de entrar no projeto. */
     fun separar(faixaId: String, clipeId: String, modo: String, reduzirRuido: Boolean = false, refinada: Boolean = false,
@@ -489,13 +512,14 @@ class MusicaViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) {
         val p = projeto ?: return
         val faixa = p.faixas.first { it.id == faixaId }
         val clipe = faixa.clipes.first { it.id == clipeId }
+        val roformer = modo == RoFormer.modo.id
+        val idModelo = if (roformer) RoFormer.ID else SeparacaoDaMusica.MODELO_ID
+        if (andamento != null) return
+        andamento = "Conferindo o modelo" to 0.0
         trabalho = viewModelScope.launch {
             try {
-                if (!biblioteca.modeloPronto) {
-                    andamento = "Baixando o modelo (78 MB, só na primeira vez)" to 0.0
-                }
-                biblioteca.garantirModelo { f -> viewModelScope.launch { andamento = "Baixando o modelo (78 MB, só na primeira vez)" to f } }
-                val faixas = biblioteca.separar(biblioteca.midia(p.id, clipe.midia), File(biblioteca.pasta(p.id), "midias"), modo, p.taxa, refinada) { etapa, f -> viewModelScope.launch { andamento = etapa to f } }
+                biblioteca.garantirModelo(roformer) { f -> viewModelScope.launch { andamento = "Baixando o modelo" to f } }
+                val faixas = biblioteca.separar(biblioteca.midia(p.id, clipe.midia), File(biblioteca.pasta(p.id), "midias"), modo, p.taxa, refinada && !roformer) { etapa, f -> viewModelScope.launch { andamento = etapa to f } }
                 val brutas = mutableListOf<MidiaMusical>()
                 val novas = faixas.mapIndexed { k, (definicao, arquivo) ->
                     val midiaId = novoId("stem")
@@ -506,7 +530,7 @@ class MusicaViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) {
                         arquivo.delete()
                     } else check(arquivo.renameTo(destino)) { "Não foi possível guardar a faixa ${definicao.rotulo}." }
                     val quadros = FonteWav(destino).use { it.quadros }
-                    val bruta = MidiaMusical(midiaId, "${definicao.rotulo}.wav", "wav", p.taxa, 2, quadros, origem = clipe.midia, instrumento = definicao.id, modelo = SeparacaoDaMusica.MODELO_ID, versaoDoModelo = "1")
+                    val bruta = MidiaMusical(midiaId, "${definicao.rotulo}.wav", "wav", p.taxa, 2, quadros, origem = clipe.midia, instrumento = definicao.id, modelo = idModelo, versaoDoModelo = "1")
                     if (intensidade <= 0) definicao to bruta else {
                         val derivada = novoId("restaurada")
                         andamento = "Restaurando ${definicao.rotulo}" to (k + 0.5) / faixas.size
@@ -520,8 +544,8 @@ class MusicaViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) {
                     val i = q.faixas.indexOfFirst { it.id == faixaId }
                     val criadas = novas.mapIndexed { k, (d, m) -> Musica.novaFaixa(novoId("faixa"), Musica.nomeDaFaixaSeparada(d.rotulo, faixa.nome), i + k + 1).copy(clipes = listOf(clipe.copy(id = novoId("clipe"), midia = m.id, nome = d.rotulo))) }
                     val faixas = q.faixas.toMutableList().apply { this[i] = this[i].copy(mudo = true); addAll(i + 1, criadas) }
-                    q.copy(midias = q.midias + brutas + novas.map { it.second }, faixas = faixas, separacoes = q.separacoes + RegistroDeSeparacao(novoId("sep"), clipe.midia, modo, SeparacaoDaMusica.MODELO_ID, novas.map { it.second.id },
-                        "legacy", if (refinada) "refinada" else "classica"))
+                    q.copy(midias = q.midias + brutas + novas.map { it.second }, faixas = faixas, separacoes = q.separacoes + RegistroDeSeparacao(novoId("sep"), clipe.midia, modo, idModelo, novas.map { it.second.id },
+                        if (roformer) "maximum" else "legacy", if (roformer) null else if (refinada) "refinada" else "classica"))
                 }
                 novas.forEach { carregarMidia(projeto!!, it.second) }
                 brutas.forEach { carregarMidia(projeto!!, it) }
@@ -531,6 +555,7 @@ class MusicaViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) {
             } catch (e: Exception) {
                 mensagem = e.message
             } finally {
+                revisaoDosModelos++
                 andamento = null
             }
         }

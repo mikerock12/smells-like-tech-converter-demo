@@ -142,7 +142,7 @@ fun TelaDaMusica(modelo: MusicaViewModel, podeCriar: Boolean, abrirLicenca: () -
             }
             Box(Modifier.weight(1f)) {
                 when (aba) {
-                    0 -> AbaDasFaixas(modelo, projeto)
+                    0 -> AbaDasFaixas(modelo, projeto) { id -> modelo.alvoDeEfeitos = id; aba = 4 }
                     1 -> AbaDeGravar(modelo, projeto)
                     2 -> AbaDoMixer(modelo, projeto)
                     3 -> AbaDeTempoETom(modelo, projeto)
@@ -247,7 +247,7 @@ private fun Transporte(modelo: MusicaViewModel, projeto: ProjetoMusical, podeCri
 }
 
 @Composable
-private fun AbaDasFaixas(modelo: MusicaViewModel, projeto: ProjetoMusical) {
+private fun AbaDasFaixas(modelo: MusicaViewModel, projeto: ProjetoMusical, efeitos: (String) -> Unit) {
     var zoom by rememberSaveable { mutableStateOf(40f) }
     var selecionado by rememberSaveable { mutableStateOf<String?>(null) }
     val importar = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris -> uris.forEach(modelo::importar) }
@@ -272,7 +272,7 @@ private fun AbaDasFaixas(modelo: MusicaViewModel, projeto: ProjetoMusical) {
             }
         }
         items(projeto.faixas.filter { it.oculta != true }, key = { it.id }) { faixa ->
-            CartaoDaFaixa(modelo, projeto, faixa, zoom, larguraDp, rolagem, selecionado) { selecionado = it }
+            CartaoDaFaixa(modelo, projeto, faixa, zoom, larguraDp, rolagem, selecionado, efeitos) { selecionado = it }
         }
         projeto.faixas.filter { it.oculta == true }.takeIf { it.isNotEmpty() }?.let { ocultas ->
             item { FlowRow { ocultas.forEach { f -> TextButton(onClick = { modelo.mudarFaixa(f.id) { it.copy(oculta = false) } }) { Text("Mostrar ${f.nome}") } } } }
@@ -285,8 +285,22 @@ private fun AbaDasFaixas(modelo: MusicaViewModel, projeto: ProjetoMusical) {
 }
 
 @Composable
-private fun CartaoDaFaixa(modelo: MusicaViewModel, projeto: ProjetoMusical, faixa: FaixaMusical, zoom: Float, larguraDp: androidx.compose.ui.unit.Dp, rolagem: androidx.compose.foundation.ScrollState, selecionado: String?, selecionar: (String?) -> Unit) {
+private fun CartaoDaFaixa(modelo: MusicaViewModel, projeto: ProjetoMusical, faixa: FaixaMusical, zoom: Float, larguraDp: androidx.compose.ui.unit.Dp, rolagem: androidx.compose.foundation.ScrollState, selecionado: String?, efeitos: (String) -> Unit, selecionar: (String?) -> Unit) {
     var menu by remember { mutableStateOf(false) }
+    var renomear by remember { mutableStateOf(false) }
+    if (renomear) {
+        var nome by remember { mutableStateOf(faixa.nome) }
+        AlertDialog(onDismissRequest = { renomear = false }, title = { Text("Renomear faixa") },
+            text = { OutlinedTextField(nome, { nome = it.take(60) }, singleLine = true, label = { Text("Nome da faixa") }) },
+            confirmButton = { TextButton(onClick = { modelo.mudarFaixa(faixa.id) { it.copy(nome = nome.trim()) }; renomear = false }, enabled = nome.isNotBlank()) { Text("Salvar") } },
+            dismissButton = { TextButton(onClick = { renomear = false }) { Text("Cancelar") } })
+    }
+    val alternativas = faixa.clipes.mapNotNull { clipe ->
+        val atual = projeto.midias.firstOrNull { it.id == clipe.midia }
+        val restaurada = atual?.restauracao != null
+        val destino = if (restaurada) atual?.origem else projeto.midias.firstOrNull { it.origem == atual?.id && it.restauracao != null }?.id
+        destino?.let { Triple(clipe, it, restaurada) }
+    }
     val corDaFaixa = cor(faixa.cor)
     Card(Modifier.fillMaxWidth().semantics { contentDescription = "Faixa ${faixa.nome}" }) {
         Column(Modifier.padding(8.dp)) {
@@ -296,6 +310,21 @@ private fun CartaoDaFaixa(modelo: MusicaViewModel, projeto: ProjetoMusical, faix
                 Box {
                     TextButton(onClick = { menu = true }, modifier = Modifier.semantics { contentDescription = "Mais ações de ${faixa.nome}" }) { Text("⋯") }
                     DropdownMenu(menu, { menu = false }) {
+                        for ((clipe, destino, restaurada) in alternativas) {
+                            val sufixo = if (alternativas.size > 1) " · ${clipe.nome ?: "Clipe"}" else ""
+                            DropdownMenuItem(text = { Text("Alternar para versão ${if (restaurada) "bruta" else "restaurada"}$sufixo") }, onClick = {
+                                menu = false
+                                modelo.mudarFaixa(faixa.id) { f -> f.copy(clipes = f.clipes.map { if (it.id == clipe.id) it.copy(midia = destino) else it }) }
+                            })
+                        }
+                        DropdownMenuItem(text = { Text(if (faixa.mudo) "Desmutar faixa" else "Mutar faixa") }, onClick = { menu = false; modelo.mudarFaixa(faixa.id) { it.copy(mudo = !it.mudo) } })
+                        DropdownMenuItem(text = { Text(if (faixa.solo) "Desativar solo" else "Ouvir em solo") }, onClick = { menu = false; modelo.mudarFaixa(faixa.id) { it.copy(solo = !it.solo) } })
+                        DropdownMenuItem(text = { Text("Renomear faixa") }, onClick = { menu = false; renomear = true })
+                        DropdownMenuItem(text = { Text("Filtros e efeitos") }, onClick = { menu = false; efeitos(faixa.id) })
+                        DropdownMenuItem(text = { Text("Propriedades do clipe") }, enabled = faixa.clipes.isNotEmpty(), onClick = {
+                            menu = false
+                            selecionar(faixa.clipes.firstOrNull { it.id == selecionado }?.id ?: faixa.clipes.firstOrNull()?.id)
+                        })
                         DropdownMenuItem(text = { Text("Duplicar") }, onClick = { menu = false; modelo.mudar { p -> val i = p.faixas.indexOf(faixa); p.copy(faixas = p.faixas.toMutableList().apply { add(i + 1, faixa.copy(id = novoId("faixa"), nome = "${faixa.nome} (cópia)", gravar = false, solo = false, clipes = faixa.clipes.map { it.copy(id = novoId("clipe")) })) }) } })
                         DropdownMenuItem(text = { Text("Mover para cima") }, onClick = { menu = false; modelo.mudar { p -> val i = p.faixas.indexOf(faixa); if (i <= 0) p else p.copy(faixas = p.faixas.toMutableList().apply { add(i - 1, removeAt(i)) }) } })
                         DropdownMenuItem(text = { Text("Mover para baixo") }, onClick = { menu = false; modelo.mudar { p -> val i = p.faixas.indexOf(faixa); if (i >= p.faixas.size - 1) p else p.copy(faixas = p.faixas.toMutableList().apply { add(i + 1, removeAt(i)) }) } })
@@ -525,7 +554,7 @@ private fun Canal(nome: String, corDoCanal: Color, ganhoDb: Double, pan: Double,
 
 @Composable
 private fun AbaDeEfeitos(modelo: MusicaViewModel, projeto: ProjetoMusical) {
-    var alvo by rememberSaveable { mutableStateOf("master") }
+    var alvo by modelo::alvoDeEfeitos
     val alvos = projeto.faixas.map { it.id to "Faixa: ${it.nome}" } + projeto.barramentos.map { it.id to "Barramento: ${it.nome}" } + ("master" to "Master")
     fun cadeia(p: ProjetoMusical) = if (alvo == "master") p.master.efeitos else p.faixas.firstOrNull { it.id == alvo }?.efeitos ?: p.barramentos.firstOrNull { it.id == alvo }?.efeitos ?: emptyList()
     fun trocar(juntar: String? = null, f: (List<EfeitoMusical>) -> List<EfeitoMusical>) = modelo.mudar(juntar) { p ->
@@ -628,8 +657,32 @@ private fun AbaDeSeparar(modelo: MusicaViewModel, projeto: ProjetoMusical) {
     var limpar by rememberSaveable { mutableStateOf(false) }
     var refinada by rememberSaveable { mutableStateOf(false) }
     var intensidade by rememberSaveable { mutableIntStateOf(0) }
+    var roformer by rememberSaveable { mutableStateOf(false) }
+    val temRoFormer = br.com.smellsliketech.converter.musica.RoFormer.disponivel
+    val premium = roformer && temRoFormer
+    val baixado = remember(premium, modelo.revisaoDosModelos) { modelo.biblioteca.modeloPronto(premium) }
+    var confirmarExclusao by remember { mutableStateOf(false) }
+    if (confirmarExclusao) AlertDialog(
+        onDismissRequest = { confirmarExclusao = false },
+        title = { Text("Excluir modelo baixado?") },
+        text = { Text("As faixas já criadas ficam no projeto. Você poderá baixar o modelo de novo.") },
+        confirmButton = { TextButton(onClick = { confirmarExclusao = false; modelo.alterarModelo(premium, true) }) { Text("Excluir") } },
+        dismissButton = { TextButton(onClick = { confirmarExclusao = false }) { Text("Cancelar") } },
+    )
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text("Separar faixas por IA", fontWeight = FontWeight.Bold)
+        Text("Modelo de separação", fontWeight = FontWeight.Bold)
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            FilterChip(!premium, { roformer = false }, { Text("Spleeter · padrão") }, enabled = modelo.andamento == null)
+            FilterChip(premium, { roformer = true }, { Text("RoFormer · experimental") }, enabled = modelo.andamento == null && temRoFormer)
+        }
+        Text(if (premium) "Mega 53 INT8 · 97 MB no disco. Separa guitarra e piano, além de voz, bateria, baixo e resíduo. Pode melhorar voz e baixo. A qualidade da guitarra varia. No PC, 8 s de áudio levaram cerca de 2 min e atingiram 2,9 GiB de RAM. No celular, tempo e memória ainda variam por aparelho. Comece por um trecho curto."
+            else "78 MB no disco. Mais leve. Separa voz e instrumental ou quatro faixas, com guitarra e piano em Outros. No PC, 8 s levaram cerca de 5 s e atingiram 0,5 GiB de RAM. A execução no celular pode demorar mais.", fontSize = 12.sp)
+        if (!temRoFormer) Text("O RoFormer exige o núcleo nativo e um processo Android de 64 bits.", fontSize = 12.sp)
+        Text(if (baixado) "Baixado neste celular" else "Disponível para baixar", fontSize = 12.sp)
+        OutlinedButton(onClick = { if (baixado) confirmarExclusao = true else modelo.alterarModelo(premium, false) }, enabled = modelo.andamento == null) {
+            Text(if (baixado) "Excluir modelo baixado" else "Baixar modelo")
+        }
         if (clipes.isEmpty()) { Text("Importe ou grave um áudio primeiro."); return@Column }
         val (faixa, clipe) = clipes.firstOrNull { it.second.id == escolhido } ?: clipes.first()
         Text("1. Escolha o áudio", fontSize = 13.sp, fontWeight = FontWeight.Bold)
@@ -651,9 +704,10 @@ private fun AbaDeSeparar(modelo: MusicaViewModel, projeto: ProjetoMusical) {
         }
         Text("2. Em quantas faixas", fontSize = 13.sp, fontWeight = FontWeight.Bold)
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            SeparacaoDaMusica.MODOS.forEach { m -> FilterChip(modo == m.id, { modo = m.id }, { Text("${m.faixas.size} faixas") }) }
+            if (premium) Text("6 faixas")
+            else SeparacaoDaMusica.MODOS.forEach { m -> FilterChip(modo == m.id, { modo = m.id }, { Text("${m.faixas.size} faixas") }) }
         }
-        val modoAtual = SeparacaoDaMusica.modo(modo)!!
+        val modoAtual = if (premium) br.com.smellsliketech.converter.musica.RoFormer.modo else SeparacaoDaMusica.modo(modo)!!
         Text("${modoAtual.rotulo}. As faixas novas entram com o nome do que são: ${modoAtual.faixas.joinToString { Musica.nomeDaFaixaSeparada(it.rotulo, "…") }}", fontSize = 12.sp)
         Row(verticalAlignment = Alignment.CenterVertically) {
             Switch(limpar, { limpar = it }, Modifier.semantics { contentDescription = "Reduzir ruído nas faixas separadas" })
@@ -663,7 +717,7 @@ private fun AbaDeSeparar(modelo: MusicaViewModel, projeto: ProjetoMusical) {
         Text("Tira o chiado e o ruído constante que a separação costuma deixar em cada faixa (mais útil na voz). Fica desligado se a música original já é limpa.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         if (NucleoNativo.disponivel) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Switch(refinada, { refinada = it }, enabled = modelo.andamento == null)
+                Switch(refinada && !premium, { refinada = it }, enabled = modelo.andamento == null && !premium)
                 Text("Refinar agudos (experimental)", Modifier.padding(start = 8.dp))
             }
             Text("Restauração por instrumento ($intensidade%)", fontSize = 13.sp)
@@ -671,28 +725,10 @@ private fun AbaDeSeparar(modelo: MusicaViewModel, projeto: ProjetoMusical) {
                 intensidade = it.toInt()
             }
         }
-        Button(onClick = { modelo.separar(faixa.id, clipe.id, modo, limpar, refinada && NucleoNativo.disponivel,
+        Button(onClick = { modelo.separar(faixa.id, clipe.id, modoAtual.id, limpar, refinada && NucleoNativo.disponivel && !premium,
             if (NucleoNativo.disponivel) intensidade else 0) }, enabled = modelo.andamento == null, modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Separar faixas" }) { Text("Separar") }
-        val atual = projeto.midias.firstOrNull { it.id == clipe.midia }
-        val restaurada = atual?.takeIf { it.restauracao != null }
-            ?: projeto.midias.firstOrNull { it.origem == atual?.id && it.restauracao != null }
-        val bruta = restaurada?.origem
-        if (bruta != null) {
-            Text("Comparar em volume igualado", fontSize = 13.sp)
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                for ((rotulo, id) in listOf("Bruta" to bruta, "Restaurada" to restaurada.id)) {
-                    FilterChip(atual?.id == id, {
-                        modelo.mudar { p -> p.copy(faixas = p.faixas.map { f ->
-                            if (f.id == faixa.id) f.copy(clipes = f.clipes.map { c ->
-                                if (c.id == clipe.id) c.copy(midia = id) else c
-                            }) else f
-                        }) }
-                    }, { Text(rotulo) })
-                }
-            }
-        }
-        Text(SeparacaoDaMusica.AVISO, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text("Modelo: Spleeter 4 faixas (Deezer), licença ${SeparacaoDaMusica.LICENCA}. Roda no celular; o áudio não sai daqui. ${if (modelo.biblioteca.modeloPronto) "O modelo já está baixado." else "O modelo (78 MB) é baixado na primeira separação e conferido pelo SHA-256."} Músicas longas levam minutos e gastam bateria; aparelhos com pouca memória podem não dar conta.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(if (premium) "Pode haver vazamento entre faixas. A mistura original fica no projeto." else SeparacaoDaMusica.AVISO, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text("Os pesos têm licença MIT e são conferidos por SHA-256. O áudio é processado neste celular.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Text("Separar músicas de outras pessoas não muda os direitos autorais delas: use em gravações suas ou que você tem direito de usar.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }

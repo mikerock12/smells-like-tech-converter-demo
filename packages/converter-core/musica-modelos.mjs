@@ -13,6 +13,14 @@ export const MODO_ROFORMER_EXPERIMENTAL = {
   ],
 };
 
+export const ROFORMER_COMPACTO = Object.freeze({
+  id: "mvsep-mega53-v1-onnx-int8-5s",
+  arquivo: "mega53-espectral-int8-5s-atencao64.onnx",
+  url: "https://converter.smellsliketech.com.br/modelos/mega53-espectral-int8-5s-atencao64.onnx",
+  bytes: 96842472,
+  sha256: "c7c3e822ac3ffe49c16f2824ad5af75211e2d780bdbf20c40b86d2792646381f",
+});
+
 /** Metadados de distribuição e homologação dos modelos de separação. */
 export const MODELOS_DE_SEPARACAO = Object.freeze({
   legacy: {

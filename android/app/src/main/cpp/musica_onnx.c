@@ -20,7 +20,7 @@ static int falhou(JNIEnv *jni, OrtStatus *status) {
 }
 
 JNIEXPORT jlong JNICALL
-Java_br_com_smellsliketech_converter_musica_InferenciaOnnx_abrir(JNIEnv *jni, jclass classe, jstring caminho, jint threads) {
+Java_br_com_smellsliketech_converter_musica_InferenciaOnnx_abrir(JNIEnv *jni, jclass classe, jstring caminho, jint threads, jboolean economizar) {
     (void) classe;
     if (api == NULL) api = OrtGetApiBase()->GetApi(VERSAO_DA_API);
     if (api == NULL) {
@@ -30,8 +30,12 @@ Java_br_com_smellsliketech_converter_musica_InferenciaOnnx_abrir(JNIEnv *jni, jc
     if (ambiente == NULL && falhou(jni, api->CreateEnv(ORT_LOGGING_LEVEL_WARNING, "criacao-musical", &ambiente))) return 0;
     OrtSessionOptions *opcoes = NULL;
     if (falhou(jni, api->CreateSessionOptions(&opcoes))) return 0;
-    api->SetIntraOpNumThreads(opcoes, threads);
-    api->SetSessionGraphOptimizationLevel(opcoes, ORT_ENABLE_ALL);
+    if (falhou(jni, api->SetIntraOpNumThreads(opcoes, threads)) ||
+        falhou(jni, api->SetSessionGraphOptimizationLevel(opcoes, ORT_ENABLE_ALL)) ||
+        (economizar && (falhou(jni, api->DisableCpuMemArena(opcoes)) || falhou(jni, api->DisableMemPattern(opcoes))))) {
+        api->ReleaseSessionOptions(opcoes);
+        return 0;
+    }
     const char *arquivo = (*jni)->GetStringUTFChars(jni, caminho, NULL);
     OrtSession *sessao = NULL;
     OrtStatus *status = api->CreateSession(ambiente, arquivo, opcoes, &sessao);

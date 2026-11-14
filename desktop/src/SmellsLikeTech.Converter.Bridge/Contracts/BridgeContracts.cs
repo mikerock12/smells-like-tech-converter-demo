@@ -28,6 +28,7 @@ public sealed record ApresentacaoResposta
     public int VersaoDoEstudio { get; init; } = SmellsLikeTech.Converter.Core.Studio.StudioRules.ProjectVersion;
     public IReadOnlyList<string>? MascarasDaSeparacaoMusical { get; init; }
     public IReadOnlyList<string>? PerfisDaSeparacaoMusical { get; init; }
+    public bool GerenciaModelosMusicais { get; init; }
     public required MaquinaResumo Maquina { get; init; }
     public required IReadOnlyList<OperacaoResumo> Operacoes { get; init; }
     public required string PastaDeSaida { get; init; }

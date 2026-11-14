@@ -28,6 +28,9 @@ class BibliotecaDaMusica(private val contexto: Context) {
     val raiz = File(contexto.filesDir, "musica")
     private val temporaria get() = File(contexto.cacheDir, "musica").apply { mkdirs() }
     val modelo = File(contexto.filesDir, "modelos/${SeparacaoDaMusica.ARQUIVO}")
+    private fun arquivoDoModelo(roformer: Boolean) = if (roformer) File(modelo.parentFile, RoFormer.ARQUIVO) else modelo
+    private fun tamanhoDoModelo(roformer: Boolean) = if (roformer) RoFormer.BYTES else SeparacaoDaMusica.BYTES
+    private fun hashDoModelo(roformer: Boolean) = if (roformer) RoFormer.SHA256 else SeparacaoDaMusica.SHA256
     private val travaDaTransformacao = Mutex()
     private val travaDoModelo = Mutex()
 
@@ -267,12 +270,13 @@ class BibliotecaDaMusica(private val contexto: Context) {
         return limpo.ifEmpty { "musica" }.take(60)
     }
 
-    val modeloPronto get() = modelo.exists() && modelo.length() == SeparacaoDaMusica.BYTES
+    val modeloPronto get() = modeloPronto(false)
+    fun modeloPronto(roformer: Boolean) = arquivoDoModelo(roformer).length() == tamanhoDoModelo(roformer)
 
-    private suspend fun conferirModelo(): Boolean {
-        if (!modeloPronto) return false
+    private suspend fun conferirModelo(roformer: Boolean): Boolean {
+        if (!modeloPronto(roformer)) return false
         val resumo = MessageDigest.getInstance("SHA-256")
-        modelo.inputStream().use { entrada ->
+        arquivoDoModelo(roformer).inputStream().use { entrada ->
             val b = ByteArray(1 shl 16)
             while (true) {
                 coroutineContext.ensureActive()
@@ -281,20 +285,30 @@ class BibliotecaDaMusica(private val contexto: Context) {
                 resumo.update(b, 0, n)
             }
         }
-        return resumo.digest().joinToString("") { "%02x".format(it) } == SeparacaoDaMusica.SHA256
+        return resumo.digest().joinToString("") { "%02x".format(it) } == hashDoModelo(roformer)
+    }
+
+    suspend fun excluirModelo(roformer: Boolean) = withContext(Dispatchers.IO) {
+        travaDoModelo.withLock {
+            val arquivo = arquivoDoModelo(roformer)
+            check(!arquivo.exists() || arquivo.delete()) { "Não foi possível excluir o modelo baixado." }
+        }
     }
 
     /** Baixa o modelo (78 MB) na primeira vez e confere o SHA-256 antes de usar. */
-    suspend fun garantirModelo(progresso: (Double) -> Unit) = withContext(Dispatchers.IO) { travaDoModelo.withLock {
-        if (conferirModelo()) return@withLock
+    suspend fun garantirModelo(roformer: Boolean = false, progresso: (Double) -> Unit) = withContext(Dispatchers.IO) { travaDoModelo.withLock {
+        if (conferirModelo(roformer)) return@withLock
+        val modelo = arquivoDoModelo(roformer)
+        val bytes = tamanhoDoModelo(roformer)
         modelo.parentFile?.mkdirs()
-        val temp = File.createTempFile("spleeter-", ".baixando", modelo.parentFile)
-        val conexao = URL(SeparacaoDaMusica.URL).openConnection() as HttpURLConnection
+        val temp = File.createTempFile("modelo-", ".baixando", modelo.parentFile)
+        val endereco = if (roformer) "https://converter.smellsliketech.com.br/modelos/${RoFormer.ARQUIVO}" else SeparacaoDaMusica.URL
+        val conexao = URL(endereco).openConnection() as HttpURLConnection
         conexao.connectTimeout = 20_000
         conexao.readTimeout = 60_000
         try {
             check(conexao.responseCode == 200) { "Não foi possível baixar o modelo de separação (HTTP ${conexao.responseCode})." }
-            val total = conexao.contentLengthLong.takeIf { it > 0 } ?: SeparacaoDaMusica.BYTES
+            val total = conexao.contentLengthLong.takeIf { it > 0 } ?: bytes
             val resumo = MessageDigest.getInstance("SHA-256")
             conexao.inputStream.use { entrada ->
                 temp.outputStream().use { saida ->
@@ -305,7 +319,7 @@ class BibliotecaDaMusica(private val contexto: Context) {
                         val n = entrada.read(b)
                         if (n < 0) break
                         recebido += n
-                        check(recebido <= SeparacaoDaMusica.BYTES) { "O modelo de separação é maior que o esperado." }
+                        check(recebido <= bytes) { "O modelo de separação é maior que o esperado." }
                         saida.write(b, 0, n)
                         resumo.update(b, 0, n)
                         progresso(recebido.toDouble() / total)
@@ -313,7 +327,7 @@ class BibliotecaDaMusica(private val contexto: Context) {
                 }
             }
             val hex = resumo.digest().joinToString("") { "%02x".format(it) }
-            check(hex == SeparacaoDaMusica.SHA256 && temp.length() == SeparacaoDaMusica.BYTES) { "O modelo baixado não confere e foi descartado." }
+            check(hex == hashDoModelo(roformer) && temp.length() == bytes) { "O modelo baixado não confere e foi descartado." }
             check(temp.renameTo(modelo)) { "Não foi possível guardar o modelo." }
         } finally {
             conexao.disconnect()
@@ -327,20 +341,25 @@ class BibliotecaDaMusica(private val contexto: Context) {
      * na ordem do modo.
      */
     suspend fun separar(entrada: File, saida: File, modo: String, taxa: Int, refinada: Boolean = false, progresso: (String, Double) -> Unit): List<Pair<FaixaDoModo, File>> = withContext(Dispatchers.Default) {
-        check(withContext(Dispatchers.IO) { conferirModelo() }) { "O modelo de separação está ausente ou não confere." }
+        val roformer = modo == RoFormer.modo.id
+        check(!roformer || RoFormer.disponivel) { "O núcleo deste aparelho não oferece suporte ao RoFormer." }
+        check(withContext(Dispatchers.IO) { conferirModelo(roformer) }) { "O modelo de separação está ausente ou não confere." }
         val trabalhoAtual = coroutineContext[kotlinx.coroutines.Job]
         val trabalho = File(temporaria, "separacao-${System.nanoTime()}").apply { mkdirs() }
         try {
             progresso("Preparando o áudio", 0.0)
             val a44 = File(trabalho, "entrada.wav")
             ffmpeg(listOf("-i", entrada.absolutePath, "-ac", "2", "-ar", "44100", "-c:a", "pcm_f32le", a44.absolutePath))
-            val definicao = SeparacaoDaMusica.modo(modo) ?: error("Modo de separação desconhecido.")
+            val definicao = if (roformer) RoFormer.modo else SeparacaoDaMusica.modo(modo) ?: error("Modo de separação desconhecido.")
             val escritores = definicao.faixas.map { EscritorDeWav(File(trabalho, "${it.id}-44k.wav"), 2, SeparacaoDaMusica.TAXA) }
             val esquerdos = arrayOfNulls<FloatArray>(definicao.faixas.size)
             val forma = longArrayOf(1, 2, SeparacaoDaMusica.QUADROS_POR_TRECHO.toLong(), SeparacaoDaMusica.BANDAS.toLong())
-            FonteWav(a44).use { fonte ->
-                InferenciaOnnx(modelo.absolutePath, maxOf(1, Runtime.getRuntime().availableProcessors() - 1)).use { sessao ->
-                    try {
+            try {
+                FonteWav(a44).use { fonte ->
+                    val threads = maxOf(1, Runtime.getRuntime().availableProcessors() - 1)
+                    InferenciaOnnx(arquivoDoModelo(roformer).absolutePath, if (roformer) minOf(2, threads) else threads, roformer).use { sessao ->
+                        if (roformer) RoFormer.separar(fonte, sessao, escritores) { progresso("Separando com o RoFormer", it) }
+                        else {
                         SeparacaoDaMusica.separar(
                             fonte.quadros, fonte.canais,
                             { c, inicio, n, destino -> fonte.copiar(c, inicio, n, destino) },
@@ -355,10 +374,11 @@ class BibliotecaDaMusica(private val contexto: Context) {
                             nativo = contexto.getSharedPreferences("criacao-musical", Context.MODE_PRIVATE).getBoolean("motor-nativo", false),
                             refinada = refinada,
                         )
-                    } finally {
-                        escritores.forEach { it.close() }
+                        }
                     }
                 }
+            } finally {
+                escritores.forEach { it.close() }
             }
             saida.mkdirs()
             definicao.faixas.map { faixa ->
