@@ -2,6 +2,8 @@ import { detectFormat, formatFromFileName, kindOf } from "@/packages/converter-c
 import type { FormatId } from "@/packages/converter-core/index.mjs";
 import { ferramenta as buscarFerramenta } from "@/packages/converter-core/catalogo.mjs";
 
+import { Acompanhamento } from "@/lib/segundo-plano";
+
 import { type Opcoes } from "./ferramentas";
 import { ConversionError, type Entrada, type Saida, type WorkerRequest, type WorkerResponse } from "./protocol";
 
@@ -45,7 +47,7 @@ interface InternalJob extends Job {
 export const FERRAMENTAS_DE_LOTE = new Set(["pdf.juntar", "imagem.para-pdf"]);
 
 /** Ferramentas que rodam na página, e não no worker. */
-const NA_PAGINA = new Set(["audio.converter", "audio.editar", "pdf.para-imagens", "pdf.para-texto", "imagem.ocr", "voz.narrar"]);
+const NA_PAGINA = new Set(["audio.converter", "audio.editar", "pdf.para-imagens", "pdf.para-texto", "imagem.ocr", "voz.narrar", "audio.separar-faixas", "video.voz"]);
 
 const NO_JOBS: Job[] = [];
 
@@ -69,6 +71,8 @@ export class Oficina {
   private readonly ocupados = new Map<Worker, string>();
   private readonly naPagina = new Set<string>();
   private readonly canceladosNaPagina = new Set<string>();
+  /** Porcentagem e tempo no título da aba e nas notificações, um por job em andamento. */
+  private readonly acompanhamentos = new Map<string, Acompanhamento>();
   private readonly maxParallel: number;
   private snapshot: Job[] = NO_JOBS;
   private disposed = false;
@@ -194,6 +198,8 @@ export class Oficina {
 
   dispose(): void {
     this.disposed = true;
+    for (const acompanhamento of this.acompanhamentos.values()) acompanhamento.terminar();
+    this.acompanhamentos.clear();
     for (const worker of this.workers) worker.terminate();
     this.workers.length = 0;
     this.ocupados.clear();
@@ -314,6 +320,10 @@ export class Oficina {
         resultado = await (await import("./pagina/pdfjs")).pdfParaTexto(contexto);
       } else if (job.ferramenta === "imagem.ocr") {
         resultado = await (await import("./pagina/ocr")).reconhecerTexto(contexto);
+      } else if (job.ferramenta === "audio.separar-faixas") {
+        resultado = await (await import("./pagina/faixas")).separarEmPacote(contexto);
+      } else if (job.ferramenta === "video.voz") {
+        resultado = await (await import("./pagina/faixas")).vozDoVideo(contexto);
       } else if (job.ferramenta === "voz.narrar") {
         resultado = await (await import("./pagina/narracao")).narrar(contexto);
       } else {
@@ -417,12 +427,38 @@ export class Oficina {
 
   private update(id: string, patch: Partial<InternalJob>): void {
     if (patch.status && patch.status !== "running") patch = { ...patch, segundosRestantes: null };
+    patch = this.acompanhar(id, patch);
     this.jobs = this.jobs.map((job) => {
       if (job.id !== id) return job;
       const updated = { ...job, ...patch };
       return updated.status === "running" ? updated : { ...updated, segundosRestantes: null };
     });
     this.publish();
+  }
+
+  /**
+   * Mantém o acompanhamento do job: começa quando ele passa a rodar, estima o tempo que falta
+   * quando o motor não informa e termina (com aviso, se a aba estiver escondida) no fim.
+   */
+  private acompanhar(id: string, patch: Partial<InternalJob>): Partial<InternalJob> {
+    const job = this.jobs.find((item) => item.id === id);
+    if (!job || typeof window === "undefined") return patch;
+    const status = patch.status ?? job.status;
+    let acompanhamento = this.acompanhamentos.get(id);
+    if (status === "running") {
+      if (!acompanhamento) {
+        acompanhamento = new Acompanhamento(`${job.titulo}: ${job.nomes[0] ?? ""}`);
+        this.acompanhamentos.set(id, acompanhamento);
+      }
+      if (patch.progress === undefined && patch.etapa === undefined) return patch;
+      const andamento = acompanhamento.atualizar(patch.etapa ?? job.etapa, patch.progress ?? job.progress, patch.segundosRestantes ?? null);
+      return { ...patch, segundosRestantes: andamento.segundos };
+    }
+    if (acompanhamento) {
+      this.acompanhamentos.delete(id);
+      acompanhamento.terminar(status === "done" ? `${job.nomes[0] ?? job.titulo} está pronto. Toque para baixar.` : status === "failed" ? `${job.titulo} não terminou: ${patch.error ?? job.error ?? "erro"}` : `${job.titulo} cancelado.`);
+    }
+    return patch;
   }
 
   private publish(): void {

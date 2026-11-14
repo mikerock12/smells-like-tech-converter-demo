@@ -263,6 +263,24 @@ export const FERRAMENTAS = deepFreeze([
     ],
   },
 
+  {
+    id: "audio.separar-faixas",
+    slug: "separar-faixas-de-musica",
+    categoria: "audio",
+    titulo: "Separar faixas da música (experimental)",
+    acao: "Separar",
+    resumo: "Voz, bateria, baixo e outros pelo Spleeter, ou também guitarra e piano pelo RoFormer. Junte as faixas como quiser, aplique efeitos e equalização em cada uma e baixe tudo num .zip.",
+    entradas: ["audio"],
+    saidas: ["wav", "mp3"],
+    navegador: true,
+    plugin: "music.stemsPackage",
+    plano: "gratis",
+    limite: "lote",
+    experimental: true,
+    buscas: ["separar voz da música", "tirar a voz da música", "karaokê", "playback", "separar instrumentos", "isolar baixo", "isolar bateria", "stems"],
+    pares: [],
+  },
+
   // ==================== vídeo ====================
   {
     id: "video.converter",
@@ -329,6 +347,23 @@ export const FERRAMENTAS = deepFreeze([
     plano: "gratis",
     limite: "video",
     buscas: ["tirar áudio do vídeo", "vídeo sem som", "silenciar vídeo"],
+    pares: [],
+  },
+  {
+    id: "video.voz",
+    slug: "remover-voz-do-video",
+    categoria: "video",
+    titulo: "Tirar ou isolar a voz do vídeo (experimental)",
+    acao: "Processar",
+    resumo: "Tira a narração e as falas e mantém a trilha e os efeitos, ou deixa só a voz. Spleeter ou RoFormer, com efeitos e equalização no áudio que fica. O vídeo não é recodificado.",
+    entradas: ["video"],
+    saidas: ["mp4", "webm"],
+    navegador: true,
+    plugin: "video.voice",
+    plano: "gratis",
+    limite: "video",
+    experimental: true,
+    buscas: ["remover voz do vídeo", "tirar narração do vídeo", "isolar voz do vídeo", "tirar música do vídeo", "deixar só a voz"],
     pares: [],
   },
   {

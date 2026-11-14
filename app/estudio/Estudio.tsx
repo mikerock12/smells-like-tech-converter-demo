@@ -29,6 +29,7 @@ import {
 import { conferirEstudio, type BloqueioDoEstudio } from "@/packages/converter-core/estudio-plano.mjs";
 import { camadasNoTempo, VERSAO_DO_PROJETO } from "@/packages/converter-core/estudio.mjs";
 import { REPETICOES } from "@/packages/converter-core/repeticoes.mjs";
+import { Acompanhamento } from "@/lib/segundo-plano";
 import { mudarBaseDaAnimacao } from "@/packages/converter-core/estudio-animacao.mjs";
 import { dividirClipe } from "@/packages/converter-core/estudio-criacao.mjs";
 import { TRANSFORMACAO_PADRAO, type Transformacao } from "@/packages/converter-core/camadas.mjs";
@@ -88,6 +89,13 @@ export default function Estudio() {
   const [aba, setAba] = useState<Aba>("clipes");
   const [aberto, setAberto] = useState<string | null>(null);
   const [andamento, setAndamento] = useState<Andamento | null>(null);
+  // Porcentagem e tempo também no título da aba e nas notificações, ao trocar de aba ou app.
+  const acompanhamento = useRef<Acompanhamento | null>(null);
+  useEffect(() => {
+    if (!andamento) { acompanhamento.current?.terminar(); acompanhamento.current = null; return; }
+    acompanhamento.current ??= new Acompanhamento(`Estúdio: ${andamento.etapa}`);
+    acompanhamento.current.atualizar(andamento.etapa, andamento.fracao, andamento.restante);
+  }, [andamento]);
   const [resultado, setResultado] = useState<Resultado | null>(null);
   const [verResultado, setVerResultado] = useState(false);
   const [confirmarSaida, setConfirmarSaida] = useState(false);

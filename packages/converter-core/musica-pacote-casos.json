@@ -1,0 +1,740 @@
+{
+  "descricao": "Regras do pacote de faixas do conversor: combinações, nomes, validação, vídeo e mistura de um arquivo.",
+  "entrada": {
+    "modelos": [
+      "spleeter",
+      "roformer"
+    ],
+    "nomesDeGrupo": [
+      {
+        "modelo": "spleeter",
+        "faixas": [
+          "vozes"
+        ]
+      },
+      {
+        "modelo": "spleeter",
+        "faixas": [
+          "baixo",
+          "vozes"
+        ]
+      },
+      {
+        "modelo": "spleeter",
+        "faixas": [
+          "vozes",
+          "bateria",
+          "baixo"
+        ]
+      },
+      {
+        "modelo": "spleeter",
+        "faixas": [
+          "vozes",
+          "bateria",
+          "baixo",
+          "outros"
+        ]
+      },
+      {
+        "modelo": "roformer",
+        "faixas": [
+          "guitarra",
+          "baixo",
+          "piano"
+        ]
+      }
+    ],
+    "nomes": {
+      "titulo": "Minha Música: Ação!",
+      "grupos": [
+        {
+          "nome": "Voz",
+          "faixas": [
+            "vozes"
+          ]
+        },
+        {
+          "nome": "voz",
+          "faixas": [
+            "baixo"
+          ]
+        },
+        {
+          "nome": "Sem bateria",
+          "faixas": [
+            "vozes",
+            "baixo",
+            "outros"
+          ]
+        },
+        {
+          "nome": "***",
+          "faixas": [
+            "outros"
+          ]
+        }
+      ],
+      "extensao": "wav"
+    },
+    "problemas": [
+      {
+        "modelo": "spleeter",
+        "grupos": []
+      },
+      {
+        "modelo": "spleeter",
+        "grupos": [
+          {
+            "nome": "Voz",
+            "faixas": []
+          }
+        ]
+      },
+      {
+        "modelo": "spleeter",
+        "grupos": [
+          {
+            "nome": "Guitarra",
+            "faixas": [
+              "guitarra"
+            ]
+          }
+        ]
+      },
+      {
+        "modelo": "spleeter",
+        "grupos": [
+          {
+            "nome": "A",
+            "faixas": [
+              "vozes",
+              "vozes"
+            ]
+          }
+        ]
+      },
+      {
+        "modelo": "spleeter",
+        "grupos": [
+          {
+            "nome": "A",
+            "faixas": [
+              "vozes"
+            ]
+          },
+          {
+            "nome": "a",
+            "faixas": [
+              "baixo"
+            ]
+          }
+        ]
+      },
+      {
+        "modelo": "spleeter",
+        "grupos": [
+          {
+            "nome": " ",
+            "faixas": [
+              "vozes"
+            ]
+          }
+        ]
+      },
+      {
+        "modelo": "roformer",
+        "grupos": [
+          {
+            "nome": "Guitarra",
+            "faixas": [
+              "guitarra"
+            ]
+          }
+        ]
+      },
+      {
+        "modelo": "nenhum",
+        "grupos": [
+          {
+            "nome": "Voz",
+            "faixas": [
+              "vozes"
+            ]
+          }
+        ]
+      }
+    ],
+    "arquivo": {
+      "modelo": "spleeter",
+      "taxa": 48000,
+      "ajustes": {
+        "vozes": {
+          "ganhoDb": -3,
+          "pan": 20,
+          "efeitos": [
+            {
+              "id": "fx-comp",
+              "tipo": "compressor",
+              "ligado": true,
+              "limiarDb": -18,
+              "razao": 3,
+              "ataqueMs": 10,
+              "liberacaoMs": 120,
+              "joelhoDb": 6,
+              "ganhoDb": 0
+            },
+            {
+              "id": "fx-rev",
+              "tipo": "reverberacao",
+              "ligado": true,
+              "tamanho": 0.6,
+              "amortecimento": 0.4,
+              "largura": 1,
+              "mistura": 0.3
+            }
+          ]
+        },
+        "baixo": {
+          "ganhoDb": 2,
+          "pan": -10,
+          "efeitos": [
+            {
+              "id": "fx-eq",
+              "tipo": "equalizador",
+              "ligado": true,
+              "gravesDb": 6,
+              "mediosFrequencia": 500,
+              "mediosDb": 0,
+              "mediosQ": 1,
+              "presencaFrequencia": 3000,
+              "presencaDb": 0,
+              "agudosDb": 0
+            }
+          ]
+        }
+      },
+      "master": [
+        {
+          "id": "fx-lim",
+          "tipo": "limitador",
+          "ligado": true,
+          "tetoDb": -1,
+          "liberacaoMs": 50
+        }
+      ],
+      "grupo": {
+        "nome": "Voz e baixo",
+        "faixas": [
+          "baixo",
+          "vozes"
+        ]
+      },
+      "quadros": 9600,
+      "geradores": {
+        "vozes": {
+          "tipo": "ruido",
+          "semente": 3,
+          "amplitude": 0.3,
+          "canais": 2
+        },
+        "baixo": {
+          "tipo": "seno",
+          "frequencia": 55,
+          "amplitude": 0.5,
+          "canais": 2
+        },
+        "bateria": {
+          "tipo": "impulsos",
+          "periodo": 2400,
+          "amplitude": 0.8,
+          "canais": 2
+        },
+        "outros": {
+          "tipo": "seno",
+          "frequencia": 440,
+          "amplitude": 0.2,
+          "canais": 2
+        }
+      },
+      "amostras": [
+        0,
+        1,
+        100,
+        2400,
+        4800,
+        9599
+      ]
+    }
+  },
+  "esperado": {
+    "combinacoes": {
+      "spleeter": [
+        {
+          "id": "separadas",
+          "grupos": [
+            {
+              "nome": "Voz",
+              "faixas": [
+                "vozes"
+              ]
+            },
+            {
+              "nome": "Bateria",
+              "faixas": [
+                "bateria"
+              ]
+            },
+            {
+              "nome": "Baixo",
+              "faixas": [
+                "baixo"
+              ]
+            },
+            {
+              "nome": "Outros",
+              "faixas": [
+                "outros"
+              ]
+            }
+          ]
+        },
+        {
+          "id": "karaoke",
+          "grupos": [
+            {
+              "nome": "Sem voz",
+              "faixas": [
+                "bateria",
+                "baixo",
+                "outros"
+              ]
+            }
+          ]
+        },
+        {
+          "id": "voz",
+          "grupos": [
+            {
+              "nome": "Voz",
+              "faixas": [
+                "vozes"
+              ]
+            }
+          ]
+        },
+        {
+          "id": "voz-e-base",
+          "grupos": [
+            {
+              "nome": "Voz",
+              "faixas": [
+                "vozes"
+              ]
+            },
+            {
+              "nome": "Sem voz",
+              "faixas": [
+                "bateria",
+                "baixo",
+                "outros"
+              ]
+            }
+          ]
+        },
+        {
+          "id": "sem-bateria",
+          "grupos": [
+            {
+              "nome": "Sem bateria",
+              "faixas": [
+                "vozes",
+                "baixo",
+                "outros"
+              ]
+            }
+          ]
+        },
+        {
+          "id": "sem-baixo",
+          "grupos": [
+            {
+              "nome": "Sem baixo",
+              "faixas": [
+                "vozes",
+                "bateria",
+                "outros"
+              ]
+            }
+          ]
+        },
+        {
+          "id": "voz-baixo-e-bateria",
+          "grupos": [
+            {
+              "nome": "Voz e baixo",
+              "faixas": [
+                "vozes",
+                "baixo"
+              ]
+            },
+            {
+              "nome": "Bateria",
+              "faixas": [
+                "bateria"
+              ]
+            }
+          ]
+        }
+      ],
+      "roformer": [
+        {
+          "id": "separadas",
+          "grupos": [
+            {
+              "nome": "Voz",
+              "faixas": [
+                "vozes"
+              ]
+            },
+            {
+              "nome": "Bateria",
+              "faixas": [
+                "bateria"
+              ]
+            },
+            {
+              "nome": "Baixo",
+              "faixas": [
+                "baixo"
+              ]
+            },
+            {
+              "nome": "Guitarra",
+              "faixas": [
+                "guitarra"
+              ]
+            },
+            {
+              "nome": "Piano",
+              "faixas": [
+                "piano"
+              ]
+            },
+            {
+              "nome": "Outros",
+              "faixas": [
+                "outros"
+              ]
+            }
+          ]
+        },
+        {
+          "id": "karaoke",
+          "grupos": [
+            {
+              "nome": "Sem voz",
+              "faixas": [
+                "bateria",
+                "baixo",
+                "guitarra",
+                "piano",
+                "outros"
+              ]
+            }
+          ]
+        },
+        {
+          "id": "voz",
+          "grupos": [
+            {
+              "nome": "Voz",
+              "faixas": [
+                "vozes"
+              ]
+            }
+          ]
+        },
+        {
+          "id": "voz-e-base",
+          "grupos": [
+            {
+              "nome": "Voz",
+              "faixas": [
+                "vozes"
+              ]
+            },
+            {
+              "nome": "Sem voz",
+              "faixas": [
+                "bateria",
+                "baixo",
+                "guitarra",
+                "piano",
+                "outros"
+              ]
+            }
+          ]
+        },
+        {
+          "id": "sem-bateria",
+          "grupos": [
+            {
+              "nome": "Sem bateria",
+              "faixas": [
+                "vozes",
+                "baixo",
+                "guitarra",
+                "piano",
+                "outros"
+              ]
+            }
+          ]
+        },
+        {
+          "id": "sem-baixo",
+          "grupos": [
+            {
+              "nome": "Sem baixo",
+              "faixas": [
+                "vozes",
+                "bateria",
+                "guitarra",
+                "piano",
+                "outros"
+              ]
+            }
+          ]
+        },
+        {
+          "id": "voz-baixo-e-bateria",
+          "grupos": [
+            {
+              "nome": "Voz e baixo",
+              "faixas": [
+                "vozes",
+                "baixo"
+              ]
+            },
+            {
+              "nome": "Bateria",
+              "faixas": [
+                "bateria"
+              ]
+            }
+          ]
+        },
+        {
+          "id": "sem-guitarra",
+          "grupos": [
+            {
+              "nome": "Sem guitarra",
+              "faixas": [
+                "vozes",
+                "bateria",
+                "baixo",
+                "piano",
+                "outros"
+              ]
+            }
+          ]
+        },
+        {
+          "id": "sem-piano",
+          "grupos": [
+            {
+              "nome": "Sem piano",
+              "faixas": [
+                "vozes",
+                "bateria",
+                "baixo",
+                "guitarra",
+                "outros"
+              ]
+            }
+          ]
+        },
+        {
+          "id": "cordas-e-ritmo",
+          "grupos": [
+            {
+              "nome": "Baixo e guitarra",
+              "faixas": [
+                "guitarra",
+                "baixo"
+              ]
+            },
+            {
+              "nome": "Voz e bateria",
+              "faixas": [
+                "vozes",
+                "bateria"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "nomesDeGrupo": [
+      "Voz",
+      "Voz e baixo",
+      "Sem outros",
+      "Tudo",
+      "Baixo, guitarra e piano"
+    ],
+    "nomes": [
+      "minha-musica-acao-voz.wav",
+      "minha-musica-acao-voz-2.wav",
+      "minha-musica-acao-sem-bateria.wav",
+      "minha-musica-acao-arquivo-4.wav"
+    ],
+    "problemas": [
+      [
+        "Escolha pelo menos um arquivo para gerar."
+      ],
+      [
+        "Arquivo 1: escolha pelo menos uma faixa."
+      ],
+      [
+        "Arquivo 1: guitarra não existe no Spleeter · 4 faixas."
+      ],
+      [
+        "Arquivo 1: a mesma faixa aparece duas vezes."
+      ],
+      [
+        "Arquivo 2: já existe outro arquivo chamado “a”."
+      ],
+      [
+        "Arquivo 1: dê um nome ao arquivo."
+      ],
+      [],
+      [
+        "Escolha o modelo de separação."
+      ]
+    ],
+    "video": {
+      "spleeter": {
+        "voz": {
+          "nome": "Voz",
+          "faixas": [
+            "vozes"
+          ]
+        },
+        "resto": {
+          "nome": "Sem voz",
+          "faixas": [
+            "bateria",
+            "baixo",
+            "outros"
+          ]
+        }
+      },
+      "roformer": {
+        "voz": {
+          "nome": "Voz",
+          "faixas": [
+            "vozes"
+          ]
+        },
+        "resto": {
+          "nome": "Sem voz",
+          "faixas": [
+            "bateria",
+            "baixo",
+            "guitarra",
+            "piano",
+            "outros"
+          ]
+        }
+      }
+    },
+    "arquivo": {
+      "taxa": 48000,
+      "faixas": [
+        {
+          "id": "vozes",
+          "nome": "Voz",
+          "ganhoDb": -3,
+          "pan": 20,
+          "efeitos": [
+            "compressor",
+            "reverberacao"
+          ],
+          "clipes": [
+            [
+              "vozes",
+              0,
+              9600
+            ]
+          ]
+        },
+        {
+          "id": "baixo",
+          "nome": "Baixo",
+          "ganhoDb": 2,
+          "pan": -10,
+          "efeitos": [
+            "equalizador"
+          ],
+          "clipes": [
+            [
+              "baixo",
+              0,
+              9600
+            ]
+          ]
+        }
+      ],
+      "master": [
+        "limitador"
+      ],
+      "midias": [
+        [
+          "vozes",
+          9600
+        ],
+        [
+          "baixo",
+          9600
+        ]
+      ]
+    },
+    "render": {
+      "soma": 75.498448,
+      "energia": 6405.63553,
+      "pico": 0.891251,
+      "amostras": [
+        [
+          0,
+          -0.123386,
+          -0.148415
+        ],
+        [
+          1,
+          -0.107163,
+          -0.12561
+        ],
+        [
+          100,
+          0.519995,
+          0.645348
+        ],
+        [
+          2400,
+          -0.832691,
+          -0.78492
+        ],
+        [
+          4800,
+          0.283878,
+          0.280758
+        ],
+        [
+          9599,
+          -0.251084,
+          -0.268107
+        ]
+      ]
+    }
+  }
+}

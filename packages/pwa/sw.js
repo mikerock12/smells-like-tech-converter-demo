@@ -293,3 +293,16 @@ async function receberCompartilhados(pedido) {
     return Response.redirect("/converter?compartilhado=erro", 303);
   }
 }
+
+// Notificação de processamento em andamento (lib/segundo-plano.ts): tocar nela volta para a
+// aba que está convertendo ou separando, em vez de abrir outra.
+self.addEventListener("notificationclick", (evento) => {
+  evento.notification.close();
+  const destino = evento.notification.data?.url || "/";
+  evento.waitUntil((async () => {
+    const janelas = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+    const aberta = janelas.find((janela) => new URL(janela.url).pathname === new URL(destino, self.location.origin).pathname) ?? janelas[0];
+    if (aberta) return aberta.focus();
+    return self.clients.openWindow(destino);
+  })());
+});

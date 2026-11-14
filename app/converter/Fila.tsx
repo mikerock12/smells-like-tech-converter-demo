@@ -95,7 +95,7 @@ export default function Fila({
         <p className="summary summary--muted">Processando no seu computador — {rodando} em andamento. Nada está sendo enviado.</p>
       )}
       {jobs.some((job) => job.status === "running") && (
-        <p className="summary summary--muted">Mantenha esta aba aberta. O navegador pode suspender conversões ao bloquear o aparelho ou ficar em segundo plano. Para conversões longas em segundo plano, use o app Android, Windows ou o plugin.</p>
+        <p className="summary summary--muted">Mantenha esta aba aberta: a tela fica acesa enquanto converte, e o andamento aparece no título da aba e nas notificações quando você troca de aba ou de app. O navegador pode desacelerar ou pausar a página em segundo plano e congela tudo com a tela bloqueada. Para converter com a tela desligada, use o app Android, o aplicativo do Windows ou o plugin.</p>
       )}
     </section>
   );

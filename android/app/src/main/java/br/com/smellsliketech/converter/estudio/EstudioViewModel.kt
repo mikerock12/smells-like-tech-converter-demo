@@ -599,7 +599,16 @@ class EstudioViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) {
         // Enquanto o andamento não dá para medir, vale a estimativa feita antes de começar.
         val decorrido = (System.nanoTime() / 1_000_000 - comecoDoTrabalho) / 1000.0
         restante = andamento.registrar(progresso!!) ?: estimativa?.let { maxOf(1.0, it - decorrido).toInt() }
+        emSegundoPlano?.let { t ->
+            fila.atualizarExterno(t, ocupado ?: "Processando…", progresso!!)
+            t.restante = restante ?: t.restante
+        }
     }
+
+    // A exportação continua com a tela apagada ou em outro app: o serviço em primeiro plano
+    // segura a CPU e mostra porcentagem e tempo na notificação.
+    private val fila = br.com.smellsliketech.converter.conversao.FilaDeConversoes.obter(getApplication<Application>())
+    private var emSegundoPlano: br.com.smellsliketech.converter.conversao.Trabalho? = null
 
     private fun executar(texto: String, bloco: suspend () -> Unit) {
         if (trabalho?.isActive == true) return
@@ -608,6 +617,7 @@ class EstudioViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) {
             progresso = 0
             restante = null
             andamento = Andamento()
+            emSegundoPlano = fila.acompanhar("Estúdio: ${texto.trimEnd('…', '.')}") { cancelar() }
             estimativa = null
             comecoDoTrabalho = System.nanoTime() / 1_000_000
             try {
@@ -619,6 +629,8 @@ class EstudioViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) {
             } catch (falha: Exception) {
                 erro = "Algo deu errado: ${falha.message ?: falha.javaClass.simpleName}"
             } finally {
+                emSegundoPlano?.let { fila.concluirExterno(it, erro) }
+                emSegundoPlano = null
                 ocupado = null
                 progresso = null
                 restante = null

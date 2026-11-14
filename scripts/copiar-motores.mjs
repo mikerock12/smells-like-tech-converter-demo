@@ -42,7 +42,10 @@ console.log("motores: idiomas OCR e recursos de PDF servidos pelo próprio site"
 // Somente o runtime WASM CPU: os builds JSEP/asyncify são maiores e não são usados aqui.
 const recorte = join(raiz, "public", "motores", "recorte");
 mkdirSync(recorte, { recursive: true });
-for (const nome of ["ort-wasm-simd-threaded.mjs", "ort-wasm-simd-threaded.wasm"]) {
+// ort.webgpu.min.mjs e o .asyncify.mjs carregam o runtime com WebGPU (placa de vídeo) em tempo
+// de execução, fora do bundle; o .asyncify.wasm (25,5 MiB) passa do limite de arquivo do
+// Workers e vem do R2, por /modelos/ (lib/musica/separacao.worker.ts).
+for (const nome of ["ort-wasm-simd-threaded.mjs", "ort-wasm-simd-threaded.wasm", "ort.webgpu.min.mjs", "ort-wasm-simd-threaded.asyncify.mjs"]) {
   copyFileSync(join(raiz, "node_modules", "onnxruntime-web", "dist", nome), join(recorte, nome));
 }
 for (const nome of ["u2netp.onnx", "LICENSE", "README.md"]) copyFileSync(join(raiz, "packages", "recorte", nome), join(recorte, nome));

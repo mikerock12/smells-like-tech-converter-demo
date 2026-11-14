@@ -52,6 +52,10 @@ export function opcoesDoPlugin(ferramenta: Ferramenta, opcoes: Opcoes): Record<s
         TrimStart: inicio,
         TrimDuration: duracaoDoCorte,
       };
+    case "music.stemsPackage":
+      return { operation, Package: String(opcoes.pacote ?? "") };
+    case "video.voice":
+      return { operation, Package: String(opcoes.pacote ?? ""), OutputFormat: formato === "webm" ? "webm" : "mp4" };
     case "video.extractAudio":
       return {
         operation,

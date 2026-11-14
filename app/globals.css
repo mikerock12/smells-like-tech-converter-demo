@@ -1143,3 +1143,13 @@ audio.previa__midia { background: transparent; cursor: default; }
   .comparativo--opcoes td::before { content: attr(data-rotulo); color: var(--text-muted); text-align: left; flex: none; }
 }
 @media (max-width: 640px) { .plugin-page { padding-left: 20px; padding-right: 20px; } }
+
+/* Separar faixas no conversor (OpcoesDasFaixas) */
+.faixas-do-pacote { display: grid; gap: 12px; margin: 12px 0; }
+.faixas-do-pacote__arquivos { display: grid; gap: 8px; margin: 6px 0; padding-left: 22px; }
+.faixas-do-pacote__arquivo { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.faixas-do-pacote__arquivo input[type="text"] { flex: 1 1 160px; min-width: 0; }
+.faixas-do-pacote__marcas { display: flex; flex-wrap: wrap; gap: 4px 12px; flex: 2 1 260px; }
+.faixas-do-pacote__marcas label { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+.faixas-do-pacote__efeitos summary { cursor: pointer; font-weight: 600; padding: 6px 0; }
+.faixas-do-pacote fieldset { border: 0; padding: 0; margin: 0; display: grid; gap: 6px; }

@@ -158,6 +158,10 @@ public sealed partial class ConversionOptionsView : UserControl
 
             OperationIds.MusicSeparate => new MusicSeparateOptions(),
 
+            OperationIds.MusicStemsPackage => new MusicStemsPackageOptions { Package = Stems.Json },
+
+            OperationIds.VideoVoice => new VideoVoiceOptions { Package = Stems.Json, OutputFormat = format },
+
             _ => throw new ConversionException("operation_not_available", "Selecione uma conversão disponível.")
         };
     }
@@ -196,6 +200,15 @@ public sealed partial class ConversionOptionsView : UserControl
 
         switch (options)
         {
+            case MusicStemsPackageOptions package:
+                Stems.Load(package.Package, forVideo: false);
+                break;
+
+            case VideoVoiceOptions voice:
+                SelectValue(FormatCombo, voice.OutputFormat);
+                Stems.Load(voice.Package, forVideo: true);
+                break;
+
             case VideoConvertOptions video:
                 SelectValue(FormatCombo, video.OutputFormat);
                 SelectValue(CodecCombo, video.VideoCodec);
@@ -319,8 +332,29 @@ public sealed partial class ConversionOptionsView : UserControl
         suppressSelection = false;
     }
 
+    private StemPackageEditor? stems;
+
+    /// <summary>O editor das ferramentas de separação, criado na primeira vez que aparece.</summary>
+    private StemPackageEditor Stems
+    {
+        get
+        {
+            if (stems is null)
+            {
+                stems = new StemPackageEditor();
+                StemsPanel.Children.Add(stems);
+            }
+
+            return stems;
+        }
+    }
+
+    /// <summary>Problemas do pedido de separação, para a tela travar antes de enfileirar.</summary>
+    internal IReadOnlyList<string> StemProblems => operation?.Id == OperationIds.MusicStemsPackage ? Stems.Problems : [];
+
     private void ShowPanelsFor(string operationId)
     {
+        StemsPanel.Visibility = Collapsed(operationId is OperationIds.MusicStemsPackage or OperationIds.VideoVoice);
         VideoPanel.Visibility = Collapsed(operationId is OperationIds.VideoConvert);
         AudioPanel.Visibility = Collapsed(operationId is OperationIds.VideoExtractAudio or OperationIds.AudioConvert);
         ImagePanel.Visibility = Collapsed(operationId is OperationIds.ImageConvert);

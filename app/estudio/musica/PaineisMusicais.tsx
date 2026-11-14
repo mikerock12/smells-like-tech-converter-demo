@@ -14,6 +14,8 @@ import { usePlugin } from "@/lib/plugin/usePlugin";
 import type { PedidoDeSeparacaoMusical, Trabalho } from "@/lib/plugin/protocolo";
 import { exportarMusica, formatosDisponiveis, type Exportado } from "@/lib/musica/exportar";
 import { MotorDaMusica, type ResultadoDaEntrada } from "@/lib/musica/motor";
+import { useAndamento } from "@/lib/segundo-plano";
+import { PlacaDeVideo } from "@/app/converter/OpcoesDasFaixas";
 import { SeparadorNoNavegador, apagarModelo, garantirModelo, modeloBaixado, restaurarFaixa, type PerfilDeMascara } from "@/lib/musica/separacao";
 import { novoId, type Mudar } from "./CriacaoMusical";
 import { AjusteMusical } from "./AjusteMusical";
@@ -145,7 +147,7 @@ export function PainelDeSeparacao({ projeto, canaisDe, mudar, carregarMidia }: {
   const [limpar, setLimpar] = useState(false);
   const [locais, setLocais] = useState([false, false]);
   const [noPlugin, setNoPlugin] = useState({ legacy: false, maximum: false });
-  const [andamento, setAndamento] = useState<{ etapa: string; fracao: number } | null>(null);
+  const [andamento, setAndamento] = useAndamento("Separando faixas");
   const [mensagem, setMensagem] = useState<string | null>(null);
   const separador = useRef<SeparadorNoNavegador | null>(null);
   const plugin = usePlugin();
@@ -321,6 +323,7 @@ export function PainelDeSeparacao({ projeto, canaisDe, mudar, carregarMidia }: {
                 </label>
               ))}
             </fieldset>
+            {!roformer && !delegar && <PlacaDeVideo disabled={!!andamento} />}
             <label className="estudio__chave"><input type="checkbox" checked={!roformer && mascara === "refinada"} disabled={!!andamento || roformer}
               onChange={(e) => setMascara(e.target.checked ? "refinada" : "classica")} /> Refinar agudos (experimental)</label>
             <label className="musica__campo">Restauração por instrumento ({intensidade}%)
@@ -342,7 +345,7 @@ export function PainelDeSeparacao({ projeto, canaisDe, mudar, carregarMidia }: {
         )}
         {andamento && (
           <div className="estudio__andamento" aria-live="polite">
-            <span>{andamento.etapa}</span>
+            <span>{andamento.etapa} · {andamento.texto}</span>
             <progress max={1} value={andamento.fracao} />
             <button type="button" className="button button--ghost" onClick={() => { descarga.current?.abort(); separador.current?.cancelar(); cancelarNoPlugin.current?.(); }}>Cancelar</button>
           </div>
@@ -363,7 +366,7 @@ export function PainelDeExportacao({ projeto, fontes, faixaSelecionada }: { proj
   const [alcance, setAlcance] = useState<"projeto" | "loop">("projeto");
   const [alvo, setAlvo] = useState<"mix" | "faixas" | "uma">("mix");
   const [cauda, setCauda] = useState(true);
-  const [andamento, setAndamento] = useState<{ etapa: string; fracao: number } | null>(null);
+  const [andamento, setAndamento] = useAndamento("Exportando a música");
   const [resultados, setResultados] = useState<(Exportado & { url: string })[]>([]);
   const [erro, setErro] = useState<string | null>(null);
   const cancelado = useRef(false);
@@ -417,7 +420,7 @@ export function PainelDeExportacao({ projeto, fontes, faixaSelecionada }: { proj
           <button type="button" className="button" onClick={() => void exportar()} disabled={!!andamento}>Exportar</button>
           {andamento && <button type="button" className="button button--ghost" onClick={() => { cancelado.current = true; }}>Cancelar</button>}
         </div>
-        {andamento && <div className="estudio__andamento" aria-live="polite"><span>{andamento.etapa}</span><progress max={1} value={andamento.fracao} /></div>}
+        {andamento && <div className="estudio__andamento" aria-live="polite"><span>{andamento.etapa} · {andamento.texto}</span><progress max={1} value={andamento.fracao} /></div>}
         {erro && <p className="estudio__erro" role="alert">{erro}</p>}
         <p className="estudio__dica">WAV de 16 e 24 bits leva dither; o float32 não. Nenhum alvo de volume é imposto: escolha o master pela finalidade e confira a medida.</p>
       </section>

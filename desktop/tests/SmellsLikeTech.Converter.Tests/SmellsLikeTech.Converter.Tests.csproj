@@ -25,6 +25,7 @@
     <Content Include="..\..\..\packages\converter-core\giphy-caso.json" Link="giphy-caso.json" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="..\..\..\packages\converter-core\guias-casos.json" Link="guias-casos.json" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="..\..\..\packages\converter-core\recorte-casos.json" Link="recorte-casos.json" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\..\packages\converter-core\musica-pacote-casos.json" Link="musica-pacote-casos.json" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="..\..\..\packages\converter-core\musica-casos\*.json">
       <Link>musica-casos\%(Filename)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

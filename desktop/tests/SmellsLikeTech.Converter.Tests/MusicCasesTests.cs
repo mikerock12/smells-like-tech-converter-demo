@@ -18,7 +18,7 @@ public sealed class MusicCasesTests
             .Order(StringComparer.Ordinal)
             .Select(path => new object[] { Path.GetFileName(path) });
 
-    private static float[][] Generate(JsonElement g, int channels, long frames, int rate)
+    internal static float[][] Generate(JsonElement g, int channels, long frames, int rate)
     {
         var result = new float[channels][];
         var kind = g.GetProperty("tipo").GetString();
@@ -73,7 +73,7 @@ public sealed class MusicCasesTests
         Assert.True(Math.Abs(e - actual) <= Tolerance + 1e-7 * Math.Abs(e), $"{what}: esperado {e}, veio {actual}");
     }
 
-    private static void Summary(JsonElement expected, float[] left, float[] right, string what)
+    internal static void Summary(JsonElement expected, float[] left, float[] right, string what)
     {
         double sum = 0, energy = 0, peak = 0;
         for (var i = 0; i < left.Length; i++)

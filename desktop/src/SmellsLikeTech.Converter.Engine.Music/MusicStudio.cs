@@ -114,6 +114,20 @@ public sealed class MusicTools(Func<string> ffmpegPath, ProcessRunner runner, st
         return (source.Frames, source.Channels);
     }
 
+    /// <summary>
+    /// Troca o áudio de um vídeo pelo WAV dado, copiando a imagem sem recodificar. A trilha nova
+    /// sai em AAC (MP4, MOV, MKV) ou Opus (WebM); legendas e capítulos do original continuam.
+    /// </summary>
+    public Task ReplaceAudioAsync(string video, string audio, string output, CancellationToken token)
+    {
+        var webm = output.EndsWith(".webm", StringComparison.OrdinalIgnoreCase);
+        string[] codec = webm ? ["-c:a", "libopus", "-b:a", "192k"] : ["-c:a", "aac", "-b:a", "192k"];
+        string[] extra = output.EndsWith(".mp4", StringComparison.OrdinalIgnoreCase) || output.EndsWith(".mov", StringComparison.OrdinalIgnoreCase)
+            ? ["-movflags", "+faststart"] : [];
+        return FfmpegAsync(["-hide_banner", "-nostdin", "-y", "-i", video, "-i", audio, "-map", "0:v", "-map", "1:a:0", "-map", "0:s?",
+            "-c:v", "copy", "-c:s", "copy", .. codec, "-map_metadata", "0", .. extra, output], token);
+    }
+
     /// <summary>Reamostra um WAV float com o FFmpeg (soxr quando houver, senão o padrão).</summary>
     public Task ResampleAsync(string input, string output, int rate, CancellationToken token) =>
         FfmpegAsync(["-hide_banner", "-nostdin", "-y", "-i", input, "-ar", rate.ToString(System.Globalization.CultureInfo.InvariantCulture), "-c:a", "pcm_f32le", output], token);
@@ -433,7 +447,7 @@ public sealed class MusicTools(Func<string> ffmpegPath, ProcessRunner runner, st
             var definition = MusicSeparation.Mode(mode) ?? throw new ConversionException("invalid_mode", "Modo de separação desconhecido.");
             var writers = definition.Stems.Select(s => new StreamingWavWriter(Path.Combine(work, $"{s.Id}-44k.wav"), 2, MusicSeparation.ModelRate)).ToArray();
             var pending = definition.Stems.Select(_ => new float[2][]).ToArray();
-            using var options = new SessionOptions { GraphOptimizationLevel = GraphOptimizationLevel.ORT_ENABLE_ALL, IntraOpNumThreads = Math.Max(1, Environment.ProcessorCount - 1) };
+            using var options = new SessionOptions { GraphOptimizationLevel = GraphOptimizationLevel.ORT_ENABLE_ALL, IntraOpNumThreads = Core.Jobs.InferenceProcessors.InferenceThreads() };
             using var session = new InferenceSession(ModelPath, options);
             try
             {

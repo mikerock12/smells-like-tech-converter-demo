@@ -86,11 +86,15 @@ enum class Ferramenta(val titulo: String, val tipo: Tipo, val formatos: List<Str
     VIDEO_QUADROS("Vídeo → imagens", Tipo.VIDEO, listOf("png", "jpg", "webp")),
     // A transcrição volta como texto na tela; o formato a pessoa escolhe depois (Transcricao.FORMATOS).
     VIDEO_TRANSCREVER("Transcrever (Whisper)", Tipo.VIDEO, listOf("txt")),
+    // Experimental: tira a voz e mantém o resto, ou só a voz, sem recodificar a imagem.
+    VIDEO_VOZ("Tirar ou isolar a voz (experimental)", Tipo.VIDEO, listOf("mp4")),
 
     AUDIO_CONVERTER("Converter áudio", Tipo.AUDIO, AUDIO),
     AUDIO_CORTAR("Cortar áudio", Tipo.AUDIO, AUDIO),
     AUDIO_EDITAR("Editar áudio", Tipo.AUDIO, AUDIO),
     AUDIO_TRANSCREVER("Transcrever (Whisper)", Tipo.AUDIO, listOf("txt")),
+    // Experimental: Spleeter ou RoFormer, as combinações e os efeitos escolhidos, num .zip.
+    AUDIO_SEPARAR_FAIXAS("Separar faixas em .zip (experimental)", Tipo.AUDIO, listOf("zip")),
 
     PDF_JUNTAR("Juntar PDFs", Tipo.PDF, listOf("pdf"), juntaTudo = true),
     PDF_DIVIDIR("Dividir PDF", Tipo.PDF, listOf("pdf")),
@@ -121,6 +125,8 @@ enum class Ferramenta(val titulo: String, val tipo: Tipo, val formatos: List<Str
         VIDEO_COMPRIMIR -> Opcoes(formato = "mp4", alturaDoVideo = 720, qualidadeDoVideo = 40)
         VIDEO_SEM_AUDIO -> Opcoes(formato = "mp4", removerAudio = true)
         PDF_GIRAR -> Opcoes(formato = "pdf", graus = 90)
+        AUDIO_SEPARAR_FAIXAS -> Opcoes(formato = "zip", pacote = br.com.smellsliketech.converter.musica.PacoteDeFaixas.lerPedido(null).paraJson().toString())
+        VIDEO_VOZ -> Opcoes(formato = "mp4", pacote = br.com.smellsliketech.converter.musica.PacoteDeFaixas.lerPedido(null, manterPadrao = "resto").paraJson().toString())
         else -> Opcoes(formato = formatos.firstOrNull() ?: "")
     }
 
@@ -214,6 +220,9 @@ data class Opcoes(
     val modoDeDividir: ModoDeDividir = ModoDeDividir.CADA_PAGINA,
     val paginas: String = "1",
     val paginasPorBloco: Int = 10,
+
+    // Separar faixas (experimental): o pedido em JSON, o mesmo do site e do Windows (PacoteDeFaixas).
+    val pacote: String = "",
 )
 
 /** As listas permitidas, iguais às do aplicativo para Windows. */

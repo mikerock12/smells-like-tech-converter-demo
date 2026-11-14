@@ -24,7 +24,7 @@ import kotlin.math.sin
 class MusicaCasosTest {
     private val pasta = File("../../packages/converter-core/musica-casos")
 
-    private fun gerar(g: JSONObject, canais: Int, quadros: Long, taxa: Int): Array<FloatArray> = Array(canais) { c ->
+    internal fun gerar(g: JSONObject, canais: Int, quadros: Long, taxa: Int): Array<FloatArray> = Array(canais) { c ->
         val x = FloatArray(quadros.toInt())
         val amplitude = g.optDouble("amplitude", 0.5)
         when (g.getString("tipo")) {
@@ -50,7 +50,7 @@ class MusicaCasosTest {
         return h.toLong() and 0xffffffffL
     }
 
-    private fun perto(esperado: Any, real: Double, oque: String) {
+    internal fun perto(esperado: Any, real: Double, oque: String) {
         if (esperado is String) {
             assertTrue("$oque: esperado $esperado, veio $real", esperado == "-inf" && real == Double.NEGATIVE_INFINITY)
             return
@@ -59,7 +59,7 @@ class MusicaCasosTest {
         assertTrue("$oque: esperado $e, veio $real", abs(e - real) <= 2e-6 + 1e-7 * abs(e))
     }
 
-    private fun resumo(esperado: JSONObject, esq: FloatArray, dir: FloatArray, oque: String) {
+    internal fun resumo(esperado: JSONObject, esq: FloatArray, dir: FloatArray, oque: String) {
         var soma = 0.0; var energia = 0.0; var pico = 0.0
         for (i in esq.indices) {
             soma += esq[i].toDouble() + dir[i]

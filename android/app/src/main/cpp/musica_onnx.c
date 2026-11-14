@@ -1,5 +1,6 @@
 // Inferência do modelo de separação (Spleeter 4stems) pela API C do ONNX Runtime, para
 // SeparacaoDaMusica no Android. Só três chamadas: abrir a sessão, rodar um trecho e fechar.
+#include <dlfcn.h>
 #include <jni.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -10,6 +11,30 @@
 
 static const OrtApi *api = NULL;
 static OrtEnv *ambiente = NULL;
+/** Se a última sessão aberta ficou com o NNAPI (acelerador do aparelho) ligado. */
+static int ultimoComAcelerador = 0;
+
+typedef OrtStatus *(*AnexarNnapi)(OrtSessionOptions *, uint32_t);
+
+/**
+ * Liga o NNAPI, que entrega ao Android as partes do modelo que o acelerador do aparelho
+ * (Qualcomm Hexagon/Adreno, MediaTek APU, Samsung NPU...) sabe rodar; o resto continua na CPU.
+ * Sem relaxar para FP16 (flag 0): a precisão continua a de float32. A função existe no
+ * libonnxruntime.so do sherpa, mas não está no cabeçalho: procura pelo nome.
+ */
+static int anexarNnapi(OrtSessionOptions *opcoes) {
+    void *biblioteca = dlopen("libonnxruntime.so", RTLD_NOW | RTLD_NOLOAD);
+    if (biblioteca == NULL) return 0;
+    AnexarNnapi anexar = (AnexarNnapi) dlsym(biblioteca, "OrtSessionOptionsAppendExecutionProvider_Nnapi");
+    int ok = 0;
+    if (anexar != NULL) {
+        OrtStatus *status = anexar(opcoes, 0);
+        if (status == NULL) ok = 1;
+        else api->ReleaseStatus(status);
+    }
+    dlclose(biblioteca);
+    return ok;
+}
 
 static int falhou(JNIEnv *jni, OrtStatus *status) {
     if (status == NULL) return 0;
@@ -20,7 +45,7 @@ static int falhou(JNIEnv *jni, OrtStatus *status) {
 }
 
 JNIEXPORT jlong JNICALL
-Java_br_com_smellsliketech_converter_musica_InferenciaOnnx_abrir(JNIEnv *jni, jclass classe, jstring caminho, jint threads, jboolean economizar) {
+Java_br_com_smellsliketech_converter_musica_InferenciaOnnx_abrir(JNIEnv *jni, jclass classe, jstring caminho, jint threads, jboolean economizar, jboolean acelerar) {
     (void) classe;
     if (api == NULL) api = OrtGetApiBase()->GetApi(VERSAO_DA_API);
     if (api == NULL) {
@@ -38,7 +63,20 @@ Java_br_com_smellsliketech_converter_musica_InferenciaOnnx_abrir(JNIEnv *jni, jc
     }
     const char *arquivo = (*jni)->GetStringUTFChars(jni, caminho, NULL);
     OrtSession *sessao = NULL;
+    ultimoComAcelerador = acelerar ? anexarNnapi(opcoes) : 0;
     OrtStatus *status = api->CreateSession(ambiente, arquivo, opcoes, &sessao);
+    if (status != NULL && ultimoComAcelerador) {
+        // O driver do aparelho recusou o modelo: abre de novo só na CPU, como antes.
+        api->ReleaseStatus(status);
+        api->ReleaseSessionOptions(opcoes);
+        opcoes = NULL;
+        ultimoComAcelerador = 0;
+        if (falhou(jni, api->CreateSessionOptions(&opcoes))) { (*jni)->ReleaseStringUTFChars(jni, caminho, arquivo); return 0; }
+        api->SetIntraOpNumThreads(opcoes, threads);
+        api->SetSessionGraphOptimizationLevel(opcoes, ORT_ENABLE_ALL);
+        if (economizar) { api->DisableCpuMemArena(opcoes); api->DisableMemPattern(opcoes); }
+        status = api->CreateSession(ambiente, arquivo, opcoes, &sessao);
+    }
     (*jni)->ReleaseStringUTFChars(jni, caminho, arquivo);
     api->ReleaseSessionOptions(opcoes);
     if (falhou(jni, status)) return 0;
@@ -90,4 +128,11 @@ Java_br_com_smellsliketech_converter_musica_InferenciaOnnx_fechar(JNIEnv *jni, j
     (void) jni;
     (void) classe;
     if (ponteiro != 0 && api != NULL) api->ReleaseSession((OrtSession *) (intptr_t) ponteiro);
+}
+
+JNIEXPORT jboolean JNICALL
+Java_br_com_smellsliketech_converter_musica_InferenciaOnnx_comAcelerador(JNIEnv *jni, jclass classe) {
+    (void) jni;
+    (void) classe;
+    return ultimoComAcelerador ? JNI_TRUE : JNI_FALSE;
 }

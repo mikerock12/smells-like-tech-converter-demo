@@ -356,8 +356,11 @@ class BibliotecaDaMusica(private val contexto: Context) {
             val forma = longArrayOf(1, 2, SeparacaoDaMusica.QUADROS_POR_TRECHO.toLong(), SeparacaoDaMusica.BANDAS.toLong())
             try {
                 FonteWav(a44).use { fonte ->
-                    val threads = maxOf(1, Runtime.getRuntime().availableProcessors() - 1)
-                    InferenciaOnnx(arquivoDoModelo(roformer).absolutePath, if (roformer) minOf(2, threads) else threads, roformer).use { sessao ->
+                    // Só os núcleos rápidos: em big.LITTLE os econômicos atrasariam o modelo inteiro.
+                    val threads = br.com.smellsliketech.converter.conversao.Processadores.paraInferencia()
+                    val acelerar = br.com.smellsliketech.converter.conversao.Processadores.aceleradorLigado(contexto)
+                    InferenciaOnnx(arquivoDoModelo(roformer).absolutePath, if (roformer) minOf(2, threads) else threads, roformer, acelerar && !roformer).use { sessao ->
+                        if (acelerar) progresso(if (sessao.usandoAcelerador) "Usando o acelerador de IA do aparelho" else "Acelerador recusou o modelo: usando a CPU", 0.0)
                         if (roformer) RoFormer.separar(fonte, sessao, escritores) { progresso("Separando com o RoFormer", it) }
                         else {
                         SeparacaoDaMusica.separar(

@@ -311,6 +311,11 @@
             </Grid>
         </StackPanel>
 
+        <!-- Separar faixas (experimental): o editor é montado em código (StemPackageEditor). -->
+        <StackPanel x:Name="StemsPanel" Spacing="12" Visibility="Collapsed">
+            <Border Height="1" Background="{StaticResource BrandStrokeBrush}" />
+        </StackPanel>
+
         <!-- Corte -->
         <StackPanel x:Name="TrimPanel" Spacing="8" Visibility="Collapsed">
             <Border Height="1" Background="{StaticResource BrandStrokeBrush}" />

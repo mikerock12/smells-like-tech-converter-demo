@@ -399,6 +399,9 @@ export const CAMPOS: Readonly<Record<string, readonly Campo[]>> = {
     { id: "velocidade", tipo: "faixa", rotulo: "Velocidade", padrao: 0, min: -10, max: 10, passo: 1 },
     { id: "volume", tipo: "faixa", rotulo: "Volume", padrao: 100, min: 0, max: 100, sufixo: "%" },
   ],
+  // O pedido inteiro (modelo, arquivos, efeitos) viaja em JSON: o painel OpcoesDasFaixas edita.
+  "audio.separar-faixas": [{ id: "pacote", tipo: "texto", rotulo: "Pacote", padrao: "", quando: () => false }],
+  "video.voz": [{ id: "pacote", tipo: "texto", rotulo: "Pacote", padrao: "", quando: () => false }],
   "legenda.converter": [
     formatos(["vtt", "srt", "txt"], "vtt"),
     { id: "atraso", tipo: "numero", rotulo: "Atrasar", padrao: 0, min: -3600, max: 3600, passo: 0.1, sufixo: "s" },

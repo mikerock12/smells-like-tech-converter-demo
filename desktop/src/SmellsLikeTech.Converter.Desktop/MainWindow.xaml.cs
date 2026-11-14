@@ -37,6 +37,11 @@ public sealed partial class MainWindow : Window
         // restauração sai da área útil do monitor, não de uma medida fixa.
         WindowPlacement.Apply(AppWindow, App.Services.Settings);
 
+        // Trabalho longo: o PC não dorme e o ícone na barra de tarefas mostra o andamento.
+        var originalTitle = AppWindow.Title;
+        BackgroundWork.Attach(WinRT.Interop.WindowNative.GetWindowHandle(this), text => AppWindow.Title = text is null ? originalTitle : $"{text} — {originalTitle}");
+        BackgroundWork.Follow(App.Services.Queue);
+
         RootGrid.Loaded += OnLoaded;
         AppWindow.Closing += OnClosing;
         Closed += OnClosed;

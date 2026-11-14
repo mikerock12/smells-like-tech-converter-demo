@@ -29,6 +29,8 @@ export interface Ferramenta {
   readonly pares: readonly (readonly [FormatId, FormatId])[];
   /** Só alguns formatos do tipo: "GIF → vídeo" aceita imagem, mas só GIF. */
   readonly formatosDeEntrada?: readonly FormatId[];
+  /** Recurso novo, ainda em teste: a tela avisa. */
+  readonly experimental?: boolean;
 }
 
 export interface Variante {

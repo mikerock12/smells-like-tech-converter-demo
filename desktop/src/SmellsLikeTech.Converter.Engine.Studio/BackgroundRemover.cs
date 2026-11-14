@@ -15,7 +15,7 @@ public static class BackgroundRemover
     public const int Side=320;
     private static readonly SemaphoreSlim Gate=new(1,1);
     private static readonly Lazy<InferenceSession> Session=new(()=> {
-        using var options=new SessionOptions {IntraOpNumThreads=Math.Clamp(Environment.ProcessorCount-1,1,8),GraphOptimizationLevel=GraphOptimizationLevel.ORT_ENABLE_ALL};
+        using var options=new SessionOptions {IntraOpNumThreads=Math.Min(8,SmellsLikeTech.Converter.Core.Jobs.InferenceProcessors.InferenceThreads()),GraphOptimizationLevel=GraphOptimizationLevel.ORT_ENABLE_ALL};
         return new InferenceSession(Path.Combine(AppContext.BaseDirectory,"recorte","u2netp.onnx"),options);
     });
 

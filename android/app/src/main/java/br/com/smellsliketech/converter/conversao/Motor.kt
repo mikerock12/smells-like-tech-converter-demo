@@ -69,6 +69,8 @@ object Motor {
             Ferramenta.VIDEO_GIF -> umPorArquivo { entrada, progresso -> Midia.gif(context, entrada, opcoes, progresso) }
             Ferramenta.VIDEO_QUADROS -> porArquivo { entrada, progresso -> Midia.quadros(context, entrada, opcoes, progresso) }
             Ferramenta.VIDEO_TRANSCREVER, Ferramenta.AUDIO_TRANSCREVER -> error("A transcrição volta como texto: use Motor.transcrever.")
+            Ferramenta.AUDIO_SEPARAR_FAIXAS -> umPorArquivo { entrada, progresso -> FaixasNoConversor.pacote(context, entrada, opcoes, progresso) }
+            Ferramenta.VIDEO_VOZ -> umPorArquivo { entrada, progresso -> FaixasNoConversor.vozDoVideo(context, entrada, opcoes, progresso) }
 
             Ferramenta.AUDIO_CONVERTER -> umPorArquivo { entrada, progresso -> Midia.audio(context, entrada, opcoes, "", progresso) }
             Ferramenta.AUDIO_CORTAR -> umPorArquivo { entrada, progresso -> Midia.audio(context, entrada, opcoes, "cortado", progresso) }

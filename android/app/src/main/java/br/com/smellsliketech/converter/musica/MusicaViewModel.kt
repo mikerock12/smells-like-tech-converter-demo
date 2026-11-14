@@ -47,7 +47,36 @@ class MusicaViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) {
     var medidores by mutableStateOf<Map<String, FloatArray>>(emptyMap()); private set
     var entrada by mutableStateOf<EntradaAberta?>(null); private set
     var mensagem by mutableStateOf<String?>(null)
-    var andamento by mutableStateOf<Pair<String, Double>?>(null); private set
+    private var andamentoAtual by mutableStateOf<Pair<String, Double>?>(null)
+    /**
+     * Etapa e fração do trabalho longo em andamento (separar, exportar, baixar modelo). Cada
+     * mudança também vai para a notificação do serviço em primeiro plano, que mantém a CPU
+     * ligada com a tela apagada ou em outro app.
+     */
+    var andamento: Pair<String, Double>?
+        get() = andamentoAtual
+        private set(valor) {
+            andamentoAtual = valor
+            acompanharEmSegundoPlano(valor)
+        }
+    /** Segundos que faltam no trabalho em andamento, ou null enquanto não dá para estimar. */
+    var restante by mutableStateOf<Int?>(null); private set
+    private val fila = br.com.smellsliketech.converter.conversao.FilaDeConversoes.obter(aplicacao)
+    private var emSegundoPlano: br.com.smellsliketech.converter.conversao.Trabalho? = null
+
+    private fun acompanharEmSegundoPlano(valor: Pair<String, Double>?) {
+        if (valor == null) {
+            emSegundoPlano?.let { fila.concluirExterno(it) }
+            emSegundoPlano = null
+            restante = null
+            return
+        }
+        val titulo = if (valor.first.startsWith("Mixando") || valor.first.startsWith("Codificando") || valor.first.startsWith("Masterizando")) "Exportando a música" else "Criação musical: ${valor.first}"
+        val t = emSegundoPlano ?: fila.acompanhar(titulo) { cancelar() }.also { emSegundoPlano = it }
+        fila.atualizarExterno(t, valor.first, (valor.second * 100).toInt())
+        restante = t.restante
+    }
+
     var soltas by mutableStateOf(emptyList<MidiaMusical>()); private set
     var podeDesfazer by mutableStateOf(false); private set
     var podeRefazer by mutableStateOf(false); private set
@@ -642,6 +671,7 @@ class MusicaViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) {
     }
 
     override fun onCleared() {
+        emSegundoPlano?.let { fila.concluirExterno(it) }
         liberarMidias()
         motor?.desligar()
         motor = null

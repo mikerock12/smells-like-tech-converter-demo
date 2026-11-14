@@ -32,6 +32,10 @@ public static class OperationIds
     /// <summary>Separar um audio em faixas (voz, bateria, baixo, outros) pela IA local.</summary>
     public const string MusicSeparate = "music.separate";
 
+    // Separar faixas no conversor (experimental): áudio vira .zip, vídeo perde ou mantém só a voz.
+    public const string MusicStemsPackage = "music.stemsPackage";
+    public const string VideoVoice = "video.voice";
+
     // Ainda sem engine local.
     public const string DocumentConvert = "document.convert";
 

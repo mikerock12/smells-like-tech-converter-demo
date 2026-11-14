@@ -31,10 +31,18 @@ class Trabalho(val id: String, val titulo: String, val arquivos: List<String>) {
     var terminado by mutableStateOf(false)
     internal var tarefa: Job? = null
     internal var midia = false
+    /** Trabalho de fora da fila (separação, exportação do estúdio): como cancelá-lo pela notificação. */
+    internal var aoCancelar: (() -> Unit)? = null
 }
 
 class FilaDeConversoes private constructor(private val contexto: Context) {
     val trabalhos = mutableStateListOf<Trabalho>()
+    /**
+     * Trabalhos longos que rodam fora da fila (separar faixas, exportar música ou vídeo do
+     * estúdio), mas que também precisam continuar com a tela apagada ou em outro app: o
+     * serviço em primeiro plano os mostra na notificação, com porcentagem e tempo.
+     */
+    val externos = mutableStateListOf<Trabalho>()
     private val pendentes = linkedMapOf<Trabalho, suspend () -> List<Resultado>>()
     private val vez = Mutex() // Não duplicar o modelo/RAM/CPU de narrações longas.
     internal var escopo: CoroutineScope? = null
@@ -98,6 +106,45 @@ class FilaDeConversoes private constructor(private val contexto: Context) {
         aoMudar?.invoke()
     }
 
+    internal fun ativos(): List<Trabalho> = trabalhos.filterNot { it.terminado } + externos.filterNot { it.terminado }
+
+    /** Começa a acompanhar um trabalho externo; o serviço sobe e segura a CPU até [concluirExterno]. */
+    fun acompanhar(titulo: String, midia: Boolean = true, aoCancelar: () -> Unit): Trabalho {
+        val trabalho = Trabalho(java.util.UUID.randomUUID().toString(), titulo, emptyList())
+        trabalho.midia = midia
+        trabalho.aoCancelar = aoCancelar
+        trabalho.etapa = "Preparando…"
+        externos.add(trabalho)
+        try {
+            ContextCompat.startForegroundService(contexto, Intent(contexto, ServicoDeConversao::class.java))
+        } catch (erro: Exception) {
+            // Sem o serviço o trabalho continua com o app aberto; só não sobrevive à tela apagada.
+            android.util.Log.w("FilaDeConversoes", "Serviço em primeiro plano recusado: ${erro.message}")
+        }
+        aoMudar?.invoke()
+        return trabalho
+    }
+
+    /** Atualiza etapa e porcentagem (0–100) de um trabalho externo; a estimativa recomeça quando a etapa volta a zero. */
+    fun atualizarExterno(trabalho: Trabalho, etapa: String, porcentagem: Int) {
+        if (trabalho.terminado) return
+        val p = porcentagem.coerceIn(0, 99)
+        if (p + 1 < trabalho.progresso) trabalho.andamento = Andamento()
+        trabalho.etapa = etapa
+        trabalho.progresso = p
+        trabalho.restante = trabalho.andamento.registrar(p)
+        aoMudar?.invoke()
+    }
+
+    fun concluirExterno(trabalho: Trabalho, erro: String? = null) {
+        if (trabalho.terminado) return
+        trabalho.erro = erro
+        trabalho.restante = null
+        trabalho.terminado = true
+        externos.remove(trabalho)
+        aoMudar?.invoke()
+    }
+
     fun cancelar(trabalho: Trabalho) {
         if (pendentes.remove(trabalho) != null) terminar(trabalho, "Cancelada.")
         else trabalho.tarefa?.cancel()
@@ -109,6 +156,7 @@ class FilaDeConversoes private constructor(private val contexto: Context) {
             it.erro = mensagem
             cancelar(it)
         }
+        externos.toList().forEach { it.aoCancelar?.invoke() }
     }
 
     fun avancar(trabalho: Trabalho, parcial: Int, estimar: Boolean = true) {

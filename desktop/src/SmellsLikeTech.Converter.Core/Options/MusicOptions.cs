@@ -37,3 +37,52 @@ public sealed record MusicSeparateOptions : JobOptions
 
     public override string Summary() => $"Separar em {Mode} faixas";
 }
+
+/// <summary>
+/// Separar um áudio em faixas e entregar um .zip com os arquivos pedidos, cada um misturado com
+/// os efeitos das faixas (experimental). <see cref="Package"/> é o pedido em JSON, o mesmo do
+/// site e do Android (<see cref="MusicStemPackage.ReadRequest"/>).
+/// </summary>
+public sealed record MusicStemsPackageOptions : JobOptions
+{
+    public override string Operation => OperationIds.MusicStemsPackage;
+
+    public override string OutputExtension => "zip";
+
+    public string Package { get; init; } = "";
+
+    public override void Validate()
+    {
+        if (Package.Length > 1_000_000) throw new ConversionException("invalid_package", "O pedido de separação é grande demais.");
+        MusicStemPackage.ReadRequest(Package);
+    }
+
+    public override string Summary()
+    {
+        var request = MusicStemPackage.ReadRequest(Package);
+        return $"Separar em {request.Groups.Count} arquivo(s) · {MusicStemPackage.Model(request.Model)!.Label}";
+    }
+}
+
+/// <summary>Tirar a voz de um vídeo, ou ficar só com ela, sem recodificar a imagem (experimental).</summary>
+public sealed record VideoVoiceOptions : JobOptions
+{
+    public override string Operation => OperationIds.VideoVoice;
+
+    public override string OutputExtension => OutputFormat is "webm" or "mkv" or "mov" ? OutputFormat : "mp4";
+
+    public string Package { get; init; } = "";
+
+    /// <summary>"mp4", "webm", "mkv" ou "mov"; o vídeo é copiado, só o áudio é refeito.</summary>
+    public string OutputFormat { get; init; } = "mp4";
+
+    public override void Validate()
+    {
+        if (Package.Length > 1_000_000) throw new ConversionException("invalid_package", "O pedido de separação é grande demais.");
+        if (OutputFormat is not ("mp4" or "webm" or "mkv" or "mov")) throw new ConversionException("invalid_format", "Formato de vídeo não suportado.");
+        MusicStemPackage.ReadRequest(Package, defaultKeep: "resto");
+    }
+
+    public override string Summary() =>
+        MusicStemPackage.ReadRequest(Package, defaultKeep: "resto").Keep == "voz" ? "Manter só a voz do vídeo" : "Tirar a voz do vídeo";
+}

@@ -235,6 +235,30 @@ public static class OperationCatalog
             DefaultOptions = _ => new MusicSeparateOptions()
         },
 
+        new OperationDescriptor
+        {
+            Id = OperationIds.MusicStemsPackage,
+            Title = "Separar faixas em .zip (experimental)",
+            Description = "Voz, bateria, baixo e outros (Spleeter) ou também guitarra e piano (RoFormer), juntos como você quiser, com efeitos e plugins em cada faixa.",
+            InputKinds = [MediaKind.Audio],
+            OutputFormats = ["zip"],
+            DefaultOptions = _ => new MusicStemsPackageOptions { Package = Music.MusicStemPackage.ToJson(Music.MusicStemPackage.ReadRequest(null)) }
+        },
+        new OperationDescriptor
+        {
+            Id = OperationIds.VideoVoice,
+            Title = "Tirar ou isolar a voz do vídeo (experimental)",
+            Description = "Tira a narração e mantém a trilha e os efeitos, ou deixa só a voz, com efeitos no áudio que fica. A imagem não é recodificada.",
+            InputKinds = [MediaKind.Video],
+            RequiresAudioTrack = true,
+            OutputFormats = ["mp4", "webm", "mkv", "mov"],
+            DefaultOptions = info => new VideoVoiceOptions
+            {
+                Package = Music.MusicStemPackage.ToJson(Music.MusicStemPackage.ReadRequest(null, defaultKeep: "resto")),
+                OutputFormat = info?.Extension.TrimStart('.').ToLowerInvariant() is "webm" or "mkv" or "mov" ? info.Extension.TrimStart('.').ToLowerInvariant() : "mp4"
+            }
+        },
+
         // Marcos seguintes: aparecem na interface como indisponíveis, sem prometer o que ainda não existe.
         new OperationDescriptor
         {

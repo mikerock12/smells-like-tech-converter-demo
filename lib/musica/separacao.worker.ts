@@ -10,11 +10,14 @@ import { carregarNucleoNativo } from "@/packages/converter-core/nativo.mjs";
 import { ROFORMER_COMPACTO } from "@/packages/converter-core/musica-modelos.mjs";
 import { separarRoFormer } from "./roformer";
 
-type Pedido = { tipo: "separar"; canais: Float32Array[]; modo: string; nativo: boolean; mascara: "classica" | "refinada" }
+type Pedido = { tipo: "separar"; canais: Float32Array[]; modo: string; nativo: boolean; mascara: "classica" | "refinada"; gpu?: boolean }
   | { tipo: "restaurar"; canais: Float32Array[]; taxa: number; perfil: string; intensidade: number }
   | { tipo: "cancelar" };
 
 let cancelado = false;
+
+/** O runtime do ONNX com WebGPU, no R2 (passa do limite de arquivo do Workers); a versão casa com o package.json. */
+const RUNTIME_WEBGPU = "ort-1.30.0-simd-threaded.asyncify.wasm";
 
 async function carregarWasm() {
   const resposta = await fetch("/motores/nativo/slt_native.wasm");
@@ -50,13 +53,34 @@ self.onmessage = async (evento: MessageEvent<Pedido>) => {
       self.postMessage({ tipo: "restaurado", ...pronto }, pronto.canais.map((c: Float32Array) => c.buffer));
       return;
     }
-    const ort = await import("onnxruntime-web/wasm");
-    ort.env.wasm.wasmPaths = new URL("/motores/recorte/", self.location.href).href;
-    ort.env.wasm.numThreads = self.crossOriginIsolated ? Math.max(1, Math.min(4, (navigator.hardwareConcurrency || 2) - 1)) : 1;
     const roformer = p.modo === "6";
-    const sessao = await ort.InferenceSession.create(new Uint8Array(await modelo(roformer)), {
-      executionProviders: ["wasm"], graphOptimizationLevel: "all", ...(roformer ? { enableCpuMemArena: false, enableMemPattern: false } : {}),
-    });
+    // Placa de vídeo (WebGPU: NVIDIA, AMD, Intel, Adreno, Mali) para o Spleeter, que é float32
+    // e convolucional. O RoFormer INT8 fica no WASM: o WebGPU não roda as operações quantizadas.
+    const querGpu = p.gpu === true && !roformer && "gpu" in navigator && !!(await (navigator as Navigator & { gpu: { requestAdapter(): Promise<unknown> } }).gpu.requestAdapter().catch(() => null));
+    const bytes = new Uint8Array(await modelo(roformer));
+    const threads = self.crossOriginIsolated ? Math.max(1, Math.min(4, (navigator.hardwareConcurrency || 2) - 1)) : 1;
+    const opcoesDaSessao = { graphOptimizationLevel: "all" as const, ...(roformer ? { enableCpuMemArena: false, enableMemPattern: false } : {}) };
+    let ort: typeof import("onnxruntime-web/wasm");
+    let sessao: Awaited<ReturnType<typeof ort.InferenceSession.create>>;
+    let naGpu = false;
+    try {
+      if (!querGpu) throw new Error("sem placa de vídeo");
+      // Carregado em tempo de execução, fora do bundle: o .wasm dele não cabe no Workers.
+      const gpu = (await import(/* @vite-ignore */ new URL("/motores/recorte/ort.webgpu.min.mjs", self.location.href).href)) as typeof import("onnxruntime-web/webgpu");
+      gpu.env.wasm.wasmPaths = { mjs: new URL("/motores/recorte/ort-wasm-simd-threaded.asyncify.mjs", self.location.href).href, wasm: new URL(`/modelos/${RUNTIME_WEBGPU}`, self.location.href).href };
+      gpu.env.wasm.numThreads = threads;
+      sessao = await gpu.InferenceSession.create(bytes, { ...opcoesDaSessao, executionProviders: ["webgpu", "wasm"] });
+      ort = gpu as unknown as typeof ort;
+      naGpu = true;
+    } catch (erro) {
+      // Sem WebGPU, driver que recusou ou sem rede para o runtime: segue no processador, como antes.
+      if (querGpu) self.postMessage({ tipo: "acelerador", gpu: false, motivo: erro instanceof Error ? erro.message : String(erro) });
+      ort = await import("onnxruntime-web/wasm");
+      ort.env.wasm.wasmPaths = new URL("/motores/recorte/", self.location.href).href;
+      ort.env.wasm.numThreads = threads;
+      sessao = await ort.InferenceSession.create(bytes, { ...opcoesDaSessao, executionProviders: ["wasm"] });
+    }
+    self.postMessage({ tipo: "acelerador", gpu: naGpu });
     if (roformer) {
       try {
         const faixas = await separarRoFormer(p.canais, await carregarWasm(), async (espectro) => {

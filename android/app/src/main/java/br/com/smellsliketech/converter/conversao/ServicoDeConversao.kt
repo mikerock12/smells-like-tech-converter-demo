@@ -35,10 +35,10 @@ class ServicoDeConversao : Service() {
         super.onCreate()
         fila = FilaDeConversoes.obter(this)
         getSystemService(NotificationManager::class.java).createNotificationChannel(
-            NotificationChannel(CANAL, "Conversões em andamento", NotificationManager.IMPORTANCE_LOW),
+            NotificationChannel(CANAL, "Conversões e processamentos em andamento", NotificationManager.IMPORTANCE_LOW),
         )
         fila.aoMudar = {
-            if (fila.trabalhos.none { !it.terminado }) atualizarNotificacao()
+            if (fila.ativos().isEmpty()) atualizarNotificacao()
             else if (!agendada) { agendada = true; handler.postDelayed(atualizar, 500) }
         }
     }
@@ -47,7 +47,7 @@ class ServicoDeConversao : Service() {
         encerrando = false // Nova ação recebida enquanto o sistema encerra o lote anterior.
         if (intent?.action == CANCELAR) {
             fila.interromper("Cancelada.")
-            if (fila.trabalhos.none { !it.terminado }) encerrar()
+            if (fila.ativos().isEmpty()) encerrar()
             return START_NOT_STICKY
         }
         try {
@@ -72,7 +72,7 @@ class ServicoDeConversao : Service() {
 
     private fun atualizarNotificacao() {
         if (encerrando) return
-        val ativos = fila.trabalhos.filterNot { it.terminado }
+        val ativos = fila.ativos()
         if (ativos.isEmpty()) { encerrar(); return }
         val trabalho = ativos.lastOrNull { it.etapa != "Na fila…" } ?: ativos.last()
         if (Build.VERSION.SDK_INT < 29) {
@@ -97,13 +97,14 @@ class ServicoDeConversao : Service() {
         val descricao = "${trabalho.etapa} · ${textoDoAndamento(trabalho.progresso, trabalho.restante)}"
         return NotificationCompat.Builder(this, CANAL)
             .setSmallIcon(R.drawable.ic_conversao)
-            .setContentTitle(if (quantidade == 1) trabalho.titulo else "$quantidade conversões · ${trabalho.titulo}")
+            .setContentTitle(if (quantidade == 1) trabalho.titulo else "$quantidade tarefas · ${trabalho.titulo}")
+            .setSubText("Em segundo plano")
             .setContentText(descricao).setStyle(NotificationCompat.BigTextStyle().bigText(descricao))
             .setContentIntent(abrir).setOngoing(true).setOnlyAlertOnce(true).setSilent(true)
             .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
             .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
             .setProgress(100, trabalho.progresso, trabalho.progresso == 0)
-            .addAction(0, "Cancelar conversões", cancelar).build()
+            .addAction(0, "Cancelar", cancelar).build()
     }
 
     private fun encerrar() {

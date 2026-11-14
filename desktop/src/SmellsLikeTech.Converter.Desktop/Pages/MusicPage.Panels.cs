@@ -512,14 +512,23 @@ public sealed partial class MusicPage
             AtualizarModelo();
             run.IsEnabled = false;
             cancel.Visibility = progress.Visibility = Visibility.Visible;
+            // Porcentagem e tempo na tela; o PC não dorme e a barra de tarefas mostra o andamento.
+            using var background = BackgroundWork.Begin("Separando faixas");
+            var estimate = new Core.Jobs.ProgressEstimate();
+            void Show(string text, double fraction)
+            {
+                progress.Value = fraction;
+                stage.Text = $"{text} · {estimate.Text(fraction)}";
+                background.Report(fraction);
+            }
             try
             {
                 if (!Tools.ModelInstalled(roformer)) stage.Text = "Baixando o modelo";
-                await Tools.EnsureModelAsync(App.Services.Http, new Progress<double>(f => progress.Value = f), work.Token, roformer);
+                await Tools.EnsureModelAsync(App.Services.Http, new Progress<double>(f => Show("Baixando o modelo", f)), work.Token, roformer);
 
                 var folder = Path.Combine(Library.Folder(project.Id), "midias");
                 var input = Library.MediaPath(project.Id, clip.Media);
-                var reports = new Progress<(string Stage, double Fraction)>(p => { stage.Text = p.Stage; progress.Value = p.Fraction; });
+                var reports = new Progress<(string Stage, double Fraction)>(p => Show(p.Stage, p.Fraction));
                 var stems = (roformer
                     ? await Tools.SeparateRoFormerAsync(input, folder, Rate, reports, work.Token)
                     : await Tools.SeparateAsync(input, folder, modeId, Rate, reports, work.Token, refined)).ToList();
@@ -627,7 +636,7 @@ public sealed partial class MusicPage
     /// Barra com − e + nas pontas: a barra para o gesto largo, os botões para o passo fino
     /// (MusicRules.FineStep, encaixado na grade do passo). Na vertical, o + fica em cima.
     /// </summary>
-    private static FrameworkElement Fine(Slider slider, double step, bool relative, string name, bool vertical = false, double width = 0)
+    internal static FrameworkElement Fine(Slider slider, double step, bool relative, string name, bool vertical = false, double width = 0)
     {
         if (!relative) slider.StepFrequency = step;
         AutomationProperties.SetName(slider, name);
@@ -680,11 +689,13 @@ public sealed partial class MusicPage
 
             run.IsEnabled = false;
             progress.Visibility = Visibility.Visible;
+            using var background = BackgroundWork.Begin("Exportando a música");
+            var estimate = new Core.Jobs.ProgressEstimate();
             try
             {
                 var request = new MusicExportRequest(MusicMastering.Formats[format.SelectedIndex].Id, MusicMastering.Presets[master.SelectedIndex].Id, range.SelectedIndex == 1, what.SelectedIndex == 1, tail.IsChecked == true, what.SelectedIndex == 2 ? selectedTrack : null);
                 var folder = Path.Combine(App.Services.OutputDirectory, "Criação musical");
-                var files = await Tools.ExportAsync(project, m => Library.MediaPath(project.Id, m.Id), request, folder, new Progress<(string Stage, double Fraction)>(p => { result.Text = p.Stage; progress.Value = p.Fraction; }), CancellationToken.None);
+                var files = await Tools.ExportAsync(project, m => Library.MediaPath(project.Id, m.Id), request, folder, new Progress<(string Stage, double Fraction)>(p => { result.Text = $"{p.Stage} · {estimate.Text(p.Fraction)}"; progress.Value = p.Fraction; background.Report(p.Fraction); }), CancellationToken.None);
                 result.Text = string.Join(Environment.NewLine, files.Select(f => $"{f.Path}{(f.Measures is { } m ? $" · {(double.IsFinite(m.Lufs) ? $"{m.Lufs:0.0} LUFS" : "silêncio")} · pico real {m.TruePeakDb:0.0} dBTP" : "")}"));
                 Status($"Exportado em {folder}", InfoBarSeverity.Success);
             }

@@ -113,13 +113,39 @@ export async function reamostrar(canais: Float32Array[], de: number, para: numbe
   return Array.from({ length: pronto.numberOfChannels }, (_, i) => pronto.getChannelData(i).slice());
 }
 
+const CHAVE_DA_PLACA = "aceleracao:placa-de-video";
+
+/**
+ * A separação na placa de vídeo (WebGPU) é opcional e começa desligada: numa Intel HD 530
+ * integrada o Spleeter levou 10,8 s contra 6,6 s no processador, com o mesmo resultado
+ * (diferença máxima de 3,6e-7). Placas dedicadas tendem a ganhar, mas não foram medidas.
+ * A volta para o processador é automática se o driver recusar ou o runtime não baixar.
+ */
+export function usarPlacaDeVideo(): boolean {
+  try { return localStorage.getItem(CHAVE_DA_PLACA) === "1"; } catch { return false; }
+}
+
+/** Se este navegador oferece WebGPU (não garante que o driver aceite o modelo). */
+export function temPlacaDeVideo(): boolean {
+  return typeof navigator !== "undefined" && "gpu" in navigator;
+}
+
+export function definirPlacaDeVideo(ligada: boolean) {
+  try { localStorage.setItem(CHAVE_DA_PLACA, ligada ? "1" : "0"); } catch { /* armazenamento bloqueado */ }
+}
+
 export class SeparadorNoNavegador {
   private worker: Worker | null = null;
+  /** Se a última separação rodou na placa de vídeo (WebGPU). */
+  naPlacaDeVideo = false;
   private abortar = new AbortController();
 
   async separar(canais: Float32Array[], taxa: number, modo: string, progresso: (etapa: string, fracao: number) => void,
                 mascara: PerfilDeMascara = "classica"): Promise<FaixaSeparada[]> {
     progresso("Preparando o áudio", 0);
+    // O comprimento sai antes: na taxa do modelo (44,1 kHz) a entrada é a própria `canais`,
+    // e transferir para o worker esvazia esses buffers.
+    const comprimento = canais[0].length;
     const entrada = await reamostrar(canais, taxa, MODELO_DE_SEPARACAO.taxa);
     const { default: Fabrica } = await import("./separacao.worker?worker");
     const sinal = this.abortar.signal;
@@ -131,14 +157,19 @@ export class SeparadorNoNavegador {
       sinal.addEventListener("abort", cancelar, { once: true });
       this.worker!.onmessage = (evento: MessageEvent<{ tipo: string; fracao?: number; faixas?: FaixaSeparada[]; mensagem?: string }>) => {
         const m = evento.data;
-        if (m.tipo === "progresso") progresso("Separando as faixas", m.fracao ?? 0);
+        if (m.tipo === "acelerador") {
+          const a = m as { gpu?: boolean; motivo?: string };
+          this.naPlacaDeVideo = a.gpu === true;
+          if (a.motivo) console.info("Separação no processador; a placa de vídeo não pôde ser usada:", a.motivo);
+        }
+        else if (m.tipo === "progresso") progresso(this.naPlacaDeVideo ? "Separando as faixas na placa de vídeo" : "Separando as faixas", m.fracao ?? 0);
         else if (m.tipo === "pronto") resolver(m.faixas ?? []);
         else if (m.tipo === "erro") rejeitar(new Error(m.mensagem));
       };
       this.worker!.onerror = (e) => rejeitar(new Error(e.message || "A separação parou com um erro."));
       let nativo = false;
       try { nativo = localStorage.getItem("criacao-musical:motor-wasm") === "1"; } catch { /* preferência indisponível */ }
-      this.worker!.postMessage({ tipo: "separar", canais: entrada, modo, mascara, nativo }, entrada.map((c) => c.buffer as ArrayBuffer));
+      this.worker!.postMessage({ tipo: "separar", canais: entrada, modo, mascara, nativo, gpu: usarPlacaDeVideo() }, entrada.map((c) => c.buffer as ArrayBuffer));
     }).finally(() => {
       if (cancelar) sinal.removeEventListener("abort", cancelar);
       this.worker?.terminate();
@@ -146,7 +177,7 @@ export class SeparadorNoNavegador {
     });
     progresso("Voltando à taxa do projeto", 1);
     const resultado: FaixaSeparada[] = [];
-    for (const faixa of faixas) resultado.push({ ...faixa, canais: (await reamostrar(faixa.canais, MODELO_DE_SEPARACAO.taxa, taxa)).map((c) => c.subarray(0, canais[0].length)) });
+    for (const faixa of faixas) resultado.push({ ...faixa, canais: (await reamostrar(faixa.canais, MODELO_DE_SEPARACAO.taxa, taxa)).map((c) => c.subarray(0, comprimento)) });
     return resultado;
   }
 

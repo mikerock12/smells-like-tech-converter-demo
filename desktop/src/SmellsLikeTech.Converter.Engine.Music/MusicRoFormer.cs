@@ -38,7 +38,7 @@ internal static class MusicRoFormer
         using var options = new SessionOptions
         {
             GraphOptimizationLevel = GraphOptimizationLevel.ORT_ENABLE_ALL,
-            IntraOpNumThreads = Math.Clamp(Environment.ProcessorCount - 1, 1, 4),
+            IntraOpNumThreads = Math.Min(4, Core.Jobs.InferenceProcessors.InferenceThreads()),
             EnableCpuMemArena = false,
             EnableMemoryPattern = false,
         };

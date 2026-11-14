@@ -385,6 +385,7 @@ private fun Ajustes(modelo: OficinaViewModel, ferramenta: Ferramenta, opcoes: Op
             if (ferramenta == Ferramenta.PDF_NARRAR || ferramenta == Ferramenta.IMAGEM_NARRAR) Dica("Páginas escaneadas e fotos passam pelo reconhecimento de texto antes da leitura.")
             AjustesDaFala(opcoes, mudar)
         }
+        Ferramenta.AUDIO_SEPARAR_FAIXAS, Ferramenta.VIDEO_VOZ -> AjustesDasFaixas(ferramenta == Ferramenta.VIDEO_VOZ, opcoes, mudar)
         else -> Unit
     }
 }

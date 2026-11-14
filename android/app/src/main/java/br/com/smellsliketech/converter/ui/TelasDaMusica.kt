@@ -131,7 +131,8 @@ fun TelaDaMusica(modelo: MusicaViewModel, podeCriar: Boolean, abrirLicenca: () -
             }
             modelo.andamento?.let { (etapa, fracao) ->
                 Column(Modifier.padding(horizontal = 12.dp)) {
-                    Text(etapa, fontSize = 12.sp)
+                    // Porcentagem e tempo também na notificação: continua com a tela apagada ou em outro app.
+                    Text("$etapa · ${br.com.smellsliketech.converter.conversao.textoDoAndamento((fracao * 100).toInt(), modelo.restante)}", fontSize = 12.sp)
                     LinearProgressIndicator(progress = { fracao.toFloat() }, modifier = Modifier.fillMaxWidth())
                     TextButton(onClick = modelo::cancelar) { Text("Cancelar") }
                 }
@@ -554,10 +555,24 @@ private fun Canal(nome: String, corDoCanal: Color, ganhoDb: Double, pan: Double,
 
 @Composable
 private fun AbaDeEfeitos(modelo: MusicaViewModel, projeto: ProjetoMusical) {
-    var alvo by modelo::alvoDeEfeitos
+    EditorDeEfeitosMusicais(projeto, modelo.alvoDeEfeitos, { modelo.alvoDeEfeitos = it }) { juntar, f -> modelo.mudar(juntar, f) }
+}
+
+/**
+ * O editor da cadeia de efeitos de um projeto musical: o do estúdio e o das ferramentas de
+ * separar faixas do conversor. `rolar` falso quando ele fica dentro de uma tela que já rola.
+ */
+@Composable
+internal fun EditorDeEfeitosMusicais(
+    projeto: ProjetoMusical,
+    alvo: String,
+    escolherAlvo: (String) -> Unit,
+    rolar: Boolean = true,
+    mudarProjeto: (String?, (ProjetoMusical) -> ProjetoMusical) -> Unit,
+) {
     val alvos = projeto.faixas.map { it.id to "Faixa: ${it.nome}" } + projeto.barramentos.map { it.id to "Barramento: ${it.nome}" } + ("master" to "Master")
     fun cadeia(p: ProjetoMusical) = if (alvo == "master") p.master.efeitos else p.faixas.firstOrNull { it.id == alvo }?.efeitos ?: p.barramentos.firstOrNull { it.id == alvo }?.efeitos ?: emptyList()
-    fun trocar(juntar: String? = null, f: (List<EfeitoMusical>) -> List<EfeitoMusical>) = modelo.mudar(juntar) { p ->
+    fun trocar(juntar: String? = null, f: (List<EfeitoMusical>) -> List<EfeitoMusical>) = mudarProjeto(juntar) { p ->
         if (alvo == "master") p.copy(master = p.master.copy(efeitos = f(p.master.efeitos)))
         else p.copy(faixas = p.faixas.map { if (it.id == alvo) it.copy(efeitos = f(it.efeitos)) else it }, barramentos = p.barramentos.map { if (it.id == alvo) it.copy(efeitos = f(it.efeitos)) else it })
     }
@@ -570,14 +585,14 @@ private fun AbaDeEfeitos(modelo: MusicaViewModel, projeto: ProjetoMusical) {
     val catalogo = remember(contexto) {
         contexto.assets.open("efeitos.json").bufferedReader().use { JSONObject(it.readText()) }
     }
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column((if (rolar) Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(12.dp) else Modifier.fillMaxWidth()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         // O alvo ocupa a linha toda e corta nomes longos; o botão de novo efeito fica sempre visível embaixo.
         Text("Efeitos de", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Box(Modifier.fillMaxWidth()) {
             OutlinedButton(onClick = { menuAlvo = true }, Modifier.fillMaxWidth().semantics { contentDescription = "Escolher onde ficam os efeitos" }) {
                 Text(alvos.firstOrNull { it.first == alvo }?.second ?: "Master", maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
-            DropdownMenu(menuAlvo, { menuAlvo = false }) { alvos.forEach { (id, rotulo) -> DropdownMenuItem(text = { Text(rotulo, maxLines = 2, overflow = TextOverflow.Ellipsis) }, onClick = { alvo = id; menuAlvo = false }) } }
+            DropdownMenu(menuAlvo, { menuAlvo = false }) { alvos.forEach { (id, rotulo) -> DropdownMenuItem(text = { Text(rotulo, maxLines = 2, overflow = TextOverflow.Ellipsis) }, onClick = { escolherAlvo(id); menuAlvo = false }) } }
         }
         Box(Modifier.fillMaxWidth()) {
             Button(onClick = { menuNovo = true }, Modifier.fillMaxWidth()) { Text("+ Efeito") }
@@ -715,6 +730,7 @@ private fun AbaDeSeparar(modelo: MusicaViewModel, projeto: ProjetoMusical) {
             Text("Reduzir ruído nas faixas separadas", Modifier.weight(1f))
         }
         Text("Tira o chiado e o ruído constante que a separação costuma deixar em cada faixa (mais útil na voz). Fica desligado se a música original já é limpa.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        if (!premium) AceleradorDoAparelho()
         if (NucleoNativo.disponivel) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Switch(refinada && !premium, { refinada = it }, enabled = modelo.andamento == null && !premium)
