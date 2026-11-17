@@ -1,0 +1,9 @@
+<Page
+    x:Class="SmellsLikeTech.Converter.Desktop.Pages.AboutPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Background="{StaticResource BrandBackgroundBrush}">
+    <!-- O conteúdo é montado no código (AboutPage.xaml.cs). O XAML existe para a página entrar
+         nos metadados do WinUI: Frame.Navigate só cria páginas registradas ali, e uma página
+         só em C# derrubava o app com violação de acesso ao abrir o Sobre. -->
+</Page>

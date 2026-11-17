@@ -14,7 +14,7 @@ namespace SmellsLikeTech.Converter.Desktop.Pages;
 /// código aberto) e "Procurar atualização", que baixa o instalador conferido pelo SHA-256 e,
 /// com o clique da pessoa, instala e reabre.
 /// </summary>
-public sealed class AboutPage : Page
+public sealed partial class AboutPage : Page
 {
     private readonly TextBlock updateStatus = new() { TextWrapping = TextWrapping.Wrap };
     private readonly ProgressBar updateProgress = new() { Maximum = 1, Width = 360, Visibility = Visibility.Collapsed, HorizontalAlignment = HorizontalAlignment.Left };
@@ -27,6 +27,7 @@ public sealed class AboutPage : Page
 
     public AboutPage()
     {
+        InitializeComponent();
         var root = new StackPanel { Spacing = 14, Padding = new Thickness(32, 24, 32, 32), MaxWidth = 820, HorizontalAlignment = HorizontalAlignment.Left };
         root.Children.Add(new TextBlock { Text = "Sobre", Style = (Style)Application.Current.Resources["TitleTextBlockStyle"] });
 
@@ -44,7 +45,7 @@ public sealed class AboutPage : Page
         root.Children.Add(Card("Licenças",
             "O uso do aplicativo segue os termos e a licença ativada em Configurações → Licença.",
             "O código próprio dos clientes (site, Android, Windows e plugin) é distribuído sob a GNU GPL versão 3 ou posterior; os fontes de cada versão ficam no repositório público de demonstração.",
-            "Componentes de terceiros mantêm as próprias licenças: FFmpeg (LGPL/GPL), ONNX Runtime (MIT), Spleeter e RoFormer Mega 53 (MIT), Kokoro e Sherpa-ONNX (Apache 2.0), eSpeak-NG (GPL 3), Whisper.cpp (MIT), SDK VST3 da Steinberg (MIT) e os plugins VST3 da biblioteca, cada um com o seu aviso."));
+            "Componentes de terceiros mantêm as próprias licenças: FFmpeg (LGPL/GPL), ONNX Runtime (MIT), Spleeter e RoFormer Mega 53 (MIT), Kokoro e Sherpa-ONNX (Apache 2.0), eSpeak-NG (GPL 3), Whisper.cpp (MIT), SDK VST3 da Steinberg (MIT), Apollo do restaurador (CC BY-SA 4.0, baixado só se você usar o reparo de compressão por IA) e os plugins VST3 da biblioteca, cada um com o seu aviso."));
         var licenses = Path.Combine(AppContext.BaseDirectory, "Licenses");
         root.Children.Add(Links(("Fontes (GPL) no GitHub", "https://github.com/mikerock12/smells-like-tech-converter-demo"),
             ("Avisos de terceiros", Directory.Exists(licenses) ? licenses : AppContext.BaseDirectory)));

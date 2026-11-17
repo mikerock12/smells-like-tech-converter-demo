@@ -1,5 +1,5 @@
 {
-  "commit": "48202fb6b0e0f050e375906a1b0c918e7651bfd7",
+  "commit": "352e3ddd94c5251c33066003de58f828791266ca",
   "repository": "https://github.com/mikerock12/smells-like-tech-converter-demo",
   "originals": [
     {
@@ -2044,7 +2044,7 @@
     },
     {
       "path": "desktop/Directory.Build.props",
-      "sha256": "f05405706fa530f4ba1e3e1e24170475d9c4fdbe90fe625c2e6ec7bc4dfdf052",
+      "sha256": "7c250c759470258915a8f31061103f097f867b4fcad911ba2cc984f147b386fd",
       "bytes": 473
     },
     {
@@ -2743,9 +2743,14 @@
       "bytes": 8376
     },
     {
-      "path": "desktop/src/SmellsLikeTech.Converter.Desktop/Pages/AboutPage.cs",
-      "sha256": "c6c8afbe24672072dcff95be79fea03a08698b5ac74cad62e9d37fb97f53d412",
-      "bytes": 8338
+      "path": "desktop/src/SmellsLikeTech.Converter.Desktop/Pages/AboutPage.xaml",
+      "sha256": "affcc2f557de6601cb98125d26c7ef527ee9f9187fa955b0bae1f89eaad718d6",
+      "bytes": 541
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Desktop/Pages/AboutPage.xaml.cs",
+      "sha256": "da986b14e7054f8110441b89e26d08a5b4a1fcedb756741dd7e7513e7791b182",
+      "bytes": 8473
     },
     {
       "path": "desktop/src/SmellsLikeTech.Converter.Desktop/Pages/BatchPage.xaml",
@@ -4824,12 +4829,12 @@
     },
     {
       "path": "public/baixar/app.json",
-      "sha256": "3c6ba9bb4a90c56bb24d4299b61033ef250660af898956e55075a980b356f790",
+      "sha256": "cf4b05a6bd94ee31d7e789076dad1fe944a7ee007ac93301788ea792961c8fd2",
       "bytes": 212
     },
     {
       "path": "public/baixar/plugin.json",
-      "sha256": "ca3fee2404db7c4f45473fd26876dd13b6b2a7a4fb18c3cbc06653f88a03f7d3",
+      "sha256": "6521def2992f1340939333ec64abe0ec155611711c55d702cef93619d6b66d63",
       "bytes": 209
     },
     {
