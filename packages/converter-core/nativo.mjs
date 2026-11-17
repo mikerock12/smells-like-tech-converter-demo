@@ -11,7 +11,13 @@
 import { MODELO_DE_SEPARACAO, modoDeSeparacao } from "./musica-separacao.mjs";
 
 export const VERSAO_MAIOR_DA_ABI = 1;
-export const CAPACIDADES = { motor: 1, separador: 2, mascaraRefinada: 4, restaurador: 8, consistencia: 16, stftComplexa: 256 };
+export const CAPACIDADES = { motor: 1, separador: 2, mascaraRefinada: 4, restaurador: 8, consistencia: 16, stftComplexa: 256, refinoDeAgudos: 512, diagnostico: 1024, reparo: 2048 };
+
+/** Ordem dos valores do diagnóstico (SLT_DIAG_* em slt_media_api.h). */
+export const CAMPOS_DO_DIAGNOSTICO = ["duracao", "picoDb", "rmsDb", "cristaDb", "dc", "recorte", "pisoDeRuidoDb", "zumbidoHz", "zumbidoDb", "bandaHz", "estalosPorMinuto", "correlacao", "silencio", "agudosDb", "dinamicaDb", "taxa", "planuraDoRuido"];
+/** Ordem dos parâmetros do reparo (SLT_REPAIR_* em slt_media_api.h). */
+export const PARAMETROS_DO_REPARO = ["dc", "zumbidoHz", "zumbido", "estalos", "recorte", "nivelDoRecorte", "ruido", "arDb", "corteGraveHz", "tetoDb", "ganhoDb", "reservado"];
+const BINS_DO_PERFIL = 2049;
 export const PERFIS_DE_RESTAURACAO = [
   { id: "voz", codigo: 0, rotulo: "Voz", descricao: "Tira o grave que vazou, devolve presença e ar e segura a aspereza só quando ela sobra." },
   { id: "bateria", codigo: 1, rotulo: "Bateria", descricao: "Corpo de bumbo e caixa, ataque mais firme e pratos seguros quando estridentes." },
@@ -165,6 +171,135 @@ export class NucleoNativo {
       if (restaurador) this.x.slt_restorer_destroy(restaurador);
       this.liberar(buffer);
       this.liberar(config);
+    }
+  }
+
+  /**
+   * Refina os agudos das faixas separadas (Wiener multicanal acima de `corte` Hz): devolve
+   * cópias, com a soma igual à das entradas. `faixas`: lista de [esq, dir] do mesmo tamanho.
+   * @param {{ faixas: Float32Array[][]; taxa: number; corte?: number; quanto?: number; progresso?: (f: number) => void; cancelado?: () => boolean }} pedido
+   * @returns {Float32Array[][]}
+   */
+  refinarAgudos({ faixas, taxa, corte = 8000, quanto = 1, progresso = () => {}, cancelado = () => false }) {
+    if (!this.tem("refinoDeAgudos")) throw new Error("Refino dos agudos indisponível neste núcleo.");
+    const n = faixas.length;
+    const quadros = faixas[0]?.[0]?.length ?? 0;
+    const refinador = this.x.slt_stem_refiner_create(taxa, n, corte, quanto) >>> 0;
+    if (!refinador) throw new Error("Refino dos agudos recusado (taxa, faixas ou corte inválidos).");
+    const atraso = this.x.slt_stem_refiner_latency(refinador) >>> 0;
+    const BLOCO = 1 << 14;
+    const buffer = this.alocar(BLOCO * 4 * 2 * n);
+    try {
+      const saida = faixas.map(() => [new Float32Array(quadros), new Float32Array(quadros)]);
+      const total = quadros + atraso;
+      for (let inicio = 0; inicio < total; inicio += BLOCO) {
+        if (cancelado()) throw new Error("Refino cancelado.");
+        const k = Math.min(BLOCO, total - inicio);
+        for (let f = 0; f < n; f += 1) for (let c = 0; c < 2; c += 1) {
+          const destino = this.f32(buffer + (f * 2 + c) * k * 4, k);
+          destino.fill(0);
+          const fonte = faixas[f][Math.min(c, faixas[f].length - 1)];
+          if (inicio < quadros) destino.set(fonte.subarray(inicio, Math.min(quadros, inicio + k)));
+        }
+        conferir(this.x.slt_stem_refiner_process(refinador, buffer, k), "slt_stem_refiner_process");
+        // A saída vem atrasada: a amostra i do bloco é a posição inicio + i − atraso.
+        for (let f = 0; f < n; f += 1) for (let c = 0; c < 2; c += 1) {
+          const pronto = this.f32(buffer + (f * 2 + c) * k * 4, k);
+          const de = inicio - atraso;
+          const primeiro = Math.max(0, -de);
+          const ultimo = Math.min(k, quadros - de);
+          if (ultimo > primeiro) saida[f][c].set(pronto.subarray(primeiro, ultimo), de + primeiro);
+        }
+        progresso(Math.min(1, (inicio + k) / total));
+      }
+      return saida;
+    } finally {
+      this.x.slt_stem_refiner_destroy(refinador);
+      this.liberar(buffer);
+    }
+  }
+
+  /**
+   * Diagnóstico de qualidade (só mede): { valores (por nome), perfil (ruído por bin) }.
+   * @param {{ canais: Float32Array[]; taxa: number; progresso?: (f: number) => void; cancelado?: () => boolean }} pedido
+   * @returns {{ valores: import("./restaurador.mjs").DiagnosticoDoAudio; perfil: Float32Array }}
+   */
+  diagnosticar({ canais, taxa, progresso = () => {}, cancelado = () => false }) {
+    if (!this.tem("diagnostico")) throw new Error("Diagnóstico de áudio indisponível neste núcleo.");
+    const analisador = this.x.slt_audio_analyzer_create(taxa) >>> 0;
+    if (!analisador) throw new Error("Diagnóstico recusado (taxa inválida).");
+    const BLOCO = 1 << 15;
+    const buffer = this.alocar(BLOCO * 4 * 2 + BINS_DO_PERFIL * 4);
+    try {
+      const quadros = canais[0].length;
+      for (let inicio = 0; inicio < quadros; inicio += BLOCO) {
+        if (cancelado()) throw new Error("Diagnóstico cancelado.");
+        const n = Math.min(BLOCO, quadros - inicio);
+        this.f32(buffer, n).set(canais[0].subarray(inicio, inicio + n));
+        if (canais.length > 1) this.f32(buffer + BLOCO * 4, n).set(canais[1].subarray(inicio, inicio + n));
+        conferir(this.x.slt_audio_analyzer_feed(analisador, buffer, canais.length > 1 ? buffer + BLOCO * 4 : 0, n), "slt_audio_analyzer_feed");
+        progresso(Math.min(1, (inicio + n) / quadros));
+      }
+      const saida = buffer + BLOCO * 4 * 2;
+      conferir(this.x.slt_audio_analyzer_result(analisador, saida, CAMPOS_DO_DIAGNOSTICO.length), "slt_audio_analyzer_result");
+      const brutos = this.f32(saida, CAMPOS_DO_DIAGNOSTICO.length);
+      const valores = Object.fromEntries(CAMPOS_DO_DIAGNOSTICO.map((nome, i) => [nome, brutos[i]]));
+      conferir(this.x.slt_audio_analyzer_noise_profile(analisador, saida, BINS_DO_PERFIL), "slt_audio_analyzer_noise_profile");
+      return { valores, perfil: this.f32(saida, BINS_DO_PERFIL).slice() };
+    } finally {
+      this.x.slt_audio_analyzer_destroy(analisador);
+      this.liberar(buffer);
+    }
+  }
+
+  /**
+   * Reparo conservador (cópia; a entrada não muda). `parametros`: objeto com os nomes de
+   * PARAMETROS_DO_REPARO (zero desliga). `perfil`: o do diagnóstico, opcional.
+   * Devolve { canais, estatisticas: { estalos, recortes, reducaoDb, limitadorDb } }.
+   * @param {{ canais: Float32Array[]; taxa: number; parametros: Record<string, number>; perfil?: Float32Array | null; progresso?: (f: number) => void; cancelado?: () => boolean }} pedido
+   * @returns {{ canais: Float32Array[]; estatisticas: { estalos: number; recortes: number; reducaoDb: number; limitadorDb: number } }}
+   */
+  reparar({ canais, taxa, parametros, perfil = null, progresso = () => {}, cancelado = () => false }) {
+    if (!this.tem("reparo")) throw new Error("Reparo de áudio indisponível neste núcleo.");
+    const lista = PARAMETROS_DO_REPARO.map((nome) => Number(parametros?.[nome] ?? 0) || 0);
+    const BLOCO = 1 << 15;
+    const buffer = this.alocar(BLOCO * 4 * 2 + Math.max(BINS_DO_PERFIL, lista.length) * 4);
+    const extra = buffer + BLOCO * 4 * 2;
+    let reparo = 0;
+    try {
+      this.f32(extra, lista.length).set(lista);
+      reparo = this.x.slt_audio_repair_create(taxa, extra, lista.length) >>> 0;
+      if (!reparo) throw new Error("Reparo recusado (taxa ou parâmetros inválidos).");
+      if (perfil && perfil.length === BINS_DO_PERFIL) {
+        this.f32(extra, BINS_DO_PERFIL).set(perfil);
+        conferir(this.x.slt_audio_repair_set_noise_profile(reparo, extra, BINS_DO_PERFIL), "slt_audio_repair_set_noise_profile");
+      }
+      const atraso = this.x.slt_audio_repair_latency(reparo) >>> 0;
+      const quadros = canais[0].length;
+      const estereo = canais.length > 1;
+      const saida = canais.map(() => new Float32Array(quadros));
+      const total = quadros + atraso;
+      for (let inicio = 0; inicio < total; inicio += BLOCO) {
+        if (cancelado()) throw new Error("Restauração cancelada.");
+        const n = Math.min(BLOCO, total - inicio);
+        for (let c = 0; c < (estereo ? 2 : 1); c += 1) {
+          const destino = this.f32(buffer + c * BLOCO * 4, n);
+          destino.fill(0);
+          if (inicio < quadros) destino.set(canais[c].subarray(inicio, Math.min(quadros, inicio + n)));
+        }
+        conferir(this.x.slt_audio_repair_process(reparo, buffer, estereo ? buffer + BLOCO * 4 : 0, n), "slt_audio_repair_process");
+        const de = inicio - atraso;
+        const primeiro = Math.max(0, -de);
+        const ultimo = Math.min(n, quadros - de);
+        if (ultimo > primeiro) for (let c = 0; c < saida.length; c += 1) saida[c].set(this.f32(buffer + c * BLOCO * 4, n).subarray(primeiro, ultimo), de + primeiro);
+        progresso(Math.min(1, (inicio + n) / total));
+      }
+      conferir(this.x.slt_audio_repair_stats(reparo, extra, 4), "slt_audio_repair_stats");
+      const e = this.f32(extra, 4);
+      return { canais: saida, estatisticas: { estalos: e[0], recortes: e[1], reducaoDb: e[2], limitadorDb: e[3] } };
+    } finally {
+      if (reparo) this.x.slt_audio_repair_destroy(reparo);
+      this.liberar(buffer);
     }
   }
 

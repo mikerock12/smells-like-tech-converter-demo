@@ -11,6 +11,7 @@ import type { Bloqueio, ItemParaConverter } from "@/lib/converter/limites";
 
 import CamposDeOpcoes from "./CamposDeOpcoes";
 import OpcoesDasFaixas from "./OpcoesDasFaixas";
+import OpcoesDoRestaurador from "./OpcoesDoRestaurador";
 import Paywall from "./Paywall";
 import PreviaDoTrecho from "./PreviaDoTrecho";
 
@@ -150,6 +151,10 @@ export default function GrupoDeArquivos({
 
       {(ferramenta.id === "audio.separar-faixas" || ferramenta.id === "video.voz") && (
         <OpcoesDasFaixas key={ferramenta.id} ferramentaId={ferramenta.id} opcoes={grupo.opcoes} onChange={(opcoes) => onChange({ opcoes })} disabled={grupo.convertendo} />
+      )}
+
+      {ferramenta.id === "audio.restaurar" && (
+        <OpcoesDoRestaurador opcoes={grupo.opcoes} onChange={(opcoes) => onChange({ opcoes })} disabled={grupo.convertendo} arquivo={amostra} />
       )}
 
       {podeEscolherOnde && (

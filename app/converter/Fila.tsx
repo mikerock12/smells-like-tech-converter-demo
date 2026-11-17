@@ -130,6 +130,12 @@ function JobRow({ job, onCancel, onRemove, onRetry }: { job: Job; onCancel: () =
         )}
 
         {job.status === "failed" && <p className="job__error">{job.error}</p>}
+        {job.status === "failed" && job.erroDetalhes && (
+          <details className="job__detalhes">
+            <summary>Detalhes</summary>
+            <pre>{job.erroDetalhes}</pre>
+          </details>
+        )}
         {job.status === "cancelled" && <p className="job__meta">Cancelado.</p>}
       </div>
 

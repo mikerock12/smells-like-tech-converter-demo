@@ -23,12 +23,13 @@ public sealed class MusicEngine(MusicTools tools, Func<HttpClient> http) : IConv
     public string Name => "Criação musical";
 
     public bool CanExecute(string operation) =>
-        operation is OperationIds.MusicSeparate or OperationIds.MusicStemsPackage or OperationIds.VideoVoice;
+        operation is OperationIds.MusicSeparate or OperationIds.MusicStemsPackage or OperationIds.VideoVoice or OperationIds.AudioRestore;
 
     public Task<EngineResult> ExecuteAsync(EngineContext context, CancellationToken cancellationToken) => context.Job.Options switch
     {
         MusicStemsPackageOptions package => PackageAsync(context, package, cancellationToken),
         VideoVoiceOptions voice => VoiceAsync(context, voice, cancellationToken),
+        AudioRestoreOptions restore => RestoreAsync(context, restore, cancellationToken),
         _ => SeparateAsync(context, cancellationToken)
     };
 
@@ -36,8 +37,10 @@ public sealed class MusicEngine(MusicTools tools, Func<HttpClient> http) : IConv
         context.Progress.Report(new JobProgress { Percent = MusicStemPackage.Fraction(stage, fraction), Stage = jobStage, Message = message });
 
     /// <summary>Garante o modelo (baixa e confere na primeira vez) e separa, com o progresso nas etapas do pacote.</summary>
-    private async Task<IReadOnlyList<(MusicStemDefinition Stem, string Path)>> StemsAsync(EngineContext context, string input, MusicStemPackageModel model, CancellationToken token)
+    private async Task<IReadOnlyList<(MusicStemDefinition Stem, string Path)>> StemsAsync(EngineContext context, string input, MusicStemPackageModel model, CancellationToken token,
+        MusicStemTreatment? treatment = null)
     {
+        treatment ??= new MusicStemTreatment();
         var roformer = model.Id == "roformer";
         Report(context, "modelo", 0, roformer ? "Conferindo o RoFormer" : "Conferindo o modelo de separação", JobStage.PreparingInput);
         if (!roformer || !MusicTools.HasExperimentalRoFormer || tools.ModelInstalled(true))
@@ -45,9 +48,33 @@ public sealed class MusicEngine(MusicTools tools, Func<HttpClient> http) : IConv
                 token, roformer);
         var progress = new Progress<(string Stage, double Fraction)>(p => Report(context, "separando", p.Fraction, $"{model.Label}: {p.Stage}"));
         var folder = Path.Combine(context.Workspace.WorkDirectory, "faixas");
-        return roformer
-            ? await tools.SeparateRoFormerAsync(input, folder, PackageRate, progress, token)
-            : await tools.SeparateAsync(input, folder, model.Mode, PackageRate, progress, token);
+        var stems = roformer
+            ? await tools.SeparateRoFormerAsync(input, folder, PackageRate, progress, token, treatment.RefineHighs, treatment.RecoverDrums)
+            : await tools.SeparateAsync(input, folder, model.Mode, PackageRate, progress, token, refined: treatment.RefineHighs, recoverDrums: treatment.RecoverDrums);
+        // A mesma qualidade do estúdio musical: ruído de cada faixa e restauração por instrumento.
+        if (!treatment.ReduceNoise && treatment.Restoration <= 0) return stems;
+        var tratadas = new List<(MusicStemDefinition, string)>();
+        foreach (var (stem, path) in stems)
+        {
+            token.ThrowIfCancellationRequested();
+            var atual = path;
+            if (treatment.ReduceNoise)
+            {
+                Report(context, "mixando", 0, $"Reduzindo o ruído: {stem.Label}");
+                var limpo = Path.Combine(folder, $"{stem.Id}-limpo-{Guid.NewGuid():N}.wav");
+                await MusicTools.ReduceNoiseAsync(atual, limpo, PackageRate, token);
+                atual = limpo;
+            }
+            if (treatment.Restoration > 0 && MusicNative.IsAvailable)
+            {
+                Report(context, "mixando", 0, $"Restaurando {stem.Label}");
+                var restaurada = Path.Combine(folder, $"{stem.Id}-restaurada-{Guid.NewGuid():N}.wav");
+                await MusicTools.RestoreStemAsync(atual, restaurada, PackageRate, stem.Id, treatment.Restoration, token);
+                atual = restaurada;
+            }
+            tratadas.Add((stem, atual));
+        }
+        return tratadas;
     }
 
     /// <summary>Mistura um arquivo do pacote: as faixas do grupo com os ajustes da configuracao, pelo exportador do estudio.</summary>
@@ -77,7 +104,7 @@ public sealed class MusicEngine(MusicTools tools, Func<HttpClient> http) : IConv
         var model = MusicStemPackage.Model(request.Model)!;
         var format = MusicMastering.Formats.FirstOrDefault(f => f.Id == request.Format) ?? MusicMastering.Formats[0];
         Report(context, "lendo", 0, "Lendo o áudio", JobStage.PreparingInput);
-        var stems = await StemsAsync(context, context.Job.InputPath!, model, token);
+        var stems = await StemsAsync(context, context.Job.InputPath!, model, token, request.Treatment);
         var frames = FramesOf(stems[0].Path);
         var title = Path.GetFileNameWithoutExtension(context.Job.InputPath!);
         var names = MusicStemPackage.FileNames(title, request.Groups, format.Extension);
@@ -107,13 +134,46 @@ public sealed class MusicEngine(MusicTools tools, Func<HttpClient> http) : IConv
         Report(context, "lendo", 0, "Tirando o áudio do vídeo", JobStage.PreparingInput);
         var audio = Path.Combine(context.Workspace.WorkDirectory, "audio-do-video.wav");
         await tools.ImportAsync(context.Job.InputPath!, audio, PackageRate, token);
-        var stems = await StemsAsync(context, audio, model, token);
+        var stems = await StemsAsync(context, audio, model, token, request.Treatment);
         var mixed = await MixAsync(context, request, request.Groups[0], stems, FramesOf(audio), "wav-32f", tail: false, 0, 1, token);
         Report(context, "juntando", 0.2, "Juntando o áudio novo ao vídeo (a imagem é copiada)", JobStage.WritingOutput);
         var suffix = keep == "voz" ? "so-voz" : "sem-voz";
         var output = context.Workspace.OutputPath($"{Path.GetFileNameWithoutExtension(context.Job.InputPath!)}-{suffix}.{options.OutputExtension}");
         await tools.ReplaceAudioAsync(context.Job.InputPath!, mixed, output, token);
         return new EngineResult([output], $"{(keep == "voz" ? "Só a voz" : "Sem a voz")} · {model.Label} · experimental");
+    }
+
+    /// <summary>Restaurar áudio com IA (experimental): diagnóstico, plano e reparo do núcleo, no formato pedido.</summary>
+    private async Task<EngineResult> RestoreAsync(EngineContext context, AudioRestoreOptions options, CancellationToken token)
+    {
+        var o = AudioRestoration.ReadOptions(options.Restoration);
+        var output = context.Workspace.OutputPath(AudioRestoration.OutputName(context.Job.InputPath!, MusicTools.RestorationExtension(o.Format)));
+        var progress = new Progress<(string Stage, double Fraction)>(p => context.Progress.Report(new JobProgress
+        {
+            Percent = Math.Clamp(p.Fraction, 0, 1), Stage = JobStage.Encoding, Message = p.Stage,
+        }));
+        var result = await tools.RestoreAudioAsync(context.Job.InputPath!, output, o, progress, token, http: http());
+        var outputs = new List<string> { output };
+        if (o.Report)
+        {
+            // Só medidas e versões: nada do áudio nem caminhos do computador.
+            var report = Path.ChangeExtension(output, null) + "-relatorio.json";
+            var json = new System.Text.Json.Nodes.JsonObject
+            {
+                ["ferramenta"] = OperationIds.AudioRestore, ["versao"] = AudioRestoration.Version, ["perfil"] = result.Plan.Profile, ["intensidade"] = o.Intensity,
+                ["diagnostico"] = new System.Text.Json.Nodes.JsonObject(result.Diagnosis.Select(kv => KeyValuePair.Create(kv.Key, (System.Text.Json.Nodes.JsonNode?)kv.Value))),
+                ["etapas"] = new System.Text.Json.Nodes.JsonArray([.. result.Plan.Steps.Select(st => (System.Text.Json.Nodes.JsonNode?)new System.Text.Json.Nodes.JsonObject { ["id"] = st.Id, ["quanto"] = st.Amount })]),
+                ["avisos"] = new System.Text.Json.Nodes.JsonArray([.. result.Plan.Warnings.Select(w => (System.Text.Json.Nodes.JsonNode?)w)]),
+                ["motor"] = result.Plan.Ai is null ? "núcleo nativo (slt_native.dll)" : "Apollo (ONNX, CC BY-SA 4.0) e núcleo nativo (slt_native.dll)",
+            };
+            await File.WriteAllTextAsync(report, json.ToJsonString(new System.Text.Json.JsonSerializerOptions { WriteIndented = true }), token);
+            outputs.Add(report);
+        }
+        var steps = string.Join(", ", result.Plan.Steps.Select(s => AudioRestoration.StepLabel(s.Id)));
+        var note = result.Plan.NoChange
+            ? $"{AudioRestoration.WarningText(result.Plan.Warnings[^1])} {AudioRestoration.Summary(result.Diagnosis)}"
+            : $"Restaurado: {steps} · {AudioRestoration.Summary(result.Diagnosis)} · experimental";
+        return new EngineResult(outputs, note);
     }
 
     private async Task<EngineResult> SeparateAsync(EngineContext context, CancellationToken cancellationToken)
@@ -134,7 +194,7 @@ public sealed class MusicEngine(MusicTools tools, Func<HttpClient> http) : IConv
                     Percent = f * 0.1, Stage = JobStage.PreparingInput, Message = "Baixando o RoFormer",
                 })), cancellationToken, roformer: true);
             stems = await tools.SeparateRoFormerAsync(context.Job.InputPath, context.Workspace.WorkDirectory,
-                options.SampleRate, progress, cancellationToken);
+                options.SampleRate, progress, cancellationToken, options.RefineHighs == true, options.RecoverDrums == true);
         }
         else
         {
@@ -145,7 +205,8 @@ public sealed class MusicEngine(MusicTools tools, Func<HttpClient> http) : IConv
                 Percent = f * 0.1, Stage = JobStage.PreparingInput, Message = "Baixando o modelo de separação",
             })), cancellationToken);
             stems = await tools.SeparateAsync(context.Job.InputPath, context.Workspace.WorkDirectory, options.Mode,
-                options.SampleRate, progress, cancellationToken, refined: options.MaskProfile == "refinada");
+                options.SampleRate, progress, cancellationToken, refined: options.MaskProfile == "refinada" || options.RefineHighs == true,
+                recoverDrums: options.RecoverDrums == true);
         }
         var outputs = new List<string>();
         for (var i = 0; i < stems.Count; i++)

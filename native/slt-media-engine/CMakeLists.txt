@@ -26,6 +26,7 @@ set(SLT_FONTES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/mascaras.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/misturador.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/motor.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/reparo.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/restauracao.cpp)
 
 # O dispositivo de áudio só existe onde há backend: WASAPI e ASIO no Windows, Oboe no Android.
@@ -110,8 +111,20 @@ if(SLT_BUILD_TESTS AND NOT ANDROID)
   target_link_libraries(slt_abi PRIVATE slt_native)
   slt_opcoes(slt_abi)
   add_test(NAME abi COMMAND slt_abi)
+  # Restaurador e refino dos agudos, também pela ABI pública.
+  add_executable(slt_reparo ${CMAKE_CURRENT_SOURCE_DIR}/tests/reparo.cpp)
+  target_link_libraries(slt_reparo PRIVATE slt_native)
+  slt_opcoes(slt_reparo)
+  add_test(NAME reparo COMMAND slt_reparo)
   if(WIN32)
     add_custom_command(TARGET slt_abi POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:slt_native> $<TARGET_FILE_DIR:slt_abi>)
+    add_custom_command(TARGET slt_reparo POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:slt_native> $<TARGET_FILE_DIR:slt_reparo>)
+  endif()
+  if(TARGET slt_vst3)
+    # Ferramenta da curadoria da biblioteca de VST3 (fora do CTest).
+    add_executable(slt_vst3_conferir tests/vst3_conferir.cpp)
+    target_link_libraries(slt_vst3_conferir PRIVATE slt_native)
+    slt_opcoes(slt_vst3_conferir)
   endif()
   if(TARGET slt_vst3 AND SLT_VST3_EXEMPLO)
     add_executable(slt_teste_vst3 tests/vst3.cpp)

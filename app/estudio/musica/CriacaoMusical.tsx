@@ -49,7 +49,7 @@ import { usePlano } from "@/lib/plano/usePlano";
 import BotaoDeCompra from "../../precos/BotaoDeCompra";
 import LinhaDoTempoMusical from "./LinhaDoTempoMusical";
 import { MixerMusical, EfeitosMusicais } from "./MixerMusical";
-import { PainelDeExportacao, PainelDeGravacao, PainelDeSeparacao, reduzirRuidoDoClipe } from "./PaineisMusicais";
+import { PainelDeExportacao, PainelDeGravacao, PainelDeSeparacao, reduzirRuidoDoClipe, restaurarAudioDoClipe } from "./PaineisMusicais";
 import TempoETom from "./TempoETom";
 
 type Painel = "mixer" | "tempo" | "efeitos" | "gravacao" | "separar" | "exportar";
@@ -685,7 +685,12 @@ export default function CriacaoMusical() {
 
       <LinhaDoTempoMusical projeto={projeto} picos={picos} estado={estado} zoom={zoom} mudar={mudar} irPara={irPara} selecao={selecao} selecionar={setSelecao} gravando={gravando}
         exportarFaixa={(id) => { setPainel("exportar"); setSelecao((s) => ({ ...s, faixa: id })); }} abrirEfeitos={(id) => { setSelecao((s) => ({ ...s, efeitos: id })); setPainel("efeitos"); }}
-        limparClipe={(faixaId, clipeId) => { setAviso("Reduzindo o ruído do clipe…"); void reduzirRuidoDoClipe(projeto, faixaId, clipeId, (id) => midias.current.get(id), carregarMidia, mudar).then(setAviso); }} />
+        limparClipe={(faixaId, clipeId) => { setAviso("Reduzindo o ruído do clipe…"); void reduzirRuidoDoClipe(projeto, faixaId, clipeId, (id) => midias.current.get(id), carregarMidia, mudar).then(setAviso); }}
+        restaurarClipe={(faixaId, clipeId, perfil) => {
+          setAviso("Analisando a qualidade do clipe…");
+          void restaurarAudioDoClipe(projeto, faixaId, clipeId, perfil, (id) => midias.current.get(id), carregarMidia, mudar,
+            (etapa, fracao) => setAviso(`${etapa}… ${Math.floor(fracao * 100)}%`)).then(setAviso).catch((e) => setAviso(e instanceof Error ? e.message : String(e)));
+        }} />
 
       <nav className="musica__abas" aria-label="Painéis">
         {([["mixer", "Mixer"], ["tempo", "Tempo e tom"], ["efeitos", "Efeitos"], ["gravacao", "Gravação"], ["separar", "Separar por IA"], ["exportar", "Exportar"]] as const).map(([id, rotulo]) => (

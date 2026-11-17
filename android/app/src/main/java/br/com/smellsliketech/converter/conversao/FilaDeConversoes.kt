@@ -116,7 +116,10 @@ class FilaDeConversoes private constructor(private val contexto: Context) {
         trabalho.etapa = "Preparando…"
         externos.add(trabalho)
         try {
-            ContextCompat.startForegroundService(contexto, Intent(contexto, ServicoDeConversao::class.java))
+            // Com o serviço de pé (outra etapa acabou de terminar), basta avisar: pedir um início
+            // novo com o app em outra tela é recusado pelo Android 12+.
+            if (!ServicoDeConversao.vivo || aoMudar == null)
+                ContextCompat.startForegroundService(contexto, Intent(contexto, ServicoDeConversao::class.java))
         } catch (erro: Exception) {
             // Sem o serviço o trabalho continua com o app aberto; só não sobrevive à tela apagada.
             android.util.Log.w("FilaDeConversoes", "Serviço em primeiro plano recusado: ${erro.message}")

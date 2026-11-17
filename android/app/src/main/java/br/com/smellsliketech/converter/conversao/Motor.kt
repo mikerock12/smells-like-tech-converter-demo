@@ -70,6 +70,12 @@ object Motor {
             Ferramenta.VIDEO_QUADROS -> porArquivo { entrada, progresso -> Midia.quadros(context, entrada, opcoes, progresso) }
             Ferramenta.VIDEO_TRANSCREVER, Ferramenta.AUDIO_TRANSCREVER -> error("A transcrição volta como texto: use Motor.transcrever.")
             Ferramenta.AUDIO_SEPARAR_FAIXAS -> umPorArquivo { entrada, progresso -> FaixasNoConversor.pacote(context, entrada, opcoes, progresso) }
+            Ferramenta.AUDIO_RESTAURAR -> umPorArquivo { entrada, progresso ->
+                // O formato escolhido na lista vale para o restaurador também.
+                val o = br.com.smellsliketech.converter.musica.RestauradorDeAudio.lerOpcoes(opcoes.restauracao)
+                val formato = when (opcoes.formato) { "flac" -> "flac"; "mp3" -> "mp3"; else -> if (o.formato == "wav-32f") "wav-32f" else "wav-24" }
+                RestauradorNoConversor.restaurar(context, entrada, opcoes.copy(restauracao = o.copy(formato = formato).paraJson().toString()), progresso)
+            }
             Ferramenta.VIDEO_VOZ -> umPorArquivo { entrada, progresso -> FaixasNoConversor.vozDoVideo(context, entrada, opcoes, progresso) }
 
             Ferramenta.AUDIO_CONVERTER -> umPorArquivo { entrada, progresso -> Midia.audio(context, entrada, opcoes, "", progresso) }

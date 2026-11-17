@@ -7,6 +7,7 @@ import { duracaoEmQuadros, type ProjetoMusical } from "@/packages/converter-core
 import { Misturador, caudaEmQuadros, type FonteDeAudio } from "@/packages/converter-core/musica-mixer.mjs";
 import { FORMATOS_DE_EXPORTACAO, codificarWav, masterizar, type Medidas } from "@/packages/converter-core/musica-master.mjs";
 import { transformarCanais } from "@/packages/converter-core/musica-transformacao.mjs";
+import { garantirAac } from "@/lib/converter/aac";
 
 /**
  * Exportação da criação musical no navegador: a mesma mistura que toca (musica-mixer.mjs),
@@ -36,6 +37,8 @@ const CODECS: Record<string, { codec: "flac" | "aac" | "opus"; formato: () => Fl
 /** Quais formatos este navegador consegue gravar. */
 export async function formatosDisponiveis(taxa: number): Promise<string[]> {
   const lista = ["wav-24", "wav-16", "wav-32f", "mp3"];
+  // O AAC tem recurso em WebAssembly nos navegadores sem codificador (Chrome do Linux).
+  await garantirAac({ numberOfChannels: 2, sampleRate: taxa, bitrate: 256_000 }).catch(() => false);
   for (const [id, c] of Object.entries(CODECS)) {
     try {
       if (await canEncodeAudio(c.codec, { numberOfChannels: 2, sampleRate: taxa, ...(c.bitrate ? { bitrate: c.bitrate } : {}) })) lista.push(id);
@@ -121,6 +124,7 @@ export async function codificar(formato: string, esq: Float32Array, dir: Float32
     return new Blob([bytes.buffer as ArrayBuffer], { type: "audio/wav" });
   }
   if (formato === "mp3") return mp3(esq, dir, taxa);
+  if (formato === "aac") await garantirAac({ numberOfChannels: 2, sampleRate: taxa, bitrate: 256_000 });
   return webcodecs(formato, esq, dir, taxa);
 }
 

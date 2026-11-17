@@ -22,6 +22,12 @@ public sealed record MusicSeparateOptions : JobOptions
     public string? QualityProfile { get; init; }
     public string? MaskProfile { get; init; }
 
+    /// <summary>Refinar agudos: no RoFormer, o Wiener do núcleo; no Spleeter, a máscara refinada.</summary>
+    public bool? RefineHighs { get; init; }
+
+    /// <summary>Recuperar a bateria do resíduo com uma segunda separação (experimental).</summary>
+    public bool? RecoverDrums { get; init; }
+
     public override void Validate()
     {
         if (QualityProfile == "maximum" ? Mode != "6" : MusicSeparation.Mode(Mode) is null)
@@ -61,6 +67,32 @@ public sealed record MusicStemsPackageOptions : JobOptions
     {
         var request = MusicStemPackage.ReadRequest(Package);
         return $"Separar em {request.Groups.Count} arquivo(s) · {MusicStemPackage.Model(request.Model)!.Label}";
+    }
+}
+
+/// <summary>
+/// Restaurar áudio com IA (experimental). <see cref="Restoration"/> é o pedido em JSON, o mesmo
+/// do site e do Android (<see cref="AudioRestoration.ReadOptions"/>).
+/// </summary>
+public sealed record AudioRestoreOptions : JobOptions
+{
+    public override string Operation => OperationIds.AudioRestore;
+
+    public override string OutputExtension => AudioRestoration.ReadOptions(Restoration).Format switch { "flac" => "flac", "mp3" => "mp3", _ => "wav" };
+
+    public string Restoration { get; init; } = "";
+
+    public override void Validate()
+    {
+        if (Restoration.Length > 100_000) throw new ConversionException("invalid_options", "O pedido de restauração é grande demais.");
+        AudioRestoration.ReadOptions(Restoration);
+    }
+
+    public override string Summary()
+    {
+        var o = AudioRestoration.ReadOptions(Restoration);
+        var profile = AudioRestoration.Profiles.First(p => p.Id == o.Profile).Label;
+        return o.Profile == "manual" ? $"Restaurar · {profile}" : $"Restaurar · {profile} · {o.Intensity}%";
     }
 }
 

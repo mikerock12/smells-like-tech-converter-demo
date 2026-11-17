@@ -24,6 +24,29 @@ public sealed class ProgressEstimateTests
     }
 
     [Fact]
+    public void NaoSobeEntreBlocosDoRoFormer()
+    {
+        // 72 avisos de 40 s (3 min de música em blocos de 2,5 s), consultando a cada segundo.
+        var now = 0.0;
+        var estimate = new ProgressEstimate(() => now);
+        double? previous = null;
+        for (var t = 0; t < 72 * 40; t++)
+        {
+            now = t;
+            var fraction = Math.Floor(t / 40.0) / 72;
+            var remaining = estimate.Register(fraction);
+            if (remaining is { } r && previous is { } p && r > p)
+                Assert.True(t % 40 == 0, $"subiu sem avanço em {t} s: {p} → {r}");
+            if (remaining is { } atBlock && t % 40 == 0 && fraction > 0.1)
+            {
+                var truth = 72 * 40 - t;
+                Assert.InRange(atBlock, truth * 0.8 - 5, truth * 1.2 + 5);
+            }
+            if (remaining is not null) previous = remaining;
+        }
+    }
+
+    [Fact]
     public void TextosIguaisAosDoSite()
     {
         Assert.Equal("37% · faltam cerca de 3 min", ProgressEstimate.Describe(0.37, 125));

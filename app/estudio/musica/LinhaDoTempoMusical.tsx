@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState, type PointerEvent as EventoDoPonteiro } from "react";
 import { createPortal } from "react-dom";
 
+import { PERFIS_DO_RESTAURADOR } from "@/packages/converter-core/restaurador.mjs";
+
 import { AJUSTE_MAXIMO_DB, AJUSTE_MINIMO_DB, PASSOS_DA_MUSICA, duracaoEmQuadros, novaFaixa, percentualParaVolume, quadroDaBatida, quadrosPorBatida, quadrosPorCompasso, textoDoPan, volumeParaPercentual, type Clipe, type Faixa, type ProjetoMusical } from "@/packages/converter-core/musica.mjs";
 import type { EstadoDoMotor } from "@/lib/musica/motor";
 import { QUADROS_POR_PICO } from "@/lib/musica/picos";
@@ -23,6 +25,8 @@ type Props = {
   abrirEfeitos: (id: string) => void;
   /** Reduz o ruído de fundo de um clipe gravado (cria uma mídia nova; Desfazer volta). */
   limparClipe?: (faixaId: string, clipeId: string) => void;
+  /** Restaurador (experimental): cria a versão restaurada do clipe, com A/B no menu da faixa. */
+  restaurarClipe?: (faixaId: string, clipeId: string, perfil: string) => void;
 };
 
 function mudarFaixa(mudar: Mudar, id: string, f: (faixa: Faixa) => Faixa, juntar?: string) {
@@ -60,7 +64,8 @@ function Onda({ picos, clipe, largura, cor }: { picos: Float32Array | undefined;
   return <canvas ref={tela} className="musica__onda" aria-hidden />;
 }
 
-export default function LinhaDoTempoMusical({ projeto, picos, estado, zoom, mudar, irPara, selecao, selecionar, gravando, exportarFaixa, abrirEfeitos, limparClipe }: Props) {
+export default function LinhaDoTempoMusical({ projeto, picos, estado, zoom, mudar, irPara, selecao, selecionar, gravando, exportarFaixa, abrirEfeitos, limparClipe, restaurarClipe }: Props) {
+  const [perfilDoRestaurador, setPerfilDoRestaurador] = useState("auto");
   const [menu, setMenu] = useState<string | null>(null);
   const [clipeDoMenu, setClipeDoMenu] = useState<string | null>(null);
   const [encaixe, setEncaixe] = useState(true);
@@ -245,6 +250,16 @@ export default function LinhaDoTempoMusical({ projeto, picos, estado, zoom, muda
           <label className="estudio__chave"><input type="checkbox" checked={!selecionado.clipe.mudo} onChange={(e) => mudarFaixa(mudar, selecionado.faixa.id, (f) => ({ ...f, clipes: f.clipes.map((c) => (c.id === selecionado.clipe.id ? { ...c, mudo: !e.target.checked } : c)) }))} /> Tomada ativa</label>
           <button type="button" className="button button--ghost" onClick={dividir}>Dividir no cursor</button>
           {limparClipe && <button type="button" className="button button--ghost" onClick={() => limparClipe(selecionado.faixa.id, selecionado.clipe.id)} title="Para gravações com chiado, ventilador ou ar-condicionado ao fundo: aprende o ruído nos trechos mais silenciosos e o tira do clipe todo. Numa música já mixada quase nunca ajuda. A original fica guardada (Desfazer volta).">Reduzir ruído deste clipe</button>}
+          {restaurarClipe && (
+            <span className="musica__linha">
+              <select aria-label="Tipo de gravação para restaurar" value={perfilDoRestaurador} onChange={(e) => setPerfilDoRestaurador(e.target.value)}>
+                {PERFIS_DO_RESTAURADOR.filter((p) => p.id !== "manual").map((p) => <option key={p.id} value={p.id}>{p.rotulo}</option>)}
+                <option value="lossy+ia">MP3/AAC + IA (Apollo, baixa 74 MB; lento)</option>
+              </select>
+              <button type="button" className="button button--ghost" onClick={() => restaurarClipe(selecionado.faixa.id, selecionado.clipe.id, perfilDoRestaurador)}
+                title="Analisa o clipe e trata só o que encontrar (zumbido, estalos, recorte, chiado), neste aparelho. Cria uma versão restaurada com o mesmo volume; o menu da faixa alterna original/restaurada. Não recria o que a gravação perdeu.">Restaurar áudio (experimental)</button>
+            </span>
+          )}
           <button type="button" className="button button--ghost" onClick={() => { mudarFaixa(mudar, selecionado.faixa.id, (f) => ({ ...f, clipes: f.clipes.filter((c) => c.id !== selecionado.clipe.id) })); selecionar((s) => ({ ...s, clipe: null })); }}>Remover clipe</button>
           <span className="estudio__dica">A mídia original nunca muda: cortar, mover e remover mexem só no clipe.</span>
         </div>

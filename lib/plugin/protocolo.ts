@@ -33,6 +33,10 @@ export type Apresentacao = {
   mascarasDaSeparacaoMusical?: ("classica" | "refinada")[];
   perfisDaSeparacaoMusical?: ("legacy" | "studio" | "maximum")[];
   gerenciaModelosMusicais?: boolean;
+  /** Recursos extras da separação (plugin 0.9.17+): "refinar-agudos", "recuperar-bateria". */
+  recursosDaSeparacaoMusical?: string[];
+  /** Restaurador de áudio (plugin 0.9.17+): versões do contrato e perfis aceitos. */
+  restauracaoDeAudio?: { versoes: number[]; perfis: string[]; neural: boolean; backend: string };
   maquina: Maquina;
   operacoes: Operacao[];
   pastaDeSaida: string;
@@ -96,6 +100,10 @@ export type PedidoDeSeparacaoMusical = {
   SampleRate: number;
   QualityProfile?: "legacy" | "studio" | "maximum";
   MaskProfile?: "classica" | "refinada";
+  /** RoFormer: refino de Wiener nos agudos (plugins que anunciam "refinar-agudos"). */
+  RefineHighs?: boolean;
+  /** Segunda separação do resíduo para completar a bateria (plugins que anunciam "recuperar-bateria"). */
+  RecoverDrums?: boolean;
 };
 
 /** Como o site enxerga o plugin em cada momento. */

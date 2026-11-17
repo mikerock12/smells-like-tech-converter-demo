@@ -95,6 +95,8 @@ enum class Ferramenta(val titulo: String, val tipo: Tipo, val formatos: List<Str
     AUDIO_TRANSCREVER("Transcrever (Whisper)", Tipo.AUDIO, listOf("txt")),
     // Experimental: Spleeter ou RoFormer, as combinações e os efeitos escolhidos, num .zip.
     AUDIO_SEPARAR_FAIXAS("Separar faixas em .zip (experimental)", Tipo.AUDIO, listOf("zip")),
+    // Experimental: diagnóstico e reparo (zumbido, estalos, recorte, chiado) no núcleo nativo.
+    AUDIO_RESTAURAR("Restaurar áudio com IA (experimental)", Tipo.AUDIO, listOf("wav", "flac", "mp3")),
 
     PDF_JUNTAR("Juntar PDFs", Tipo.PDF, listOf("pdf"), juntaTudo = true),
     PDF_DIVIDIR("Dividir PDF", Tipo.PDF, listOf("pdf")),
@@ -126,6 +128,7 @@ enum class Ferramenta(val titulo: String, val tipo: Tipo, val formatos: List<Str
         VIDEO_SEM_AUDIO -> Opcoes(formato = "mp4", removerAudio = true)
         PDF_GIRAR -> Opcoes(formato = "pdf", graus = 90)
         AUDIO_SEPARAR_FAIXAS -> Opcoes(formato = "zip", pacote = br.com.smellsliketech.converter.musica.PacoteDeFaixas.lerPedido(null).paraJson().toString())
+        AUDIO_RESTAURAR -> Opcoes(formato = "wav", restauracao = br.com.smellsliketech.converter.musica.RestauradorDeAudio.Opcoes().paraJson().toString())
         VIDEO_VOZ -> Opcoes(formato = "mp4", pacote = br.com.smellsliketech.converter.musica.PacoteDeFaixas.lerPedido(null, manterPadrao = "resto").paraJson().toString())
         else -> Opcoes(formato = formatos.firstOrNull() ?: "")
     }
@@ -223,6 +226,8 @@ data class Opcoes(
 
     // Separar faixas (experimental): o pedido em JSON, o mesmo do site e do Windows (PacoteDeFaixas).
     val pacote: String = "",
+    /** Restaurar áudio: as opções do restaurador (JSON, o mesmo do site e do Windows). */
+    val restauracao: String = "",
 )
 
 /** As listas permitidas, iguais às do aplicativo para Windows. */

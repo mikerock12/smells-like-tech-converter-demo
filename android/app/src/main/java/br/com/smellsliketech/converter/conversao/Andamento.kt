@@ -13,11 +13,20 @@ class Andamento(private val relogioMs: () -> Long = { System.nanoTime() / 1_000_
     private var ultimoRestante: Double? = null
     private var ultimoMomento = 0L
 
-    /** Segundos que faltam, ou null enquanto ainda não dá para estimar. */
+    private var porcentagemEstimada = 0
+
+    /**
+     * Segundos que faltam, ou null enquanto ainda não dá para estimar. O ritmo só é refeito
+     * quando a porcentagem avança; entre dois avisos o tempo só desce com o relógio (o
+     * RoFormer avisa por bloco, e consultar sem avanço fazia a conta subir sem parar).
+     */
     fun registrar(porcentagem: Int): Int? {
         val agora = relogioMs()
         if (porcentagem <= 0 || porcentagem >= 100) return null
         val (inicio, porcentagemInicial) = base ?: (agora to porcentagem).also { base = it }
+        ultimoRestante?.let { guardado ->
+            if (porcentagem <= porcentagemEstimada) return (guardado - (agora - ultimoMomento) / 1000.0).coerceAtLeast(0.0).roundToInt()
+        }
         val decorrido = (agora - inicio) / 1000.0
         val andou = porcentagem - porcentagemInicial
         if (andou < 2 || decorrido < 2) return null
@@ -26,6 +35,7 @@ class Andamento(private val relogioMs: () -> Long = { System.nanoTime() / 1_000_
         val suave = if (anterior == null) bruto else 0.75 * anterior + 0.25 * bruto
         ultimoRestante = suave
         ultimoMomento = agora
+        porcentagemEstimada = porcentagem
         return suave.roundToInt()
     }
 

@@ -259,3 +259,86 @@ JNIEXPORT jlongArray JNICALL JNI_NUCLEO(sintetizar)(JNIEnv* env, jobject, jlong 
 }
 
 }
+
+// ---------------------------------------------------------------- ABI 1.2: refino dos agudos e restaurador
+
+extern "C" {
+
+JNIEXPORT jlong JNICALL JNI_NUCLEO(criarRefinador)(JNIEnv*, jobject, jint taxa, jint faixas, jfloat corte, jfloat quanto) {
+    if (taxa <= 0 || faixas <= 0) return 0;
+    return handle(slt_stem_refiner_create(static_cast<uint32_t>(taxa), static_cast<uint32_t>(faixas), corte, quanto));
+}
+JNIEXPORT jint JNICALL JNI_NUCLEO(latenciaDoRefinador)(JNIEnv*, jobject, jlong refinador) {
+    return static_cast<jint>(slt_stem_refiner_latency(ponteiro<slt_stem_refiner_handle>(refinador)));
+}
+JNIEXPORT jint JNICALL JNI_NUCLEO(refinar)(JNIEnv* env, jobject, jlong refinador, jobject planar, jint faixas, jint n) {
+    float* p = direto<float>(env, planar, static_cast<jlong>(n) * 2 * faixas);
+    if (p == nullptr) return SLT_ERROR_INVALID_ARGUMENT;
+    return slt_stem_refiner_process(ponteiro<slt_stem_refiner_handle>(refinador), p, static_cast<uint32_t>(n));
+}
+JNIEXPORT void JNICALL JNI_NUCLEO(destruirRefinador)(JNIEnv*, jobject, jlong refinador) {
+    slt_stem_refiner_destroy(ponteiro<slt_stem_refiner_handle>(refinador));
+}
+
+JNIEXPORT jlong JNICALL JNI_NUCLEO(criarAnalisador)(JNIEnv*, jobject, jint taxa) {
+    return taxa <= 0 ? 0 : handle(slt_audio_analyzer_create(static_cast<uint32_t>(taxa)));
+}
+JNIEXPORT jint JNICALL JNI_NUCLEO(alimentarAnalisador)(JNIEnv* env, jobject, jlong analisador, jobject esquerda, jobject direita, jint n) {
+    float* e = direto<float>(env, esquerda, n);
+    float* d = direto<float>(env, direita, n);
+    if (e == nullptr || (direita != nullptr && d == nullptr)) return SLT_ERROR_INVALID_ARGUMENT;
+    return slt_audio_analyzer_feed(ponteiro<slt_audio_analyzer_handle>(analisador), e, d, static_cast<uint32_t>(n));
+}
+JNIEXPORT jfloatArray JNICALL JNI_NUCLEO(resultadoDoAnalisador)(JNIEnv* env, jobject, jlong analisador) {
+    float valores[SLT_DIAGNOSIS_FIELDS] = {};
+    if (slt_audio_analyzer_result(ponteiro<slt_audio_analyzer_handle>(analisador), valores, SLT_DIAGNOSIS_FIELDS) != SLT_OK) return nullptr;
+    jfloatArray saida = env->NewFloatArray(SLT_DIAGNOSIS_FIELDS);
+    if (saida != nullptr) env->SetFloatArrayRegion(saida, 0, SLT_DIAGNOSIS_FIELDS, valores);
+    return saida;
+}
+JNIEXPORT jfloatArray JNICALL JNI_NUCLEO(perfilDoAnalisador)(JNIEnv* env, jobject, jlong analisador) {
+    static thread_local float perfil[SLT_NOISE_PROFILE_BINS];
+    if (slt_audio_analyzer_noise_profile(ponteiro<slt_audio_analyzer_handle>(analisador), perfil, SLT_NOISE_PROFILE_BINS) != SLT_OK) return nullptr;
+    jfloatArray saida = env->NewFloatArray(SLT_NOISE_PROFILE_BINS);
+    if (saida != nullptr) env->SetFloatArrayRegion(saida, 0, SLT_NOISE_PROFILE_BINS, perfil);
+    return saida;
+}
+JNIEXPORT void JNICALL JNI_NUCLEO(destruirAnalisador)(JNIEnv*, jobject, jlong analisador) {
+    slt_audio_analyzer_destroy(ponteiro<slt_audio_analyzer_handle>(analisador));
+}
+
+JNIEXPORT jlong JNICALL JNI_NUCLEO(criarReparo)(JNIEnv* env, jobject, jint taxa, jfloatArray parametros) {
+    if (taxa <= 0 || parametros == nullptr) return 0;
+    const jsize n = env->GetArrayLength(parametros);
+    if (n <= 0 || n > SLT_REPAIR_PARAMS) return 0;
+    float valores[SLT_REPAIR_PARAMS] = {};
+    env->GetFloatArrayRegion(parametros, 0, n, valores);
+    return handle(slt_audio_repair_create(static_cast<uint32_t>(taxa), valores, static_cast<uint32_t>(n)));
+}
+JNIEXPORT jint JNICALL JNI_NUCLEO(perfilDoReparo)(JNIEnv* env, jobject, jlong reparo, jfloatArray perfil) {
+    if (perfil == nullptr || env->GetArrayLength(perfil) != SLT_NOISE_PROFILE_BINS) return SLT_ERROR_INVALID_ARGUMENT;
+    static thread_local float valores[SLT_NOISE_PROFILE_BINS];
+    env->GetFloatArrayRegion(perfil, 0, SLT_NOISE_PROFILE_BINS, valores);
+    return slt_audio_repair_set_noise_profile(ponteiro<slt_audio_repair_handle>(reparo), valores, SLT_NOISE_PROFILE_BINS);
+}
+JNIEXPORT jint JNICALL JNI_NUCLEO(latenciaDoReparo)(JNIEnv*, jobject, jlong reparo) {
+    return static_cast<jint>(slt_audio_repair_latency(ponteiro<slt_audio_repair_handle>(reparo)));
+}
+JNIEXPORT jint JNICALL JNI_NUCLEO(reparar)(JNIEnv* env, jobject, jlong reparo, jobject esquerda, jobject direita, jint n) {
+    float* e = direto<float>(env, esquerda, n);
+    float* d = direto<float>(env, direita, n);
+    if (e == nullptr || (direita != nullptr && d == nullptr)) return SLT_ERROR_INVALID_ARGUMENT;
+    return slt_audio_repair_process(ponteiro<slt_audio_repair_handle>(reparo), e, d, static_cast<uint32_t>(n));
+}
+JNIEXPORT jfloatArray JNICALL JNI_NUCLEO(estatisticasDoReparo)(JNIEnv* env, jobject, jlong reparo) {
+    float valores[SLT_REPAIR_STATS] = {};
+    if (slt_audio_repair_stats(ponteiro<slt_audio_repair_handle>(reparo), valores, SLT_REPAIR_STATS) != SLT_OK) return nullptr;
+    jfloatArray saida = env->NewFloatArray(SLT_REPAIR_STATS);
+    if (saida != nullptr) env->SetFloatArrayRegion(saida, 0, SLT_REPAIR_STATS, valores);
+    return saida;
+}
+JNIEXPORT void JNICALL JNI_NUCLEO(destruirReparo)(JNIEnv*, jobject, jlong reparo) {
+    slt_audio_repair_destroy(ponteiro<slt_audio_repair_handle>(reparo));
+}
+
+}  // extern "C"

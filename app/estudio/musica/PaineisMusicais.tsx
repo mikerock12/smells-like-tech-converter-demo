@@ -15,6 +15,8 @@ import type { PedidoDeSeparacaoMusical, Trabalho } from "@/lib/plugin/protocolo"
 import { exportarMusica, formatosDisponiveis, type Exportado } from "@/lib/musica/exportar";
 import { MotorDaMusica, type ResultadoDaEntrada } from "@/lib/musica/motor";
 import { useAndamento } from "@/lib/segundo-plano";
+import { ETAPAS_DO_RESTAURADOR, VERSAO_DO_RESTAURADOR, resumoDoDiagnostico, textoDoAviso } from "@/packages/converter-core/restaurador.mjs";
+import { ganhoDeNivelamento, restaurarAudio } from "@/lib/musica/restaurador";
 import { PlacaDeVideo } from "@/app/converter/OpcoesDasFaixas";
 import { SeparadorNoNavegador, apagarModelo, garantirModelo, modeloBaixado, restaurarFaixa, type PerfilDeMascara } from "@/lib/musica/separacao";
 import { novoId, type Mudar } from "./CriacaoMusical";
@@ -132,6 +134,37 @@ export async function reduzirRuidoDoClipe(projeto: ProjetoMusical, faixaId: stri
   return "Ruído reduzido neste clipe. A gravação original continua guardada: Desfazer volta para ela.";
 }
 
+/**
+ * Restaura o áudio de um clipe (experimental): diagnóstico, plano e reparo neste aparelho.
+ * A versão restaurada vira uma mídia derivada, com o volume igualado ao do original, e o
+ * menu da faixa alterna entre original e restaurada (A/B nivelado). Desfazer volta.
+ */
+export async function restaurarAudioDoClipe(projeto: ProjetoMusical, faixaId: string, clipeId: string, perfil: string, canaisDe: (midia: string) => Float32Array[] | undefined, carregarMidia: (projetoId: string, midiaId: string, canais?: Float32Array[]) => Promise<void>, mudar: Mudar, progresso: (etapa: string, fracao: number) => void): Promise<string> {
+  const clipe = projeto.faixas.find((f) => f.id === faixaId)?.clipes.find((c) => c.id === clipeId);
+  const canais = clipe ? canaisDe(clipe.midia) : undefined;
+  if (!clipe || !canais) return "O áudio deste clipe ainda não carregou.";
+  const intensidade = 35;
+  // "lossy+ia": MP3/AAC com o reparo de compressão por IA (Apollo).
+  const opcoes = perfil === "lossy+ia" ? { perfil: "lossy", intensidade, ia: true } : { perfil, intensidade };
+  const pronto = await restaurarAudio(canais, projeto.taxa, opcoes, progresso);
+  if (pronto.plano.semMudanca) return `${resumoDoDiagnostico(pronto.diagnostico)}. ${textoDoAviso(pronto.plano.avisos.at(-1) ?? "sem_defeitos_suficientes")}`;
+  const ganho = ganhoDeNivelamento(canais, pronto.canais);
+  const saida = pronto.canais.length === 1 ? [pronto.canais[0], pronto.canais[0].slice()] : pronto.canais;
+  if (ganho !== 1) for (const c of saida) for (let i = 0; i < c.length; i += 1) c[i] *= ganho;
+  const midia = novoId("restaurada");
+  await salvarMidia(projeto.id, midia, saida, projeto.taxa);
+  await carregarMidia(projeto.id, midia, saida);
+  const origem = projeto.midias.find((m) => m.id === clipe.midia);
+  mudar((p) => ({
+    ...p,
+    midias: [...p.midias, { id: midia, nome: `${(origem?.nome ?? "Clipe").replace(/\.[^.]+$/, "")} restaurada.wav`, formato: "wav", taxa: p.taxa, canais: 2, quadros: saida[0].length, bits: 32, origem: clipe.midia,
+      restauracao: { intensidade, versao: VERSAO_DO_RESTAURADOR, tipo: "restaurador", perfil: pronto.plano.perfil } }],
+    faixas: p.faixas.map((f) => (f.id === faixaId ? { ...f, clipes: f.clipes.map((c) => (c.id === clipeId ? { ...c, midia } : c)) } : f)),
+  }));
+  const etapas = pronto.plano.etapas.map((e) => ETAPAS_DO_RESTAURADOR.find((x) => x.id === e.id)?.rotulo ?? e.id).join(", ");
+  return `Restaurado (${etapas}). ${resumoDoDiagnostico(pronto.diagnostico)}. Volume igualado ao original; o menu da faixa alterna original/restaurada e Desfazer volta.`;
+}
+
 export function PainelDeSeparacao({ projeto, canaisDe, mudar, carregarMidia }: {
   projeto: ProjetoMusical;
   canaisDe: (midia: string) => Float32Array[] | undefined;
@@ -142,7 +175,10 @@ export function PainelDeSeparacao({ projeto, canaisDe, mudar, carregarMidia }: {
   const [escolhido, setEscolhido] = useState(clipes[0]?.clipe.id ?? "");
   const [modoEscolhido, setModo] = useState("4");
   const [roformer, setRoFormer] = useState(false);
-  const [mascara, setMascara] = useState<PerfilDeMascara>("classica");
+  const [refinar, setRefinar] = useState(false);
+  const [recuperarBateria, setRecuperarBateria] = useState(false);
+  // "Refinar agudos": no Spleeter é a máscara refinada; no RoFormer, o refino de Wiener nos agudos.
+  const mascara: PerfilDeMascara = refinar ? "refinada" : "classica";
   const [intensidade, setIntensidade] = useState(0);
   const [limpar, setLimpar] = useState(false);
   const [locais, setLocais] = useState([false, false]);
@@ -157,7 +193,9 @@ export function PainelDeSeparacao({ projeto, canaisDe, mudar, carregarMidia }: {
   const modo = roformer ? "6" : modoEscolhido;
   const definicao = modos.find((m) => m.id === modo)!;
   const pluginSepara = pluginDisponivel && (roformer || mascara === "classica" ||
-    plugin.apresentacao?.mascarasDaSeparacaoMusical?.includes(mascara) === true);
+    plugin.apresentacao?.mascarasDaSeparacaoMusical?.includes(mascara) === true) &&
+    (!recuperarBateria || plugin.apresentacao?.recursosDaSeparacaoMusical?.includes("recuperar-bateria") === true) &&
+    (!(roformer && refinar) || plugin.apresentacao?.recursosDaSeparacaoMusical?.includes("refinar-agudos") === true);
   const [usarPlugin, setUsarPlugin] = useState(false);
   const delegar = usarPlugin && pluginSepara && (!roformer || pluginRoFormer);
   const gerenciaPlugin = delegar && plugin.apresentacao?.gerenciaModelosMusicais === true;
@@ -198,7 +236,8 @@ export function PainelDeSeparacao({ projeto, canaisDe, mudar, carregarMidia }: {
     const wav = codificarWav(canais, projeto.taxa, 32);
     const arquivo = new File([wav.buffer as ArrayBuffer], "audio-para-separar.wav", { type: "audio/wav" });
     const pedido: PedidoDeSeparacaoMusical = { operation: "music.separate", Mode: modo, SampleRate: projeto.taxa,
-      QualityProfile: roformer ? "maximum" : "legacy", MaskProfile: roformer ? undefined : mascara };
+      QualityProfile: roformer ? "maximum" : "legacy", MaskProfile: roformer ? undefined : mascara,
+      RefineHighs: roformer && refinar ? true : undefined, RecoverDrums: recuperarBateria ? true : undefined };
     const trabalho = await plugin.cliente.converterArquivo(arquivo, pedido, "faixas");
     const final = await new Promise<Trabalho>((resolver, rejeitar) => {
       const parar = plugin.cliente.acompanhar(trabalho.id, (t) => {
@@ -236,7 +275,8 @@ export function PainelDeSeparacao({ projeto, canaisDe, mudar, carregarMidia }: {
         setLocais(await Promise.all([modeloBaixado(), modeloBaixado(true)]));
         descarga.current = null;
         separador.current = new SeparadorNoNavegador();
-        faixas = await separador.current.separar(canais.map((c) => c.slice()), projeto.taxa, modo, (etapa, fracao) => setAndamento({ etapa, fracao }), mascara);
+        faixas = await separador.current.separar(canais.map((c) => c.slice()), projeto.taxa, modo, (etapa, fracao) => setAndamento({ etapa, fracao }), roformer ? "classica" : mascara,
+          { refinarAgudos: roformer && refinar, recuperarBateria });
       }
       const novas: { midia: string; bruta: string | null; rotulo: string; id: string; quadros: number }[] = [];
       for (const [k, faixa] of faixas.entries()) {
@@ -276,10 +316,11 @@ export function PainelDeSeparacao({ projeto, canaisDe, mudar, carregarMidia }: {
           // A original fica, muda, como referência.
           faixas: [...p.faixas.slice(0, i).concat({ ...p.faixas[i], mudo: true }), ...criadas, ...p.faixas.slice(i + 1)],
           separacoes: [...p.separacoes, { id: novoId("sep"), midia: alvo.clipe.midia, modo, modelo, faixas: novas.map((n) => n.midia),
-            perfilDeQualidade: roformer ? "maximum" : "legacy", perfilDeMascara: roformer ? undefined : mascara }],
+            perfilDeQualidade: roformer ? "maximum" : "legacy", perfilDeMascara: roformer ? undefined : mascara,
+            ...(roformer && refinar ? { refinoDeAgudos: true } : {}), ...(recuperarBateria ? { bateriaRecuperada: true } : {}) }],
         };
       });
-      setMensagem(`Pronto: ${novas.length} faixas novas abaixo de “${alvo.faixa.nome}”, que ficou muda como referência.${limpar ? " O ruído de fundo foi reduzido em cada uma." : ""}`);
+      setMensagem(`Pronto: ${novas.length} faixas novas abaixo de “${alvo.faixa.nome}”, que ficou muda como referência.${limpar ? " O ruído de fundo foi reduzido em cada uma." : ""}${recuperarBateria && definicao.faixas.some((f) => f.id === "bateria") ? " A bateria foi completada com o que estava nos resíduos." : ""}`);
     } catch (e) {
       setMensagem(e instanceof Error ? e.message : String(e));
     } finally {
@@ -324,8 +365,13 @@ export function PainelDeSeparacao({ projeto, canaisDe, mudar, carregarMidia }: {
               ))}
             </fieldset>
             {!roformer && !delegar && <PlacaDeVideo disabled={!!andamento} />}
-            <label className="estudio__chave"><input type="checkbox" checked={!roformer && mascara === "refinada"} disabled={!!andamento || roformer}
-              onChange={(e) => setMascara(e.target.checked ? "refinada" : "classica")} /> Refinar agudos (experimental)</label>
+            <label className="estudio__chave"><input type="checkbox" checked={refinar} disabled={!!andamento}
+              onChange={(e) => setRefinar(e.target.checked)} /> Refinar agudos (experimental)</label>
+            <small className="estudio__dica">{roformer
+              ? "No RoFormer, refaz os agudos (acima de 8 kHz) de cada faixa pela energia de todas: menos pratos e chiado vazando na voz. A soma das faixas continua a música original."
+              : "No Spleeter, divide a oitava de cima pela energia da mistura, em vez de repetir a média."}</small>
+            <label className="estudio__chave"><input type="checkbox" role="switch" checked={recuperarBateria} disabled={!!andamento} onChange={(e) => setRecuperarBateria(e.target.checked)} /> Recuperar a bateria dos resíduos (experimental)</label>
+            <small className="estudio__dica">Depois de separar, separa de novo só o resíduo (“Outros”), tira dele a bateria que ficou ali e a junta à faixa da bateria. Dobra o tempo da separação.</small>
             <label className="musica__campo">Restauração por instrumento ({intensidade}%)
               <input type="range" min={0} max={100} value={intensidade} disabled={!!andamento} onChange={(e) => setIntensidade(Number(e.target.value))} />
             </label>

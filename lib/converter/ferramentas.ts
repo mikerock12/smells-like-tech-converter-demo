@@ -402,6 +402,8 @@ export const CAMPOS: Readonly<Record<string, readonly Campo[]>> = {
   // O pedido inteiro (modelo, arquivos, efeitos) viaja em JSON: o painel OpcoesDasFaixas edita.
   "audio.separar-faixas": [{ id: "pacote", tipo: "texto", rotulo: "Pacote", padrao: "", quando: () => false }],
   "video.voz": [{ id: "pacote", tipo: "texto", rotulo: "Pacote", padrao: "", quando: () => false }],
+  // Perfil, intensidade, formato e etapas viajam em JSON: o painel OpcoesDoRestaurador edita.
+  "audio.restaurar": [{ id: "restauracao", tipo: "texto", rotulo: "Restauração", padrao: "", quando: () => false }],
   "legenda.converter": [
     formatos(["vtt", "srt", "txt"], "vtt"),
     { id: "atraso", tipo: "numero", rotulo: "Atrasar", padrao: 0, min: -3600, max: 3600, passo: 0.1, sufixo: "s" },

@@ -281,6 +281,24 @@ export const FERRAMENTAS = deepFreeze([
     pares: [],
   },
 
+  {
+    id: "audio.restaurar",
+    slug: "restaurar-audio",
+    categoria: "audio",
+    titulo: "Restaurar áudio com IA (experimental)",
+    acao: "Restaurar",
+    resumo: "Analisa a gravação e trata só o que encontrar: zumbido da rede, estalos, recorte, chiado e ruído de fundo. Perfis para MP3, show ao vivo e gravação antiga. Tudo neste aparelho; o original não muda.",
+    entradas: ["audio"],
+    saidas: ["wav", "flac", "mp3"],
+    navegador: true,
+    plugin: "audio.restore",
+    plano: "gratis",
+    limite: "lote",
+    experimental: true,
+    buscas: ["restaurar áudio", "melhorar qualidade do áudio", "tirar chiado", "tirar zumbido", "remover estalos", "limpar gravação", "áudio de show", "recuperar mp3"],
+    pares: [],
+  },
+
   // ==================== vídeo ====================
   {
     id: "video.converter",

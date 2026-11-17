@@ -41,7 +41,7 @@ extern "C" {
 
 /* Versão da ABI: maior << 16 | menor. A maior muda quando algo deixa de ser compatível. */
 #define SLT_API_VERSION_MAJOR 1u
-#define SLT_API_VERSION_MINOR 1u
+#define SLT_API_VERSION_MINOR 2u
 #define SLT_API_VERSION ((SLT_API_VERSION_MAJOR << 16) | SLT_API_VERSION_MINOR)
 
 typedef enum slt_result {
@@ -66,6 +66,9 @@ typedef enum slt_result {
 #define SLT_CAP_DEVICE        (1u << 6) /* dispositivo de áudio nativo (WASAPI/ASIO/Oboe) */
 #define SLT_CAP_VST3          (1u << 7) /* host de efeitos VST3 (Windows com SDK) */
 #define SLT_CAP_COMPLEX_STFT  (1u << 8) /* STFT centrada e síntese por máscara complexa */
+#define SLT_CAP_STEM_REFINE   (1u << 9) /* refino dos agudos das faixas separadas (Wiener multicanal), ABI 1.2 */
+#define SLT_CAP_AUDIO_DIAGNOSTICS (1u << 10) /* diagnóstico de qualidade do áudio, ABI 1.2 */
+#define SLT_CAP_AUDIO_REPAIR  (1u << 11) /* reparo conservador do restaurador (DSP, sem IA), ABI 1.2 */
 
 SLT_API uint32_t slt_get_api_version(void);
 SLT_API uint32_t slt_get_capabilities(void);
@@ -381,6 +384,92 @@ SLT_API slt_result slt_plugin_process(slt_plugin_handle* plugin, float* left, fl
 SLT_API slt_result slt_plugin_get_state(slt_plugin_handle* plugin, void* data, uint32_t capacity, uint32_t* size);
 SLT_API slt_result slt_plugin_set_state(slt_plugin_handle* plugin, const void* data, uint32_t size);
 #endif
+
+/* ------------------------------------------------------------------ refino dos agudos (ABI 1.2) */
+
+/*
+ * Acima de cutoff_hz (com transição de 2 kHz abaixo), cada faixa é refeita por um filtro de
+ * Wiener multicanal: a parte de cada uma é a energia dela (L+R) ÷ a de todas, aplicada à
+ * soma delas. A soma das faixas não muda. amount (0 a 1) mistura com o original.
+ * planar: 2 × stem_count canais seguidos, cada um com frame_count amostras
+ * ([(faixa*2 + canal) * frame_count + i]), processados no lugar e atrasados por
+ * slt_stem_refiner_latency quadros: no fim, empurre esse tanto de zeros e descarte o começo.
+ */
+typedef struct slt_stem_refiner_handle slt_stem_refiner_handle;
+SLT_API slt_stem_refiner_handle* slt_stem_refiner_create(uint32_t sample_rate, uint32_t stem_count, float cutoff_hz, float amount);
+SLT_API uint32_t slt_stem_refiner_latency(const slt_stem_refiner_handle* refiner);
+SLT_API slt_result slt_stem_refiner_process(slt_stem_refiner_handle* refiner, float* planar, uint32_t frame_count);
+SLT_API void slt_stem_refiner_destroy(slt_stem_refiner_handle* refiner);
+
+/* ------------------------------------------------------------------ restaurador: diagnóstico (ABI 1.2) */
+
+/* Ordem dos valores devolvidos por slt_audio_analyzer_result (todos float). */
+#define SLT_DIAG_DURATION_S          0  /* segundos */
+#define SLT_DIAG_PEAK_DB             1  /* pico amostral, dBFS */
+#define SLT_DIAG_RMS_DB              2
+#define SLT_DIAG_CREST_DB            3
+#define SLT_DIAG_DC_OFFSET           4  /* |média| do pior canal, linear */
+#define SLT_DIAG_CLIPPED_RATIO       5  /* fração das amostras em topos planos no pico */
+#define SLT_DIAG_NOISE_FLOOR_DB      6  /* 10º percentil do RMS em blocos de 2048 (acima de −100 dB) */
+#define SLT_DIAG_HUM_HZ              7  /* 50 ou 60 */
+#define SLT_DIAG_HUM_DB              8  /* quanto as harmônicas do zumbido sobem acima dos vizinhos */
+#define SLT_DIAG_BANDWIDTH_HZ        9  /* largura de banda estimada */
+#define SLT_DIAG_CLICKS_PER_MIN     10
+#define SLT_DIAG_STEREO_CORRELATION 11
+#define SLT_DIAG_SILENCE_RATIO      12  /* fração dos blocos abaixo de −70 dB */
+#define SLT_DIAG_HIGH_BAND_DB       13  /* energia acima de 10 kHz ÷ total, dB */
+#define SLT_DIAG_DYNAMIC_RANGE_DB   14  /* 95º − 10º percentil do RMS em blocos */
+#define SLT_DIAG_SAMPLE_RATE        15
+#define SLT_DIAG_NOISE_FLATNESS     16  /* planura do perfil de ruído (0 = tonal/música, 1 = chiado) */
+#define SLT_DIAGNOSIS_FIELDS        17
+
+/* Perfil de ruído: potência média (L+R) por bin da STFT de 4096 do reparo, nos quadros mais
+ * calmos que não são silêncio digital. Vai do diagnóstico para slt_audio_repair_set_noise_profile. */
+#define SLT_NOISE_PROFILE_WINDOW  4096
+#define SLT_NOISE_PROFILE_BINS    2049
+
+typedef struct slt_audio_analyzer_handle slt_audio_analyzer_handle;
+SLT_API slt_audio_analyzer_handle* slt_audio_analyzer_create(uint32_t sample_rate);
+/* Planar; mono: right nulo. Blocos de qualquer tamanho, em sequência. */
+SLT_API slt_result slt_audio_analyzer_feed(slt_audio_analyzer_handle* analyzer, const float* left, const float* right, uint32_t frame_count);
+SLT_API slt_result slt_audio_analyzer_result(const slt_audio_analyzer_handle* analyzer, float* values, uint32_t capacity);
+SLT_API slt_result slt_audio_analyzer_noise_profile(const slt_audio_analyzer_handle* analyzer, float* values, uint32_t capacity);
+SLT_API void slt_audio_analyzer_destroy(slt_audio_analyzer_handle* analyzer);
+
+/* ------------------------------------------------------------------ restaurador: reparo (ABI 1.2) */
+
+/* Ordem dos parâmetros de slt_audio_repair_create; zero desliga cada etapa. */
+#define SLT_REPAIR_DC              0  /* 1 tira o deslocamento DC */
+#define SLT_REPAIR_HUM_HZ          1  /* 50 ou 60; 0 desliga */
+#define SLT_REPAIR_HUM_AMOUNT      2  /* 0 a 1 */
+#define SLT_REPAIR_DECLICK         3  /* 0 a 1 */
+#define SLT_REPAIR_DECLIP          4  /* 0 a 1 */
+#define SLT_REPAIR_CLIP_LEVEL      5  /* linear; 0 = 0,985 */
+#define SLT_REPAIR_DENOISE         6  /* 0 a 1: redução de ruído estacionário */
+#define SLT_REPAIR_AIR_DB          7  /* prateleira em 9 kHz, −6 a +6 dB */
+#define SLT_REPAIR_LOW_CUT_HZ      8  /* passa-altas; abaixo de 10 desliga */
+#define SLT_REPAIR_CEILING_DB      9  /* teto do limitador (negativo); ≥ 0 desliga */
+#define SLT_REPAIR_OUTPUT_GAIN_DB 10
+#define SLT_REPAIR_RESERVED       11
+#define SLT_REPAIR_PARAMS         12
+
+/* Estatísticas de slt_audio_repair_stats. */
+#define SLT_REPAIR_STAT_CLICKS      0
+#define SLT_REPAIR_STAT_CLIPS       1
+#define SLT_REPAIR_STAT_DENOISE_DB  2  /* redução média aplicada, dB (≤ 0) */
+#define SLT_REPAIR_STAT_LIMITER_DB  3  /* maior redução do limitador, dB (≤ 0) */
+#define SLT_REPAIR_STATS            4
+
+typedef struct slt_audio_repair_handle slt_audio_repair_handle;
+SLT_API slt_audio_repair_handle* slt_audio_repair_create(uint32_t sample_rate, const float* params, uint32_t param_count);
+/* Opcional, antes de processar: o ruído de fundo medido (SLT_NOISE_PROFILE_BINS valores).
+ * Sem ele, a redução de ruído acompanha o mínimo do próprio sinal. */
+SLT_API slt_result slt_audio_repair_set_noise_profile(slt_audio_repair_handle* repair, const float* profile, uint32_t count);
+SLT_API uint32_t slt_audio_repair_latency(const slt_audio_repair_handle* repair);
+/* Planar, no lugar, atrasado por slt_audio_repair_latency (mono: right nulo). */
+SLT_API slt_result slt_audio_repair_process(slt_audio_repair_handle* repair, float* left, float* right, uint32_t frame_count);
+SLT_API slt_result slt_audio_repair_stats(const slt_audio_repair_handle* repair, float* values, uint32_t capacity);
+SLT_API void slt_audio_repair_destroy(slt_audio_repair_handle* repair);
 
 /* ------------------------------------------------------------------ memória (só WebAssembly) */
 

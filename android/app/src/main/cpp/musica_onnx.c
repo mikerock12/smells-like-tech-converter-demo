@@ -123,6 +123,65 @@ Java_br_com_smellsliketech_converter_musica_InferenciaOnnx_executar(JNIEnv *jni,
     return saida;
 }
 
+/* Uma entrada principal e até 4 escalares de forma [1] (o Apollo recebe o corte e a mistura). */
+JNIEXPORT jfloatArray JNICALL
+Java_br_com_smellsliketech_converter_musica_InferenciaOnnx_executarComEscalares(JNIEnv *jni, jclass classe, jlong ponteiro, jfloatArray entrada, jlongArray forma,
+                                                                               jstring nomeDaEntrada, jfloatArray escalares, jobjectArray nomesDosEscalares, jstring nomeDaSaida) {
+    (void) classe;
+    OrtSession *sessao = (OrtSession *) (intptr_t) ponteiro;
+    jsize quantosEscalares = (*jni)->GetArrayLength(jni, escalares);
+    if (quantosEscalares > 4 || quantosEscalares != (*jni)->GetArrayLength(jni, nomesDosEscalares)) return NULL;
+    OrtMemoryInfo *memoria = NULL;
+    if (falhou(jni, api->CreateCpuMemoryInfo(OrtArenaAllocator, OrtMemTypeDefault, &memoria))) return NULL;
+    jsize n = (*jni)->GetArrayLength(jni, entrada);
+    jsize dimensoes = (*jni)->GetArrayLength(jni, forma);
+    jfloat *dados = (*jni)->GetFloatArrayElements(jni, entrada, NULL);
+    jlong *tamanhos = (*jni)->GetLongArrayElements(jni, forma, NULL);
+    jfloat valores[4] = {0};
+    (*jni)->GetFloatArrayRegion(jni, escalares, 0, quantosEscalares, valores);
+    int64_t formato[8];
+    int64_t um = 1;
+    for (jsize i = 0; i < dimensoes && i < 8; i++) formato[i] = tamanhos[i];
+    OrtValue *tensores[5] = {NULL, NULL, NULL, NULL, NULL};
+    const char *nomes[5] = {NULL, NULL, NULL, NULL, NULL};
+    jstring textos[4] = {NULL, NULL, NULL, NULL};
+    OrtValue *resultado = NULL;
+    jfloatArray saida = NULL;
+    nomes[0] = (*jni)->GetStringUTFChars(jni, nomeDaEntrada, NULL);
+    for (jsize i = 0; i < quantosEscalares; i++) {
+        textos[i] = (jstring) (*jni)->GetObjectArrayElement(jni, nomesDosEscalares, i);
+        nomes[i + 1] = (*jni)->GetStringUTFChars(jni, textos[i], NULL);
+    }
+    const char *saidaNome = (*jni)->GetStringUTFChars(jni, nomeDaSaida, NULL);
+    int ok = !falhou(jni, api->CreateTensorWithDataAsOrtValue(memoria, dados, (size_t) n * sizeof(float), formato, (size_t) dimensoes, ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT, &tensores[0]));
+    for (jsize i = 0; ok && i < quantosEscalares; i++)
+        ok = !falhou(jni, api->CreateTensorWithDataAsOrtValue(memoria, &valores[i], sizeof(float), &um, 1, ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT, &tensores[i + 1]));
+    if (ok && !falhou(jni, api->Run(sessao, NULL, nomes, (const OrtValue *const *) tensores, (size_t) quantosEscalares + 1, &saidaNome, 1, &resultado))) {
+        float *pronto = NULL;
+        OrtTensorTypeAndShapeInfo *info = NULL;
+        size_t quantidade = 0;
+        if (!falhou(jni, api->GetTensorMutableData(resultado, (void **) &pronto))
+            && !falhou(jni, api->GetTensorTypeAndShape(resultado, &info))) {
+            api->GetTensorShapeElementCount(info, &quantidade);
+            api->ReleaseTensorTypeAndShapeInfo(info);
+            saida = (*jni)->NewFloatArray(jni, (jsize) quantidade);
+            if (saida != NULL) (*jni)->SetFloatArrayRegion(jni, saida, 0, (jsize) quantidade, pronto);
+        }
+    }
+    if (resultado != NULL) api->ReleaseValue(resultado);
+    for (int i = 0; i < 5; i++) if (tensores[i] != NULL) api->ReleaseValue(tensores[i]);
+    (*jni)->ReleaseStringUTFChars(jni, nomeDaEntrada, nomes[0]);
+    for (jsize i = 0; i < quantosEscalares; i++) {
+        (*jni)->ReleaseStringUTFChars(jni, textos[i], nomes[i + 1]);
+        (*jni)->DeleteLocalRef(jni, textos[i]);
+    }
+    (*jni)->ReleaseStringUTFChars(jni, nomeDaSaida, saidaNome);
+    (*jni)->ReleaseLongArrayElements(jni, forma, tamanhos, JNI_ABORT);
+    (*jni)->ReleaseFloatArrayElements(jni, entrada, dados, JNI_ABORT);
+    api->ReleaseMemoryInfo(memoria);
+    return saida;
+}
+
 JNIEXPORT void JNICALL
 Java_br_com_smellsliketech_converter_musica_InferenciaOnnx_fechar(JNIEnv *jni, jclass classe, jlong ponteiro) {
     (void) jni;

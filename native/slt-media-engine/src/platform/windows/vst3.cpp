@@ -100,6 +100,9 @@ struct slt_plugin_handle {
     bool ativo = false;
     bool processando = false;
     ParameterChanges mudancas;
+    // Os plugins podem devolver mudanças de parâmetro (medidores, automação): a lista de saída
+    // tem de existir, mesmo que o host não a leia (os DPF/Dragonfly avisam quando falta).
+    ParameterChanges mudancasDeSaida;
     std::vector<float> entradaE, entradaD, saidaE, saidaD;
 
     ~slt_plugin_handle() {
@@ -139,6 +142,7 @@ struct slt_plugin_handle {
         if (n < 0 || n > 4096) return false;
         parametros = std::make_unique<Parametro[]>(n);
         mudancas.setMaxParameters(n);
+        mudancasDeSaida.setMaxParameters(n);
         for (int32 i = 0; i < n; ++i) {
             auto& p = parametros[i];
             if (controlador->getParameterInfo(i, p.info) != kResultOk) return false;
@@ -291,6 +295,7 @@ SLT_API slt_result slt_plugin_process(slt_plugin_handle* plugin, float* left, fl
     std::memcpy(p.entradaD.data(), right, bytes);
     const bool ok = chamarPlugin([&] {
         p.mudancas.clearQueue();
+        p.mudancasDeSaida.clearQueue();
         for (uint32_t i = 0; i < p.quantos; ++i) {
             auto& par = p.parametros[i];
             const double valor = par.valor.load();
@@ -313,6 +318,7 @@ SLT_API slt_result slt_plugin_process(slt_plugin_handle* plugin, float* left, fl
         dados.inputs = &in;
         dados.outputs = &out;
         dados.inputParameterChanges = &p.mudancas;
+        dados.outputParameterChanges = &p.mudancasDeSaida;
         if (p.processador->process(dados) != kResultOk) return false;
         for (uint32_t i = 0; i < frame_count; ++i) {
             if (!std::isfinite(saida[0][i]) || !std::isfinite(saida[1][i])) return false;

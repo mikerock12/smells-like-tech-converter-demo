@@ -25,6 +25,23 @@ class AndamentoTest {
     }
 
     @Test
+    fun `tempo nao sobe entre os blocos do RoFormer`() {
+        // 72 avisos de 40 s (3 min em blocos de 2,5 s), a notificação consultando a cada segundo.
+        var agora = 0L
+        val andamento = Andamento { agora }
+        var anterior: Int? = null
+        for (t in 0 until 72 * 40) {
+            agora = t * 1000L
+            val porcentagem = (t / 40) * 100 / 72
+            val restante = andamento.registrar(porcentagem)
+            if (restante != null && anterior != null && restante > anterior!!) {
+                assertTrue("subiu sem avanço em $t s: $anterior → $restante", t % 40 == 0)
+            }
+            if (restante != null) anterior = restante
+        }
+    }
+
+    @Test
     fun `descreve o tempo em portugues`() {
         assertEquals("quase pronto", Andamento.descrever(3))
         assertEquals("faltam cerca de 25 s", Andamento.descrever(23))

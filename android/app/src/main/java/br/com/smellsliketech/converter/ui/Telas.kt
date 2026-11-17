@@ -386,6 +386,7 @@ private fun Ajustes(modelo: OficinaViewModel, ferramenta: Ferramenta, opcoes: Op
             AjustesDaFala(opcoes, mudar)
         }
         Ferramenta.AUDIO_SEPARAR_FAIXAS, Ferramenta.VIDEO_VOZ -> AjustesDasFaixas(ferramenta == Ferramenta.VIDEO_VOZ, opcoes, mudar)
+        Ferramenta.AUDIO_RESTAURAR -> AjustesDoRestaurador(opcoes, mudar)
         else -> Unit
     }
 }
@@ -489,6 +490,7 @@ private fun CartaoDoTrabalho(trabalho: br.com.smellsliketech.converter.conversao
             else LinearProgressIndicator(progress = { trabalho.progresso / 100f }, modifier = Modifier.fillMaxWidth())
             Text(textoDoAndamento(trabalho.progresso, trabalho.restante), fontSize = 13.sp, fontWeight = FontWeight.Medium)
             Text(trabalho.etapa, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            AvisoDeBateria()
         }
         trabalho.erro?.let { Aviso(it) }
         trabalho.transcricoes.forEach { transcricao ->

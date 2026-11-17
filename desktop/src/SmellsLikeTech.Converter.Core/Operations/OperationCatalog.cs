@@ -259,6 +259,16 @@ public static class OperationCatalog
             }
         },
 
+        new OperationDescriptor
+        {
+            Id = OperationIds.AudioRestore,
+            Title = "Restaurar áudio com IA (experimental)",
+            Description = "Analisa a gravação e trata só o que encontrar: zumbido, estalos, recorte, chiado e ruído de fundo. O original não muda.",
+            InputKinds = [MediaKind.Audio],
+            OutputFormats = ["wav", "flac", "mp3"],
+            DefaultOptions = _ => new AudioRestoreOptions { Restoration = """{"perfil":"auto","intensidade":35,"formato":"wav-24"}""" }
+        },
+
         // Marcos seguintes: aparecem na interface como indisponíveis, sem prometer o que ainda não existe.
         new OperationDescriptor
         {

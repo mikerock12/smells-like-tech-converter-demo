@@ -435,6 +435,9 @@ footer > small { color: rgba(166, 166, 176, .7); font-family: var(--font-geist-m
 .job__meta { margin: 4px 0 0; font-size: 12px; color: var(--text-muted); }
 .job__meta strong { color: var(--orange-light); }
 .job__error { margin: 5px 0 0; font-size: 12px; color: var(--yellow); }
+.job__detalhes { margin: 4px 0 0; font-size: 12px; color: var(--muted, inherit); }
+.job__detalhes summary { cursor: pointer; }
+.job__detalhes pre { margin: 4px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 11px; max-width: 100%; }
 .job__actions { display: flex; gap: 8px; flex-shrink: 0; }
 
 .progress { position: relative; margin-top: 9px; height: 18px; border-radius: 9px; background: var(--surface-alt); border: 1px solid var(--stroke); overflow: hidden; }

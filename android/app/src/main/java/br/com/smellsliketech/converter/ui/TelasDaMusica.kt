@@ -62,7 +62,6 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.material3.Switch
 import androidx.compose.material3.RadioButton
 import androidx.compose.foundation.clickable
@@ -135,6 +134,7 @@ fun TelaDaMusica(modelo: MusicaViewModel, podeCriar: Boolean, abrirLicenca: () -
                     Text("$etapa · ${br.com.smellsliketech.converter.conversao.textoDoAndamento((fracao * 100).toInt(), modelo.restante)}", fontSize = 12.sp)
                     LinearProgressIndicator(progress = { fracao.toFloat() }, modifier = Modifier.fillMaxWidth())
                     TextButton(onClick = modelo::cancelar) { Text("Cancelar") }
+                    AvisoDeBateria()
                 }
             }
             val abas = listOf("Faixas", "Gravar", "Mixer", "Tempo e tom", "FX", "Separar", "Exportar")
@@ -446,6 +446,20 @@ private fun EditorDoClipe(modelo: MusicaViewModel, projeto: ProjetoMusical, faix
             Row(verticalAlignment = Alignment.CenterVertically) { Checkbox(!clipe.mudo, { a -> mudarClipe { it.copy(mudo = !a) } }); Text("Tomada ativa") }
             OutlinedButton(onClick = { modelo.reduzirRuido(faixa.id, clipe.id) }, enabled = modelo.andamento == null) { Text("Reduzir ruído deste clipe") }
             Text("Para gravações com chiado, ventilador ou ar-condicionado ao fundo: aprende o ruído nos trechos mais silenciosos e o tira do clipe todo. Numa música já mixada quase nunca ajuda. A original fica guardada (Desfazer volta).", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (NucleoNativo.temRestaurador) {
+                var perfilDoRestaurador by rememberSaveable { mutableStateOf("auto") }
+                Text("Restaurar áudio (experimental)", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    br.com.smellsliketech.converter.musica.RestauradorDeAudio.PERFIS.filter { it.id != "manual" }.forEach { p ->
+                        FilterChip(perfilDoRestaurador == p.id, { perfilDoRestaurador = p.id }, { Text(p.rotulo) })
+                    }
+                    if (br.com.smellsliketech.converter.musica.Apollo.disponivel)
+                        FilterChip(perfilDoRestaurador == "lossy+ia", { perfilDoRestaurador = "lossy+ia" }, { Text("MP3/AAC + IA (Apollo)") })
+                }
+                if (perfilDoRestaurador == "lossy+ia") Text("O Apollo recria os agudos que a compressão cortou. Baixa o modelo (74 MB) na primeira vez e é lento no celular.", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                OutlinedButton(onClick = { modelo.restaurarAudio(faixa.id, clipe.id, perfilDoRestaurador) }, enabled = modelo.andamento == null) { Text("Restaurar áudio deste clipe") }
+                Text("Analisa e trata só o que encontrar (zumbido, estalos, recorte, chiado), neste celular. A versão restaurada entra com o mesmo volume; o menu da faixa alterna original/restaurada. Não recria o que a gravação perdeu.", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(onClick = {
                     val corte = modelo.posicao
@@ -598,9 +612,7 @@ internal fun EditorDeEfeitosMusicais(
     var menuAlvo by remember { mutableStateOf(false) }
     var menuNovo by remember { mutableStateOf(false) }
     var verCadeias by rememberSaveable { mutableStateOf(false) }
-    var verPlugins by rememberSaveable { mutableStateOf(false) }
     val contexto = LocalContext.current
-    val navegador = LocalUriHandler.current
     val catalogo = remember(contexto) {
         contexto.assets.open("efeitos.json").bufferedReader().use { JSONObject(it.readText()) }
     }
@@ -646,18 +658,6 @@ internal fun EditorDeEfeitosMusicais(
                 }) { Text(preset.getString("nome")) }
             }
         }
-        OutlinedButton(onClick = { verPlugins = !verPlugins }) { Text("Plugins VST3 para Windows") }
-        if (verPlugins) {
-            Text("Plugins externos exigem um host VST3 no Windows. As cadeias prontas funcionam neste estúdio.", fontSize = 13.sp)
-            val plugins = catalogo.getJSONArray("plugins")
-            repeat(plugins.length()) { i ->
-                val plugin = plugins.getJSONObject(i)
-                TextButton(onClick = { navegador.openUri(plugin.getString("url")) }) {
-                    Text(plugin.getString("nome"))
-                }
-                Text("${plugin.getString("grupo")}. ${plugin.getString("uso")}", fontSize = 13.sp)
-            }
-        }
         val efeitos = cadeia(projeto)
         if (efeitos.isEmpty()) Text("Nenhum efeito aqui. A ordem conta: o sinal passa de cima para baixo. Os efeitos não têm atraso.", fontSize = 13.sp)
         efeitos.forEachIndexed { i, e ->
@@ -690,6 +690,7 @@ private fun AbaDeSeparar(modelo: MusicaViewModel, projeto: ProjetoMusical) {
     var modo by rememberSaveable { mutableStateOf("4") }
     var limpar by rememberSaveable { mutableStateOf(false) }
     var refinada by rememberSaveable { mutableStateOf(false) }
+    var recuperarBateria by rememberSaveable { mutableStateOf(false) }
     var intensidade by rememberSaveable { mutableIntStateOf(0) }
     var roformer by rememberSaveable { mutableStateOf(false) }
     val temRoFormer = br.com.smellsliketech.converter.musica.RoFormer.disponivel
@@ -751,17 +752,28 @@ private fun AbaDeSeparar(modelo: MusicaViewModel, projeto: ProjetoMusical) {
         Text("Tira o chiado e o ruído constante que a separação costuma deixar em cada faixa (mais útil na voz). Fica desligado se a música original já é limpa.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         if (!premium) AceleradorDoAparelho()
         if (NucleoNativo.disponivel) {
+            // No RoFormer, o refino é o Wiener do núcleo; no Spleeter, a máscara refinada.
+            val podeRefinar = !premium || NucleoNativo.temRefinoDeAgudos
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Switch(refinada && !premium, { refinada = it }, enabled = modelo.andamento == null && !premium)
+                Switch(refinada && podeRefinar, { refinada = it }, enabled = modelo.andamento == null && podeRefinar)
                 Text("Refinar agudos (experimental)", Modifier.padding(start = 8.dp))
             }
+            Text(if (premium) "Refaz os agudos (acima de 8 kHz) de cada faixa pela energia de todas: menos pratos e chiado vazando na voz. A soma das faixas continua a música original."
+                else "Divide a oitava de cima pela energia da mistura, em vez de repetir a média.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Text("Restauração por instrumento ($intensidade%)", fontSize = 13.sp)
             AjusteDaMusica("Intensidade da restauração", intensidade.toDouble(), 0.0, 100.0, 1.0, false) {
                 intensidade = it.toInt()
             }
         }
-        Button(onClick = { modelo.separar(faixa.id, clipe.id, modoAtual.id, limpar, refinada && NucleoNativo.disponivel && !premium,
-            if (NucleoNativo.disponivel) intensidade else 0) }, enabled = modelo.andamento == null, modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Separar faixas" }) { Text("Separar") }
+        val podeRecuperar = modoAtual.faixas.any { it.id == "bateria" } && modoAtual.faixas.any { it.id == "outros" }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Switch(recuperarBateria && podeRecuperar, { recuperarBateria = it }, Modifier.semantics { contentDescription = "Recuperar a bateria dos resíduos" }, enabled = modelo.andamento == null && podeRecuperar)
+            Spacer(Modifier.width(8.dp))
+            Text("Recuperar a bateria dos resíduos (experimental)", Modifier.weight(1f))
+        }
+        Text("Depois de separar, separa de novo só o resíduo (“Outros”), tira dele a bateria que ficou ali e a junta à faixa da bateria. Dobra o tempo da separação.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Button(onClick = { modelo.separar(faixa.id, clipe.id, modoAtual.id, limpar, refinada && NucleoNativo.disponivel && (!premium || NucleoNativo.temRefinoDeAgudos),
+            if (NucleoNativo.disponivel) intensidade else 0, recuperarBateria && podeRecuperar) }, enabled = modelo.andamento == null, modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Separar faixas" }) { Text("Separar") }
         Text(if (premium) "Pode haver vazamento entre faixas. A mistura original fica no projeto." else SeparacaoDaMusica.AVISO, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Text("Os pesos têm licença MIT e são conferidos por SHA-256. O áudio é processado neste celular.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Text("Separar músicas de outras pessoas não muda os direitos autorais delas: use em gravações suas ou que você tem direito de usar.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)

@@ -15,15 +15,22 @@ public sealed class ProgressEstimate(Func<double>? clockSeconds = null)
     private double? last;
     private double lastTime;
     private double lastFraction;
+    private double estimatedFraction;
 
-    /// <summary>Segundos que faltam, ou nulo enquanto ainda não dá para estimar.</summary>
+    /// <summary>
+    /// Segundos que faltam, ou nulo enquanto ainda não dá para estimar. O ritmo só é refeito
+    /// quando a fração avança; entre dois avisos o tempo apenas desce com o relógio (o RoFormer
+    /// avisa por bloco, e consultar sem avanço fazia a conta subir sem parar).
+    /// </summary>
     public double? Register(double fraction)
     {
-        if (fraction + 0.001 < lastFraction) { start = null; last = null; }
+        if (fraction + 0.001 < lastFraction) { start = null; last = null; estimatedFraction = 0; }
         lastFraction = fraction;
         if (!(fraction > 0) || fraction >= 1) return null;
         var now = clock();
         start ??= (now, fraction);
+        if (last is { } held && fraction <= estimatedFraction + 1e-9)
+            return Math.Round(Math.Max(0, held - (now - lastTime)));
         var elapsed = now - start.Value.Time;
         var done = fraction - start.Value.Fraction;
         if (done < 0.02 || elapsed < 2) return null;
@@ -32,6 +39,7 @@ public sealed class ProgressEstimate(Func<double>? clockSeconds = null)
         var smooth = previous is { } p ? 0.75 * p + 0.25 * raw : raw;
         last = smooth;
         lastTime = now;
+        estimatedFraction = fraction;
         return Math.Round(smooth);
     }
 

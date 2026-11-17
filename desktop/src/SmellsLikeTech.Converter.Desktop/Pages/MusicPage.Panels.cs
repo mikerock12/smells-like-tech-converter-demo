@@ -206,6 +206,62 @@ public sealed partial class MusicPage
         return panel;
     }
 
+    /// <summary>
+    /// A biblioteca de VST3 gratuitos e de código aberto: os incluídos já estão instalados; os
+    /// extras baixam sob demanda (conferidos pelo SHA-256) e podem ser removidos.
+    /// </summary>
+    private UIElement BibliotecaVst3()
+    {
+        var lista = new StackPanel { Spacing = 8 };
+        lista.Children.Add(Label("Gratuitos e de código aberto, testados no host do Converter. Depois de baixar, use “Buscar plugins instalados” e adicione à cadeia. Cada um mantém a própria licença (Sobre → Avisos de terceiros)."));
+        var biblioteca = App.Services.VstLibrary;
+        foreach (var entrada in MusicVstLibrary.Entries)
+        {
+            var linha = new StackPanel { Spacing = 2 };
+            linha.Children.Add(new TextBlock { Text = $"{entrada.Name} · {entrada.Group}", FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
+            linha.Children.Add(Label($"{entrada.Use} ({entrada.License}, versão {entrada.Version})"));
+            var estado = Label("");
+            var acao = new Button();
+            var andamento = new ProgressBar { Maximum = 1, Width = 220, Visibility = Visibility.Collapsed };
+            void Atualizar()
+            {
+                var instalado = biblioteca.Installed(entrada);
+                acao.Visibility = entrada.Preinstalled ? Visibility.Collapsed : Visibility.Visible;
+                acao.Content = instalado is null ? $"Baixar ({entrada.Bytes / 1048576.0:0.0} MB)" : "Remover";
+                estado.Text = entrada.Preinstalled ? (instalado is null ? "Incluído no instalador (reinstale se faltar)" : "Incluído") : instalado is null ? "Não baixado" : "Baixado";
+            }
+            acao.Click += async (_, _) =>
+            {
+                acao.IsEnabled = false;
+                try
+                {
+                    if (biblioteca.Installed(entrada) is not null) biblioteca.Remove(entrada);
+                    else
+                    {
+                        andamento.Visibility = Visibility.Visible;
+                        await biblioteca.InstallAsync(App.Services.Http, entrada, new Progress<double>(f => andamento.Value = f), CancellationToken.None);
+                        Status($"{entrada.Name} baixado e conferido. Use “Buscar plugins instalados” para adicioná-lo.", InfoBarSeverity.Success);
+                    }
+                }
+                catch (Exception e) when (e is IOException or UnauthorizedAccessException or System.Net.Http.HttpRequestException or Core.ConversionException or InvalidDataException)
+                {
+                    Status(e.Message, InfoBarSeverity.Error);
+                }
+                finally
+                {
+                    andamento.Visibility = Visibility.Collapsed;
+                    acao.IsEnabled = true;
+                    Atualizar();
+                }
+            };
+            AutomationProperties.SetName(acao, $"Baixar ou remover {entrada.Name}");
+            Atualizar();
+            linha.Children.Add(new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, Children = { estado, acao, andamento } });
+            lista.Children.Add(linha);
+        }
+        return lista;
+    }
+
     private UIElement CatalogoDeEfeitos()
     {
         using var stream = typeof(MusicDsp).Assembly.GetManifestResourceStream("musica-efeitos.json")
@@ -251,7 +307,7 @@ public sealed partial class MusicPage
                 buscar.IsEnabled = false;
                 try
                 {
-                    var encontrados = await Task.Run(() => MusicNative.ScanPlugins());
+                    var encontrados = await Task.Run(() => App.Services.VstLibrary.Scan());
                     instalados.ItemsSource = encontrados.Select(p => new ComboBoxItem { Content = p.Name, Tag = p }).ToList();
                     if (encontrados.Count == 0) Status("Nenhum efeito VST3 encontrado.", InfoBarSeverity.Informational);
                 }
@@ -277,24 +333,14 @@ public sealed partial class MusicPage
             plugins.Children.Add(instalados);
             plugins.Children.Add(adicionar);
         }
-        foreach (var item in catalogo.RootElement.GetProperty("plugins").EnumerateArray())
-        {
-            var nome = item.GetProperty("nome").GetString();
-            var link = new HyperlinkButton
-            {
-                Content = nome,
-                NavigateUri = new Uri(item.GetProperty("url").GetString()!),
-            };
-            plugins.Children.Add(link);
-            plugins.Children.Add(Label($"{item.GetProperty("grupo").GetString()}. {item.GetProperty("uso").GetString()}"));
-        }
+        plugins.Children.Add(BibliotecaVst3());
         return new StackPanel
         {
             Spacing = 8,
             Children =
             {
                 new Expander { Header = "Cadeias prontas", Content = cadeias },
-                new Expander { Header = "Plugins VST3 para Windows", Content = plugins },
+                new Expander { Header = "Plugins VST3 (biblioteca gratuita)", Content = plugins },
             },
         };
     }
@@ -477,10 +523,18 @@ public sealed partial class MusicPage
         var names = Label("");
         var warning = Label("");
         var refine = new ToggleSwitch { Header = "Refinar agudos (experimental)", IsEnabled = MusicNative.IsAvailable };
+        var refineHelp = Label("");
+        var recover = new ToggleSwitch { Header = "Recuperar a bateria dos resíduos (experimental)", IsOn = false };
+        var recoverHelp = Label("Depois de separar, separa de novo só o resíduo (“Outros”), tira dele a bateria que ficou ali e a junta à faixa da bateria. Dobra o tempo da separação.");
         void ShowNames()
         {
             var selected = modes[Math.Max(0, mode.SelectedIndex)];
-            refine.IsEnabled = MusicNative.IsAvailable && selected.Id != "6";
+            // No RoFormer, o refino é o Wiener do núcleo; no Spleeter, a máscara refinada.
+            refine.IsEnabled = MusicNative.IsAvailable && (selected.Id != "6" || MusicNative.HasStemRefine);
+            refineHelp.Text = selected.Id == "6"
+                ? "No RoFormer, refaz os agudos (acima de 8 kHz) de cada faixa pela energia de todas: menos pratos e chiado vazando na voz. A soma das faixas continua a música original."
+                : "No Spleeter, divide a oitava de cima pela energia da mistura, em vez de repetir a média.";
+            recover.IsEnabled = selected.Stems.Any(st => st.Id == "bateria") && selected.Stems.Any(st => st.Id == "outros");
             names.Text = "As faixas novas entram com o nome do que são: " + string.Join(", ", selected.Stems.Select(st => MusicRules.SeparatedTrackName(st.Label, "…"))) + ".";
             if (selected.Id == "6") names.Text += " A separação pode demorar e usar vários gigabytes de RAM.";
             warning.Text = selected.Id == "6"
@@ -505,7 +559,7 @@ public sealed partial class MusicPage
             var modeId = modes[Math.Max(0, mode.SelectedIndex)].Id;
             var roformer = modeId == "6";
             var modelId = roformer ? MusicTools.ExperimentalRoFormerId : MusicSeparation.ModelId;
-            var refined = !roformer && refine.IsOn;
+            var refined = refine.IsOn;
             var intensity = (int)restore.Value;
             work = new CancellationTokenSource();
             operando = true;
@@ -530,8 +584,8 @@ public sealed partial class MusicPage
                 var input = Library.MediaPath(project.Id, clip.Media);
                 var reports = new Progress<(string Stage, double Fraction)>(p => Show(p.Stage, p.Fraction));
                 var stems = (roformer
-                    ? await Tools.SeparateRoFormerAsync(input, folder, Rate, reports, work.Token)
-                    : await Tools.SeparateAsync(input, folder, modeId, Rate, reports, work.Token, refined)).ToList();
+                    ? await Tools.SeparateRoFormerAsync(input, folder, Rate, reports, work.Token, refined, recover.IsOn && recover.IsEnabled)
+                    : await Tools.SeparateAsync(input, folder, modeId, Rate, reports, work.Token, refined, recover.IsOn && recover.IsEnabled)).ToList();
                 if (clean.IsOn)
                 {
                     // Cada faixa separada passa pela redução de ruído antes de entrar no projeto.
@@ -595,7 +649,8 @@ public sealed partial class MusicPage
 
                     p.Separations.Add(new MusicSeparationRecord { Id = NewId("sep"), Media = clip.Media, Mode = modeId, Model = modelId,
                         Tracks = [.. active.Select(m => m.Id)], QualityProfile = roformer ? "maximum" : "legacy",
-                        MaskProfile = roformer ? null : refined ? "refinada" : "classica" });
+                        MaskProfile = roformer ? null : refined ? "refinada" : "classica", HighsRefined = roformer && refined ? true : null,
+                        DrumsRecovered = recover.IsOn && recover.IsEnabled ? true : null });
                 });
                 foreach (var media in added) LoadMedia(media);
                 Status($"Pronto: {stems.Count} faixas novas abaixo de “{track.Name}”, que ficou muda como referência.{(clean.IsOn ? " O ruído de fundo foi reduzido em cada uma." : "")}", InfoBarSeverity.Success);
@@ -618,7 +673,9 @@ public sealed partial class MusicPage
         };
         panel.Children.Add(source);
         panel.Children.Add(mode);
-        if (MusicNative.IsAvailable) panel.Children.Add(refine);
+        if (MusicNative.IsAvailable) { panel.Children.Add(refine); panel.Children.Add(refineHelp); }
+        panel.Children.Add(recover);
+        panel.Children.Add(recoverHelp);
         if (restore.IsEnabled) panel.Children.Add(restore);
         panel.Children.Add(names);
         panel.Children.Add(clean);

@@ -107,6 +107,7 @@ public sealed partial class MainWindow : Window
             "speech" => typeof(SpeechPage),
             "history" => typeof(HistoryPage),
             "settings" => typeof(SettingsPage),
+            "about" => typeof(AboutPage),
             _ => typeof(HomePage)
         };
 

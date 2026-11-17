@@ -522,6 +522,7 @@ public sealed class ConversionQueue : IAsyncDisposable
     {
         private static readonly TimeSpan MinimumInterval = TimeSpan.FromMilliseconds(120);
         private TimeSpan lastNotification = TimeSpan.MinValue;
+        private readonly ProgressEstimate estimate = new();
 
         public void Report(JobProgress value)
         {
@@ -569,15 +570,11 @@ public sealed class ConversionQueue : IAsyncDisposable
 
         private TimeSpan? EstimateEta(double progress)
         {
-            if (progress <= 0.01 || progress >= 1)
-            {
-                return null;
-            }
-
-            var elapsed = stopwatch.Elapsed.TotalSeconds;
-            var total = elapsed / progress;
-            var remaining = total - elapsed;
-            return remaining is > 0 and < 86_400 ? TimeSpan.FromSeconds(remaining) : null;
+            // A mesma estimativa do site e do Android: o ritmo só muda quando a fração anda, e
+            // entre dois avisos o tempo desce (antes, tempo total ÷ fração subia a cada aviso
+            // repetido de um motor que avança em blocos, como o RoFormer).
+            var seconds = estimate.Register(progress);
+            return seconds is > 0 and < 86_400 ? TimeSpan.FromSeconds(seconds.Value) : null;
         }
     }
 }

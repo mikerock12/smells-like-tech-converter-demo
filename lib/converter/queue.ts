@@ -32,6 +32,8 @@ export interface Job {
   readonly segundosRestantes: number | null;
   readonly etapa: string;
   readonly error: string | null;
+  /** A etapa que falhou e a mensagem técnica, no "Detalhes" do erro. */
+  readonly erroDetalhes?: string | null;
   readonly resultados: readonly Resultado[] | null;
   readonly nota: string | null;
   readonly startedAt: number | null;
@@ -47,7 +49,7 @@ interface InternalJob extends Job {
 export const FERRAMENTAS_DE_LOTE = new Set(["pdf.juntar", "imagem.para-pdf"]);
 
 /** Ferramentas que rodam na página, e não no worker. */
-const NA_PAGINA = new Set(["audio.converter", "audio.editar", "pdf.para-imagens", "pdf.para-texto", "imagem.ocr", "voz.narrar", "audio.separar-faixas", "video.voz"]);
+const NA_PAGINA = new Set(["audio.converter", "audio.editar", "pdf.para-imagens", "pdf.para-texto", "imagem.ocr", "voz.narrar", "audio.separar-faixas", "video.voz", "audio.restaurar"]);
 
 const NO_JOBS: Job[] = [];
 
@@ -290,7 +292,7 @@ export class Oficina {
     }
 
     this.ocupados.delete(worker);
-    if (message.type === "failed") this.falhar(message.jobId, message.message);
+    if (message.type === "failed") this.falhar(message.jobId, message.message, message.detalhes);
     else this.concluir(message.jobId, message.saidas, message.nota);
     this.pump();
   }
@@ -322,6 +324,8 @@ export class Oficina {
         resultado = await (await import("./pagina/ocr")).reconhecerTexto(contexto);
       } else if (job.ferramenta === "audio.separar-faixas") {
         resultado = await (await import("./pagina/faixas")).separarEmPacote(contexto);
+      } else if (job.ferramenta === "audio.restaurar") {
+        resultado = await (await import("./pagina/restaurar")).restaurar(contexto);
       } else if (job.ferramenta === "video.voz") {
         resultado = await (await import("./pagina/faixas")).vozDoVideo(contexto);
       } else if (job.ferramenta === "voz.narrar") {
@@ -335,7 +339,9 @@ export class Oficina {
       this.concluir(jobId, resultado.saidas, resultado.nota);
     } catch (erro) {
       if (!this.canceladosNaPagina.has(jobId)) {
-        this.falhar(jobId, erro instanceof Error ? erro.message : "Não foi possível converter.");
+        const detalhes = erro instanceof ConversionError ? erro.detalhes : erro instanceof Error ? `${erro.name}: ${erro.message}` : undefined;
+        if (!(erro instanceof ConversionError)) console.error(`[${job.ferramenta}] falhou:`, erro);
+        this.falhar(jobId, erro instanceof Error ? erro.message : "Não foi possível converter.", detalhes);
       }
     } finally {
       this.naPagina.delete(jobId);
@@ -421,8 +427,8 @@ export class Oficina {
     this.update(jobId, { status: "done", etapa: "", progress: 1, finishedAt: Date.now(), resultados, nota: nota || null });
   }
 
-  private falhar(jobId: string, mensagem: string): void {
-    this.update(jobId, { status: "failed", etapa: "", error: mensagem, finishedAt: Date.now() });
+  private falhar(jobId: string, mensagem: string, detalhes?: string): void {
+    this.update(jobId, { status: "failed", etapa: "", error: mensagem, erroDetalhes: detalhes ?? null, finishedAt: Date.now() });
   }
 
   private update(id: string, patch: Partial<InternalJob>): void {
@@ -475,6 +481,7 @@ export class Oficina {
       segundosRestantes: job.segundosRestantes,
       etapa: job.etapa,
       error: job.error,
+      erroDetalhes: job.erroDetalhes ?? null,
       resultados: job.resultados,
       nota: job.nota,
       startedAt: job.startedAt,

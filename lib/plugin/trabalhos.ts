@@ -56,6 +56,9 @@ export function opcoesDoPlugin(ferramenta: Ferramenta, opcoes: Opcoes): Record<s
       return { operation, Package: String(opcoes.pacote ?? "") };
     case "video.voice":
       return { operation, Package: String(opcoes.pacote ?? ""), OutputFormat: formato === "webm" ? "webm" : "mp4" };
+    case "audio.restore":
+      // As mesmas opções do navegador (JSON), lidas pelas mesmas regras no Windows.
+      return { operation, Restoration: String(opcoes.restauracao ?? "") };
     case "video.extractAudio":
       return {
         operation,

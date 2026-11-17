@@ -41,11 +41,27 @@ object FaixasNoConversor {
         aoAvancar(pct("modelo", 0.0))
         biblioteca.garantirModelo(roformer) { f -> aoAvancar(pct("modelo", f)) }
         val pasta = File(biblioteca.pasta(projeto), "separadas").apply { mkdirs() }
-        val faixas = biblioteca.separar(entrada, pasta, modelo.modo, TAXA) { _, f -> aoAvancar(pct("separando", f)) }
+        val t = pedido.tratamento
+        if (t.aceleracao && !roformer) Processadores.ligarAcelerador(context, true)
+        val faixas = biblioteca.separar(entrada, pasta, modelo.modo, TAXA, t.refinarAgudos, t.recuperarBateria) { _, f -> aoAvancar(pct("separando", f)) }
         // A mistura lê as mídias do projeto pelo id: cada faixa vira a mídia com o id dela.
         val guardadas = faixas.map { (definicao, arquivo) ->
             val destino = biblioteca.midia(projeto, definicao.id).apply { parentFile?.mkdirs() }
-            check(arquivo.renameTo(destino)) { "Não foi possível guardar a faixa ${definicao.rotulo}." }
+            // A mesma qualidade do estúdio musical: ruído de cada faixa e restauração por instrumento.
+            var atual = arquivo
+            if (t.reduzirRuido) {
+                val limpo = File(pasta, "${definicao.id}-limpo.wav")
+                biblioteca.reduzirRuido(atual, limpo, TAXA)
+                atual.delete()
+                atual = limpo
+            }
+            if (t.restauracao > 0 && br.com.smellsliketech.converter.musica.NucleoNativo.disponivel) {
+                val restaurado = File(pasta, "${definicao.id}-restaurado.wav")
+                biblioteca.restaurarFaixa(atual, restaurado, TAXA, definicao.id, t.restauracao)
+                atual.delete()
+                atual = restaurado
+            }
+            check(atual.renameTo(destino)) { "Não foi possível guardar a faixa ${definicao.rotulo}." }
             definicao to destino
         }
         val quadros = guardadas.firstOrNull()?.second?.let { f -> FonteWav(f).use { it.quadros } } ?: 0L

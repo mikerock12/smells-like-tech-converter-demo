@@ -295,19 +295,48 @@ class BibliotecaDaMusica(private val contexto: Context) {
         }
     }
 
+    /** O Apollo do restaurador (reparo de compressão por IA), baixado e excluído como os de separação. */
+    val apollo get() = File(modelo.parentFile, Apollo.ARQUIVO)
+    val apolloPronto get() = apollo.length() == Apollo.BYTES
+
+    suspend fun excluirApollo() = withContext(Dispatchers.IO) {
+        travaDoModelo.withLock { check(!apollo.exists() || apollo.delete()) { "Não foi possível excluir o modelo baixado." } }
+    }
+
+    suspend fun garantirApollo(progresso: (Double) -> Unit) = withContext(Dispatchers.IO) { travaDoModelo.withLock {
+        if (apolloPronto && hashDe(apollo) == Apollo.SHA256) return@withLock
+        baixar(apollo, Apollo.BYTES, Apollo.SHA256, Apollo.URL, progresso)
+    } }
+
+    private suspend fun hashDe(arquivo: File): String {
+        val resumo = MessageDigest.getInstance("SHA-256")
+        arquivo.inputStream().use { entrada ->
+            val b = ByteArray(1 shl 16)
+            while (true) {
+                coroutineContext.ensureActive()
+                val n = entrada.read(b)
+                if (n < 0) break
+                resumo.update(b, 0, n)
+            }
+        }
+        return resumo.digest().joinToString("") { "%02x".format(it) }
+    }
+
     /** Baixa o modelo (78 MB) na primeira vez e confere o SHA-256 antes de usar. */
     suspend fun garantirModelo(roformer: Boolean = false, progresso: (Double) -> Unit) = withContext(Dispatchers.IO) { travaDoModelo.withLock {
         if (conferirModelo(roformer)) return@withLock
-        val modelo = arquivoDoModelo(roformer)
-        val bytes = tamanhoDoModelo(roformer)
+        baixar(arquivoDoModelo(roformer), tamanhoDoModelo(roformer), hashDoModelo(roformer),
+            if (roformer) "https://converter.smellsliketech.com.br/modelos/${RoFormer.ARQUIVO}" else SeparacaoDaMusica.URL, progresso)
+    } }
+
+    private suspend fun baixar(modelo: File, bytes: Long, sha256: String, endereco: String, progresso: (Double) -> Unit) {
         modelo.parentFile?.mkdirs()
         val temp = File.createTempFile("modelo-", ".baixando", modelo.parentFile)
-        val endereco = if (roformer) "https://converter.smellsliketech.com.br/modelos/${RoFormer.ARQUIVO}" else SeparacaoDaMusica.URL
         val conexao = URL(endereco).openConnection() as HttpURLConnection
         conexao.connectTimeout = 20_000
         conexao.readTimeout = 60_000
         try {
-            check(conexao.responseCode == 200) { "Não foi possível baixar o modelo de separação (HTTP ${conexao.responseCode})." }
+            check(conexao.responseCode == 200) { "Não foi possível baixar o modelo (HTTP ${conexao.responseCode})." }
             val total = conexao.contentLengthLong.takeIf { it > 0 } ?: bytes
             val resumo = MessageDigest.getInstance("SHA-256")
             conexao.inputStream.use { entrada ->
@@ -319,7 +348,7 @@ class BibliotecaDaMusica(private val contexto: Context) {
                         val n = entrada.read(b)
                         if (n < 0) break
                         recebido += n
-                        check(recebido <= bytes) { "O modelo de separação é maior que o esperado." }
+                        check(recebido <= bytes) { "O modelo baixado é maior que o esperado." }
                         saida.write(b, 0, n)
                         resumo.update(b, 0, n)
                         progresso(recebido.toDouble() / total)
@@ -327,20 +356,21 @@ class BibliotecaDaMusica(private val contexto: Context) {
                 }
             }
             val hex = resumo.digest().joinToString("") { "%02x".format(it) }
-            check(hex == hashDoModelo(roformer) && temp.length() == bytes) { "O modelo baixado não confere e foi descartado." }
+            check(hex == sha256 && temp.length() == bytes) { "O modelo baixado não confere e foi descartado." }
             check(temp.renameTo(modelo)) { "Não foi possível guardar o modelo." }
         } finally {
             conexao.disconnect()
             temp.delete()
         }
-    } }
+    }
 
     /**
      * Separa uma mídia do projeto: converte para 44,1 kHz, roda o modelo em trechos (memória
      * limitada), escreve uma faixa por WAV e volta para a taxa do projeto. Devolve os arquivos
      * na ordem do modo.
      */
-    suspend fun separar(entrada: File, saida: File, modo: String, taxa: Int, refinada: Boolean = false, progresso: (String, Double) -> Unit): List<Pair<FaixaDoModo, File>> = withContext(Dispatchers.Default) {
+    suspend fun separar(entrada: File, saida: File, modo: String, taxa: Int, refinada: Boolean = false,
+                        recuperarBateria: Boolean = false, progresso: (String, Double) -> Unit): List<Pair<FaixaDoModo, File>> = withContext(Dispatchers.Default) {
         val roformer = modo == RoFormer.modo.id
         check(!roformer || RoFormer.disponivel) { "O núcleo deste aparelho não oferece suporte ao RoFormer." }
         check(withContext(Dispatchers.IO) { conferirModelo(roformer) }) { "O modelo de separação está ausente ou não confere." }
@@ -351,37 +381,51 @@ class BibliotecaDaMusica(private val contexto: Context) {
             val a44 = File(trabalho, "entrada.wav")
             ffmpeg(listOf("-i", entrada.absolutePath, "-ac", "2", "-ar", "44100", "-c:a", "pcm_f32le", a44.absolutePath))
             val definicao = if (roformer) RoFormer.modo else SeparacaoDaMusica.modo(modo) ?: error("Modo de separação desconhecido.")
-            val escritores = definicao.faixas.map { EscritorDeWav(File(trabalho, "${it.id}-44k.wav"), 2, SeparacaoDaMusica.TAXA) }
-            val esquerdos = arrayOfNulls<FloatArray>(definicao.faixas.size)
-            val forma = longArrayOf(1, 2, SeparacaoDaMusica.QUADROS_POR_TRECHO.toLong(), SeparacaoDaMusica.BANDAS.toLong())
-            try {
-                FonteWav(a44).use { fonte ->
-                    // Só os núcleos rápidos: em big.LITTLE os econômicos atrasariam o modelo inteiro.
-                    val threads = br.com.smellsliketech.converter.conversao.Processadores.paraInferencia()
-                    val acelerar = br.com.smellsliketech.converter.conversao.Processadores.aceleradorLigado(contexto)
-                    InferenciaOnnx(arquivoDoModelo(roformer).absolutePath, if (roformer) minOf(2, threads) else threads, roformer, acelerar && !roformer).use { sessao ->
-                        if (acelerar) progresso(if (sessao.usandoAcelerador) "Usando o acelerador de IA do aparelho" else "Acelerador recusou o modelo: usando a CPU", 0.0)
-                        if (roformer) RoFormer.separar(fonte, sessao, escritores) { progresso("Separando com o RoFormer", it) }
-                        else {
-                        SeparacaoDaMusica.separar(
-                            fonte.quadros, fonte.canais,
-                            { c, inicio, n, destino -> fonte.copiar(c, inicio, n, destino) },
-                            { magnitude -> sessao.executar(magnitude, forma, "magnitude", "estimativas") },
-                            { f, c, _, amostras, n ->
-                                val copia = amostras.copyOf(n)
-                                if (c == 0) esquerdos[f] = copia else escritores[f].escreverCanais(listOf(esquerdos[f]!!, copia), n)
-                            },
-                            modo,
-                            progresso = { progresso("Separando as faixas", it) },
-                            cancelado = { trabalhoAtual?.isActive == false },
-                            nativo = contexto.getSharedPreferences("criacao-musical", Context.MODE_PRIVATE).getBoolean("motor-nativo", false),
-                            refinada = refinada,
-                        )
+            val recuperar = recuperarBateria && definicao.faixas.any { it.id == "bateria" } && definicao.faixas.any { it.id == "outros" }
+            // Só os núcleos rápidos: em big.LITTLE os econômicos atrasariam o modelo inteiro.
+            val threads = br.com.smellsliketech.converter.conversao.Processadores.paraInferencia()
+            val acelerar = br.com.smellsliketech.converter.conversao.Processadores.aceleradorLigado(contexto)
+            InferenciaOnnx(arquivoDoModelo(roformer).absolutePath, if (roformer) minOf(2, threads) else threads, roformer, acelerar && !roformer).use { sessao ->
+                if (acelerar) progresso(if (sessao.usandoAcelerador) "Usando o acelerador de IA do aparelho" else "Acelerador recusou o modelo: usando a CPU", 0.0)
+                /** Uma passada do modelo: [wav] (44,1 kHz) vira uma faixa por WAV em [pasta]. */
+                suspend fun passada(wav: File, pasta: File, de: Double, peso: Double, etapa: String?) {
+                    pasta.mkdirs()
+                    val escritores = definicao.faixas.map { EscritorDeWav(File(pasta, "${it.id}-44k.wav"), 2, SeparacaoDaMusica.TAXA) }
+                    val esquerdos = arrayOfNulls<FloatArray>(definicao.faixas.size)
+                    val forma = longArrayOf(1, 2, SeparacaoDaMusica.QUADROS_POR_TRECHO.toLong(), SeparacaoDaMusica.BANDAS.toLong())
+                    try {
+                        FonteWav(wav).use { fonte ->
+                            if (roformer) RoFormer.separar(fonte, sessao, escritores) { progresso(etapa ?: "Separando com o RoFormer", de + peso * it) }
+                            else SeparacaoDaMusica.separar(
+                                fonte.quadros, fonte.canais,
+                                { c, inicio, n, destino -> fonte.copiar(c, inicio, n, destino) },
+                                { magnitude -> sessao.executar(magnitude, forma, "magnitude", "estimativas") },
+                                { f, c, _, amostras, n ->
+                                    val copia = amostras.copyOf(n)
+                                    if (c == 0) esquerdos[f] = copia else escritores[f].escreverCanais(listOf(esquerdos[f]!!, copia), n)
+                                },
+                                modo,
+                                progresso = { progresso(etapa ?: "Separando as faixas", de + peso * it) },
+                                cancelado = { trabalhoAtual?.isActive == false },
+                                nativo = contexto.getSharedPreferences("criacao-musical", Context.MODE_PRIVATE).getBoolean("motor-nativo", false),
+                                refinada = refinada,
+                            )
                         }
+                    } finally {
+                        escritores.forEach { it.close() }
                     }
                 }
-            } finally {
-                escritores.forEach { it.close() }
+                passada(a44, trabalho, 0.0, if (recuperar) 0.5 else 1.0, null)
+                if (recuperar) {
+                    // Recuperar a bateria (experimental): o resíduo passa de novo pelo modelo.
+                    val segunda = File(trabalho, "residuo")
+                    passada(File(trabalho, "outros-44k.wav"), segunda, 0.5, 0.5, "Recuperando a bateria dos resíduos")
+                    TratamentosDaSeparacao.juntarBateria(File(trabalho, "bateria-44k.wav"), File(trabalho, "outros-44k.wav"), File(segunda, "bateria-44k.wav"))
+                }
+            }
+            if (roformer && refinada && NucleoNativo.temRefinoDeAgudos) {
+                progresso("Refinando os agudos", 1.0)
+                TratamentosDaSeparacao.refinarAgudos(definicao.faixas.map { File(trabalho, "${it.id}-44k.wav") }, SeparacaoDaMusica.TAXA)
             }
             saida.mkdirs()
             definicao.faixas.map { faixa ->
@@ -390,6 +434,54 @@ class BibliotecaDaMusica(private val contexto: Context) {
                 ffmpeg(listOf("-i", File(trabalho, "${faixa.id}-44k.wav").absolutePath, "-ar", "$taxa", "-c:a", "pcm_f32le", destino.absolutePath))
                 faixa to destino
             }
+        } finally {
+            trabalho.deleteRecursively()
+        }
+    }
+
+    /**
+     * Restaura um arquivo de áudio (experimental): decodifica para WAV float, diagnostica,
+     * planeja e repara no núcleo nativo e grava no formato pedido. O original não muda.
+     * [taxa] nula mantém a taxa do arquivo; [nivelar] iguala o volume ao do original (A/B).
+     */
+    suspend fun restaurarAudio(entrada: File, saida: File, opcoes: RestauradorDeAudio.Opcoes, taxa: Int? = null, nivelar: Boolean = false,
+                               progresso: (String, Double) -> Unit): TratamentosDaSeparacao.Restaurado = withContext(Dispatchers.Default) {
+        check(NucleoNativo.temRestaurador) { "O restaurador precisa do núcleo de áudio nativo 1.2." }
+        val trabalho = File(temporaria, "restauracao-${System.nanoTime()}").apply { mkdirs() }
+        try {
+            progresso("Lendo o áudio", 0.0)
+            val wav = File(trabalho, "entrada.wav")
+            ffmpeg(listOf("-i", entrada.absolutePath, "-vn", "-af", "aformat=channel_layouts=mono|stereo") + (taxa?.let { listOf("-ar", "$it") } ?: emptyList()) + listOf("-c:a", "pcm_f32le", wav.absolutePath))
+            val restaurado = File(trabalho, "restaurado.wav")
+            val r = TratamentosDaSeparacao.restaurar(wav, restaurado, opcoes, nivelar, coroutineContext[kotlinx.coroutines.Job], progresso) { plano, avancar ->
+                // Reparo de compressão por IA (Apollo) a 44,1 kHz estéreo; volta à taxa e aos canais do arquivo.
+                val ia = plano.ia!!
+                check(Apollo.disponivel) { "O Apollo precisa de um aparelho de 64 bits." }
+                if (!(apolloPronto && hashDe(apollo) == Apollo.SHA256)) garantirApollo { f -> progresso("Baixando o modelo Apollo (só na primeira vez)", f) }
+                val (quadros, canais, taxaDoWav) = FonteWav(wav).use { Triple(it.quadros, it.canais, TratamentosDaSeparacao.taxaDoWav(wav)) }
+                val a44 = File(trabalho, "apollo-entrada.wav")
+                ffmpeg(listOf("-i", wav.absolutePath, "-ac", "2", "-ar", "${Apollo.TAXA}", "-c:a", "pcm_f32le", a44.absolutePath))
+                val pronto = File(trabalho, "apollo.wav")
+                InferenciaOnnx(apollo.absolutePath, minOf(4, br.com.smellsliketech.converter.conversao.Processadores.paraInferencia()), economizarMemoria = true).use { sessao ->
+                    FonteWav(a44).use { fonte -> EscritorDeWav(pronto, 2, Apollo.TAXA).use { escritor ->
+                        Apollo.restaurar(fonte, escritor, Apollo.executor(sessao, ia.corteHz, ia.mistura), avancar)
+                    } }
+                }
+                val deVolta = File(trabalho, "apollo-de-volta.wav")
+                // apad + atrim acertam a duração exata depois da troca de taxa.
+                ffmpeg(listOf("-i", pronto.absolutePath, "-ac", "$canais", "-ar", "$taxaDoWav", "-af", "apad,atrim=end_sample=$quadros", "-c:a", "pcm_f32le", deVolta.absolutePath))
+                deVolta
+            }
+            progresso("Gravando o arquivo", 0.97)
+            val codec = when (opcoes.formato) {
+                "flac" -> listOf("-c:a", "flac", "-sample_fmt", "s32")
+                "mp3" -> listOf("-c:a", "libmp3lame", "-b:a", "320k")
+                "wav-32f" -> listOf("-c:a", "pcm_f32le")
+                else -> listOf("-c:a", "pcm_s24le")
+            }
+            saida.parentFile?.mkdirs()
+            ffmpeg(listOf("-i", restaurado.absolutePath) + codec + listOf(saida.absolutePath))
+            r
         } finally {
             trabalho.deleteRecursively()
         }

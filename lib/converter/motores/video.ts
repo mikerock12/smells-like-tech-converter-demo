@@ -4,6 +4,7 @@ import {
   ALL_FORMATS,
   AudioSampleSink,
   BlobSource,
+  BufferSource,
   BufferTarget,
   CanvasSink,
   CanvasSource,
@@ -30,10 +31,12 @@ import { GIFEncoder, applyPalette, quantize } from "gifenc";
 import { GifInvalido, lerGif, quadrosDoGif } from "@/packages/converter-core/gif.mjs";
 import { loopDoGif, repeticoesValidas } from "@/packages/converter-core/repeticoes.mjs";
 import { getFormat, outputFileName } from "@/packages/converter-core/index.mjs";
+import { conferirSaida, detalhesDosProblemas } from "@/packages/converter-core/validacao-de-saida.mjs";
 import type { FormatId } from "@/packages/converter-core/index.mjs";
 
 import { lerTempoEmSegundos, type Opcoes } from "../ferramentas";
 import { ConversionError, type ContextoDoMotor, type Saida } from "../protocol";
+import { garantirAac } from "../aac";
 import { codificarMp3, codificarWav } from "./audio-codificar";
 import { SAIDAS_PARA_ZIP, empacotar } from "./zip";
 
@@ -104,6 +107,28 @@ function explicarDescartes(conversao: Conversion): never {
   throw new ConversionError("conversao_invalida", `O vídeo não pôde ser convertido (${motivos.join(", ") || "sem faixas"}).`);
 }
 
+/** A saída precisa ter imagem e o áudio que a entrada tinha, com a mesma duração. */
+async function conferirTrilhas(bytes: ArrayBuffer) {
+  const saida = new Input({ source: new BufferSource(bytes), formats: ALL_FORMATS });
+  try {
+    const videos = await saida.getVideoTracks();
+    const audios = await saida.getAudioTracks();
+    const problemas = conferirSaida({
+      esperaVideo: true,
+      faixasDeVideo: videos.length,
+      faixasDeAudio: audios.length,
+      duracaoDoVideo: videos[0] ? await videos[0].computeDuration() : null,
+      duracaoDoAudio: audios[0] ? await audios[0].computeDuration() : null,
+    });
+    if (problemas.length) {
+      console.error("[video] a saída não passou na conferência:", problemas);
+      throw new ConversionError("saida_invalida", "O vídeo convertido saiu sem o áudio completo neste navegador. Tente pelo plugin, pelo app para Windows/Android ou por outro navegador.", detalhesDosProblemas(problemas));
+    }
+  } finally {
+    saida.dispose();
+  }
+}
+
 // ==================== converter / comprimir / cortar / silenciar ====================
 
 async function converter(contexto: ContextoDoMotor): Promise<{ saidas: Saida[]; nota?: string }> {
@@ -131,6 +156,12 @@ async function converter(contexto: ContextoDoMotor): Promise<{ saidas: Saida[]; 
 
       const video = await opcoesDeVideo(ferramenta, opcoes, faixa, duracao, trim);
       const semAudio = ferramenta === "video.silenciar" || opcoes.semAudio === true;
+      const somDeEntrada = semAudio ? null : await input.getPrimaryAudioTrack();
+      // Sem codificador AAC no navegador (Chrome do Linux), o mediabunny descartaria o áudio
+      // em silêncio: o AAC em WebAssembly entra antes.
+      if (somDeEntrada && (formato === "mp4" || formato === "mov" || formato === "mkv")) {
+        await garantirAac({ numberOfChannels: Math.min(2, somDeEntrada.numberOfChannels), sampleRate: somDeEntrada.sampleRate, bitrate: 128_000 }).catch(() => false);
+      }
 
       const conversao = await Conversion.init({
         input,
@@ -142,6 +173,12 @@ async function converter(contexto: ContextoDoMotor): Promise<{ saidas: Saida[]; 
       });
 
       if (!conversao.isValid) explicarDescartes(conversao);
+      if (somDeEntrada && conversao.discardedTracks.some((d) => d.track.type === "audio")) {
+        // O vídeo sairia mudo e a tela diria "pronto": melhor falhar com o motivo.
+        const motivo = conversao.discardedTracks.filter((d) => d.track.type === "audio").map((d) => d.reason).join(", ");
+        console.error("[video] a trilha de áudio seria descartada:", motivo);
+        throw new ConversionError("audio_descartado", "Este navegador não consegue gravar o áudio deste vídeo. Tente pelo plugin, pelo app para Windows/Android ou por outro navegador.", `áudio descartado: ${motivo}`);
+      }
 
       conversoesEmAndamento.set(contexto.jobId, conversao);
       const base = indice / entradas.length;
@@ -157,6 +194,7 @@ async function converter(contexto: ContextoDoMotor): Promise<{ saidas: Saida[]; 
 
       const bytes = target.buffer;
       if (!bytes) throw new ConversionError("saida_vazia", "A conversão terminou sem produzir arquivo.");
+      if (somDeEntrada) await conferirTrilhas(bytes);
 
       const sufixo = ferramenta === "video.cortar" ? "-cortado" : ferramenta === "video.silenciar" ? "-sem-audio" : ferramenta === "video.comprimir" ? "-leve" : "";
       const nome = outputFileName(entrada.nome, formato).replace(/(\.[^.]+)$/, `${sufixo}$1`);

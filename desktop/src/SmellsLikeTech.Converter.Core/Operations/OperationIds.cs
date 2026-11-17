@@ -36,6 +36,9 @@ public static class OperationIds
     public const string MusicStemsPackage = "music.stemsPackage";
     public const string VideoVoice = "video.voice";
 
+    /// <summary>Restaurar áudio com IA (experimental): diagnóstico e reparo conservador no núcleo nativo.</summary>
+    public const string AudioRestore = "audio.restore";
+
     // Ainda sem engine local.
     public const string DocumentConvert = "document.convert";
 

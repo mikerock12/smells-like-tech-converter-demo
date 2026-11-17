@@ -790,6 +790,7 @@ private fun Ocupado(texto: String, progresso: Int?, restante: Int?, cancelar: ()
                 } else {
                     LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
                 }
+                AvisoDeBateria()
             }
         },
     )

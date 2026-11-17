@@ -4,7 +4,7 @@ import { Suspense, lazy, useEffect, useMemo, useState } from "react";
 
 import {
   MODELOS_DO_PACOTE, MODOS_DA_VOZ_NO_VIDEO, combinacoesProntas, configuracaoDoPacote, grupoDoVideo, modeloDoPacote,
-  nomeDoGrupo, problemasDoPacote, rotuloDaFaixaDoPacote, type GrupoDoPacote, type IdDoModeloDoPacote, type PedidoDoPacote,
+  lerTratamentoDoPacote, nomeDoGrupo, problemasDoPacote, rotuloDaFaixaDoPacote, type GrupoDoPacote, type IdDoModeloDoPacote, type PedidoDoPacote, type TratamentoDoPacote,
 } from "@/packages/converter-core/musica-pacote.mjs";
 import { FORMATOS_DE_EXPORTACAO, PRESETS_DE_MASTER } from "@/packages/converter-core/musica-master.mjs";
 import { AVISO_DA_SEPARACAO } from "@/packages/converter-core/musica-separacao.mjs";
@@ -81,7 +81,8 @@ export default function OpcoesDasFaixas({ ferramentaId, opcoes, onChange, disabl
         ))}
       </fieldset>
 
-      {modelo.id === "spleeter" && <PlacaDeVideo disabled={disabled} />}
+      <Tratamento modelo={modelo.id} tratamento={lerTratamentoDoPacote(rascunho.tratamento)} disabled={disabled}
+        mudar={(t) => gravar({ ...rascunho, tratamento: t })} />
 
       {video ? (
         <fieldset className="field field--wide" disabled={disabled}>
@@ -155,6 +156,43 @@ export default function OpcoesDasFaixas({ ferramentaId, opcoes, onChange, disabl
       <p className="estudio__dica">{modelo.id === "roformer" ? "Pode haver vazamento entre as faixas. Comece por um trecho curto: em CPU de PC, 8 s de áudio levam cerca de 2 min." : AVISO_DA_SEPARACAO}</p>
       <p className="estudio__dica">Separar músicas de outras pessoas não muda os direitos autorais delas: use em gravações suas ou que você tem direito de usar.</p>
     </div>
+  );
+}
+
+/**
+ * A mesma qualidade das faixas do estúdio musical, antes de misturar: refinar os agudos,
+ * recuperar a bateria do resíduo, reduzir o ruído, restaurar por instrumento e acelerar.
+ */
+function Tratamento({ modelo, tratamento, disabled, mudar }: { modelo: IdDoModeloDoPacote; tratamento: TratamentoDoPacote; disabled: boolean; mudar: (t: TratamentoDoPacote) => void }) {
+  const t = tratamento;
+  const gpu = typeof window !== "undefined" && temPlacaDeVideo();
+  return (
+    <fieldset className="field field--wide" disabled={disabled}>
+      <legend className="field__label">Qualidade das faixas (como no estúdio musical)</legend>
+      <label className="field field--check">
+        <input type="checkbox" checked={t.refinarAgudos} onChange={(e) => mudar({ ...t, refinarAgudos: e.target.checked })} />
+        <span><strong>Refinar agudos (experimental)</strong> — {modelo === "roformer" ? "refaz os agudos de cada faixa pela energia de todas: menos pratos e chiado vazando na voz." : "divide a oitava de cima pela energia da mistura."}</span>
+      </label>
+      <label className="field field--check">
+        <input type="checkbox" checked={t.recuperarBateria} onChange={(e) => mudar({ ...t, recuperarBateria: e.target.checked })} />
+        <span><strong>Recuperar a bateria dos resíduos (experimental)</strong> — separa de novo o resíduo e devolve à bateria o que ficou lá. Dobra o tempo.</span>
+      </label>
+      <label className="field field--check">
+        <input type="checkbox" checked={t.reduzirRuido} onChange={(e) => mudar({ ...t, reduzirRuido: e.target.checked })} />
+        <span><strong>Reduzir ruído</strong> em cada faixa separada (chiado e ruído constante que a separação deixa).</span>
+      </label>
+      <label className="field">
+        <span className="field__label">Restauração por instrumento ({t.restauracao}%)</span>
+        <input type="range" min={0} max={100} value={t.restauracao} onChange={(e) => mudar({ ...t, restauracao: Number(e.target.value) })} />
+      </label>
+      {modelo === "spleeter" && gpu && (
+        <label className="field field--check">
+          <input type="checkbox" checked={t.aceleracao} onChange={(e) => { definirPlacaDeVideo(e.target.checked); mudar({ ...t, aceleracao: e.target.checked }); }} />
+          <span><strong>Aceleração de hardware</strong> — separar na placa de vídeo (WebGPU). Mesmo resultado; baixa 26 MB na primeira vez e volta ao processador se o navegador recusar.</span>
+        </label>
+      )}
+      {modelo === "roformer" && <p className="estudio__dica">Aceleração: o RoFormer usa todos os núcleos do processador (o modelo compacto INT8 não roda na placa de vídeo do navegador). No app Android e no Windows/plugin, a aceleração disponível é usada sozinha.</p>}
+    </fieldset>
   );
 }
 

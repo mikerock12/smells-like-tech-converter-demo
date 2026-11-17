@@ -19,6 +19,34 @@ public sealed class MusicStemGroup
 public sealed record MusicStemCombination(string Id, string Label, IReadOnlyList<MusicStemGroup> Groups);
 
 /// <summary>O pedido inteiro, como viaja nas opções da conversão (o mesmo JSON do site e do Android).</summary>
+/// <summary>
+/// Como tratar as faixas antes de misturar, igual ao estúdio musical (lerTratamentoDoPacote em
+/// musica-pacote.mjs): refinar agudos, recuperar a bateria do resíduo, reduzir ruído, restaurar
+/// por instrumento (0 a 100) e usar a aceleração disponível. Tudo desligado por padrão.
+/// </summary>
+public sealed class MusicStemTreatment
+{
+    [JsonPropertyName("refinarAgudos")] public bool RefineHighs { get; set; }
+    [JsonPropertyName("recuperarBateria")] public bool RecoverDrums { get; set; }
+    [JsonPropertyName("reduzirRuido")] public bool ReduceNoise { get; set; }
+    [JsonPropertyName("restauracao")] public int Restoration { get; set; }
+    [JsonPropertyName("aceleracao")] public bool Acceleration { get; set; }
+
+    public static MusicStemTreatment Read(JsonNode? node)
+    {
+        var o = node as JsonObject;
+        bool Flag(string k) => o?[k] is JsonValue v && v.TryGetValue<bool>(out var b) && b;
+        var restoration = 0;
+        if (o?["restauracao"] is JsonValue r && r.TryGetValue<double>(out var d) && double.IsFinite(d))
+            restoration = (int)Math.Clamp(Math.Floor(d + 0.5), 0, 100);
+        return new MusicStemTreatment
+        {
+            RefineHighs = Flag("refinarAgudos"), RecoverDrums = Flag("recuperarBateria"), ReduceNoise = Flag("reduzirRuido"),
+            Restoration = restoration, Acceleration = Flag("aceleracao"),
+        };
+    }
+}
+
 public sealed class MusicStemPackageRequest
 {
     [JsonPropertyName("versao")] public int Version { get; set; } = MusicStemPackage.Version;
@@ -27,6 +55,7 @@ public sealed class MusicStemPackageRequest
     [JsonPropertyName("configuracao")] public MusicProject Configuration { get; set; } = new();
     [JsonPropertyName("formato")] public string Format { get; set; } = "wav-24";
     [JsonPropertyName("master")] public string Master { get; set; } = "sem-alvo";
+    [JsonPropertyName("tratamento")] public MusicStemTreatment Treatment { get; set; } = new();
     [JsonPropertyName("manter")] public string? Keep { get; set; }
 }
 
@@ -234,6 +263,7 @@ public static class MusicStemPackage
             Configuration = configuration,
             Format = root["formato"]?.GetValue<string>() ?? "wav-24",
             Master = root["master"]?.GetValue<string>() ?? "sem-alvo",
+            Treatment = MusicStemTreatment.Read(root["tratamento"]),
             Keep = keep,
         };
     }

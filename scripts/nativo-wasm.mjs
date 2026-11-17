@@ -41,7 +41,7 @@ function clangDoNdk() {
 
 const clang = process.env.SLT_CLANG || clangDoNdk() || "clang++";
 const comuns = ["--target=wasm32", "-std=c++20", "-O2", "-ffreestanding", "-nostdlib", "-nostdlibinc", "-fno-exceptions", "-fno-rtti", "-fvisibility=hidden", "-ffp-contract=off", "-Wall", "-Wextra", "-Werror", `-I${join(fonte, "include")}`];
-const fontes = ["api.cpp", "consistencia.cpp", "efeitos.cpp", "espectral.cpp", "json.cpp", "mascaras.cpp", "misturador.cpp", "motor.cpp", "restauracao.cpp"].map((f) => join(fonte, "src", f));
+const fontes = ["api.cpp", "consistencia.cpp", "efeitos.cpp", "espectral.cpp", "json.cpp", "mascaras.cpp", "misturador.cpp", "motor.cpp", "reparo.cpp", "restauracao.cpp"].map((f) => join(fonte, "src", f));
 
 function compilar(pasta) {
   const objetos = [];

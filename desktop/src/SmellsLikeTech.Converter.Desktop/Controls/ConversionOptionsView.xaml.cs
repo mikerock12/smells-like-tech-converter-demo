@@ -162,6 +162,8 @@ public sealed partial class ConversionOptionsView : UserControl
 
             OperationIds.VideoVoice => new VideoVoiceOptions { Package = Stems.Json, OutputFormat = format },
 
+            OperationIds.AudioRestore => new AudioRestoreOptions { Restoration = Restorer.JsonFor(format) },
+
             _ => throw new ConversionException("operation_not_available", "Selecione uma conversão disponível.")
         };
     }
@@ -202,6 +204,11 @@ public sealed partial class ConversionOptionsView : UserControl
         {
             case MusicStemsPackageOptions package:
                 Stems.Load(package.Package, forVideo: false);
+                break;
+
+            case AudioRestoreOptions restore:
+                SelectValue(FormatCombo, restore.OutputExtension);
+                Restorer.Load(restore.Restoration);
                 break;
 
             case VideoVoiceOptions voice:
@@ -333,6 +340,22 @@ public sealed partial class ConversionOptionsView : UserControl
     }
 
     private StemPackageEditor? stems;
+    private AudioRestoreEditor? restorer;
+
+    /// <summary>O editor do restaurador, criado na primeira vez que aparece.</summary>
+    private AudioRestoreEditor Restorer
+    {
+        get
+        {
+            if (restorer is null)
+            {
+                restorer = new AudioRestoreEditor();
+                RestorePanel.Children.Add(restorer);
+            }
+
+            return restorer;
+        }
+    }
 
     /// <summary>O editor das ferramentas de separação, criado na primeira vez que aparece.</summary>
     private StemPackageEditor Stems
@@ -355,6 +378,7 @@ public sealed partial class ConversionOptionsView : UserControl
     private void ShowPanelsFor(string operationId)
     {
         StemsPanel.Visibility = Collapsed(operationId is OperationIds.MusicStemsPackage or OperationIds.VideoVoice);
+        RestorePanel.Visibility = Collapsed(operationId is OperationIds.AudioRestore);
         VideoPanel.Visibility = Collapsed(operationId is OperationIds.VideoConvert);
         AudioPanel.Visibility = Collapsed(operationId is OperationIds.VideoExtractAudio or OperationIds.AudioConvert);
         ImagePanel.Visibility = Collapsed(operationId is OperationIds.ImageConvert);

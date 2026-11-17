@@ -76,6 +76,7 @@ public sealed class AppServices : IAsyncDisposable
 
         MusicLibrary = new MusicLibrary(paths.Root);
         MusicTools = new MusicTools(() => ffmpeg.FfmpegPath, Processes, Path.Combine(paths.Temp, "musica"), paths.Models);
+        VstLibrary = new MusicVstLibrary(paths.Root);
 
         var engines = new IConversionEngine[]
         {
@@ -121,6 +122,8 @@ public sealed class AppServices : IAsyncDisposable
     /// <summary>A criacao musical: projetos no disco e as ferramentas (importar, exportar, separar).</summary>
     public MusicLibrary MusicLibrary { get; }
     public MusicTools MusicTools { get; }
+    /// <summary>Biblioteca de VST3 gratuitos: os incluídos no instalador e os extras baixados.</summary>
+    public MusicVstLibrary VstLibrary { get; }
     private static readonly Lazy<HttpClient> MusicHttp = new(() => new HttpClient { Timeout = TimeSpan.FromMinutes(20) });
     public HttpClient Http => MusicHttp.Value;
     public WhisperModelCatalog Models { get; }

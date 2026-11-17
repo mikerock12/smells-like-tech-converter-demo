@@ -82,6 +82,8 @@ Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#AppExe}"; Tasks: desktopico
 
 [Run]
 Filename: "{app}\{#AppExe}"; Description: "Abrir o {#AppName}"; Flags: nowait postinstall skipifsilent
+; Atualizacao pelo proprio aplicativo (Sobre, Procurar atualizacao): instala em silencio e reabre.
+Filename: "{app}\{#AppExe}"; Flags: nowait runasoriginaluser; Check: ReabrirDepois
 
 [UninstallDelete]
 ; Somente o que o proprio instalador nao rastreia. Os arquivos do usuario em
@@ -90,6 +92,11 @@ Type: filesandordirs; Name: "{app}\Assets"
 Type: dirifempty; Name: "{app}"
 
 [Code]
+function ReabrirDepois: Boolean;
+begin
+  Result := ExpandConstant('{param:REABRIR|0}') = '1';
+end;
+
 // Aviso amigavel quando o FFmpeg nao esta no PATH: o produto instala sem ele,
 // mas video, audio e transcricao dependem dele.
 function FfmpegEncontrado(): Boolean;

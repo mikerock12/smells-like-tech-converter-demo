@@ -27,6 +27,7 @@
     "@jsquash/png": "^3.1.1",
     "@jsquash/resize": "^2.1.1",
     "@jsquash/webp": "^1.5.0",
+    "@mediabunny/aac-encoder": "1.65.0",
     "@tesseract.js-data/eng": "1.0.0",
     "@tesseract.js-data/por": "1.0.0",
     "@tesseract.js-data/spa": "1.0.0",

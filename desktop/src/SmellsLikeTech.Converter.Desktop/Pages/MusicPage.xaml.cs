@@ -1123,7 +1123,60 @@ public sealed partial class MusicPage : Page
                 noise.IsEnabled = true;
             }
         };
-        foreach (var element in new UIElement[] { start, gain, fadeIn, fadeOut, active, split, noise, remove }) ClipPanel.Children.Add(element);
+        // Restaurador (experimental): diagnóstico, plano e reparo do núcleo; a versão restaurada
+        // entra como mídia derivada com o volume do original, e o menu da faixa alterna A/B.
+        var restoreIds = AudioRestoration.Profiles.Where(p => p.Id != "manual").Select(p => p.Id).Append("lossy+ia").ToList();
+        var restoreProfile = new ComboBox { ItemsSource = AudioRestoration.Profiles.Where(p => p.Id != "manual").Select(p => p.Label).Append("MP3/AAC + IA (Apollo, baixa 74 MB; lento)").ToList(), SelectedIndex = 0, MinWidth = 220 };
+        AutomationProperties.SetName(restoreProfile, "Tipo de gravação para restaurar");
+        var restoreAudio = new Button { Content = "Restaurar áudio (experimental)", IsEnabled = MusicNative.HasAudioRestoration };
+        ToolTipService.SetToolTip(restoreAudio, "Analisa o clipe e trata só o que encontrar (zumbido, estalos, recorte, chiado), neste computador. Cria uma versão restaurada com o mesmo volume; o menu da faixa alterna original/restaurada. Não recria o que a gravação perdeu.");
+        restoreAudio.Click += async (_, _) =>
+        {
+            restoreAudio.IsEnabled = false;
+            var profileId = restoreIds[Math.Max(0, restoreProfile.SelectedIndex)];
+            using var background = BackgroundWork.Begin("Restaurando o áudio");
+            try
+            {
+                var mediaId = NewId("restaurada");
+                // "lossy+ia": MP3/AAC com o reparo de compressão por IA (Apollo).
+                var options = profileId == "lossy+ia"
+                    ? AudioRestoration.ReadOptions("""{"perfil":"lossy","intensidade":35,"formato":"wav-32f","ia":true}""")
+                    : AudioRestoration.ReadOptions($$"""{"perfil":"{{profileId}}","intensidade":35,"formato":"wav-32f"}""");
+                var result = await Tools.RestoreAudioAsync(Library.MediaPath(project.Id, clip.Media), Library.MediaPath(project.Id, mediaId), options,
+                    new Progress<(string Stage, double Fraction)>(p => { Status($"{p.Stage}… {Math.Floor(p.Fraction * 100)}%", InfoBarSeverity.Informational); background.Report(p.Fraction); }),
+                    CancellationToken.None, levelMatch: true, rate: Rate, http: App.Services.Http);
+                if (result.Plan.NoChange)
+                {
+                    File.Delete(Library.MediaPath(project.Id, mediaId));
+                    Status($"{AudioRestoration.Summary(result.Diagnosis)}. {AudioRestoration.WarningText(result.Plan.Warnings[^1])}", InfoBarSeverity.Informational);
+                    return;
+                }
+                using var wav = new MappedWavSource(Library.MediaPath(project.Id, mediaId));
+                var origem = project.Media.FirstOrDefault(m => m.Id == clip.Media);
+                var media = new MusicMedia
+                {
+                    Id = mediaId, Name = $"{Path.GetFileNameWithoutExtension(origem?.Name ?? "Clipe")} restaurada.wav", SampleRate = Rate, Channels = wav.Channels, Frames = wav.Frames, Origin = clip.Media,
+                    Restoration = new MusicRestoration(35, AudioRestoration.Version) { Kind = "restaurador", Profile = profileId },
+                };
+                Edit(p =>
+                {
+                    p.Media.Add(media);
+                    p.Tracks.First(t => t.Id == track.Id).Clips.First(x => x.Id == clip.Id).Media = mediaId;
+                });
+                LoadMedia(media);
+                var steps = string.Join(", ", result.Plan.Steps.Select(st => AudioRestoration.StepLabel(st.Id)));
+                Status($"Restaurado ({steps}). {AudioRestoration.Summary(result.Diagnosis)}. Volume igualado ao original; o menu da faixa alterna original/restaurada e Desfazer volta.", InfoBarSeverity.Success);
+            }
+            catch (Exception e) when (e is IOException or Core.ConversionException or PlatformNotSupportedException)
+            {
+                Status(e.Message, InfoBarSeverity.Error);
+            }
+            finally
+            {
+                restoreAudio.IsEnabled = MusicNative.HasAudioRestoration;
+            }
+        };
+        foreach (var element in new UIElement[] { start, gain, fadeIn, fadeOut, active, split, noise, restoreProfile, restoreAudio, remove }) ClipPanel.Children.Add(element);
     }
 
     private void Split(string trackId, string clipId)

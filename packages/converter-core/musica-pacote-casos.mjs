@@ -6,7 +6,7 @@
 import { fonteDaMemoria, renderizar } from "./musica-mixer.mjs";
 import { gerarMidia, resumo } from "./musica-casos.mjs";
 import {
-  combinacoesProntas, configuracaoDoPacote, grupoDoVideo, modeloDoPacote, nomeDoGrupo, nomesDosArquivos,
+  combinacoesProntas, configuracaoDoPacote, grupoDoVideo, lerTratamentoDoPacote, modeloDoPacote, nomeDoGrupo, nomesDosArquivos,
   problemasDoPacote, projetoDoArquivo, resumoDoArquivo,
 } from "./musica-pacote.mjs";
 
@@ -25,5 +25,6 @@ export function esperadoDoPacote(entrada) {
   const fontes = new Map(Object.entries(a.geradores).map(([id, g]) => [id, fonteDaMemoria(gerarMidia(g, a.quadros, a.taxa))]));
   const { esq, dir } = renderizar(projeto, fontes, { quadros: a.quadros });
 
-  return { combinacoes, nomesDeGrupo, nomes, problemas, video, arquivo: resumoDoArquivo(projeto), render: resumo(esq, dir, a.amostras) };
+  const tratamentos = (entrada.tratamentos ?? []).map(lerTratamentoDoPacote);
+  return { combinacoes, nomesDeGrupo, nomes, problemas, video, arquivo: resumoDoArquivo(projeto), render: resumo(esq, dir, a.amostras), tratamentos };
 }

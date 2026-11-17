@@ -77,6 +77,8 @@ export interface FailedMessage {
   readonly jobId: string;
   readonly code: string;
   readonly message: string;
+  /** Etapa que falhou e a mensagem técnica, para o "Detalhes" da tela. */
+  readonly detalhes?: string;
 }
 
 export type WorkerResponse = ProgressMessage | DoneMessage | FailedMessage;
@@ -85,6 +87,8 @@ export class ConversionError extends Error {
   constructor(
     readonly code: string,
     message: string,
+    /** Etapa e mensagem técnica, mostradas em "Detalhes" e registradas no console. */
+    readonly detalhes?: string,
   ) {
     super(message);
   }

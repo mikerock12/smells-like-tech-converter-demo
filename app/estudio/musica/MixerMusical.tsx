@@ -164,10 +164,10 @@ export function EfeitosMusicais({ projeto, alvo, escolher, mudar }: { projeto: P
         ))}
       </details>
       <details>
-        <summary>Plugins VST3 para Windows</summary>
-        <p className="estudio__dica">Plugins externos exigem um host VST3 no Windows. As cadeias prontas acima funcionam neste estúdio.</p>
+        <summary>Biblioteca de plugins VST3 (no Windows)</summary>
+        <p className="estudio__dica">Plugins gratuitos e de código aberto, testados no host do Converter. Os marcados como incluídos já vêm no aplicativo para Windows e no plugin; os outros são baixados por lá, sob demanda. No navegador, use as cadeias prontas acima.</p>
         <ul>
-          {catalogo.plugins.map((plugin) => <li key={plugin.nome}><a href={plugin.url} target="_blank" rel="noreferrer">{plugin.nome}</a> · {plugin.grupo}. {plugin.uso}</li>)}
+          {catalogo.bibliotecaVst3.map((plugin) => <li key={plugin.id}><strong>{plugin.nome}</strong> · {plugin.grupo}. {plugin.uso} <small>({plugin.preinstalado ? "incluído" : "para baixar"} · {plugin.licenca})</small></li>)}
         </ul>
       </details>
       {cadeia.efeitos.length === 0 && <p className="estudio__dica">Nenhum efeito em {cadeia.nome}. A ordem conta: o sinal passa de cima para baixo. Os efeitos não têm atraso (latência zero), então não há compensação a fazer.</p>}

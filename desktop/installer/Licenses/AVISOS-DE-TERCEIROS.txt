@@ -114,3 +114,31 @@ Componentes previstos para os próximos marcos
 LibreOffice (MPL-2.0), Pandoc (GPL-2.0+), Tesseract (Apache-2.0) e
 Ghostscript (AGPL/comercial) ainda NÃO acompanham o produto. Quando forem
 integrados, suas licenças deverão ser revisadas e adicionadas aqui.
+
+Biblioteca de plugins VST3 gratuitos e de código aberto
+-------------------------------------------------------
+Binários oficiais, sem modificação, de cada projeto. Os incluídos ficam em VST3\ (pasta do
+aplicativo); os extras são baixados sob demanda e guardados em Plugins\VST3 (pasta de dados).
+Cada um mantém a própria licença (textos em Licenses\vst3\). Fontes na mesma versão:
+
+- OpenRiffBox 0.9.1 (GPL-3.0, incluído): https://github.com/dlujic/open-riff-box/tree/v0.9.1
+- TS-M1N3 (Tube Screamer neural) 1.2.0 (GPL-3.0, incluído): https://github.com/GuitarML/TS-M1N3/tree/v1.2.0
+- ChowCentaur 1.4.0 (BSD-3-Clause, incluído): https://github.com/jatinchowdhury18/KlonCentaur/tree/v1.4.0
+- CHOW Tape Model 2.11.4 (GPL-3.0, incluído): https://github.com/jatinchowdhury18/AnalogTapeModel/tree/v2.11.4
+- Dragonfly Room Reverb 3.2.10 (GPL-3.0, incluído): https://github.com/michaelwillis/dragonfly-reverb/tree/3.2.10
+- Dragonfly Plate Reverb 3.2.10 (GPL-3.0, incluído): https://github.com/michaelwillis/dragonfly-reverb/tree/3.2.10
+- Dragonfly Hall Reverb 3.2.10 (GPL-3.0, para baixar): https://github.com/michaelwillis/dragonfly-reverb/tree/3.2.10
+- Dragonfly Early Reflections 3.2.10 (GPL-3.0, para baixar): https://github.com/michaelwillis/dragonfly-reverb/tree/3.2.10
+- Surge XT Effects 1.3.4 (GPL-3.0, para baixar): https://github.com/surge-synthesizer/surge/tree/release_xt_1.3.4
+- ChowMatrix 1.3.0 (BSD-3-Clause, para baixar): https://github.com/Chowdhury-DSP/ChowMatrix/tree/v1.3.0
+
+Modelo Apollo (reparo de compressão por IA, opcional)
+-------------------------------------------------------
+Apollo, de Kai Li e Yi Luo (https://github.com/JusperLee/Apollo e
+https://huggingface.co/JusperLee/Apollo), CC BY-SA 4.0 (código e pesos):
+https://creativecommons.org/licenses/by-sa/4.0/deed.pt-br
+Convertido para ONNX pela Smells Like Tech, sob a mesma licença (roteiro em
+laboratorio/stems/exportar_apollo.py, nas fontes). Não acompanha o instalador: é
+baixado sob demanda (apollo-restauracao-fp32-v1.onnx, SHA-256
+bd0e9aeb69c84056715e7bfc6386cbb8cf17e7e980add13b87177afceec2d893) e pode ser excluído
+nas opções do restaurador.

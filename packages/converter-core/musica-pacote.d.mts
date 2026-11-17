@@ -13,8 +13,11 @@ export interface PedidoDoPacote {
   configuracao: ProjetoMusical;
   formato: string;
   master: string;
+  tratamento?: TratamentoDoPacote;
   manter?: "voz" | "resto";
 }
+export interface TratamentoDoPacote { refinarAgudos: boolean; recuperarBateria: boolean; reduzirRuido: boolean; restauracao: number; aceleracao: boolean }
+export declare function lerTratamentoDoPacote(t: unknown): TratamentoDoPacote;
 export declare const MODELOS_DO_PACOTE: readonly ModeloDoPacote[];
 export declare function modeloDoPacote(id: string): ModeloDoPacote | null;
 export declare function rotuloDaFaixaDoPacote(id: string): string;

@@ -2,6 +2,10 @@
 
 import { MODELO_DE_SEPARACAO } from "@/packages/converter-core/musica-separacao.mjs";
 import { ROFORMER_COMPACTO } from "@/packages/converter-core/musica-modelos.mjs";
+import { APOLLO } from "@/packages/converter-core/apollo.mjs";
+
+/** Qual modelo: Spleeter (false), RoFormer (true) ou o Apollo do restaurador. */
+export type QualModelo = boolean | "apollo";
 
 export type PerfilDeMascara = "classica" | "refinada";
 
@@ -31,13 +35,13 @@ export async function restaurarFaixa(canais: Float32Array[], taxa: number, perfi
   }
 }
 
-const dadosDoModelo = (roformer: boolean) => roformer ? ROFORMER_COMPACTO : MODELO_DE_SEPARACAO;
+const dadosDoModelo = (qual: QualModelo) => qual === "apollo" ? APOLLO : qual ? ROFORMER_COMPACTO : MODELO_DE_SEPARACAO;
 
 async function pastaDosModelos() {
   return (await navigator.storage.getDirectory()).getDirectoryHandle("modelos", { create: true });
 }
 
-export async function modeloBaixado(roformer = false, verificar = false): Promise<boolean> {
+export async function modeloBaixado(roformer: QualModelo = false, verificar = false): Promise<boolean> {
   const modelo = dadosDoModelo(roformer);
   try {
     const arquivo = await (await (await pastaDosModelos()).getFileHandle(modelo.arquivo)).getFile();
@@ -48,7 +52,7 @@ export async function modeloBaixado(roformer = false, verificar = false): Promis
   }
 }
 
-export async function apagarModelo(roformer = false): Promise<void> {
+export async function apagarModelo(roformer: QualModelo = false): Promise<void> {
   try { await (await pastaDosModelos()).removeEntry(dadosDoModelo(roformer).arquivo); }
   catch (erro) { if (!(erro instanceof DOMException) || erro.name !== "NotFoundError") throw erro; }
 }
@@ -58,11 +62,11 @@ function hex(buffer: ArrayBuffer) {
 }
 
 /** Baixa o modelo se ainda não estiver aqui, conferindo o SHA-256 antes de guardar. */
-export async function garantirModelo(progresso: (fracao: number) => void, sinal?: AbortSignal, roformer = false): Promise<void> {
+export async function garantirModelo(progresso: (fracao: number) => void, sinal?: AbortSignal, roformer: QualModelo = false): Promise<void> {
   const modelo = dadosDoModelo(roformer);
   if (await modeloBaixado(roformer, true)) return;
   const resposta = await fetch(new URL(modelo.url).pathname, { signal: sinal });
-  if (!resposta.ok || !resposta.body) throw new Error("Não foi possível baixar o modelo de separação. Confira a conexão e tente de novo.");
+  if (!resposta.ok || !resposta.body) throw new Error(`Não foi possível baixar o modelo ${roformer === "apollo" ? "de restauração" : "de separação"}. Confira a conexão e tente de novo.`);
   const total = Number(resposta.headers.get("Content-Length")) || modelo.bytes;
   const leitor = resposta.body.getReader();
   const pedacos: Uint8Array[] = [];
@@ -74,7 +78,7 @@ export async function garantirModelo(progresso: (fracao: number) => void, sinal?
     recebido += value.length;
     if (recebido > modelo.bytes) {
       await leitor.cancel();
-      throw new Error("O modelo de separação é maior que o esperado.");
+      throw new Error("O modelo baixado é maior que o esperado.");
     }
     progresso(Math.min(1, recebido / total));
   }
@@ -140,8 +144,12 @@ export class SeparadorNoNavegador {
   naPlacaDeVideo = false;
   private abortar = new AbortController();
 
+  /**
+   * `extras.refinarAgudos`: no RoFormer, refino de Wiener acima de 8 kHz (no Spleeter, use a
+   * máscara "refinada"). `extras.recuperarBateria`: segunda separação do resíduo (experimental).
+   */
   async separar(canais: Float32Array[], taxa: number, modo: string, progresso: (etapa: string, fracao: number) => void,
-                mascara: PerfilDeMascara = "classica"): Promise<FaixaSeparada[]> {
+                mascara: PerfilDeMascara = "classica", extras: { refinarAgudos?: boolean; recuperarBateria?: boolean; gpu?: boolean } = {}): Promise<FaixaSeparada[]> {
     progresso("Preparando o áudio", 0);
     // O comprimento sai antes: na taxa do modelo (44,1 kHz) a entrada é a própria `canais`,
     // e transferir para o worker esvazia esses buffers.
@@ -152,6 +160,7 @@ export class SeparadorNoNavegador {
     sinal.throwIfAborted();
     this.worker = new Fabrica({ name: "separacao-de-faixas" });
     let cancelar: (() => void) | undefined;
+    let etapaAtual = "";
     const faixas = await new Promise<FaixaSeparada[]>((resolver, rejeitar) => {
       cancelar = () => rejeitar(new Error("Separação cancelada."));
       sinal.addEventListener("abort", cancelar, { once: true });
@@ -162,14 +171,16 @@ export class SeparadorNoNavegador {
           this.naPlacaDeVideo = a.gpu === true;
           if (a.motivo) console.info("Separação no processador; a placa de vídeo não pôde ser usada:", a.motivo);
         }
-        else if (m.tipo === "progresso") progresso(this.naPlacaDeVideo ? "Separando as faixas na placa de vídeo" : "Separando as faixas", m.fracao ?? 0);
+        else if (m.tipo === "etapa") etapaAtual = (m as { etapa?: string }).etapa ?? "";
+        else if (m.tipo === "progresso") progresso(etapaAtual || (this.naPlacaDeVideo ? "Separando as faixas na placa de vídeo" : "Separando as faixas"), m.fracao ?? 0);
         else if (m.tipo === "pronto") resolver(m.faixas ?? []);
         else if (m.tipo === "erro") rejeitar(new Error(m.mensagem));
       };
       this.worker!.onerror = (e) => rejeitar(new Error(e.message || "A separação parou com um erro."));
       let nativo = false;
       try { nativo = localStorage.getItem("criacao-musical:motor-wasm") === "1"; } catch { /* preferência indisponível */ }
-      this.worker!.postMessage({ tipo: "separar", canais: entrada, modo, mascara, nativo, gpu: usarPlacaDeVideo() }, entrada.map((c) => c.buffer as ArrayBuffer));
+      const { gpu, ...resto } = extras;
+      this.worker!.postMessage({ tipo: "separar", canais: entrada, modo, mascara, nativo, gpu: gpu ?? usarPlacaDeVideo(), ...resto }, entrada.map((c) => c.buffer as ArrayBuffer));
     }).finally(() => {
       if (cancelar) sinal.removeEventListener("abort", cancelar);
       this.worker?.terminate();

@@ -85,6 +85,7 @@ async function executar(pedido: TarefaRequest) {
       message: conhecido
         ? erro.message
         : `Não foi possível converter. ${erro instanceof Error ? erro.message : "O arquivo pode estar corrompido ou usar um recurso não suportado."}`,
+      detalhes: conhecido ? erro.detalhes : undefined,
     });
   } finally {
     cancelados.delete(jobId);

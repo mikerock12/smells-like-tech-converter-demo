@@ -19,6 +19,31 @@ data class GrupoDoPacote(val nome: String, val faixas: List<String>) {
 
 data class CombinacaoPronta(val id: String, val rotulo: String, val grupos: List<GrupoDoPacote>)
 
+/**
+ * Como tratar as faixas antes de misturar, igual ao estúdio musical (lerTratamentoDoPacote em
+ * musica-pacote.mjs): refinar agudos, recuperar a bateria do resíduo, reduzir ruído, restaurar
+ * por instrumento (0 a 100) e usar a aceleração disponível (NNAPI). Tudo desligado por padrão.
+ */
+data class TratamentoDoPacote(
+    val refinarAgudos: Boolean = false,
+    val recuperarBateria: Boolean = false,
+    val reduzirRuido: Boolean = false,
+    val restauracao: Int = 0,
+    val aceleracao: Boolean = false,
+) {
+    fun paraJson(): JSONObject = JSONObject().put("refinarAgudos", refinarAgudos).put("recuperarBateria", recuperarBateria)
+        .put("reduzirRuido", reduzirRuido).put("restauracao", restauracao).put("aceleracao", aceleracao)
+
+    companion object {
+        fun deJson(o: JSONObject?): TratamentoDoPacote {
+            fun flag(k: String) = o?.opt(k) == true
+            val r = (o?.opt("restauracao") as? Number)?.toDouble()?.takeIf { it.isFinite() }
+            return TratamentoDoPacote(flag("refinarAgudos"), flag("recuperarBateria"), flag("reduzirRuido"),
+                r?.let { kotlin.math.floor(it + 0.5).toInt().coerceIn(0, 100) } ?: 0, flag("aceleracao"))
+        }
+    }
+}
+
 /** O pedido inteiro, no mesmo JSON do site e do Windows. */
 data class PedidoDoPacote(
     val modelo: String,
@@ -27,10 +52,11 @@ data class PedidoDoPacote(
     val formato: String = "wav-24",
     val master: String = "sem-alvo",
     val manter: String? = null,
+    val tratamento: TratamentoDoPacote = TratamentoDoPacote(),
 ) {
     fun paraJson(): JSONObject = JSONObject().put("versao", PacoteDeFaixas.VERSAO).put("modelo", modelo)
         .put("grupos", JSONArray(grupos.map { it.paraJson() })).put("configuracao", configuracao.paraJson())
-        .put("formato", formato).put("master", master).putOpt("manter", manter)
+        .put("formato", formato).put("master", master).putOpt("manter", manter).put("tratamento", tratamento.paraJson())
 }
 
 class ProblemaNoPacote(mensagem: String) : IllegalArgumentException(mensagem)
@@ -183,6 +209,7 @@ object PacoteDeFaixas {
             formato = raiz.optString("formato", "wav-24").ifEmpty { "wav-24" },
             master = raiz.optString("master", "sem-alvo").ifEmpty { "sem-alvo" },
             manter = manter,
+            tratamento = TratamentoDoPacote.deJson(raiz.optJSONObject("tratamento")),
         )
     }
 

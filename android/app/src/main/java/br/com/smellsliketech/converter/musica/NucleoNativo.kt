@@ -5,8 +5,13 @@ import java.nio.ByteOrder
 
 /** Acesso ao núcleo por JNI. O callback de áudio permanece no C++. */
 internal object NucleoNativo {
-    const val ABI = (1 shl 16) or 1
-    const val CAPACIDADES = 0x17f
+    const val ABI = (1 shl 16) or 2
+    const val CAPACIDADES = 0xf7f
+    /** Valores do diagnóstico, na ordem SLT_DIAG_* (slt_media_api.h); o mesmo nome do site e do Windows. */
+    val CAMPOS_DO_DIAGNOSTICO = listOf("duracao", "picoDb", "rmsDb", "cristaDb", "dc", "recorte", "pisoDeRuidoDb", "zumbidoHz", "zumbidoDb",
+        "bandaHz", "estalosPorMinuto", "correlacao", "silencio", "agudosDb", "dinamicaDb", "taxa", "planuraDoRuido")
+    /** Parâmetros do reparo, na ordem SLT_REPAIR_*. */
+    val PARAMETROS_DO_REPARO = listOf("dc", "zumbidoHz", "zumbido", "estalos", "recorte", "nivelDoRecorte", "ruido", "arDb", "corteGraveHz", "tetoDb", "ganhoDb", "reservado")
     const val OBOE = 3
 
     val disponivel: Boolean by lazy {
@@ -22,6 +27,8 @@ internal object NucleoNativo {
     fun backends() = NucleoJni.backends()
 
     val temStftComplexa: Boolean get() = disponivel && (capacidades() and (1 shl 8)) != 0
+    val temRefinoDeAgudos: Boolean get() = disponivel && (capacidades() and (1 shl 9)) != 0
+    val temRestaurador: Boolean get() = disponivel && (capacidades() and (3 shl 10)) == (3 shl 10)
 
     fun plano(quadros: Int): ByteBuffer =
         ByteBuffer.allocateDirect(Math.multiplyExact(quadros, Float.SIZE_BYTES)).order(ByteOrder.nativeOrder())
@@ -167,6 +174,56 @@ internal object NucleoNativo {
         }
     }
 
+    /**
+     * Refino dos agudos das faixas separadas (Wiener multicanal): blocos planares
+     * [(faixa*2+canal)*quadros + i] num ByteBuffer direto, no lugar, atrasados por [latencia].
+     */
+    class RefinadorDeAgudos(taxa: Int, val faixas: Int, corte: Float = 8000f, quanto: Float = 0.8f) : AutoCloseable {
+        private var handle = NucleoJni.criarRefinador(taxa, faixas, corte, quanto).also { check(it != 0L) { "Refino dos agudos recusado." } }
+        private fun aberto() = handle.also { check(it != 0L) }
+        val latencia: Int get() = NucleoJni.latenciaDoRefinador(aberto())
+        fun processar(planar: ByteBuffer, quadros: Int) =
+            validar(NucleoJni.refinar(aberto(), amostras(planar, quadros * 2 * faixas, true), faixas, quadros))
+        override fun close() {
+            NucleoJni.destruirRefinador(handle)
+            handle = 0
+        }
+    }
+
+    /** Diagnóstico de qualidade do restaurador: só mede. */
+    class Analisador(taxa: Int) : AutoCloseable {
+        private var handle = NucleoJni.criarAnalisador(taxa).also { check(it != 0L) { "Diagnóstico recusado." } }
+        private fun aberto() = handle.also { check(it != 0L) }
+        fun alimentar(quadros: Int, esquerda: ByteBuffer, direita: ByteBuffer?) =
+            validar(NucleoJni.alimentarAnalisador(aberto(), amostras(esquerda, quadros), direita?.let { amostras(it, quadros) }, quadros))
+        fun resultado(): Map<String, Double> {
+            val v = checkNotNull(NucleoJni.resultadoDoAnalisador(aberto()))
+            return CAMPOS_DO_DIAGNOSTICO.withIndex().associate { (i, nome) -> nome to v[i].toDouble() }
+        }
+        fun perfil(): FloatArray = checkNotNull(NucleoJni.perfilDoAnalisador(aberto()))
+        override fun close() {
+            NucleoJni.destruirAnalisador(handle)
+            handle = 0
+        }
+    }
+
+    /** Reparo conservador do restaurador: no lugar, atrasado por [latencia]. */
+    class Reparo(taxa: Int, parametros: Map<String, Double>, perfil: FloatArray? = null) : AutoCloseable {
+        private var handle = NucleoJni.criarReparo(taxa, FloatArray(PARAMETROS_DO_REPARO.size) { i -> (parametros[PARAMETROS_DO_REPARO[i]] ?: 0.0).toFloat() })
+            .also { check(it != 0L) { "Reparo recusado." } }
+        private fun aberto() = handle.also { check(it != 0L) }
+        init { if (perfil != null) validar(NucleoJni.perfilDoReparo(aberto(), perfil)) }
+        val latencia: Int get() = NucleoJni.latenciaDoReparo(aberto())
+        fun processar(quadros: Int, esquerda: ByteBuffer, direita: ByteBuffer?) =
+            validar(NucleoJni.reparar(aberto(), amostras(esquerda, quadros, true), direita?.let { amostras(it, quadros, true) }, quadros))
+        /** Estalos corrigidos, recortes refeitos, redução média de ruído (dB) e maior redução do limitador (dB). */
+        fun estatisticas(): FloatArray = checkNotNull(NucleoJni.estatisticasDoReparo(aberto()))
+        override fun close() {
+            NucleoJni.destruirReparo(handle)
+            handle = 0
+        }
+    }
+
     data class Janela(val inicio: Long, val amostras: Int, val quadros: Int)
     data class Trecho(val inicio: Long, val amostras: Int)
 
@@ -278,4 +335,19 @@ private object NucleoJni {
                           magnitude: ByteBuffer, tamanho: Int): Int
     external fun sintetizar(separador: Long, trecho: Int, saida: Int, estimativas: ByteBuffer, tamanho: Int,
                             instrumentos: IntArray, esquerda: ByteBuffer, direita: ByteBuffer, capacidade: Int): LongArray?
+    external fun criarRefinador(taxa: Int, faixas: Int, corte: Float, quanto: Float): Long
+    external fun latenciaDoRefinador(refinador: Long): Int
+    external fun refinar(refinador: Long, planar: ByteBuffer, faixas: Int, n: Int): Int
+    external fun destruirRefinador(refinador: Long)
+    external fun criarAnalisador(taxa: Int): Long
+    external fun alimentarAnalisador(analisador: Long, esquerda: ByteBuffer, direita: ByteBuffer?, n: Int): Int
+    external fun resultadoDoAnalisador(analisador: Long): FloatArray?
+    external fun perfilDoAnalisador(analisador: Long): FloatArray?
+    external fun destruirAnalisador(analisador: Long)
+    external fun criarReparo(taxa: Int, parametros: FloatArray): Long
+    external fun perfilDoReparo(reparo: Long, perfil: FloatArray): Int
+    external fun latenciaDoReparo(reparo: Long): Int
+    external fun reparar(reparo: Long, esquerda: ByteBuffer, direita: ByteBuffer?, n: Int): Int
+    external fun estatisticasDoReparo(reparo: Long): FloatArray?
+    external fun destruirReparo(reparo: Long)
 }

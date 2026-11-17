@@ -193,6 +193,24 @@ export function grupoDoVideo(modeloId, manter) {
 }
 
 /**
+ * Como tratar as faixas antes de misturar, igual ao estúdio musical: refinar os agudos (no
+ * Spleeter, a máscara refinada; no RoFormer, o refino de Wiener), recuperar a bateria do
+ * resíduo (segunda separação, experimental), reduzir o ruído de cada faixa, restaurar por
+ * instrumento (0 a 100) e usar a aceleração de hardware disponível. Tudo desligado por padrão.
+ */
+export function lerTratamentoDoPacote(t) {
+  const o = t && typeof t === "object" ? t : {};
+  const restauracao = typeof o.restauracao === "number" ? o.restauracao : NaN;
+  return {
+    refinarAgudos: o.refinarAgudos === true,
+    recuperarBateria: o.recuperarBateria === true,
+    reduzirRuido: o.reduzirRuido === true,
+    restauracao: Number.isFinite(restauracao) ? Math.max(0, Math.min(100, Math.round(restauracao))) : 0,
+    aceleracao: o.aceleracao === true,
+  };
+}
+
+/**
  * O pedido inteiro, como viaja nas opções da conversão (texto JSON): modelo, arquivos,
  * ajustes por faixa e formato. Devolve o pedido normalizado ou lança com o problema.
  */
@@ -219,6 +237,7 @@ export function lerPedidoDoPacote(texto, padrao = {}) {
     configuracao,
     formato: pedido.formato ?? "wav-24",
     master: pedido.master ?? "sem-alvo",
+    tratamento: lerTratamentoDoPacote(pedido.tratamento),
     ...(pedido.manter ? { manter: pedido.manter } : {}),
   };
 }

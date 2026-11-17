@@ -554,7 +554,7 @@ class MusicaViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) {
     /** Separa o clipe em faixas novas (voz_, bateria_...). Com [reduzirRuido], cada faixa separada
      *  passa pela redução de ruído antes de entrar no projeto. */
     fun separar(faixaId: String, clipeId: String, modo: String, reduzirRuido: Boolean = false, refinada: Boolean = false,
-                intensidade: Int = 0) {
+                intensidade: Int = 0, recuperarBateria: Boolean = false) {
         val p = projeto ?: return
         val faixa = p.faixas.first { it.id == faixaId }
         val clipe = faixa.clipes.first { it.id == clipeId }
@@ -565,7 +565,8 @@ class MusicaViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) {
         trabalho = viewModelScope.launch {
             try {
                 biblioteca.garantirModelo(roformer) { f -> viewModelScope.launch { andamento = "Baixando o modelo" to f } }
-                val faixas = biblioteca.separar(biblioteca.midia(p.id, clipe.midia), File(biblioteca.pasta(p.id), "midias"), modo, p.taxa, refinada && !roformer) { etapa, f -> viewModelScope.launch { andamento = etapa to f } }
+                // "Refinar agudos": no Spleeter é a máscara refinada; no RoFormer, o Wiener do núcleo.
+                val faixas = biblioteca.separar(biblioteca.midia(p.id, clipe.midia), File(biblioteca.pasta(p.id), "midias"), modo, p.taxa, refinada, recuperarBateria) { etapa, f -> viewModelScope.launch { andamento = etapa to f } }
                 val brutas = mutableListOf<MidiaMusical>()
                 val novas = faixas.mapIndexed { k, (definicao, arquivo) ->
                     val midiaId = novoId("stem")
@@ -591,11 +592,12 @@ class MusicaViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) {
                     val criadas = novas.mapIndexed { k, (d, m) -> Musica.novaFaixa(novoId("faixa"), Musica.nomeDaFaixaSeparada(d.rotulo, faixa.nome), i + k + 1).copy(clipes = listOf(clipe.copy(id = novoId("clipe"), midia = m.id, nome = d.rotulo))) }
                     val faixas = q.faixas.toMutableList().apply { this[i] = this[i].copy(mudo = true); addAll(i + 1, criadas) }
                     q.copy(midias = q.midias + brutas + novas.map { it.second }, faixas = faixas, separacoes = q.separacoes + RegistroDeSeparacao(novoId("sep"), clipe.midia, modo, idModelo, novas.map { it.second.id },
-                        if (roformer) "maximum" else "legacy", if (roformer) null else if (refinada) "refinada" else "classica"))
+                        if (roformer) "maximum" else "legacy", if (roformer) null else if (refinada) "refinada" else "classica",
+                        if (roformer && refinada) true else null, if (recuperarBateria) true else null))
                 }
                 novas.forEach { carregarMidia(projeto!!, it.second) }
                 brutas.forEach { carregarMidia(projeto!!, it) }
-                mensagem = "Pronto: ${novas.size} faixas novas abaixo de “${faixa.nome}”, que ficou muda como referência.${if (reduzirRuido) " O ruído de fundo foi reduzido em cada uma." else ""}"
+                mensagem = "Pronto: ${novas.size} faixas novas abaixo de “${faixa.nome}”, que ficou muda como referência.${if (reduzirRuido) " O ruído de fundo foi reduzido em cada uma." else ""}${if (recuperarBateria) " A bateria foi completada com o que estava nos resíduos." else ""}"
             } catch (e: kotlinx.coroutines.CancellationException) {
                 mensagem = "Separação cancelada."
             } catch (e: Exception) {
@@ -611,6 +613,49 @@ class MusicaViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) {
         trabalho?.cancel()
         preparacaoJob?.cancel()
         if (andamento?.first == "Preparando tempo e tom") andamento = null
+    }
+
+    /**
+     * Restaura o áudio de um clipe (experimental): diagnóstico, plano e reparo no núcleo. A
+     * versão restaurada entra como mídia derivada, com o volume do original; o menu da faixa
+     * alterna original/restaurada (A/B) e Desfazer volta.
+     */
+    fun restaurarAudio(faixaId: String, clipeId: String, perfil: String) {
+        val p = projeto ?: return
+        val clipe = p.faixas.first { it.id == faixaId }.clipes.first { it.id == clipeId }
+        if (andamento != null) return
+        andamento = "Analisando a qualidade" to 0.0
+        trabalho = viewModelScope.launch {
+            try {
+                val midiaId = novoId("restaurada")
+                // "lossy+ia": MP3/AAC com o reparo de compressão por IA (Apollo).
+                val opcoes = if (perfil == "lossy+ia") RestauradorDeAudio.Opcoes(perfil = "lossy", intensidade = 35, formato = "wav-32f", ia = true)
+                    else RestauradorDeAudio.Opcoes(perfil = perfil, intensidade = 35, formato = "wav-32f")
+                val r = biblioteca.restaurarAudio(biblioteca.midia(p.id, clipe.midia), biblioteca.midia(p.id, midiaId), opcoes, p.taxa, nivelar = true) { etapa, f ->
+                    viewModelScope.launch { andamento = etapa to f }
+                }
+                if (r.plano.semMudanca) {
+                    biblioteca.midia(p.id, midiaId).delete()
+                    mensagem = "${RestauradorDeAudio.resumo(r.diagnostico)}. ${RestauradorDeAudio.textoDoAviso(r.plano.avisos.last())}"
+                    return@launch
+                }
+                val (quadros, canais) = FonteWav(biblioteca.midia(p.id, midiaId)).use { it.quadros to it.canais }
+                val origem = p.midias.firstOrNull { it.id == clipe.midia }
+                val midia = MidiaMusical(midiaId, "${(origem?.nome ?: "Clipe").substringBeforeLast('.')} restaurada.wav", "wav", p.taxa, canais, quadros,
+                    origem = clipe.midia, restauracao = RestauracaoDaMidia(35, RestauradorDeAudio.VERSAO, "restaurador", perfil))
+                mudarFaixa(faixaId) { f -> f.copy(clipes = f.clipes.map { if (it.id == clipeId) it.copy(midia = midiaId) else it }) }
+                mudar { q -> q.copy(midias = q.midias + midia) }
+                carregarMidia(projeto!!, midia)
+                val etapas = r.plano.etapas.joinToString(", ") { RestauradorDeAudio.rotuloDaEtapa(it.first) }
+                mensagem = "Restaurado ($etapas). ${RestauradorDeAudio.resumo(r.diagnostico)}. Volume igualado ao original; o menu da faixa alterna original/restaurada e Desfazer volta."
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                mensagem = "Restauração cancelada."
+            } catch (e: Exception) {
+                mensagem = e.message
+            } finally {
+                andamento = null
+            }
+        }
     }
 
     fun reduzirRuido(faixaId: String, clipeId: String) {

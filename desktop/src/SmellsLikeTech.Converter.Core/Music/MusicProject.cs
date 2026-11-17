@@ -209,7 +209,12 @@ public sealed class MusicPunch
 
 public sealed record MusicRestoration(
     [property: JsonPropertyName("intensidade")] int Intensity,
-    [property: JsonPropertyName("versao")] int Version);
+    [property: JsonPropertyName("versao")] int Version)
+{
+    /// <summary>"restaurador" quando veio do restaurador de áudio (nulo: restauração por instrumento).</summary>
+    [JsonPropertyName("tipo")] public string? Kind { get; init; }
+    [JsonPropertyName("perfil")] public string? Profile { get; init; }
+}
 
 public sealed class MusicSeparationRecord
 {
@@ -220,4 +225,6 @@ public sealed class MusicSeparationRecord
     [JsonPropertyName("faixas")] public List<string> Tracks { get; set; } = [];
     [JsonPropertyName("perfilDeQualidade")] public string? QualityProfile { get; set; }
     [JsonPropertyName("perfilDeMascara")] public string? MaskProfile { get; set; }
+    [JsonPropertyName("refinoDeAgudos")] public bool? HighsRefined { get; set; }
+    [JsonPropertyName("bateriaRecuperada")] public bool? DrumsRecovered { get; set; }
 }

@@ -92,6 +92,7 @@ public sealed class StemPackageEditor : UserControl
             });
         };
         root.Children.Add(models);
+        BuildTreatment();
 
         if (video) BuildVideo();
         else BuildGroups();
@@ -114,6 +115,34 @@ public sealed class StemPackageEditor : UserControl
     }
 
     private bool effectsOpen;
+
+    /// <summary>A mesma qualidade das faixas do estúdio musical, antes de misturar.</summary>
+    private void BuildTreatment()
+    {
+        var t = request.Treatment;
+        var panel = new StackPanel { Spacing = 4 };
+        panel.Children.Add(Label("Qualidade das faixas (como no estúdio musical)", strong: true));
+        CheckBox Toggle(string text, bool value, Action<bool> set)
+        {
+            var box = new CheckBox { Content = new TextBlock { Text = text, TextWrapping = TextWrapping.Wrap }, IsChecked = value };
+            box.Checked += (_, _) => Change(_ => set(true), false);
+            box.Unchecked += (_, _) => Change(_ => set(false), false);
+            AutomationProperties.SetName(box, text);
+            panel.Children.Add(box);
+            return box;
+        }
+        Toggle(Model.Id == "roformer"
+            ? "Refinar agudos (experimental): refaz os agudos de cada faixa pela energia de todas, com menos pratos e chiado vazando na voz"
+            : "Refinar agudos (experimental): divide a oitava de cima pela energia da mistura", t.RefineHighs, v => t.RefineHighs = v);
+        Toggle("Recuperar a bateria dos resíduos (experimental): separa de novo o resíduo e devolve à bateria o que ficou lá (dobra o tempo)", t.RecoverDrums, v => t.RecoverDrums = v);
+        Toggle("Reduzir ruído em cada faixa separada", t.ReduceNoise, v => t.ReduceNoise = v);
+        var restore = new Slider { Header = $"Restauração por instrumento ({t.Restoration}%)", Minimum = 0, Maximum = 100, StepFrequency = 5, Value = t.Restoration, MaxWidth = 560, HorizontalAlignment = HorizontalAlignment.Stretch };
+        restore.ValueChanged += (_, e) => { t.Restoration = (int)e.NewValue; restore.Header = $"Restauração por instrumento ({t.Restoration}%)"; };
+        panel.Children.Add(restore);
+        var cores = Core.Jobs.InferenceProcessors.InferenceThreads();
+        panel.Children.Add(Label($"Aceleração: a separação usa {cores} núcleo(s) de desempenho do processador automaticamente. A placa de vídeo não é usada nesta versão (sem ganho medido sem perder qualidade)."));
+        root.Children.Add(panel);
+    }
 
     private void BuildVideo()
     {
@@ -301,7 +330,7 @@ public sealed class StemPackageEditor : UserControl
                 scan.IsEnabled = false;
                 try
                 {
-                    var found = await Task.Run(() => MusicNative.ScanPlugins());
+                    var found = await Task.Run(() => App.Services.VstLibrary.Scan());
                     installed.ItemsSource = found.Select(p => new ComboBoxItem { Content = p.Name, Tag = p }).ToList();
                     info.Text = found.Count == 0 ? "Nenhum efeito VST3 encontrado em Arquivos comuns\\VST3." : $"{found.Count} efeito(s) encontrado(s).";
                 }

@@ -42,7 +42,8 @@ data class ProjetoMusical(
         .put("loop", JSONObject().put("ligado", loop.ligado).put("inicio", loop.inicio).put("fim", loop.fim))
         .put("punch", JSONObject().put("ligado", punch.ligado).put("entrada", punch.entrada).put("saida", punch.saida))
         .put("separacoes", JSONArray(separacoes.map { JSONObject().put("id", it.id).put("midia", it.midia).put("modo", it.modo).put("modelo", it.modelo).put("faixas", JSONArray(it.faixas))
-            .putOpt("perfilDeQualidade", it.perfilDeQualidade).putOpt("perfilDeMascara", it.perfilDeMascara) }))
+            .putOpt("perfilDeQualidade", it.perfilDeQualidade).putOpt("perfilDeMascara", it.perfilDeMascara)
+            .putOpt("refinoDeAgudos", it.refinoDeAgudos).putOpt("bateriaRecuperada", it.bateriaRecuperada) }))
 
     companion object {
         fun deJson(json: JSONObject): ProjetoMusical {
@@ -72,7 +73,8 @@ data class ProjetoMusical(
                 separacoes = json.lista("separacoes").map { s ->
                     val faixas = s.optJSONArray("faixas")
                     RegistroDeSeparacao(s.optString("id"), s.optString("midia"), s.optString("modo", "4"), s.optString("modelo"), if (faixas == null) emptyList() else (0 until faixas.length()).map { faixas.optString(it) },
-                        s.optString("perfilDeQualidade").takeIf(String::isNotEmpty), s.optString("perfilDeMascara").takeIf(String::isNotEmpty))
+                        s.optString("perfilDeQualidade").takeIf(String::isNotEmpty), s.optString("perfilDeMascara").takeIf(String::isNotEmpty),
+                        if (s.has("refinoDeAgudos")) s.optBoolean("refinoDeAgudos") else null, if (s.has("bateriaRecuperada")) s.optBoolean("bateriaRecuperada") else null)
                 },
             )
         }
@@ -258,7 +260,7 @@ data class MidiaMusical(
     fun paraJson(): JSONObject = JSONObject().put("id", id).put("nome", nome).put("formato", formato).put("taxa", taxa).put("canais", canais)
         .put("quadros", quadros).put("bits", bits).putOpt("sha256", sha256).putOpt("origem", origem).putOpt("instrumento", instrumento)
         .putOpt("modelo", modelo).putOpt("versaoDoModelo", versaoDoModelo)
-        .putOpt("restauracao", restauracao?.let { JSONObject().put("intensidade", it.intensidade).put("versao", it.versao) })
+        .putOpt("restauracao", restauracao?.let { JSONObject().put("intensidade", it.intensidade).put("versao", it.versao).putOpt("tipo", it.tipo).putOpt("perfil", it.perfil) })
 
     companion object {
         private fun JSONObject.texto(nome: String) = if (has(nome) && !isNull(nome)) optString(nome) else null
@@ -266,7 +268,7 @@ data class MidiaMusical(
         fun deJson(j: JSONObject) = MidiaMusical(
             j.optString("id"), j.optString("nome"), j.optString("formato", "wav"), j.optInt("taxa"), j.optInt("canais"), j.optLong("quadros"), j.optInt("bits", 32),
             j.texto("sha256"), j.texto("origem"), j.texto("instrumento"), j.texto("modelo"), j.texto("versaoDoModelo"),
-            j.optJSONObject("restauracao")?.let { RestauracaoDaMidia(it.optInt("intensidade"), it.optInt("versao", 1)) },
+            j.optJSONObject("restauracao")?.let { RestauracaoDaMidia(it.optInt("intensidade"), it.optInt("versao", 1), it.optString("tipo").takeIf(String::isNotEmpty), it.optString("perfil").takeIf(String::isNotEmpty)) },
         )
     }
 }
@@ -279,7 +281,9 @@ data class Loop(val ligado: Boolean = false, val inicio: Long = 0, val fim: Long
 
 data class Punch(val ligado: Boolean = false, val entrada: Long = 0, val saida: Long = 0)
 
-data class RestauracaoDaMidia(val intensidade: Int, val versao: Int = 1)
+/** [tipo] "restaurador" quando veio do restaurador de áudio (nulo: restauração por instrumento). */
+data class RestauracaoDaMidia(val intensidade: Int, val versao: Int = 1, val tipo: String? = null, val perfil: String? = null)
 
 data class RegistroDeSeparacao(val id: String, val midia: String, val modo: String, val modelo: String, val faixas: List<String>,
-                              val perfilDeQualidade: String? = null, val perfilDeMascara: String? = null)
+                              val perfilDeQualidade: String? = null, val perfilDeMascara: String? = null,
+                              val refinoDeAgudos: Boolean? = null, val bateriaRecuperada: Boolean? = null)

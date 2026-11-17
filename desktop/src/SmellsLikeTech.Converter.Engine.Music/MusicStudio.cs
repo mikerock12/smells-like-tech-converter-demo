@@ -91,7 +91,7 @@ public sealed class MusicLibrary(string root)
 }
 
 /// <summary>Importacao, exportacao, separacao e limpeza da criacao musical (FFmpeg + nucleo comum).</summary>
-public sealed class MusicTools(Func<string> ffmpegPath, ProcessRunner runner, string tempRoot, string modelsRoot)
+public sealed partial class MusicTools(Func<string> ffmpegPath, ProcessRunner runner, string tempRoot, string modelsRoot)
 {
     private async Task FfmpegAsync(IReadOnlyList<string> arguments, CancellationToken token)
     {
@@ -297,7 +297,8 @@ public sealed class MusicTools(Func<string> ffmpegPath, ProcessRunner runner, st
     }
 
     public async Task<IReadOnlyList<(MusicStemDefinition Stem, string Path)>> SeparateRoFormerAsync(
-        string input, string outputFolder, int rate, IProgress<(string Stage, double Fraction)>? progress, CancellationToken token)
+        string input, string outputFolder, int rate, IProgress<(string Stage, double Fraction)>? progress, CancellationToken token,
+        bool refineHighs = false, bool recoverDrums = false)
     {
         string? model = ModelInstalled(true) ? RoFormerPath : ExperimentalModelPath;
         if (!MusicNative.HasComplexStft || string.IsNullOrEmpty(model) || !File.Exists(model))
@@ -320,19 +321,37 @@ public sealed class MusicTools(Func<string> ffmpegPath, ProcessRunner runner, st
             progress?.Report(("Aguardando o motor RoFormer", 0));
             await RoFormerSlot.WaitAsync(token);
             entered = true;
-            await Task.Run(() =>
+            void Pass(string wav, string folder, double from, double span, string? stage)
             {
-                using var source = new MappedWavSource(at44);
+                Directory.CreateDirectory(folder);
+                using var source = new MappedWavSource(wav);
                 var writers = new List<StreamingWavWriter>();
                 try
                 {
                     foreach (var stem in MusicRoFormer.Stems)
-                        writers.Add(new StreamingWavWriter(Path.Combine(work, $"{stem.Id}-44k.wav"), 2, MusicSeparation.ModelRate));
-                    MusicRoFormer.Separate(source, model, writers, progress, token);
+                        writers.Add(new StreamingWavWriter(Path.Combine(folder, $"{stem.Id}-44k.wav"), 2, MusicSeparation.ModelRate));
+                    MusicRoFormer.Separate(source, model, writers,
+                        new DirectProgress<(string Stage, double Fraction)>(p => progress?.Report((stage ?? p.Stage, from + span * p.Fraction))), token);
                 }
                 finally
                 {
                     foreach (var writer in writers) writer.Dispose();
+                }
+            }
+            await Task.Run(() =>
+            {
+                Pass(at44, work, 0, recoverDrums ? 0.5 : 1, null);
+                if (recoverDrums)
+                {
+                    // Recuperar a bateria (experimental): o resíduo passa de novo pelo RoFormer.
+                    var second = Path.Combine(work, "residuo");
+                    Pass(Path.Combine(work, "outros-44k.wav"), second, 0.5, 0.5, "Recuperando a bateria dos resíduos");
+                    MergeRecoveredDrums(Path.Combine(work, "bateria-44k.wav"), Path.Combine(work, "outros-44k.wav"), Path.Combine(second, "bateria-44k.wav"), token);
+                }
+                if (refineHighs)
+                {
+                    progress?.Report(("Refinando os agudos", 1));
+                    RefineHighs(MusicRoFormer.Stems.Select(st => Path.Combine(work, $"{st.Id}-44k.wav")).ToList(), MusicSeparation.ModelRate, token);
                 }
             }, token);
             RoFormerSlot.Release();
@@ -363,26 +382,46 @@ public sealed class MusicTools(Func<string> ffmpegPath, ProcessRunner runner, st
     public bool ModelReady => ModelInstalled(false);
     private static bool Ready(string path, long bytes) => new FileInfo(path) is { Exists: true } info && info.Length == bytes;
 
-    private static async Task<bool> VerifyModelAsync(string path, CancellationToken token, bool roformer = false)
+    private static Task<bool> VerifyModelAsync(string path, CancellationToken token, bool roformer = false) =>
+        VerifyAsync(path, roformer ? MusicRoFormer.Bytes : MusicSeparation.ModelBytes, roformer ? MusicRoFormer.Sha256 : MusicSeparation.ModelSha256, token);
+
+    private static async Task<bool> VerifyAsync(string path, long bytes, string sha256, CancellationToken token)
     {
         if (!File.Exists(path)) return false;
         await using var file = File.OpenRead(path);
-        return file.Length == (roformer ? MusicRoFormer.Bytes : MusicSeparation.ModelBytes) &&
-            Convert.ToHexStringLower(await SHA256.HashDataAsync(file, token)) == (roformer ? MusicRoFormer.Sha256 : MusicSeparation.ModelSha256);
+        return file.Length == bytes && Convert.ToHexStringLower(await SHA256.HashDataAsync(file, token)) == sha256;
+    }
+
+    /// <summary>O Apollo do restaurador (reparo de compressão por IA), baixado à parte como os de separação.</summary>
+    public string ApolloPath => Path.Combine(modelsRoot, "musica", MusicApollo.FileName);
+    public bool ApolloInstalled => Ready(ApolloPath, MusicApollo.Bytes);
+    public static long ApolloBytes => MusicApollo.Bytes;
+    public static string ApolloAttribution => MusicApollo.Attribution;
+
+    public Task EnsureApolloAsync(HttpClient http, IProgress<double>? progress, CancellationToken token) =>
+        DownloadVerifiedAsync(http, ApolloPath, MusicApollo.Bytes, MusicApollo.Sha256, MusicApollo.Url, progress, token);
+
+    public async Task DeleteApolloAsync(CancellationToken token)
+    {
+        await ModelDownloads.WaitAsync(token);
+        try { File.Delete(ApolloPath); }
+        finally { ModelDownloads.Release(); }
     }
 
     /// <summary>Baixa o modelo na primeira vez e confere o SHA-256 antes de usar.</summary>
-    public async Task EnsureModelAsync(HttpClient http, IProgress<double>? progress, CancellationToken token, bool roformer = false)
+    public Task EnsureModelAsync(HttpClient http, IProgress<double>? progress, CancellationToken token, bool roformer = false) =>
+        DownloadVerifiedAsync(http, roformer ? RoFormerPath : ModelPath, roformer ? MusicRoFormer.Bytes : MusicSeparation.ModelBytes,
+            roformer ? MusicRoFormer.Sha256 : MusicSeparation.ModelSha256,
+            roformer ? $"https://converter.smellsliketech.com.br/modelos/{MusicRoFormer.FileName}" : MusicSeparation.ModelUrl, progress, token);
+
+    private static async Task DownloadVerifiedAsync(HttpClient http, string path, long bytes, string sha256, string url,
+        IProgress<double>? progress, CancellationToken token)
     {
-        var path = roformer ? RoFormerPath : ModelPath;
-        var bytes = roformer ? MusicRoFormer.Bytes : MusicSeparation.ModelBytes;
-        var sha256 = roformer ? MusicRoFormer.Sha256 : MusicSeparation.ModelSha256;
-        var url = roformer ? $"https://converter.smellsliketech.com.br/modelos/{MusicRoFormer.FileName}" : MusicSeparation.ModelUrl;
         var temp = path + $".{Guid.NewGuid():N}.baixando";
         await ModelDownloads.WaitAsync(token);
         try
         {
-            if (await VerifyModelAsync(path, token, roformer)) return;
+            if (await VerifyAsync(path, bytes, sha256, token)) return;
             Directory.CreateDirectory(Path.GetDirectoryName(path)!);
             using var response = await http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, token);
             response.EnsureSuccessStatusCode();
@@ -397,7 +436,7 @@ public sealed class MusicTools(Func<string> ffmpegPath, ProcessRunner runner, st
                 {
                     received += read;
                     if (received > bytes)
-                        throw new ConversionException("model_mismatch", "O modelo de separação é maior que o esperado.");
+                        throw new ConversionException("model_mismatch", "O modelo baixado é maior que o esperado.");
                     await output.WriteAsync(buffer.AsMemory(0, read), token);
                     hash.AppendData(buffer, 0, read);
                     progress?.Report(received / (double)bytes);
@@ -432,7 +471,7 @@ public sealed class MusicTools(Func<string> ffmpegPath, ProcessRunner runner, st
     /// (memoria limitada), escreve uma faixa por WAV e volta para a taxa do projeto.
     /// Devolve os caminhos, na ordem do modo.
     /// </summary>
-    public async Task<IReadOnlyList<(MusicStemDefinition Stem, string Path)>> SeparateAsync(string input, string outputFolder, string mode, int rate, IProgress<(string Stage, double Fraction)>? progress, CancellationToken token, bool refined = false)
+    public async Task<IReadOnlyList<(MusicStemDefinition Stem, string Path)>> SeparateAsync(string input, string outputFolder, string mode, int rate, IProgress<(string Stage, double Fraction)>? progress, CancellationToken token, bool refined = false, bool recoverDrums = false)
     {
         if (!await VerifyModelAsync(ModelPath, token))
             throw new ConversionException("model_mismatch", "O modelo de separação está ausente ou não confere.");
@@ -443,38 +482,53 @@ public sealed class MusicTools(Func<string> ffmpegPath, ProcessRunner runner, st
             progress?.Report(("Preparando o áudio", 0));
             var at44 = Path.Combine(work, "entrada.wav");
             await FfmpegAsync(["-hide_banner", "-nostdin", "-y", "-i", input, "-ac", "2", "-ar", "44100", "-c:a", "pcm_f32le", at44], token);
-            using var source = new MappedWavSource(at44);
             var definition = MusicSeparation.Mode(mode) ?? throw new ConversionException("invalid_mode", "Modo de separação desconhecido.");
-            var writers = definition.Stems.Select(s => new StreamingWavWriter(Path.Combine(work, $"{s.Id}-44k.wav"), 2, MusicSeparation.ModelRate)).ToArray();
-            var pending = definition.Stems.Select(_ => new float[2][]).ToArray();
             using var options = new SessionOptions { GraphOptimizationLevel = GraphOptimizationLevel.ORT_ENABLE_ALL, IntraOpNumThreads = Core.Jobs.InferenceProcessors.InferenceThreads() };
             using var session = new InferenceSession(ModelPath, options);
-            try
+            var recover = recoverDrums && definition.Stems.Any(s => s.Id == "bateria") && definition.Stems.Any(s => s.Id == "outros");
+
+            async Task Pass(string wav, string folder, double from, double span, string stage)
             {
-                await MusicSeparation.SeparateAsync(source.Frames, source.Channels,
-                    (c, start, n, destination) => source.Copy(c, start, n, destination),
-                    (magnitude, ct) => Task.Run(() =>
-                    {
-                        var tensor = new DenseTensor<float>(magnitude, [1, 2, MusicSeparation.FramesPerChunk, MusicSeparation.Bands]);
-                        using var outputs = session.Run([NamedOnnxValue.CreateFromTensor("magnitude", tensor)]);
-                        return outputs.First().AsTensor<float>().ToArray();
-                    }, ct),
-                    (stem, channel, start, samples, n) =>
-                    {
-                        // A faixa chega canal por canal: guarda o esquerdo e escreve quando vier o direito.
-                        var copy = samples[..n];
-                        pending[stem][channel] = copy;
-                        if (channel == 1)
+                Directory.CreateDirectory(folder);
+                using var source = new MappedWavSource(wav);
+                var writers = definition.Stems.Select(s => new StreamingWavWriter(Path.Combine(folder, $"{s.Id}-44k.wav"), 2, MusicSeparation.ModelRate)).ToArray();
+                var pending = definition.Stems.Select(_ => new float[2][]).ToArray();
+                try
+                {
+                    await MusicSeparation.SeparateAsync(source.Frames, source.Channels,
+                        (c, start, n, destination) => source.Copy(c, start, n, destination),
+                        (magnitude, ct) => Task.Run(() =>
                         {
-                            writers[stem].Write([pending[stem][0], copy], 0, n);
-                            pending[stem] = new float[2][];
-                        }
-                    },
-                    mode, new Progress<double>(f => progress?.Report(("Separando as faixas", f))), token, refined);
+                            var tensor = new DenseTensor<float>(magnitude, [1, 2, MusicSeparation.FramesPerChunk, MusicSeparation.Bands]);
+                            using var outputs = session.Run([NamedOnnxValue.CreateFromTensor("magnitude", tensor)]);
+                            return outputs.First().AsTensor<float>().ToArray();
+                        }, ct),
+                        (stem, channel, start, samples, n) =>
+                        {
+                            // A faixa chega canal por canal: guarda o esquerdo e escreve quando vier o direito.
+                            var copy = samples[..n];
+                            pending[stem][channel] = copy;
+                            if (channel == 1)
+                            {
+                                writers[stem].Write([pending[stem][0], copy], 0, n);
+                                pending[stem] = new float[2][];
+                            }
+                        },
+                        mode, new Progress<double>(f => progress?.Report((stage, from + span * f))), token, refined);
+                }
+                finally
+                {
+                    foreach (var writer in writers) writer.Dispose();
+                }
             }
-            finally
+
+            await Pass(at44, work, 0, recover ? 0.5 : 1, "Separando as faixas");
+            if (recover)
             {
-                foreach (var writer in writers) writer.Dispose();
+                // Recuperar a bateria (experimental): separa de novo só o resíduo e devolve a bateria achada nele.
+                var second = Path.Combine(work, "residuo");
+                await Pass(Path.Combine(work, "outros-44k.wav"), second, 0.5, 0.5, "Recuperando a bateria dos resíduos");
+                MergeRecoveredDrums(Path.Combine(work, "bateria-44k.wav"), Path.Combine(work, "outros-44k.wav"), Path.Combine(second, "bateria-44k.wav"), token);
             }
 
             Directory.CreateDirectory(outputFolder);

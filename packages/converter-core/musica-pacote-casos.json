@@ -265,7 +265,25 @@
         4800,
         9599
       ]
-    }
+    },
+    "tratamentos": [
+      null,
+      {
+        "refinarAgudos": true,
+        "recuperarBateria": true,
+        "reduzirRuido": true,
+        "restauracao": 60,
+        "aceleracao": true
+      },
+      {
+        "refinarAgudos": "sim",
+        "restauracao": 150.6
+      },
+      {
+        "restauracao": -5,
+        "aceleracao": 1
+      }
+    ]
   },
   "esperado": {
     "combinacoes": {
@@ -735,6 +753,36 @@
           -0.268107
         ]
       ]
-    }
+    },
+    "tratamentos": [
+      {
+        "refinarAgudos": false,
+        "recuperarBateria": false,
+        "reduzirRuido": false,
+        "restauracao": 0,
+        "aceleracao": false
+      },
+      {
+        "refinarAgudos": true,
+        "recuperarBateria": true,
+        "reduzirRuido": true,
+        "restauracao": 60,
+        "aceleracao": true
+      },
+      {
+        "refinarAgudos": false,
+        "recuperarBateria": false,
+        "reduzirRuido": false,
+        "restauracao": 100,
+        "aceleracao": false
+      },
+      {
+        "refinarAgudos": false,
+        "recuperarBateria": false,
+        "reduzirRuido": false,
+        "restauracao": 0,
+        "aceleracao": false
+      }
+    ]
   }
 }

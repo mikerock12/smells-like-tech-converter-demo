@@ -29,9 +29,22 @@ public sealed record ApresentacaoResposta
     public IReadOnlyList<string>? MascarasDaSeparacaoMusical { get; init; }
     public IReadOnlyList<string>? PerfisDaSeparacaoMusical { get; init; }
     public bool GerenciaModelosMusicais { get; init; }
+    /// <summary>Recursos extras da separação (0.9.17+): "refinar-agudos", "recuperar-bateria".</summary>
+    public IReadOnlyList<string>? RecursosDaSeparacaoMusical { get; init; }
+    /// <summary>Restaurador de áudio (0.9.17+); ausente quando o núcleo não tem a ABI 1.2.</summary>
+    public RestauracaoResumo? RestauracaoDeAudio { get; init; }
     public required MaquinaResumo Maquina { get; init; }
     public required IReadOnlyList<OperacaoResumo> Operacoes { get; init; }
     public required string PastaDeSaida { get; init; }
+}
+
+/// <summary>O que o restaurador aceita: versões do contrato, perfis, se há IA neural e onde roda.</summary>
+public sealed record RestauracaoResumo
+{
+    public required IReadOnlyList<int> Versoes { get; init; }
+    public required IReadOnlyList<string> Perfis { get; init; }
+    public bool Neural { get; init; }
+    public string Backend { get; init; } = "local";
 }
 
 /// <summary>O hardware que o plugin encontrou — o motivo de ele existir.</summary>

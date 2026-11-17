@@ -1,0 +1,554 @@
+[
+  {
+    "nome": "gravação boa: nada muda",
+    "diagnostico": {
+      "duracao": 180,
+      "picoDb": -0.8,
+      "rmsDb": -16,
+      "cristaDb": 15.2,
+      "dc": 0,
+      "recorte": 0,
+      "pisoDeRuidoDb": -75,
+      "zumbidoHz": 50,
+      "zumbidoDb": 2,
+      "bandaHz": 20000,
+      "estalosPorMinuto": 0,
+      "correlacao": 0.8,
+      "silencio": 0.02,
+      "agudosDb": -25,
+      "dinamicaDb": 18,
+      "taxa": 44100,
+      "planuraDoRuido": 0.2
+    },
+    "opcoes": {
+      "perfil": "auto"
+    },
+    "esperado": {
+      "perfil": "auto",
+      "etapas": [],
+      "parametros": {
+        "dc": 0,
+        "zumbidoHz": 0,
+        "zumbido": 0,
+        "estalos": 0,
+        "recorte": 0,
+        "nivelDoRecorte": 0,
+        "ruido": 0,
+        "arDb": 0,
+        "corteGraveHz": 0,
+        "tetoDb": 0,
+        "ganhoDb": 0
+      },
+      "ia": null,
+      "avisos": [
+        "o_diagnostico_nao_garante_a_origem",
+        "sem_defeitos_suficientes"
+      ],
+      "semMudanca": true,
+      "recomendacoes": []
+    }
+  },
+  {
+    "nome": "fita com zumbido, chiado e estalos",
+    "diagnostico": {
+      "duracao": 180,
+      "picoDb": -0.8,
+      "rmsDb": -16,
+      "cristaDb": 15.2,
+      "dc": 0.01,
+      "recorte": 0,
+      "pisoDeRuidoDb": -48,
+      "zumbidoHz": 60,
+      "zumbidoDb": 18,
+      "bandaHz": 20000,
+      "estalosPorMinuto": 30,
+      "correlacao": 0.8,
+      "silencio": 0.02,
+      "agudosDb": -25,
+      "dinamicaDb": 18,
+      "taxa": 44100,
+      "planuraDoRuido": 0.7
+    },
+    "opcoes": {
+      "perfil": "archive",
+      "intensidade": 50
+    },
+    "esperado": {
+      "perfil": "archive",
+      "etapas": [
+        "dc",
+        "zumbido",
+        "estalos",
+        "ruido",
+        "grave",
+        "brilho"
+      ],
+      "parametros": {
+        "dc": 1,
+        "zumbidoHz": 60,
+        "zumbido": 0.9286,
+        "estalos": 0.675,
+        "recorte": 0,
+        "nivelDoRecorte": 0,
+        "ruido": 0.704,
+        "arDb": 0.75,
+        "corteGraveHz": 30,
+        "tetoDb": -1,
+        "ganhoDb": 0
+      },
+      "ia": null,
+      "avisos": [
+        "o_diagnostico_nao_garante_a_origem"
+      ],
+      "semMudanca": false,
+      "recomendacoes": [
+        "zumbido",
+        "ruido",
+        "estalos",
+        "dc"
+      ]
+    }
+  },
+  {
+    "nome": "show com recorte e ruído, plateia preservada",
+    "diagnostico": {
+      "duracao": 180,
+      "picoDb": -0.05,
+      "rmsDb": -16,
+      "cristaDb": 15.2,
+      "dc": 0,
+      "recorte": 0.004,
+      "pisoDeRuidoDb": -50,
+      "zumbidoHz": 50,
+      "zumbidoDb": 2,
+      "bandaHz": 20000,
+      "estalosPorMinuto": 0,
+      "correlacao": 0.8,
+      "silencio": 0.02,
+      "agudosDb": -25,
+      "dinamicaDb": 18,
+      "taxa": 44100,
+      "planuraDoRuido": 0.55
+    },
+    "opcoes": {
+      "perfil": "live",
+      "intensidade": 60,
+      "preservarAmbiencia": 90
+    },
+    "esperado": {
+      "perfil": "live",
+      "etapas": [
+        "recorte",
+        "ruido",
+        "grave"
+      ],
+      "parametros": {
+        "dc": 0,
+        "zumbidoHz": 0,
+        "zumbido": 0,
+        "estalos": 0,
+        "recorte": 1,
+        "nivelDoRecorte": 0.9893,
+        "ruido": 0.1973,
+        "arDb": 0,
+        "corteGraveHz": 35,
+        "tetoDb": -1,
+        "ganhoDb": 0
+      },
+      "ia": null,
+      "avisos": [
+        "o_diagnostico_nao_garante_a_origem"
+      ],
+      "semMudanca": false,
+      "recomendacoes": [
+        "recorte",
+        "ruido"
+      ]
+    }
+  },
+  {
+    "nome": "mp3 com banda cortada",
+    "diagnostico": {
+      "duracao": 180,
+      "picoDb": -0.8,
+      "rmsDb": -16,
+      "cristaDb": 15.2,
+      "dc": 0,
+      "recorte": 0,
+      "pisoDeRuidoDb": -75,
+      "zumbidoHz": 50,
+      "zumbidoDb": 2,
+      "bandaHz": 15500,
+      "estalosPorMinuto": 0,
+      "correlacao": 0.8,
+      "silencio": 0.02,
+      "agudosDb": -25,
+      "dinamicaDb": 18,
+      "taxa": 44100,
+      "planuraDoRuido": 0.2
+    },
+    "opcoes": {
+      "perfil": "lossy",
+      "intensidade": 35
+    },
+    "esperado": {
+      "perfil": "lossy",
+      "etapas": [],
+      "parametros": {
+        "dc": 0,
+        "zumbidoHz": 0,
+        "zumbido": 0,
+        "estalos": 0,
+        "recorte": 0,
+        "nivelDoRecorte": 0,
+        "ruido": 0,
+        "arDb": 0,
+        "corteGraveHz": 0,
+        "tetoDb": 0,
+        "ganhoDb": 0
+      },
+      "ia": null,
+      "avisos": [
+        "o_diagnostico_nao_garante_a_origem",
+        "banda_limitada",
+        "reparo_de_compressao_por_ia_desligado",
+        "sem_defeitos_suficientes"
+      ],
+      "semMudanca": true,
+      "recomendacoes": []
+    }
+  },
+  {
+    "nome": "automático em intensidade zero",
+    "diagnostico": {
+      "duracao": 180,
+      "picoDb": -0.8,
+      "rmsDb": -16,
+      "cristaDb": 15.2,
+      "dc": 0,
+      "recorte": 0,
+      "pisoDeRuidoDb": -75,
+      "zumbidoHz": 50,
+      "zumbidoDb": 25,
+      "bandaHz": 20000,
+      "estalosPorMinuto": 0,
+      "correlacao": 0.8,
+      "silencio": 0.02,
+      "agudosDb": -25,
+      "dinamicaDb": 18,
+      "taxa": 44100,
+      "planuraDoRuido": 0.2
+    },
+    "opcoes": {
+      "perfil": "auto",
+      "intensidade": 0
+    },
+    "esperado": {
+      "perfil": "auto",
+      "etapas": [],
+      "parametros": {
+        "dc": 0,
+        "zumbidoHz": 0,
+        "zumbido": 0,
+        "estalos": 0,
+        "recorte": 0,
+        "nivelDoRecorte": 0,
+        "ruido": 0,
+        "arDb": 0,
+        "corteGraveHz": 0,
+        "tetoDb": 0,
+        "ganhoDb": 0
+      },
+      "ia": null,
+      "avisos": [
+        "o_diagnostico_nao_garante_a_origem",
+        "nada_ligado"
+      ],
+      "semMudanca": true,
+      "recomendacoes": [
+        "zumbido"
+      ]
+    }
+  },
+  {
+    "nome": "manual com etapas escolhidas",
+    "diagnostico": {
+      "duracao": 180,
+      "picoDb": -0.8,
+      "rmsDb": -16,
+      "cristaDb": 15.2,
+      "dc": 0,
+      "recorte": 0,
+      "pisoDeRuidoDb": -75,
+      "zumbidoHz": 60,
+      "zumbidoDb": 2,
+      "bandaHz": 20000,
+      "estalosPorMinuto": 0,
+      "correlacao": 0.8,
+      "silencio": 0.02,
+      "agudosDb": -25,
+      "dinamicaDb": 18,
+      "taxa": 44100,
+      "planuraDoRuido": 0.2
+    },
+    "opcoes": {
+      "perfil": "manual",
+      "etapas": {
+        "zumbido": 80,
+        "ruido": 40,
+        "brilho": -50,
+        "grave": 50,
+        "recorte": 30
+      }
+    },
+    "esperado": {
+      "perfil": "manual",
+      "etapas": [
+        "zumbido",
+        "recorte",
+        "ruido",
+        "grave",
+        "brilho"
+      ],
+      "parametros": {
+        "dc": 0,
+        "zumbidoHz": 60,
+        "zumbido": 0.8,
+        "estalos": 0,
+        "recorte": 0.3,
+        "nivelDoRecorte": 0.9075,
+        "ruido": 0.4,
+        "arDb": -3,
+        "corteGraveHz": 40,
+        "tetoDb": -1,
+        "ganhoDb": 0
+      },
+      "ia": null,
+      "avisos": [
+        "o_diagnostico_nao_garante_a_origem"
+      ],
+      "semMudanca": false,
+      "recomendacoes": []
+    }
+  },
+  {
+    "nome": "mp3 com a IA ligada (Apollo)",
+    "diagnostico": {
+      "duracao": 180,
+      "picoDb": -0.8,
+      "rmsDb": -16,
+      "cristaDb": 15.2,
+      "dc": 0,
+      "recorte": 0,
+      "pisoDeRuidoDb": -75,
+      "zumbidoHz": 50,
+      "zumbidoDb": 2,
+      "bandaHz": 15500,
+      "estalosPorMinuto": 0,
+      "correlacao": 0.8,
+      "silencio": 0.02,
+      "agudosDb": -25,
+      "dinamicaDb": 18,
+      "taxa": 44100,
+      "planuraDoRuido": 0.2
+    },
+    "opcoes": {
+      "perfil": "lossy",
+      "intensidade": 35,
+      "ia": true
+    },
+    "esperado": {
+      "perfil": "lossy",
+      "etapas": [
+        "compressao"
+      ],
+      "parametros": {
+        "dc": 0,
+        "zumbidoHz": 0,
+        "zumbido": 0,
+        "estalos": 0,
+        "recorte": 0,
+        "nivelDoRecorte": 0,
+        "ruido": 0,
+        "arDb": 0,
+        "corteGraveHz": 0,
+        "tetoDb": -1,
+        "ganhoDb": 0
+      },
+      "ia": {
+        "modelo": "apollo",
+        "mistura": 0.75,
+        "corteHz": 12500
+      },
+      "avisos": [
+        "o_diagnostico_nao_garante_a_origem",
+        "banda_limitada"
+      ],
+      "semMudanca": false,
+      "recomendacoes": []
+    }
+  },
+  {
+    "nome": "automático com IA e banda cheia: sem Apollo",
+    "diagnostico": {
+      "duracao": 180,
+      "picoDb": -0.8,
+      "rmsDb": -16,
+      "cristaDb": 15.2,
+      "dc": 0,
+      "recorte": 0,
+      "pisoDeRuidoDb": -75,
+      "zumbidoHz": 50,
+      "zumbidoDb": 2,
+      "bandaHz": 20000,
+      "estalosPorMinuto": 0,
+      "correlacao": 0.8,
+      "silencio": 0.02,
+      "agudosDb": -25,
+      "dinamicaDb": 18,
+      "taxa": 44100,
+      "planuraDoRuido": 0.2
+    },
+    "opcoes": {
+      "perfil": "auto",
+      "ia": true
+    },
+    "esperado": {
+      "perfil": "auto",
+      "etapas": [],
+      "parametros": {
+        "dc": 0,
+        "zumbidoHz": 0,
+        "zumbido": 0,
+        "estalos": 0,
+        "recorte": 0,
+        "nivelDoRecorte": 0,
+        "ruido": 0,
+        "arDb": 0,
+        "corteGraveHz": 0,
+        "tetoDb": 0,
+        "ganhoDb": 0
+      },
+      "ia": null,
+      "avisos": [
+        "o_diagnostico_nao_garante_a_origem",
+        "sem_defeitos_suficientes"
+      ],
+      "semMudanca": true,
+      "recomendacoes": []
+    }
+  },
+  {
+    "nome": "avançado dosando o Apollo",
+    "diagnostico": {
+      "duracao": 180,
+      "picoDb": -0.8,
+      "rmsDb": -16,
+      "cristaDb": 15.2,
+      "dc": 0,
+      "recorte": 0,
+      "pisoDeRuidoDb": -75,
+      "zumbidoHz": 50,
+      "zumbidoDb": 2,
+      "bandaHz": 20000,
+      "estalosPorMinuto": 0,
+      "correlacao": 0.8,
+      "silencio": 0.02,
+      "agudosDb": -25,
+      "dinamicaDb": 18,
+      "taxa": 44100,
+      "planuraDoRuido": 0.2
+    },
+    "opcoes": {
+      "perfil": "manual",
+      "etapas": {
+        "compressao": 60
+      }
+    },
+    "esperado": {
+      "perfil": "manual",
+      "etapas": [
+        "compressao"
+      ],
+      "parametros": {
+        "dc": 0,
+        "zumbidoHz": 0,
+        "zumbido": 0,
+        "estalos": 0,
+        "recorte": 0,
+        "nivelDoRecorte": 0,
+        "ruido": 0,
+        "arDb": 0,
+        "corteGraveHz": 0,
+        "tetoDb": -1,
+        "ganhoDb": 0
+      },
+      "ia": {
+        "modelo": "apollo",
+        "mistura": 0.6,
+        "corteHz": 16000
+      },
+      "avisos": [
+        "o_diagnostico_nao_garante_a_origem"
+      ],
+      "semMudanca": false,
+      "recomendacoes": []
+    }
+  },
+  {
+    "nome": "opções inválidas voltam ao padrão",
+    "diagnostico": {
+      "duracao": 180,
+      "picoDb": -0.8,
+      "rmsDb": -16,
+      "cristaDb": 15.2,
+      "dc": 0,
+      "recorte": 0,
+      "pisoDeRuidoDb": -75,
+      "zumbidoHz": 50,
+      "zumbidoDb": 2,
+      "bandaHz": 20000,
+      "estalosPorMinuto": 60,
+      "correlacao": 0.8,
+      "silencio": 0.02,
+      "agudosDb": -25,
+      "dinamicaDb": 18,
+      "taxa": 44100,
+      "planuraDoRuido": 0.2
+    },
+    "opcoes": {
+      "perfil": "xyz",
+      "intensidade": 500,
+      "etapas": {
+        "ruido": 900
+      }
+    },
+    "esperado": {
+      "perfil": "auto",
+      "etapas": [
+        "estalos"
+      ],
+      "parametros": {
+        "dc": 0,
+        "zumbidoHz": 0,
+        "zumbido": 0,
+        "estalos": 0.8,
+        "recorte": 0,
+        "nivelDoRecorte": 0,
+        "ruido": 0,
+        "arDb": 0,
+        "corteGraveHz": 0,
+        "tetoDb": -1,
+        "ganhoDb": 0
+      },
+      "ia": null,
+      "avisos": [
+        "o_diagnostico_nao_garante_a_origem"
+      ],
+      "semMudanca": false,
+      "recomendacoes": [
+        "estalos"
+      ]
+    }
+  }
+]

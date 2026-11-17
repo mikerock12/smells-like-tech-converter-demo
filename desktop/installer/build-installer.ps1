@@ -57,6 +57,20 @@ if (-not (Test-Path (Join-Path $payloadDir "SmellsLikeTechConverter.exe"))) {
     throw "Payload não encontrado em $payloadDir. Rode sem -SkipPublish."
 }
 
+# Biblioteca de VST3 gratuitos: os marcados "preinstalado" no catálogo vão para {app}\VST3.
+# Os bundles vêm de scripts/vst3-biblioteca.py (lançamentos oficiais, SHA-256 fixado).
+if (-not $SkipPublish) {
+    $catalogo = Get-Content (Join-Path $desktopDir "..\packages\converter-core\musica-catalogo\efeitos.json") -Raw -Encoding UTF8 | ConvertFrom-Json
+    $vst3 = Join-Path $payloadDir "VST3"
+    New-Item -ItemType Directory -Force -Path $vst3 | Out-Null
+    foreach ($plugin in $catalogo.bibliotecaVst3 | Where-Object { $_.preinstalado }) {
+        $origem = Join-Path $desktopDir "..\build\nativo\vst3-biblioteca\pacotes\$($plugin.id)\$($plugin.pacote)"
+        if (-not (Test-Path -LiteralPath $origem)) { throw "VST3 $($plugin.id) ausente: rode python scripts/vst3-biblioteca.py antes." }
+        Copy-Item -LiteralPath $origem -Destination $vst3 -Recurse -Force
+    }
+    Write-Host "-> biblioteca VST3: $((Get-ChildItem $vst3 -Directory).Count) plugin(s) incluído(s)" -ForegroundColor Cyan
+}
+
 # O .pri carrega o XAML compilado; sem ele o app publicado não abre.
 if (-not (Test-Path (Join-Path $payloadDir "SmellsLikeTechConverter.pri"))) {
     throw "SmellsLikeTechConverter.pri ausente no payload: verifique EnableMsixTooling no csproj."

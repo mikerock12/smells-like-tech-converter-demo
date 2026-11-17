@@ -10,10 +10,19 @@
 /**
  * Atualiza `estado` (um objeto vazio no começo) e devolve os segundos que faltam, ou null
  * enquanto ainda não dá para estimar.
+ *
+ * O ritmo só é recalculado quando a fração avança. Entre dois avisos o tempo apenas desce
+ * com o relógio: motores que avançam em blocos (o RoFormer avisa a cada 2,5 s de áudio, e
+ * um bloco pode levar minutos no celular ou no navegador) e telas que consultam o andamento
+ * sem novidade faziam a conta antiga subir sem parar, porque o tempo passado crescia e a
+ * fração não.
  */
 export function estimarRestante(estado, fracao, agoraMs = Date.now()) {
   if (!(fracao > 0) || fracao >= 1) return null;
   if (!estado.base) estado.base = { momento: agoraMs, fracao };
+  if (estado.ultimo != null && fracao <= (estado.fracao ?? 0) + 1e-9) {
+    return Math.round(Math.max(0, estado.ultimo - (agoraMs - estado.momento) / 1000));
+  }
   const decorrido = (agoraMs - estado.base.momento) / 1000;
   const andou = fracao - estado.base.fracao;
   if (andou < 0.02 || decorrido < 2) return null;
@@ -22,6 +31,7 @@ export function estimarRestante(estado, fracao, agoraMs = Date.now()) {
   const suave = anterior == null ? bruto : 0.75 * anterior + 0.25 * bruto;
   estado.ultimo = suave;
   estado.momento = agoraMs;
+  estado.fracao = fracao;
   return Math.round(suave);
 }
 
