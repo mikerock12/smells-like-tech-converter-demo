@@ -9,9 +9,12 @@ internal object NucleoNativo {
     const val CAPACIDADES = 0xf7f
     /** Valores do diagnóstico, na ordem SLT_DIAG_* (slt_media_api.h); o mesmo nome do site e do Windows. */
     val CAMPOS_DO_DIAGNOSTICO = listOf("duracao", "picoDb", "rmsDb", "cristaDb", "dc", "recorte", "pisoDeRuidoDb", "zumbidoHz", "zumbidoDb",
-        "bandaHz", "estalosPorMinuto", "correlacao", "silencio", "agudosDb", "dinamicaDb", "taxa", "planuraDoRuido")
+        "bandaHz", "estalosPorMinuto", "correlacao", "silencio", "agudosDb", "dinamicaDb", "taxa", "planuraDoRuido",
+        // ABI 1.3: platô do limitador e nível por oitava ÷ 1 kHz.
+        "limiteDb", "pertoDoLimite", "oitava31", "oitava63", "oitava125", "oitava250", "oitava500", "oitava1k", "oitava2k", "oitava4k", "oitava8k", "oitava16k")
     /** Parâmetros do reparo, na ordem SLT_REPAIR_*. */
-    val PARAMETROS_DO_REPARO = listOf("dc", "zumbidoHz", "zumbido", "estalos", "recorte", "nivelDoRecorte", "ruido", "arDb", "corteGraveHz", "tetoDb", "ganhoDb", "reservado")
+    val PARAMETROS_DO_REPARO = listOf("dc", "zumbidoHz", "zumbido", "estalos", "recorte", "nivelDoRecorte", "ruido", "arDb", "corteGraveHz", "tetoDb", "ganhoDb",
+        "entradaDb", "transientes", "eq31", "eq63", "eq125", "eq250", "eq500", "eq1k", "eq2k", "eq4k", "eq8k", "eq16k")
     const val OBOE = 3
 
     val disponivel: Boolean by lazy {

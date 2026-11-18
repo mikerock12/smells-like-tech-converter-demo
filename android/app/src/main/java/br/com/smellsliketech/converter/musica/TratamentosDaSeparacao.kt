@@ -196,7 +196,12 @@ object TratamentosDaSeparacao {
             // Conferência: mesma duração e som de verdade (a entrada não era silêncio).
             FonteWav(parcial).use { check(it.quadros == fonte.quadros) { "A duração do áudio restaurado não confere." } }
             check(!(picoDeEntrada > 1e-3 && picoDeSaida < 1e-3)) { "O áudio restaurado ficou em silêncio; o original não foi alterado." }
-            val ganho = if (nivelar && energiaDeSaida > 0) sqrt(energiaDeEntrada / energiaDeSaida).coerceIn(0.5, 2.0) else 1.0
+            // Nivelar (A/B do estúdio): o RMS do original, de −6 a +12 dB. Sem nivelar, quando o plano
+            // baixou a entrada: o volume volta até o pico de −1 dBFS. Nos dois, sem passar desse pico.
+            val teto = 0.8912509381337456
+            var ganho = if (nivelar && energiaDeSaida > 0) sqrt(energiaDeEntrada / energiaDeSaida).coerceIn(0.5, 4.0)
+                else if ((plano.parametros["entradaDb"] ?: 0.0) < 0) 4.0 else 1.0
+            if (ganho > 1) ganho = if (picoDeSaida > 0) maxOf(1.0, minOf(ganho, teto / picoDeSaida)) else 1.0
             if (abs(ganho - 1) < 1e-4) {
                 check(parcial.renameTo(saida.also { it.delete() })) { "Não foi possível guardar o áudio restaurado." }
             } else {

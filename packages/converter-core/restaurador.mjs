@@ -14,12 +14,21 @@
  * (Android), conferidos pelos casos em restaurador-casos.json.
  */
 
-export const VERSAO_DO_RESTAURADOR = 1;
+export const VERSAO_DO_RESTAURADOR = 2;
+
+/** As oitavas do diagnóstico e da equalização (Hz) e os nomes dos campos/parâmetros. */
+export const OITAVAS = [31.5, 63, 125, 250, 500, 1000, 2000, 4000, 8000, 16000];
+const SUFIXOS = ["31", "63", "125", "250", "500", "1k", "2k", "4k", "8k", "16k"];
+/**
+ * Espectro médio de longo prazo de música mixada (pop/rock), dB por oitava ÷ 1 kHz: a
+ * referência do equilíbrio tonal. É uma média, não o som "certo" de cada gravação.
+ */
+export const REFERENCIA_TONAL = [3, 5, 4.5, 2.5, 1, 0, -2, -4.5, -7.5, -13];
 
 export const PERFIS_DO_RESTAURADOR = [
   { id: "auto", rotulo: "Automático", resumo: "Analisa e trata só o que encontrar, com cuidado." },
   { id: "lossy", rotulo: "MP3 / música comprimida", resumo: "Com a IA ligada, o Apollo refaz o que a compressão destruiu; sem ela, só a limpeza leve." },
-  { id: "live", rotulo: "Show ao vivo / gravação de fã", resumo: "Ruído, zumbido e recorte, preservando a plateia e a ambiência." },
+  { id: "live", rotulo: "Show ao vivo / gravação de fã", resumo: "Gravação esmagada (ataque, dinâmica e timbre), ruído, zumbido e recorte, preservando a plateia." },
   { id: "archive", rotulo: "Fita, vinil ou gravação antiga", resumo: "Zumbido, estalos, chiado e um pouco de brilho." },
   { id: "manual", rotulo: "Avançado (eu escolho)", resumo: "Você liga e dosa cada etapa." },
 ];
@@ -33,6 +42,8 @@ export const ETAPAS_DO_RESTAURADOR = [
   { id: "ruido", rotulo: "Chiado e ruído de fundo" },
   { id: "grave", rotulo: "Ronco e vento (corte de grave)" },
   { id: "brilho", rotulo: "Brilho (agudos)" },
+  { id: "transientes", rotulo: "Ataque e dinâmica (gravação esmagada)" },
+  { id: "timbre", rotulo: "Equilíbrio tonal (graves, médios e agudos)" },
 ];
 
 export const FORMATOS_DO_RESTAURADOR = ["wav-24", "flac", "wav-32f", "mp3"];
@@ -76,6 +87,13 @@ export function avaliarDiagnostico(d) {
   const estalos = limitar((d.estalosPorMinuto - 3) / 40, 0, 1);
   const dc = limitar((Math.abs(d.dc) - 0.003) / 0.027, 0, 1);
   const banda = d.bandaHz > 0 && d.bandaHz < 0.85 * nyquist && d.bandaHz < 17000 ? limitar((17000 - d.bandaHz) / 7000, 0, 1) : 0;
+  // Esmagada por limitador (ABI 1.3): crista baixa e o platô (99,5º percentil) perto do RMS.
+  // Gravação natural fica com 13 dB ou mais entre os dois; show no celular esmagado, ~5 dB. E pouca
+  // diferença entre os trechos calmos e os altos (um tom contínuo também tem crista baixa, mas não é isso).
+  const limitado = Number.isFinite(d.limiteDb) && d.limiteDb > -60 ? limitar((16 - d.cristaDb) / 7, 0, 1) * limitar((14 - (d.limiteDb - d.rmsDb)) / 6, 0, 1) * limitar((15 - d.dinamicaDb) / 6, 0, 1) : 0;
+  const desvio = desvioTonal(d);
+  // Acima de 12 dB de desvio não é uma mixagem (voz sozinha, um tom, instrumento solo): não se equaliza.
+  const timbre = desvio === null || desvio > 12 ? 0 : limitar((desvio - 4) / 3.5, 0, 1);
   const problemas = {
     recorte: { gravidade: arredondar(recorte), confianca: d.picoDb > -1 ? 0.8 : 0.6 },
     zumbido: { gravidade: arredondar(zumbido), confianca: 0.7, hz: d.zumbidoHz },
@@ -83,8 +101,10 @@ export function avaliarDiagnostico(d) {
     estalos: { gravidade: arredondar(estalos), confianca: 0.6 },
     dc: { gravidade: arredondar(dc), confianca: 0.9 },
     banda: { gravidade: arredondar(banda), confianca: 0.5, hz: Math.round(d.bandaHz) },
+    limitado: { gravidade: arredondar(limitado), confianca: 0.7 },
+    timbre: { gravidade: arredondar(timbre), confianca: 0.5, desvioDb: desvio === null ? 0 : arredondar(desvio) },
   };
-  const tratados = ["recorte", "zumbido", "ruido", "estalos", "dc"];
+  const tratados = ["recorte", "zumbido", "ruido", "estalos", "dc", "limitado", "timbre"];
   const recomendacoes = tratados.filter((id) => problemas[id].gravidade >= 0.15);
   const avisos = ["o_diagnostico_nao_garante_a_origem"];
   if (banda >= 0.15) avisos.push("banda_limitada");
@@ -92,7 +112,45 @@ export function avaliarDiagnostico(d) {
   return { problemas, recomendacoes, avisos, semDefeitos: recomendacoes.length === 0 };
 }
 
-const ZERO = { dc: 0, zumbidoHz: 0, zumbido: 0, estalos: 0, recorte: 0, nivelDoRecorte: 0, ruido: 0, arDb: 0, corteGraveHz: 0, tetoDb: 0, ganhoDb: 0 };
+/** Oitavas com sinal e dentro da banda (as outras não se comparam nem se corrigem). */
+function oitavaValida(d, i) {
+  const v = d[`oitava${SUFIXOS[i]}`];
+  return Number.isFinite(v) && v > -59 && (!(d.bandaHz > 0) || OITAVAS[i] <= 0.9 * d.bandaHz);
+}
+
+/** Distância (dB, raiz da média dos quadrados) do espectro à referência, de 63 Hz a 8 kHz. */
+function desvioTonal(d) {
+  let soma = 0;
+  let n = 0;
+  for (let i = 1; i <= 8; i += 1) {
+    if (!oitavaValida(d, i)) continue;
+    const x = d[`oitava${SUFIXOS[i]}`] - REFERENCIA_TONAL[i];
+    soma += x * x;
+    n += 1;
+  }
+  return n >= 5 ? Math.sqrt(soma / n) : null;
+}
+
+/**
+ * Ganho por oitava (dB) para chegar perto da referência: 85% do caminho em `quanto` 1, ±6 dB,
+ * no máximo +3 dB no infragrave (o celular não captou) e nada acima da banda (não há o que subir).
+ * Suavizado com as vizinhas: só curvas largas, sem picos estreitos.
+ */
+function equalizacao(d, quanto) {
+  const bruto = OITAVAS.map((_, i) => {
+    if (!oitavaValida(d, i)) return 0;
+    let alvo = REFERENCIA_TONAL[i] - d[`oitava${SUFIXOS[i]}`];
+    if (i === 0) alvo = Math.min(alvo, 3);
+    return limitar(alvo * 0.85 * quanto, -6, 6);
+  });
+  return bruto.map((g, i) => {
+    const viz = [bruto[i - 1], g, bruto[i + 1]].filter((v) => v !== undefined);
+    return arredondar(0.5 * g + 0.5 * (viz.reduce((a, b) => a + b, 0) / viz.length));
+  });
+}
+
+const ZERO = { dc: 0, zumbidoHz: 0, zumbido: 0, estalos: 0, recorte: 0, nivelDoRecorte: 0, ruido: 0, arDb: 0, corteGraveHz: 0, tetoDb: 0, ganhoDb: 0,
+  entradaDb: 0, transientes: 0, ...Object.fromEntries(SUFIXOS.map((s) => [`eq${s}`, 0])) };
 
 /**
  * As etapas e os parâmetros do reparo (nomes de PARAMETROS_DO_REPARO). `semMudanca`: o
@@ -116,6 +174,8 @@ export function planejarRestauracao(d, opcoesBrutas) {
     p.ruido = e.ruido / 100;
     if (e.grave > 0) p.corteGraveHz = 20 + 0.4 * e.grave;
     p.arDb = (6 * e.brilho) / 100;
+    p.transientes = e.transientes / 100;
+    if (e.timbre > 0) equalizacao(d, e.timbre / 100).forEach((g, i) => { p[`eq${SUFIXOS[i]}`] = g; });
   } else if (s > 0) {
     const perfil = opcoes.perfil;
     const dose = (gravidade) => limitar(gravidade * (0.4 + 1.2 * s), 0, 1);
@@ -132,6 +192,28 @@ export function planejarRestauracao(d, opcoesBrutas) {
     if (perfil === "live") p.corteGraveHz = 35;
     if (perfil === "archive") { p.corteGraveHz = 30; p.arDb = 1.5 * s; }
     if (perfil === "lossy" && !opcoes.ia) avisos.push("reparo_de_compressao_por_ia_desligado");
+    // Esmagada por limitador (show no celular, rip de vídeo): o platô vira pico de novo e o
+    // ataque volta. Ali os "estalos" quase sempre são batidas de bateria: o reparo deles cai.
+    if (g("limitado") >= 0.15) {
+      p.transientes = limitar(g("limitado") * (0.8 + 0.6 * s), 0, 1);
+      p.recorte = Math.max(p.recorte, p.transientes);
+      if (perfil !== "archive") p.estalos *= 0.25;
+      avisos.push("gravacao_esmagada");
+    }
+    if (g("timbre") >= 0.25) {
+      const quanto = limitar(g("timbre") * (0.7 + 0.6 * s), 0, 1) * (perfil === "auto" ? 0.85 : 1);
+      equalizacao(d, quanto).forEach((v, i) => { p[`eq${SUFIXOS[i]}`] = perfil === "archive" && i >= 7 ? Math.min(v, 3) : v; });
+    }
+  }
+  // Margem antes de tudo: o pico fica abaixo de −1,5 dBFS e sobra espaço para os picos que
+  // voltam (até 9 dB com os transientes inteiros), para o limitador do fim não esmagar de novo.
+  if (p.transientes > 0 || d.picoDb > -1.5) p.entradaDb = arredondar(-(Math.max(0, d.picoDb + 1.5) + 9 * p.transientes));
+  if (p.transientes > 0 && Number.isFinite(d.limiteDb) && d.limiteDb > -40) {
+    // O platô (já com o ganho de entrada) menos 2 dB: os topos borrados pelo MP3 entram no recorte refeito.
+    p.recorte = Math.max(p.recorte, p.transientes);
+    p.nivelDoRecorte = arredondar(10 ** ((d.limiteDb + p.entradaDb - 2) / 20));
+  } else if (p.recorte > 0) {
+    p.nivelDoRecorte = arredondar(nivel * 10 ** (p.entradaDb / 20));
   }
   // Reparo de compressão por IA (Apollo): só com a opção ligada. No MP3 e no Avançado, sempre;
   // nos outros perfis, só quando os agudos param cedo (sinal de compressão ou banda cortada).
@@ -154,10 +236,14 @@ export function planejarRestauracao(d, opcoesBrutas) {
   if (p.ruido > 0) ativos.push({ id: "ruido", quanto: p.ruido });
   if (p.corteGraveHz > 0) ativos.push({ id: "grave", quanto: p.corteGraveHz });
   if (p.arDb !== 0) ativos.push({ id: "brilho", quanto: p.arDb });
+  if (p.transientes > 0) ativos.push({ id: "transientes", quanto: p.transientes });
+  const eqMaior = Math.max(...SUFIXOS.map((x) => Math.abs(p[`eq${x}`])));
+  if (eqMaior >= 0.3) ativos.push({ id: "timbre", quanto: arredondar(eqMaior) });
   if (ia) ativos.unshift({ id: "compressao", quanto: ia.mistura });
   const semMudanca = ativos.length === 0;
   // Qualquer etapa pode subir um pico (o recorte refeito sobe de propósito): o teto protege.
   if (!semMudanca) p.tetoDb = -1;
+  else p.entradaDb = 0;
   if (semMudanca) avisos.push(opcoes.perfil === "manual" || s === 0 ? "nada_ligado" : "sem_defeitos_suficientes");
   return { versao: VERSAO_DO_RESTAURADOR, perfil: opcoes.perfil, etapas: ativos, parametros: p, ia, avisos, semMudanca, avaliacao };
 }
@@ -167,6 +253,7 @@ const TEXTOS_DOS_AVISOS = {
   banda_limitada: "Os agudos param cedo: o que a compressão ou a gravação cortou não volta com filtros.",
   quase_silencio: "O áudio é quase todo silêncio.",
   reparo_de_compressao_por_ia_desligado: "O reparo de compressão por IA (Apollo) está desligado: este perfil faz só a limpeza leve. Ligue a IA para refazer o que a compressão destruiu.",
+  gravacao_esmagada: "A gravação foi esmagada por limitador: os picos e o ataque voltam em parte, e o volume final fica mais baixo e com mais dinâmica (é o esperado).",
   sem_defeitos_suficientes: "O diagnóstico não encontrou defeitos suficientes para recomendar uma restauração: o áudio sai como entrou.",
   nada_ligado: "Nenhuma etapa ligada: o áudio sai como entrou.",
 };
@@ -179,7 +266,8 @@ export function textoDoAviso(id) {
 export function resumoDoDiagnostico(d) {
   const a = avaliarDiagnostico(d);
   const intensidade = (g) => (g >= 0.66 ? "forte" : g >= 0.33 ? "médio" : "leve");
-  const nomes = { recorte: "Recorte", zumbido: `Zumbido de ${d.zumbidoHz} Hz`, ruido: "Chiado/ruído de fundo", estalos: "Estalos", dc: "Deslocamento DC" };
+  const nomes = { recorte: "Recorte", zumbido: `Zumbido de ${d.zumbidoHz} Hz`, ruido: "Chiado/ruído de fundo", estalos: "Estalos", dc: "Deslocamento DC",
+    limitado: "Esmagada por limitador", timbre: "Timbre desequilibrado" };
   const achados = a.recomendacoes.map((id) => `${nomes[id]} (${intensidade(a.problemas[id].gravidade)})`);
   const banda = a.problemas.banda.gravidade >= 0.15 ? ` · Agudos até ~${Math.round(d.bandaHz / 100) / 10} kHz` : "";
   return `${achados.length ? achados.join(" · ") : "Sem defeitos evidentes"}${banda} · pico ${d.picoDb.toFixed(1)} dBFS · piso de ruído ${d.pisoDeRuidoDb.toFixed(0)} dB`;

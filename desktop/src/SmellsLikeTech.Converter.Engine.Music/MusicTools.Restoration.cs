@@ -278,7 +278,12 @@ public sealed partial class MusicTools
         }
         if (inputPeak > 1e-3 && outputPeak < 1e-3)
             throw new ConversionException("restore_invalid", "O áudio restaurado ficou em silêncio; o original não foi alterado.");
-        var gain = levelMatch && outputEnergy > 0 ? Math.Clamp(Math.Sqrt(inputEnergy / outputEnergy), 0.5, 2) : 1;
+        // Nivelar (A/B do estúdio): o RMS do original, de −6 a +12 dB. Sem nivelar, quando o plano
+        // baixou a entrada: o volume volta até o pico de −1 dBFS. Nos dois, sem passar desse pico.
+        const double ceiling = 0.8912509381337456;
+        var gain = levelMatch && outputEnergy > 0 ? Math.Clamp(Math.Sqrt(inputEnergy / outputEnergy), 0.5, 4)
+            : plan.Parameters.GetValueOrDefault("entradaDb") < 0 ? 4 : 1;
+        if (gain > 1) gain = outputPeak > 0 ? Math.Max(1, Math.Min(gain, ceiling / outputPeak)) : 1;
         if (Math.Abs(gain - 1) < 1e-4)
         {
             File.Move(temp, output, overwrite: true);

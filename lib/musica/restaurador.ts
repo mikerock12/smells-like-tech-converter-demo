@@ -56,6 +56,7 @@ export async function restaurarAudio(canais: Float32Array[], taxa: number, opcoe
       // A conta da taxa arredonda para cima: corta na duração original.
       pronto.canais = voltou.map((c) => c.length > canais[0].length ? c.slice(0, canais[0].length) : c);
     }
+    if (!pronto.plano.semMudanca && (pronto.plano.parametros.entradaDb ?? 0) < 0) normalizarPico(pronto.canais);
     return pronto;
   } finally {
     worker.terminate();
@@ -82,7 +83,32 @@ export async function diagnosticarAudio(canais: Float32Array[], taxa: number, op
   }
 }
 
-/** Ganho que iguala o RMS do restaurado ao do original (±6 dB): o A/B fica nivelado. */
+function picoDe(canais: Float32Array[]): number {
+  let pico = 0;
+  for (const c of canais) for (let i = 0; i < c.length; i += 1) { const a = Math.abs(c[i]); if (a > pico) pico = a; }
+  return pico;
+}
+
+/** O pico máximo da saída (−1 dBFS): o volume volta até ele sem limitar de novo. */
+const TETO_DA_SAIDA = 10 ** (-1 / 20);
+
+/**
+ * Quando o plano baixou a entrada (margem para os picos que voltam), o resultado sobe até o
+ * pico de −1 dBFS (no máximo +12 dB): mais baixo que o original esmagado, com a dinâmica de volta.
+ */
+export function normalizarPico(canais: Float32Array[]): number {
+  const pico = picoDe(canais);
+  if (!(pico > 0)) return 1;
+  const ganho = Math.min(4, TETO_DA_SAIDA / pico);
+  if (ganho > 1.0001) for (const c of canais) for (let i = 0; i < c.length; i += 1) c[i] *= ganho;
+  return ganho > 1.0001 ? ganho : 1;
+}
+
+/**
+ * Ganho que iguala o RMS do restaurado ao do original (de −6 a +12 dB) sem passar de −1 dBFS
+ * de pico: o A/B fica nivelado e o restaurado não clipa. Com a dinâmica de volta, ele pode
+ * ficar um pouco mais baixo que o original esmagado.
+ */
 export function ganhoDeNivelamento(original: Float32Array[], restaurado: Float32Array[]): number {
   const energia = (cs: Float32Array[]) => {
     let s = 0;
@@ -93,5 +119,7 @@ export function ganhoDeNivelamento(original: Float32Array[], restaurado: Float32
   const a = energia(original);
   const b = energia(restaurado);
   if (!(a > 0) || !(b > 0)) return 1;
-  return Math.min(2, Math.max(0.5, Math.sqrt(a / b)));
+  const ganho = Math.min(4, Math.max(0.5, Math.sqrt(a / b)));
+  const pico = picoDe(restaurado);
+  return ganho > 1 && pico > 0 ? Math.max(1, Math.min(ganho, TETO_DA_SAIDA / pico)) : ganho;
 }

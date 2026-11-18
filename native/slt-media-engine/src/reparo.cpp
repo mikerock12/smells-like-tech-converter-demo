@@ -15,6 +15,12 @@
 //    recorte (interpolação curta), redução de ruído estacionário (ganho espectral com piso
 //    e suavização), brilho opcional e um limitador de pico. Cada etapa tem intensidade e
 //    fica desligada em zero. Não há IA aqui: o que a gravação perdeu não volta.
+//  - ABI 1.3, para gravações esmagadas por limitador (shows gravados no celular, rips de
+//    vídeo): ganho de entrada (margem para os picos voltarem), recorte refeito também acima
+//    do platô borrado pelo MP3 (com teto), devolução dos transientes (envelope rápido ÷
+//    lento, até +9 dB) e equilíbrio tonal por oitava (curva suave no mesmo domínio espectral
+//    da redução de ruído). Os valores saíram de uma bancada com verdade de referência
+//    (laboratorio/restaurador/simular.py).
 #include "nucleo.h"
 
 namespace slt {
@@ -248,6 +254,7 @@ struct AnalisadorDeAudio {
     static constexpr uint32_t NP = SLT_NOISE_PROFILE_WINDOW;  // perfil de ruído: a mesma STFT do reparo
     static constexpr uint32_t BP = NP / 2 + 1;
     static constexpr uint32_t QUIETOS = 48;               // quadros mais calmos guardados (~4,5 s)
+    static constexpr uint32_t NIVEIS = 720;               // |amostra| de −60 a +12 dB em 0,1 dB (o platô do limitador)
 
     uint32_t taxa = 0;
     Fft fft;
@@ -278,6 +285,11 @@ struct AnalisadorDeAudio {
     double envelope = 0;
     uint64_t estalos = 0;
     int64_t ultimoEstalo = -1000000;
+    // Um estalo é isolado: o pico da segunda diferença com o entorno (±4 a ±31 amostras) calmo.
+    // Ataque de bateria também tem segunda diferença alta, mas espalhada por vários milissegundos.
+    static constexpr uint32_t ANEL = 64;
+    double aneisD[ANEL] = {};
+    double aneisE[ANEL] = {};
     // Perfil de ruído: espectro médio (L+R) dos quadros mais calmos que não são silêncio digital.
     Fft fftDoPerfil;
     Vetor<double> wp;
@@ -286,6 +298,8 @@ struct AnalisadorDeAudio {
     Vetor<double> pre;
     Vetor<double> pim;
     Vetor<float> quietos;  // [QUIETOS][BP]
+    Vetor<uint64_t> niveis;  // [NIVEIS]
+    uint64_t abaixoDosNiveis = 0;
     double energiaDosQuietos[QUIETOS];
     uint32_t quantosQuietos = 0;
     uint32_t preenchidoDoPerfil = 0;
@@ -295,7 +309,7 @@ struct AnalisadorDeAudio {
         if (!fft.criar(N) || !w.criar(N) || !mono.criar(N) || !re.criar(N) || !im.criar(N) || !media.criar(N / 2 + 1) ||
             !normalizada.criar(N / 2 + 1) || !histograma.criar(FAIXAS_DO_HISTOGRAMA) || !planos.criar(PLANOS) ||
             !fftDoPerfil.criar(NP) || !wp.criar(NP) || !perfilL.criar(NP) || !perfilR.criar(NP) || !pre.criar(NP) || !pim.criar(NP) ||
-            !quietos.criar(static_cast<size_t>(QUIETOS) * BP)) {
+            !quietos.criar(static_cast<size_t>(QUIETOS) * BP) || !niveis.criar(NIVEIS)) {
             soltar();
             return false;
         }
@@ -386,6 +400,59 @@ struct AnalisadorDeAudio {
         pre.soltar();
         pim.soltar();
         quietos.soltar();
+        niveis.soltar();
+    }
+
+    void registrarNivel(double a) {
+        const double nivel = db(a);
+        if (nivel < -60) { abaixoDosNiveis += 1; return; }
+        uint32_t k = static_cast<uint32_t>((nivel + 60) * 10);
+        if (k >= NIVEIS) k = NIVEIS - 1;
+        niveis[k] += 1;
+    }
+
+    /** O nível (dB) abaixo do qual fica a fração `fracao` das amostras (o platô: 0,995). */
+    double nivelDasAmostras(double fracao) const {
+        uint64_t todas = abaixoDosNiveis;
+        for (uint32_t k = 0; k < NIVEIS; k += 1) todas += niveis[k];
+        if (todas == 0) return -200;
+        const double alvo = (1 - fracao) * static_cast<double>(todas);
+        uint64_t acima = 0;
+        for (int64_t k = NIVEIS - 1; k >= 0; k -= 1) {
+            acima += niveis[static_cast<size_t>(k)];
+            if (static_cast<double>(acima) >= alvo) return -60 + static_cast<double>(k) * 0.1 + 0.05;
+        }
+        return -60;
+    }
+
+    double fracaoAcimaDe(double nivelDb) const {
+        uint64_t todas = abaixoDosNiveis;
+        uint64_t acima = 0;
+        for (uint32_t k = 0; k < NIVEIS; k += 1) {
+            todas += niveis[k];
+            if (-60 + k * 0.1 >= nivelDb) acima += niveis[k];
+        }
+        return todas ? static_cast<double>(acima) / static_cast<double>(todas) : 0;
+    }
+
+    /** Nível de cada oitava (31,5 Hz a 16 kHz) ÷ o da de 1 kHz, dB, do espectro médio (mono). */
+    void oitavas(double* saida) const {
+        static const double CENTROS[SLT_DIAG_OCTAVES] = {31.5, 63, 125, 250, 500, 1000, 2000, 4000, 8000, 16000};
+        double nivel[SLT_DIAG_OCTAVES];
+        const double porBin = static_cast<double>(taxa) / N;
+        for (uint32_t o = 0; o < SLT_DIAG_OCTAVES; o += 1) {
+            int64_t a = static_cast<int64_t>(CENTROS[o] / 1.4142135623730951 / porBin);
+            int64_t b = static_cast<int64_t>(CENTROS[o] * 1.4142135623730951 / porBin);
+            if (a < 1) a = 1;
+            if (b > static_cast<int64_t>(N / 2)) b = N / 2;
+            double s = 0;
+            for (int64_t k = a; k <= b; k += 1) s += media[static_cast<size_t>(k)];
+            nivel[o] = dbDePotencia(s);
+        }
+        for (uint32_t o = 0; o < SLT_DIAG_OCTAVES; o += 1) {
+            const bool valido = quadrosDeAnalise > 0 && CENTROS[o] * 1.4142135623730951 < taxa * 0.5 && nivel[o] > -190 && nivel[5] > -190;
+            saida[o] = valido ? nivel[o] - nivel[5] : -60;
+        }
     }
 
     void registrarPlano(float valor, uint32_t amostras) {
@@ -424,6 +491,7 @@ struct AnalisadorDeAudio {
                 somaQuadrada[c] += static_cast<double>(x) * x;
                 const double a = absoluto(x);
                 if (a > pico) pico = a;
+                registrarNivel(a);
                 if (x == anterior[c] && a > 0.1) sequencia[c] += 1;
                 else {
                     if (sequencia[c] >= 2) registrarPlano(anterior[c], sequencia[c] + 1);
@@ -435,9 +503,25 @@ struct AnalisadorDeAudio {
             const double m = 0.5 * (l + r);
             // Segunda diferença do mono, com uma amostra de atraso (precisa da vizinha seguinte).
             const double d = x1 - 0.5 * (x2 + m);
-            if (absoluto(d) > 12 * envelope && absoluto(d) > 0.02 && static_cast<int64_t>(total) - ultimoEstalo > static_cast<int64_t>(taxa / 100)) {
-                estalos += 1;
-                ultimoEstalo = static_cast<int64_t>(total);
+            aneisD[total % ANEL] = absoluto(d);
+            aneisE[total % ANEL] = envelope;
+            // O candidato fica 32 amostras atrás (precisa do que vem depois dele).
+            if (total >= ANEL) {
+                const uint64_t centro = total - 32;
+                const double c = aneisD[centro % ANEL];
+                if (c > 12 * aneisE[centro % ANEL] && c > 0.02 && static_cast<int64_t>(centro) - ultimoEstalo > static_cast<int64_t>(taxa / 100)) {
+                    double entorno = 0;
+                    for (uint32_t k = 4; k < 32; k += 1) {
+                        const double a = aneisD[(centro - k) % ANEL];
+                        const double b = aneisD[(centro + k) % ANEL];
+                        if (a > entorno) entorno = a;
+                        if (b > entorno) entorno = b;
+                    }
+                    if (entorno < 0.35 * c) {
+                        estalos += 1;
+                        ultimoEstalo = static_cast<int64_t>(centro);
+                    }
+                }
             }
             envelope = 0.999 * envelope + 0.001 * absoluto(d);
             x2 = x1;
@@ -600,6 +684,10 @@ struct AnalisadorDeAudio {
         valores[SLT_DIAG_DYNAMIC_RANGE_DB] = piso_ > -200 ? alto - piso_ : 0;
         valores[SLT_DIAG_SAMPLE_RATE] = taxa;
         valores[SLT_DIAG_NOISE_FLATNESS] = planuraDoRuido();
+        const double plato = nivelDasAmostras(0.995);
+        valores[SLT_DIAG_LIMIT_LEVEL_DB] = plato;
+        valores[SLT_DIAG_NEAR_LIMIT_RATIO] = plato > -60 ? fracaoAcimaDe(plato - 3) : 0;
+        oitavas(valores + SLT_DIAG_OCTAVE_FIRST);
         for (uint32_t i = 0; i < quantos && i < SLT_DIAGNOSIS_FIELDS; i += 1) saida[i] = static_cast<float>(valores[i]);
     }
 };
@@ -622,6 +710,15 @@ struct ReparadorDeAudio {
     bool temDc = false;
     bool temGrave = false;
     bool temAr = false;
+    // ABI 1.3.
+    double ganhoDeEntrada = 1;
+    Vetor<double> curva;  // ganho por bin do equilíbrio tonal
+    bool temEq = false;
+    double transientes = 0;
+    double envRapido = 0;
+    double envLento = 0;
+    double ganhoDoTransiente = 0;  // dB, suavizado
+    double coefRapidoA = 0, coefRapidoL = 0, coefLentoA = 0, coefLentoL = 0, coefSuave = 0;
     Vetor<float> tempo;     // [2][3H]: passado | pendente | à frente
     Vetor<float> emitido;   // [2][H]
     uint32_t posicao = 0;   // dentro do salto
@@ -662,7 +759,8 @@ struct ReparadorDeAudio {
         taxa = taxa_;
         for (uint32_t i = 0; i < SLT_REPAIR_PARAMS; i += 1) parametros[i] = i < quantos ? p[i] : 0.0f;
         if (!fluxo.criar(2, N, H) || !tempo.criar(2 * 3 * H) || !emitido.criar(2 * H) || !suave.criar(fluxo.B) || !lento.criar(fluxo.B) ||
-            !ruido.criar(fluxo.B) || !minimos.criar(static_cast<size_t>(JANELAS) * fluxo.B) || !minimoAtual.criar(fluxo.B) || !ganho.criar(fluxo.B) || !ganhoSuave.criar(fluxo.B) || !perfil.criar(fluxo.B)) {
+            !ruido.criar(fluxo.B) || !minimos.criar(static_cast<size_t>(JANELAS) * fluxo.B) || !minimoAtual.criar(fluxo.B) || !ganho.criar(fluxo.B) || !ganhoSuave.criar(fluxo.B) || !perfil.criar(fluxo.B) ||
+            !curva.criar(fluxo.B)) {
             soltar();
             return false;
         }
@@ -688,6 +786,34 @@ struct ReparadorDeAudio {
         teto = parametros[SLT_REPAIR_CEILING_DB] < 0 ? dbParaLinear(parametros[SLT_REPAIR_CEILING_DB]) : 2;
         liberacao = exponencial(-1.0 / (0.08 * taxa));
         ganhoDeSaida = dbParaLinear(limitar(parametros[SLT_REPAIR_OUTPUT_GAIN_DB], -24, 12));
+        ganhoDeEntrada = dbParaLinear(limitar(parametros[SLT_REPAIR_INPUT_GAIN_DB], -24, 12));
+        // Equilíbrio tonal: os ganhos por oitava viram uma curva suave em log-frequência.
+        static const double CENTROS[SLT_REPAIR_EQ_BANDS] = {31.5, 63, 125, 250, 500, 1000, 2000, 4000, 8000, 16000};
+        double bandas[SLT_REPAIR_EQ_BANDS];
+        for (uint32_t o = 0; o < SLT_REPAIR_EQ_BANDS; o += 1) {
+            bandas[o] = limitar(parametros[SLT_REPAIR_EQ_FIRST + o], -12, 12);
+            if (absoluto(bandas[o]) > 0.05) temEq = true;
+        }
+        for (uint32_t b = 0; b < fluxo.B; b += 1) {
+            const double f = static_cast<double>(b) * taxa / N;
+            double g = 0;
+            if (f <= CENTROS[0]) g = bandas[0];
+            else if (f >= CENTROS[SLT_REPAIR_EQ_BANDS - 1]) g = bandas[SLT_REPAIR_EQ_BANDS - 1];
+            else {
+                uint32_t o = 0;
+                while (o + 1 < SLT_REPAIR_EQ_BANDS && f > CENTROS[o + 1]) o += 1;
+                const double t = (logaritmo10(f) - logaritmo10(CENTROS[o])) / (logaritmo10(CENTROS[o + 1]) - logaritmo10(CENTROS[o]));
+                g = bandas[o] + (bandas[o + 1] - bandas[o]) * t;
+            }
+            curva[b] = dbParaLinear(g);
+        }
+        // Transientes: envelope rápido (0,5 ms / 30 ms) contra o lento (20 ms / 500 ms).
+        transientes = limitar(parametros[SLT_REPAIR_TRANSIENTS], 0, 1);
+        coefRapidoA = exponencial(-1.0 / (0.0005 * taxa));
+        coefRapidoL = exponencial(-1.0 / (0.03 * taxa));
+        coefLentoA = exponencial(-1.0 / (0.02 * taxa));
+        coefLentoL = exponencial(-1.0 / (0.5 * taxa));
+        coefSuave = exponencial(-1.0 / (0.001 * taxa));
         return true;
     }
 
@@ -703,6 +829,7 @@ struct ReparadorDeAudio {
         ganho.soltar();
         ganhoSuave.soltar();
         perfil.soltar();
+        curva.soltar();
     }
 
     uint32_t latencia() const { return N + 2 * H; }
@@ -718,8 +845,20 @@ struct ReparadorDeAudio {
     }
 
     void espectro(double* re, double* im) {
-        const double reduzir = parametros[SLT_REPAIR_DENOISE];
-        if (reduzir <= 0) return;
+        if (parametros[SLT_REPAIR_DENOISE] > 0) reduzirRuido(re, im);
+        if (temEq) {
+            for (uint32_t c = 0; c < 2; c += 1) {
+                double* r = re + static_cast<size_t>(c) * N;
+                double* m = im + static_cast<size_t>(c) * N;
+                for (uint32_t b = 0; b < fluxo.B; b += 1) {
+                    r[b] *= curva[b];
+                    m[b] *= curva[b];
+                }
+            }
+        }
+    }
+
+    void reduzirRuido(double* re, double* im) {
         const uint32_t B = fluxo.B;
         double* l_re = re;
         double* l_im = im;
@@ -802,6 +941,9 @@ struct ReparadorDeAudio {
                         // A curva tem de passar do nível do recorte, do mesmo lado; senão fica o topo.
                         double y = x[k];
                         if ((y > 0) != positivo || absoluto(y) < nivel) y = original[k - i];
+                        // Teto: a curva não passa de 2× o nível do platô (seria um pico inventado).
+                        if (y > 2 * nivel) y = 2 * nivel;
+                        if (y < -2 * nivel) y = -2 * nivel;
                         // Pela intensidade: em 0,5, metade do caminho entre o topo plano e a curva.
                         x[k] = static_cast<float>(original[k - i] + (y - original[k - i]) * recortes);
                     }
@@ -820,7 +962,21 @@ struct ReparadorDeAudio {
         for (int64_t i = H; i < static_cast<int64_t>(2 * H); i += 1) {
             const double d = x[i] - 0.5 * (x[i - 1] + x[i + 1]);
             const double a = absoluto(d);
-            if (a > limiar * envelope && a > 0.01 && envelope > 0) {
+            // Isolado: o entorno (±4 a ±31 amostras) calmo; ataque de bateria não é estalo.
+            bool isolado = a > limiar * envelope && a > 0.01 && envelope > 0 && i >= 34 && i + 34 < static_cast<int64_t>(3 * H);
+            if (isolado) {
+                double entorno = 0;
+                for (int64_t k = 4; k < 32 && isolado; k += 1) {
+                    const int64_t lados[2] = {i - k, i + k};
+                    for (uint32_t s = 0; s < 2; s += 1) {
+                        const int64_t p = lados[s];
+                        const double v = absoluto(x[p] - 0.5 * (x[p - 1] + x[p + 1]));
+                        if (v > entorno) entorno = v;
+                    }
+                }
+                isolado = entorno < 0.35 * a;
+            }
+            if (isolado) {
                 int64_t j = i;
                 while (j + 1 < static_cast<int64_t>(3 * H) - 4 && j - i < 32) {
                     const double d2 = x[j + 1] - 0.5 * (x[j] + x[j + 2]);
@@ -858,6 +1014,24 @@ struct ReparadorDeAudio {
             }
             fluxo.avancar([this](double* re, double* im) { espectro(re, im); });
         }
+        // Transientes: onde o envelope rápido passa do lento, ganho (até +9 dB), o mesmo nos dois canais.
+        if (transientes > 0) {
+            for (uint32_t i = 0; i < H; i += 1) {
+                const double l = emitido[i];
+                const double r = emitido[H + i];
+                const double a = absoluto(l) > absoluto(r) ? absoluto(l) : absoluto(r);
+                envRapido = (a > envRapido ? coefRapidoA : coefRapidoL) * envRapido + (1 - (a > envRapido ? coefRapidoA : coefRapidoL)) * a;
+                envLento = (a > envLento ? coefLentoA : coefLentoL) * envLento + (1 - (a > envLento ? coefLentoA : coefLentoL)) * a;
+                double alvo = envLento > 1e-9 ? 20 * logaritmo10(envRapido / envLento + QUASE_ZERO) * 1.2 : 0;
+                if (alvo < 0) alvo = 0;
+                if (alvo > 9) alvo = 9;
+                alvo *= transientes;
+                ganhoDoTransiente = coefSuave * ganhoDoTransiente + (1 - coefSuave) * alvo;
+                const double g = dbParaLinear(ganhoDoTransiente);
+                emitido[i] = static_cast<float>(l * g);
+                emitido[H + i] = static_cast<float>(r * g);
+            }
+        }
         // Limitador de pico (ataque imediato, liberação de 80 ms), com o mesmo ganho nos dois canais.
         if (teto < 1.5) {
             for (uint32_t i = 0; i < H; i += 1) {
@@ -884,7 +1058,7 @@ struct ReparadorDeAudio {
         for (uint32_t i = 0; i < quadros; i += 1) {
             float* canais[2] = {esquerdo, direito != nullptr ? direito : esquerdo};
             for (uint32_t c = 0; c < 2; c += 1) {
-                double x = canais[c][i];
+                double x = canais[c][i] * ganhoDeEntrada;
                 if (temDc) x = dc.processar(x, static_cast<int>(c));
                 if (temGrave) x = grave.processar(x, static_cast<int>(c));
                 for (uint32_t k = 0; k < quantosZumbidos; k += 1) x = zumbido[k].processar(x, static_cast<int>(c));
@@ -976,7 +1150,7 @@ SLT_API slt_result slt_audio_analyzer_feed(slt_audio_analyzer_handle* analyzer, 
 
 SLT_API slt_result slt_audio_analyzer_result(const slt_audio_analyzer_handle* analyzer, float* values, uint32_t capacity) {
     if (analyzer == nullptr || values == nullptr) return SLT_ERROR_INVALID_ARGUMENT;
-    if (capacity < SLT_DIAGNOSIS_FIELDS) return SLT_ERROR_BUFFER_TOO_SMALL;
+    if (capacity < SLT_DIAGNOSIS_FIELDS_1_2) return SLT_ERROR_BUFFER_TOO_SMALL;
     analyzer->analisador.resultado(values, capacity);
     return SLT_OK;
 }

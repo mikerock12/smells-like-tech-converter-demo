@@ -275,6 +275,81 @@ void testarRefinoDosAgudos() {
     (void)erroB;
 }
 
+/** Bateria (ataques que decaem) e um tom grave, esmagados: ganho alto e recorte suave (tanh). */
+std::vector<float> musicaEsmagada(double* cristaOriginal) {
+    std::vector<float> limpo(TAXA * 6);
+    for (size_t i = 0; i < limpo.size(); ++i) {
+        const double t = static_cast<double>(i) / TAXA;
+        const double fase = std::fmod(t, 0.25);
+        const double bumbo = std::exp(-fase * 30) * std::sin(2 * PI * 60 * fase);
+        const double caixa = (std::fmod(t, 0.5) < 0.25 ? 0 : 1) * std::exp(-fase * 45) * aleatorio();
+        limpo[i] = static_cast<float>(0.45 * bumbo + 0.3 * caixa + 0.12 * std::sin(2 * PI * 220 * t));
+    }
+    double pico = 0;
+    for (float v : limpo) pico = std::max(pico, static_cast<double>(std::fabs(v)));
+    *cristaOriginal = 20 * std::log10(pico / rms(limpo, 0, limpo.size()));
+    std::vector<float> x(limpo.size());
+    for (size_t i = 0; i < x.size(); ++i) x[i] = static_cast<float>(std::tanh(limpo[i] * 5.0) * 0.98);
+    return x;
+}
+
+double crista(const std::vector<float>& x, size_t de, size_t ate) {
+    double pico = 0;
+    for (size_t i = de; i < ate; ++i) pico = std::max(pico, static_cast<double>(std::fabs(x[i])));
+    return 20 * std::log10(pico / rms(x, de, ate));
+}
+
+void testarGravacaoEsmagada() {
+    double cristaOriginal = 0;
+    const std::vector<float> x = musicaEsmagada(&cristaOriginal);
+    const std::vector<float> d = diagnosticar(x);
+    printf("esmagada: platô %.1f dBFS, %.0f%% perto dele, crista %.1f dB (original %.1f)\n",
+           d[SLT_DIAG_LIMIT_LEVEL_DB], 100 * d[SLT_DIAG_NEAR_LIMIT_RATIO], d[SLT_DIAG_CREST_DB], cristaOriginal);
+    conferir(d[SLT_DIAG_LIMIT_LEVEL_DB] > -1 && d[SLT_DIAG_LIMIT_LEVEL_DB] < 0.1, "diagnóstico acha o platô do limitador");
+    conferir(d[SLT_DIAG_NEAR_LIMIT_RATIO] > 0.05, "muitas amostras perto do platô");
+    float p[SLT_REPAIR_PARAMS] = {};
+    p[SLT_REPAIR_INPUT_GAIN_DB] = -9;
+    p[SLT_REPAIR_TRANSIENTS] = 1;
+    p[SLT_REPAIR_CEILING_DB] = -1;
+    float est[SLT_REPAIR_STATS] = {};
+    const std::vector<float> y = reparar(x, p, est);
+    const double antes = crista(x, TAXA, x.size() - TAXA);
+    const double depois = crista(y, TAXA, y.size() - TAXA);
+    double pico = 0;
+    for (float v : y) pico = std::max(pico, static_cast<double>(std::fabs(v)));
+    printf("transientes: crista %.1f -> %.1f dB, pico %.2f dBFS, limitador %.1f dB\n", antes, depois, 20 * std::log10(pico), est[SLT_REPAIR_STAT_LIMITER_DB]);
+    conferir(depois > antes + 2, "os transientes voltam (a crista sobe mais de 2 dB)");
+    conferir(pico <= std::pow(10.0, -1.0 / 20) + 1e-4, "o teto continua valendo");
+    // Ganho de entrada sozinho: só o nível muda.
+    float q[SLT_REPAIR_PARAMS] = {};
+    q[SLT_REPAIR_INPUT_GAIN_DB] = -6;
+    const std::vector<float> z = reparar(x, q);
+    const double razao = rms(z, TAXA, z.size() - TAXA) / rms(x, TAXA, x.size() - TAXA);
+    conferir(std::fabs(20 * std::log10(razao) + 6) < 0.05, "o ganho de entrada baixa 6 dB");
+}
+
+void testarEquilibrioTonal() {
+    std::vector<float> x(TAXA * 3);
+    for (size_t i = 0; i < x.size(); ++i) {
+        const double t = static_cast<double>(i) / TAXA;
+        x[i] = static_cast<float>(0.1 * std::sin(2 * PI * 125 * t) + 0.1 * std::sin(2 * PI * 1000 * t) + 0.1 * std::sin(2 * PI * 8000 * t));
+    }
+    const std::vector<float> d = diagnosticar(x);
+    printf("oitavas: 125 Hz %.1f, 8 kHz %.1f dB (÷ 1 kHz)\n", d[SLT_DIAG_OCTAVE_FIRST + 2], d[SLT_DIAG_OCTAVE_FIRST + 8]);
+    conferir(std::fabs(d[SLT_DIAG_OCTAVE_FIRST + 2]) < 1.5 && std::fabs(d[SLT_DIAG_OCTAVE_FIRST + 8]) < 1.5, "três senos iguais dão oitavas iguais");
+    conferir(d[SLT_DIAG_OCTAVE_FIRST + 4] < -20, "oitava sem sinal fica bem abaixo");
+    float p[SLT_REPAIR_PARAMS] = {};
+    p[SLT_REPAIR_EQ_FIRST + 2] = 6;   // 125 Hz
+    p[SLT_REPAIR_EQ_FIRST + 8] = -6;  // 8 kHz
+    const std::vector<float> y = reparar(x, p);
+    const size_t de = TAXA, ate = x.size() - TAXA;
+    const double g125 = 20 * std::log10(nivelDoSeno(y, de, ate, 125) / nivelDoSeno(x, de, ate, 125));
+    const double g1k = 20 * std::log10(nivelDoSeno(y, de, ate, 1000) / nivelDoSeno(x, de, ate, 1000));
+    const double g8k = 20 * std::log10(nivelDoSeno(y, de, ate, 8000) / nivelDoSeno(x, de, ate, 8000));
+    printf("equilíbrio tonal: 125 Hz %+.2f, 1 kHz %+.2f, 8 kHz %+.2f dB\n", g125, g1k, g8k);
+    conferir(std::fabs(g125 - 6) < 0.6 && std::fabs(g8k + 6) < 0.6 && std::fabs(g1k) < 0.3, "cada oitava recebe o ganho pedido");
+}
+
 }  // namespace
 
 int main() {
@@ -290,6 +365,9 @@ int main() {
     testarRecorte();
     testarLimitadorEBanda();
     testarRefinoDosAgudos();
+    conferir((slt_get_capabilities() & SLT_CAP_AUDIO_DELIMIT) != 0 && (slt_get_api_version() & 0xFFFF) >= 3, "ABI 1.3");
+    testarGravacaoEsmagada();
+    testarEquilibrioTonal();
     printf("reparo: %d falhas\n", falhas);
     return falhas == 0 ? 0 : 1;
 }

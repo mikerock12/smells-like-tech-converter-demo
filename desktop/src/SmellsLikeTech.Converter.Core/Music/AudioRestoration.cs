@@ -11,13 +11,18 @@ namespace SmellsLikeTech.Converter.Core.Music;
 /// </summary>
 public static class AudioRestoration
 {
-    public const int Version = 1;
+    public const int Version = 2;
+
+    /// <summary>As oitavas do diagnóstico e da equalização e a referência tonal (dB ÷ 1 kHz), como no JS.</summary>
+    public static readonly double[] Octaves = [31.5, 63, 125, 250, 500, 1000, 2000, 4000, 8000, 16000];
+    private static readonly string[] Suffixes = ["31", "63", "125", "250", "500", "1k", "2k", "4k", "8k", "16k"];
+    public static readonly double[] ToneReference = [3, 5, 4.5, 2.5, 1, 0, -2, -4.5, -7.5, -13];
 
     public static readonly IReadOnlyList<(string Id, string Label, string Summary)> Profiles =
     [
         ("auto", "Automático", "Analisa e trata só o que encontrar, com cuidado."),
         ("lossy", "MP3 / música comprimida", "Com a IA ligada, o Apollo refaz o que a compressão destruiu; sem ela, só a limpeza leve."),
-        ("live", "Show ao vivo / gravação de fã", "Ruído, zumbido e recorte, preservando a plateia e a ambiência."),
+        ("live", "Show ao vivo / gravação de fã", "Gravação esmagada (ataque, dinâmica e timbre), ruído, zumbido e recorte, preservando a plateia."),
         ("archive", "Fita, vinil ou gravação antiga", "Zumbido, estalos, chiado e um pouco de brilho."),
         ("manual", "Avançado (eu escolho)", "Você liga e dosa cada etapa."),
     ];
@@ -27,6 +32,7 @@ public static class AudioRestoration
         ("compressao", "Reparo de compressão por IA (Apollo)"), ("dc", "Deslocamento DC"), ("zumbido", "Zumbido da rede (50/60 Hz)"), ("estalos", "Estalos e cliques"),
         ("recorte", "Recorte (distorção por volume alto)"), ("ruido", "Chiado e ruído de fundo"),
         ("grave", "Ronco e vento (corte de grave)"), ("brilho", "Brilho (agudos)"),
+        ("transientes", "Ataque e dinâmica (gravação esmagada)"), ("timbre", "Equilíbrio tonal (graves, médios e agudos)"),
     ];
 
     public static readonly IReadOnlyList<string> Formats = ["wav-24", "flac", "wav-32f", "mp3"];
@@ -79,6 +85,49 @@ public static class AudioRestoration
     }
 
     private static double Get(IReadOnlyDictionary<string, double> d, string k) => d.TryGetValue(k, out var v) ? v : 0;
+    private static bool Has(IReadOnlyDictionary<string, double> d, string k) => d.TryGetValue(k, out var v) && double.IsFinite(v);
+
+    private static bool OctaveValid(IReadOnlyDictionary<string, double> d, int i)
+    {
+        var k = $"oitava{Suffixes[i]}";
+        return Has(d, k) && d[k] > -59 && (!(Get(d, "bandaHz") > 0) || Octaves[i] <= 0.9 * Get(d, "bandaHz"));
+    }
+
+    private static double? ToneDeviation(IReadOnlyDictionary<string, double> d)
+    {
+        double sum = 0;
+        var n = 0;
+        for (var i = 1; i <= 8; i++)
+        {
+            if (!OctaveValid(d, i)) continue;
+            var x = d[$"oitava{Suffixes[i]}"] - ToneReference[i];
+            sum += x * x;
+            n++;
+        }
+        return n >= 5 ? Math.Sqrt(sum / n) : null;
+    }
+
+    private static double[] Equalization(IReadOnlyDictionary<string, double> d, double amount)
+    {
+        var raw = new double[Octaves.Length];
+        for (var i = 0; i < raw.Length; i++)
+        {
+            if (!OctaveValid(d, i)) continue;
+            var target = ToneReference[i] - d[$"oitava{Suffixes[i]}"];
+            if (i == 0) target = Math.Min(target, 3);
+            raw[i] = Clamp(target * 0.85 * amount, -6, 6);
+        }
+        var result = new double[raw.Length];
+        for (var i = 0; i < raw.Length; i++)
+        {
+            double sum = raw[i];
+            var n = 1;
+            if (i > 0) { sum += raw[i - 1]; n++; }
+            if (i + 1 < raw.Length) { sum += raw[i + 1]; n++; }
+            result[i] = Round4(0.5 * raw[i] + 0.5 * (sum / n));
+        }
+        return result;
+    }
 
     public static Evaluation Evaluate(IReadOnlyDictionary<string, double> d)
     {
@@ -91,6 +140,12 @@ public static class AudioRestoration
         var dc = Clamp((Math.Abs(Get(d, "dc")) - 0.003) / 0.027, 0, 1);
         var bandaHz = Get(d, "bandaHz");
         var banda = bandaHz > 0 && bandaHz < 0.85 * nyquist && bandaHz < 17000 ? Clamp((17000 - bandaHz) / 7000, 0, 1) : 0;
+        // Esmagada por limitador (ABI 1.3): crista baixa e o platô (99,5º percentil) perto do RMS.
+        var limitado = Has(d, "limiteDb") && Get(d, "limiteDb") > -60
+            ? Clamp((16 - Get(d, "cristaDb")) / 7, 0, 1) * Clamp((14 - (Get(d, "limiteDb") - Get(d, "rmsDb"))) / 6, 0, 1) * Clamp((15 - Get(d, "dinamicaDb")) / 6, 0, 1) : 0;
+        var deviation = ToneDeviation(d);
+        // Acima de 12 dB de desvio não é uma mixagem (voz sozinha, um tom, instrumento solo): não se equaliza.
+        var timbre = deviation is null || deviation.Value > 12 ? 0 : Clamp((deviation.Value - 4) / 3.5, 0, 1);
         var problems = new Dictionary<string, Problem>
         {
             ["recorte"] = new(Round4(recorte), Get(d, "picoDb") > -1 ? 0.8 : 0.6),
@@ -99,8 +154,10 @@ public static class AudioRestoration
             ["estalos"] = new(Round4(estalos), 0.6),
             ["dc"] = new(Round4(dc), 0.9),
             ["banda"] = new(Round4(banda), 0.5, Math.Floor(bandaHz + 0.5)),
+            ["limitado"] = new(Round4(limitado), 0.7),
+            ["timbre"] = new(Round4(timbre), 0.5, deviation is null ? 0 : Round4(deviation.Value)),
         };
-        var recommendations = new[] { "recorte", "zumbido", "ruido", "estalos", "dc" }.Where(id => problems[id].Severity >= 0.15).ToList();
+        var recommendations = new[] { "recorte", "zumbido", "ruido", "estalos", "dc", "limitado", "timbre" }.Where(id => problems[id].Severity >= 0.15).ToList();
         var warnings = new List<string> { "o_diagnostico_nao_garante_a_origem" };
         if (banda >= 0.15) warnings.Add("banda_limitada");
         if (Get(d, "silencio") > 0.9) warnings.Add("quase_silencio");
@@ -110,7 +167,7 @@ public static class AudioRestoration
     public static Plan Build(IReadOnlyDictionary<string, double> d, Options options)
     {
         var evaluation = Evaluate(d);
-        var p = MusicNative.RepairParameters.Where(n => n != "reservado").ToDictionary(n => n, _ => 0.0);
+        var p = MusicNative.RepairParameters.ToDictionary(n => n, _ => 0.0);
         var warnings = new List<string>(evaluation.Warnings);
         var s = options.Intensity / 100.0;
         double G(string id) => evaluation.Problems[id].Severity;
@@ -127,6 +184,12 @@ public static class AudioRestoration
             p["ruido"] = e["ruido"] / 100.0;
             if (e["grave"] > 0) p["corteGraveHz"] = 20 + 0.4 * e["grave"];
             p["arDb"] = 6.0 * e["brilho"] / 100;
+            p["transientes"] = e["transientes"] / 100.0;
+            if (e["timbre"] > 0)
+            {
+                var eq = Equalization(d, e["timbre"] / 100.0);
+                for (var i = 0; i < eq.Length; i++) p[$"eq{Suffixes[i]}"] = eq[i];
+            }
         }
         else if (s > 0)
         {
@@ -146,6 +209,33 @@ public static class AudioRestoration
             if (profile == "live") p["corteGraveHz"] = 35;
             if (profile == "archive") { p["corteGraveHz"] = 30; p["arDb"] = 1.5 * s; }
             if (profile == "lossy" && !options.Ai) warnings.Add("reparo_de_compressao_por_ia_desligado");
+            // Esmagada por limitador: o platô vira pico de novo e o ataque volta; ali os "estalos"
+            // quase sempre são batidas de bateria, e o reparo deles cai.
+            if (G("limitado") >= 0.15)
+            {
+                p["transientes"] = Clamp(G("limitado") * (0.8 + 0.6 * s), 0, 1);
+                p["recorte"] = Math.Max(p["recorte"], p["transientes"]);
+                if (profile != "archive") p["estalos"] *= 0.25;
+                warnings.Add("gravacao_esmagada");
+            }
+            if (G("timbre") >= 0.25)
+            {
+                var amount = Clamp(G("timbre") * (0.7 + 0.6 * s), 0, 1) * (profile == "auto" ? 0.85 : 1);
+                var eq = Equalization(d, amount);
+                for (var i = 0; i < eq.Length; i++) p[$"eq{Suffixes[i]}"] = profile == "archive" && i >= 7 ? Math.Min(eq[i], 3) : eq[i];
+            }
+        }
+        // Margem antes de tudo: o pico abaixo de −1,5 dBFS e espaço para os picos que voltam.
+        var peakDb = Get(d, "picoDb");
+        if (p["transientes"] > 0 || peakDb > -1.5) p["entradaDb"] = Round4(-(Math.Max(0, peakDb + 1.5) + 9 * p["transientes"]));
+        if (p["transientes"] > 0 && Has(d, "limiteDb") && Get(d, "limiteDb") > -40)
+        {
+            p["recorte"] = Math.Max(p["recorte"], p["transientes"]);
+            p["nivelDoRecorte"] = Round4(Math.Pow(10, (Get(d, "limiteDb") + p["entradaDb"] - 2) / 20));
+        }
+        else if (p["recorte"] > 0)
+        {
+            p["nivelDoRecorte"] = Round4(level * Math.Pow(10, p["entradaDb"] / 20));
         }
         // Reparo de compressão por IA (Apollo): no Avançado, a etapa "compressao" dosa; nos outros
         // perfis, só com a IA ligada e no MP3 ou quando os agudos param cedo.
@@ -169,9 +259,13 @@ public static class AudioRestoration
         if (p["ruido"] > 0) active.Add(("ruido", p["ruido"]));
         if (p["corteGraveHz"] > 0) active.Add(("grave", p["corteGraveHz"]));
         if (p["arDb"] != 0) active.Add(("brilho", p["arDb"]));
+        if (p["transientes"] > 0) active.Add(("transientes", p["transientes"]));
+        var eqMax = Suffixes.Max(x => Math.Abs(p[$"eq{x}"]));
+        if (eqMax >= 0.3) active.Add(("timbre", Round4(eqMax)));
         if (ai is not null) active.Insert(0, ("compressao", ai.Mix));
         var noChange = active.Count == 0;
         if (!noChange) p["tetoDb"] = -1;
+        else p["entradaDb"] = 0;
         if (noChange) warnings.Add(options.Profile == "manual" || s == 0 ? "nada_ligado" : "sem_defeitos_suficientes");
         return new Plan(options.Profile, active, p, warnings, noChange, evaluation, ai);
     }
@@ -182,6 +276,7 @@ public static class AudioRestoration
         ["banda_limitada"] = "Os agudos param cedo: o que a compressão ou a gravação cortou não volta com filtros.",
         ["quase_silencio"] = "O áudio é quase todo silêncio.",
         ["reparo_de_compressao_por_ia_desligado"] = "O reparo de compressão por IA (Apollo) está desligado: este perfil faz só a limpeza leve. Ligue a IA para refazer o que a compressão destruiu.",
+        ["gravacao_esmagada"] = "A gravação foi esmagada por limitador: os picos e o ataque voltam em parte, e o volume final fica mais baixo e com mais dinâmica (é o esperado).",
         ["sem_defeitos_suficientes"] = "O diagnóstico não encontrou defeitos suficientes para recomendar uma restauração: o áudio sai como entrou.",
         ["nada_ligado"] = "Nenhuma etapa ligada: o áudio sai como entrou.",
     };
@@ -195,6 +290,7 @@ public static class AudioRestoration
         var names = new Dictionary<string, string>
         {
             ["recorte"] = "Recorte", ["zumbido"] = $"Zumbido de {Get(d, "zumbidoHz"):0} Hz", ["ruido"] = "Chiado/ruído de fundo", ["estalos"] = "Estalos", ["dc"] = "Deslocamento DC",
+            ["limitado"] = "Esmagada por limitador", ["timbre"] = "Timbre desequilibrado",
         };
         var found = a.Recommendations.Select(id => $"{names[id]} ({Strength(a.Problems[id].Severity)})").ToList();
         var band = a.Problems["banda"].Severity >= 0.15 ? $" · Agudos até ~{Math.Round(Get(d, "bandaHz") / 1000, 1).ToString(System.Globalization.CultureInfo.InvariantCulture)} kHz" : "";

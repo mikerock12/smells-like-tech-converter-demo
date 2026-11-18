@@ -1,5 +1,5 @@
 {
-  "commit": "352e3ddd94c5251c33066003de58f828791266ca",
+  "commit": "e1a3c8fe7ae8f59cc6da66c31423714b04b77785",
   "repository": "https://github.com/mikerock12/smells-like-tech-converter-demo",
   "originals": [
     {
@@ -34,7 +34,7 @@
     },
     {
       "path": "android/app/build.gradle.kts",
-      "sha256": "8aea3effa11b2d49865e1f9f835fb3d5a995359b0e67f351d08e3d390dc9fd66",
+      "sha256": "fb3e85d933a6214638ab9e47dac2b4e631bc3f152e614af304e15231f8083b04",
       "bytes": 9219
     },
     {
@@ -924,8 +924,8 @@
     },
     {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/musica/NucleoNativo.kt",
-      "sha256": "8fa1a31bfc63795297f070d127dd3ea9b5f43e183dae0eba014d87daf814977c",
-      "bytes": 18470
+      "sha256": "39c75f6448479634f5a6b69bfc68c41a89a1524ee23a8557498fbe0045f9c452",
+      "bytes": 18808
     },
     {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/musica/PacoteDeFaixas.kt",
@@ -939,8 +939,8 @@
     },
     {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/musica/RestauradorDeAudio.kt",
-      "sha256": "d80cdac2af233d0459b0d6b73c179c9f846e3119e73856311ca96c0e5e03a182",
-      "bytes": 12210
+      "sha256": "68357c0d73b97e16e0771fd894d340932f0c2ae0a1d934d0f9bb19253aa42d5d",
+      "bytes": 17231
     },
     {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/musica/RoFormer.kt",
@@ -964,8 +964,8 @@
     },
     {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/musica/TratamentosDaSeparacao.kt",
-      "sha256": "28ac18b3bacc5f086017893af2c95437e87a46eac8b60c51db3b8448bc996f6f",
-      "bytes": 12563
+      "sha256": "02c634c8723896b05567a0217557b75b8bb5792acf86f713dc23b0e01a1ea947",
+      "bytes": 13002
     },
     {
       "path": "android/app/src/main/java/br/com/smellsliketech/converter/ui/AcoesDoEditor.kt",
@@ -1628,6 +1628,11 @@
       "bytes": 616
     },
     {
+      "path": "android/play/ficha-1.0.27.md",
+      "sha256": "d942a95d3c9987542d3154cd9f24a99249c7cfa4e189fee45bf5b41a4b894f56",
+      "bytes": 444
+    },
+    {
       "path": "android/play/ficha-1.0.6.md",
       "sha256": "a6d922dcfb5d3bc7d38963c2ab2746d1d74d69d932a28b1c0ae3873408310d2c",
       "bytes": 3763
@@ -2044,7 +2049,7 @@
     },
     {
       "path": "desktop/Directory.Build.props",
-      "sha256": "7c250c759470258915a8f31061103f097f867b4fcad911ba2cc984f147b386fd",
+      "sha256": "ef85c84275873766451f0d30d12ac2db28b7fa82c6647da1df2271f57250cd8f",
       "bytes": 473
     },
     {
@@ -2314,8 +2319,8 @@
     },
     {
       "path": "desktop/src/SmellsLikeTech.Converter.Core/Music/AudioRestoration.cs",
-      "sha256": "9befb3135ba0ae6dc45ec60f00508c265594fb4a01a73c2be6143128cb436f7f",
-      "bytes": 12907
+      "sha256": "699e0f44cf228606b6dce9443b6f798f2ce4e237193dcb5ee1aa328c2b5dc958",
+      "bytes": 18197
     },
     {
       "path": "desktop/src/SmellsLikeTech.Converter.Core/Music/MusicAnalysis.cs",
@@ -2354,8 +2359,8 @@
     },
     {
       "path": "desktop/src/SmellsLikeTech.Converter.Core/Music/MusicNative.Restoration.cs",
-      "sha256": "b5132c99162f8cda78548a4a096ca8f4e0fbff9f9f46eb443b2cf2cc6eaee337",
-      "bytes": 9632
+      "sha256": "e647bb69b7763d6e807270b7dafbb10789e76175b856f1c1baeb0794836329c7",
+      "bytes": 9971
     },
     {
       "path": "desktop/src/SmellsLikeTech.Converter.Core/Music/MusicNative.Separator.cs",
@@ -3119,8 +3124,8 @@
     },
     {
       "path": "desktop/src/SmellsLikeTech.Converter.Engine.Music/MusicTools.Restoration.cs",
-      "sha256": "dc6881ab77bd9b97371f3cbd6165eb642e19b8bb2d87d4be1e0f2dc6cc6eec08",
-      "bytes": 18019
+      "sha256": "5256ee1ef88ce97f5fe32048422b5d3f2a3acc82b25ec27f98308793deb92415",
+      "bytes": 18446
     },
     {
       "path": "desktop/src/SmellsLikeTech.Converter.Engine.Music/MusicVstLibrary.cs",
@@ -3779,8 +3784,8 @@
     },
     {
       "path": "lib/musica/restaurador.ts",
-      "sha256": "d93cc661ed7ad154693a60b61b035fbb07076138ee2c9e0b4d68136ab36406ee",
-      "bytes": 4974
+      "sha256": "0ba32038e72a22391682e2c53b1c0cdf262dae36f811ba5b04ce5cd9b8537a86",
+      "bytes": 6239
     },
     {
       "path": "lib/musica/roformer.ts",
@@ -3869,13 +3874,13 @@
     },
     {
       "path": "native/slt-media-engine/include/slt_media_api.h",
-      "sha256": "600f2a85d4106d13df7e26831e9bb8e774fd2d612308281727280d2c05fb467b",
-      "bytes": 28410
+      "sha256": "f21ac62b4ef3ae91b3422a4b7ce4d62e65173c38b489897f27d78d25cabc23f2",
+      "bytes": 29402
     },
     {
       "path": "native/slt-media-engine/src/api.cpp",
-      "sha256": "01cae3e4d4a46124b2bd7c751fee7175c92b4636e83aaf4e459c591ae2e12fa5",
-      "bytes": 20629
+      "sha256": "cce643af137950bfa5145cd33d81085eff75b4bfcc8196c332c49f8e8ef1dbc0",
+      "bytes": 20653
     },
     {
       "path": "native/slt-media-engine/src/consistencia.cpp",
@@ -3979,8 +3984,8 @@
     },
     {
       "path": "native/slt-media-engine/src/reparo.cpp",
-      "sha256": "90ddcea44240762f71b96dae78bf8ac4b7605617f72c330c9b675b698ac7c244",
-      "bytes": 45363
+      "sha256": "be82dc0ffdc6663c1b654a40f0f0535a99324ac6c05b3426044f9cd895ac69df",
+      "bytes": 54538
     },
     {
       "path": "native/slt-media-engine/src/restauracao.cpp",
@@ -3999,8 +4004,8 @@
     },
     {
       "path": "native/slt-media-engine/tests/reparo.cpp",
-      "sha256": "313d1b102565949d234bc41096c43716d4f2cefbf393beec930a502de136419a",
-      "bytes": 15658
+      "sha256": "11b0749e1f69a007aa04cb82d65c357fdcdda0c9e3839c0d4a4fe4beed7f9f8d",
+      "bytes": 20299
     },
     {
       "path": "native/slt-media-engine/tests/testes.cpp",
@@ -4619,8 +4624,8 @@
     },
     {
       "path": "packages/converter-core/nativo.mjs",
-      "sha256": "c9026facebdaa2cd3b5d537498723dc1edb9e680e2f5a24e34936ea73920660c",
-      "bytes": 22050
+      "sha256": "b233a0bb4db4649e2594886e4358f267e297da713e6dd69116b9d53239d2804a",
+      "bytes": 22384
     },
     {
       "path": "packages/converter-core/openverse.d.mts",
@@ -4689,8 +4694,8 @@
     },
     {
       "path": "packages/converter-core/restaurador-casos.json",
-      "sha256": "02f0760cdb0151687c60a2f04a6c79abdfdafb6d96f53265603882e86f477108",
-      "bytes": 11554
+      "sha256": "22b47a5451b4c7c10e87185b74de3919118bd6a234b0e05f35d8345bdba7c6db",
+      "bytes": 23040
     },
     {
       "path": "packages/converter-core/restaurador.d.mts",
@@ -4699,8 +4704,8 @@
     },
     {
       "path": "packages/converter-core/restaurador.mjs",
-      "sha256": "fe600434b65668b0578765d261f7ce96fb99cb83b572eb0a55d33e0e14dda354",
-      "bytes": 11041
+      "sha256": "b8b5c0f89d59a9a63a219498623226dc6b75f5ab6ec29c823e1af4382581bbdd",
+      "bytes": 16287
     },
     {
       "path": "packages/converter-core/stickers-noto.json",
@@ -4779,13 +4784,13 @@
     },
     {
       "path": "packages/nativo/slt_native.json",
-      "sha256": "795041f2114510a34a8f636b1ba983a54cf162f7ee5d51e4af91929040d0d872",
+      "sha256": "ddc83732e31adc5e6de2288ef7d26395004334e54862da0fb06e3a112485004e",
       "bytes": 2297
     },
     {
       "path": "packages/nativo/slt_native.wasm",
-      "sha256": "8f889de6205055fe22cc0a1cfaf7d76cab8ae0bac99a1e6e7dd2b66d0e3d7506",
-      "bytes": 93155
+      "sha256": "37d6576c3097d24ea155e0279bbd3a3e15c003bb0d2ac5a4748767a035a90988",
+      "bytes": 99443
     },
     {
       "path": "packages/pwa/sw.js",
@@ -4829,12 +4834,12 @@
     },
     {
       "path": "public/baixar/app.json",
-      "sha256": "cf4b05a6bd94ee31d7e789076dad1fe944a7ee007ac93301788ea792961c8fd2",
+      "sha256": "79c2338e4ba191c163bfffbd0111d3963e38e5328d9b3330fad4233fe594c39a",
       "bytes": 212
     },
     {
       "path": "public/baixar/plugin.json",
-      "sha256": "6521def2992f1340939333ec64abe0ec155611711c55d702cef93619d6b66d63",
+      "sha256": "dee4c572b7e35a76e02765a8df18df95a4d3904369076d0dd6794d0287c55dd5",
       "bytes": 209
     },
     {

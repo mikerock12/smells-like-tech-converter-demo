@@ -7,6 +7,7 @@ import kotlin.math.floor
 import kotlin.math.log10
 import kotlin.math.min
 import kotlin.math.pow
+import kotlin.math.sqrt
 
 /**
  * Restaurar áudio com IA (experimental): o diagnóstico do núcleo nativo vira etapas e
@@ -15,13 +16,18 @@ import kotlin.math.pow
  * gravação perdeu não volta com filtro; modelos de IA ainda em revisão de licença não entram.
  */
 object RestauradorDeAudio {
-    const val VERSAO = 1
+    const val VERSAO = 2
+
+    /** As oitavas do diagnóstico e da equalização e a referência tonal (dB ÷ 1 kHz), como no JS. */
+    val OITAVAS = doubleArrayOf(31.5, 63.0, 125.0, 250.0, 500.0, 1000.0, 2000.0, 4000.0, 8000.0, 16000.0)
+    private val SUFIXOS = listOf("31", "63", "125", "250", "500", "1k", "2k", "4k", "8k", "16k")
+    val REFERENCIA_TONAL = doubleArrayOf(3.0, 5.0, 4.5, 2.5, 1.0, 0.0, -2.0, -4.5, -7.5, -13.0)
 
     data class Perfil(val id: String, val rotulo: String, val resumo: String)
     val PERFIS = listOf(
         Perfil("auto", "Automático", "Analisa e trata só o que encontrar, com cuidado."),
         Perfil("lossy", "MP3 / música comprimida", "Com a IA ligada, o Apollo refaz o que a compressão destruiu; sem ela, só a limpeza leve."),
-        Perfil("live", "Show ao vivo / gravação de fã", "Ruído, zumbido e recorte, preservando a plateia e a ambiência."),
+        Perfil("live", "Show ao vivo / gravação de fã", "Gravação esmagada (ataque, dinâmica e timbre), ruído, zumbido e recorte, preservando a plateia."),
         Perfil("archive", "Fita, vinil ou gravação antiga", "Zumbido, estalos, chiado e um pouco de brilho."),
         Perfil("manual", "Avançado (eu escolho)", "Você liga e dosa cada etapa."),
     )
@@ -29,6 +35,7 @@ object RestauradorDeAudio {
         "compressao" to "Reparo de compressão por IA (Apollo)", "dc" to "Deslocamento DC", "zumbido" to "Zumbido da rede (50/60 Hz)", "estalos" to "Estalos e cliques",
         "recorte" to "Recorte (distorção por volume alto)", "ruido" to "Chiado e ruído de fundo",
         "grave" to "Ronco e vento (corte de grave)", "brilho" to "Brilho (agudos)",
+        "transientes" to "Ataque e dinâmica (gravação esmagada)", "timbre" to "Equilíbrio tonal (graves, médios e agudos)",
     )
     val FORMATOS = listOf("wav-24", "flac", "wav-32f", "mp3")
 
@@ -71,6 +78,42 @@ object RestauradorDeAudio {
     }
 
     private fun Map<String, Double>.v(k: String) = this[k] ?: 0.0
+    private fun Map<String, Double>.tem(k: String) = this[k]?.isFinite() == true
+
+    private fun oitavaValida(d: Map<String, Double>, i: Int): Boolean {
+        val k = "oitava${SUFIXOS[i]}"
+        return d.tem(k) && d.v(k) > -59 && (!(d.v("bandaHz") > 0) || OITAVAS[i] <= 0.9 * d.v("bandaHz"))
+    }
+
+    private fun desvioTonal(d: Map<String, Double>): Double? {
+        var soma = 0.0
+        var n = 0
+        for (i in 1..8) {
+            if (!oitavaValida(d, i)) continue
+            val x = d.v("oitava${SUFIXOS[i]}") - REFERENCIA_TONAL[i]
+            soma += x * x
+            n += 1
+        }
+        return if (n >= 5) sqrt(soma / n) else null
+    }
+
+    private fun equalizacao(d: Map<String, Double>, quanto: Double): DoubleArray {
+        val bruto = DoubleArray(OITAVAS.size) { i ->
+            if (!oitavaValida(d, i)) 0.0
+            else {
+                var alvo = REFERENCIA_TONAL[i] - d.v("oitava${SUFIXOS[i]}")
+                if (i == 0) alvo = min(alvo, 3.0)
+                limitar(alvo * 0.85 * quanto, -6.0, 6.0)
+            }
+        }
+        return DoubleArray(bruto.size) { i ->
+            var soma = bruto[i]
+            var n = 1
+            if (i > 0) { soma += bruto[i - 1]; n += 1 }
+            if (i + 1 < bruto.size) { soma += bruto[i + 1]; n += 1 }
+            arredondar(0.5 * bruto[i] + 0.5 * (soma / n))
+        }
+    }
 
     fun avaliar(d: Map<String, Double>): Avaliacao {
         val nyquist = d.v("taxa") / 2
@@ -81,6 +124,12 @@ object RestauradorDeAudio {
         val estalos = limitar((d.v("estalosPorMinuto") - 3) / 40, 0.0, 1.0)
         val dc = limitar((abs(d.v("dc")) - 0.003) / 0.027, 0.0, 1.0)
         val banda = if (d.v("bandaHz") > 0 && d.v("bandaHz") < 0.85 * nyquist && d.v("bandaHz") < 17000) limitar((17000 - d.v("bandaHz")) / 7000, 0.0, 1.0) else 0.0
+        // Esmagada por limitador (ABI 1.3): crista baixa e o platô (99,5º percentil) perto do RMS.
+        val limitado = if (d.tem("limiteDb") && d.v("limiteDb") > -60)
+            limitar((16 - d.v("cristaDb")) / 7, 0.0, 1.0) * limitar((14 - (d.v("limiteDb") - d.v("rmsDb"))) / 6, 0.0, 1.0) * limitar((15 - d.v("dinamicaDb")) / 6, 0.0, 1.0) else 0.0
+        val desvio = desvioTonal(d)
+        // Acima de 12 dB de desvio não é uma mixagem (voz sozinha, um tom, instrumento solo): não se equaliza.
+        val timbre = if (desvio == null || desvio > 12) 0.0 else limitar((desvio - 4) / 3.5, 0.0, 1.0)
         val problemas = mapOf(
             "recorte" to Problema(arredondar(recorte), if (d.v("picoDb") > -1) 0.8 else 0.6),
             "zumbido" to Problema(arredondar(zumbido), 0.7, d.v("zumbidoHz")),
@@ -88,8 +137,10 @@ object RestauradorDeAudio {
             "estalos" to Problema(arredondar(estalos), 0.6),
             "dc" to Problema(arredondar(dc), 0.9),
             "banda" to Problema(arredondar(banda), 0.5, floor(d.v("bandaHz") + 0.5)),
+            "limitado" to Problema(arredondar(limitado), 0.7),
+            "timbre" to Problema(arredondar(timbre), 0.5, if (desvio == null) 0.0 else arredondar(desvio)),
         )
-        val recomendacoes = listOf("recorte", "zumbido", "ruido", "estalos", "dc").filter { problemas.getValue(it).gravidade >= 0.15 }
+        val recomendacoes = listOf("recorte", "zumbido", "ruido", "estalos", "dc", "limitado", "timbre").filter { problemas.getValue(it).gravidade >= 0.15 }
         val avisos = mutableListOf("o_diagnostico_nao_garante_a_origem")
         if (banda >= 0.15) avisos += "banda_limitada"
         if (d.v("silencio") > 0.9) avisos += "quase_silencio"
@@ -99,7 +150,8 @@ object RestauradorDeAudio {
     fun planejar(d: Map<String, Double>, opcoes: Opcoes): Plano {
         val avaliacao = avaliar(d)
         val p = linkedMapOf("dc" to 0.0, "zumbidoHz" to 0.0, "zumbido" to 0.0, "estalos" to 0.0, "recorte" to 0.0, "nivelDoRecorte" to 0.0,
-            "ruido" to 0.0, "arDb" to 0.0, "corteGraveHz" to 0.0, "tetoDb" to 0.0, "ganhoDb" to 0.0)
+            "ruido" to 0.0, "arDb" to 0.0, "corteGraveHz" to 0.0, "tetoDb" to 0.0, "ganhoDb" to 0.0, "entradaDb" to 0.0, "transientes" to 0.0)
+        for (x in SUFIXOS) p["eq$x"] = 0.0
         val avisos = avaliacao.avisos.toMutableList()
         val s = opcoes.intensidade / 100.0
         fun g(id: String) = avaliacao.problemas.getValue(id).gravidade
@@ -114,6 +166,8 @@ object RestauradorDeAudio {
             p["ruido"] = (e["ruido"] ?: 0) / 100.0
             if ((e["grave"] ?: 0) > 0) p["corteGraveHz"] = 20 + 0.4 * (e["grave"] ?: 0)
             p["arDb"] = 6.0 * (e["brilho"] ?: 0) / 100
+            p["transientes"] = (e["transientes"] ?: 0) / 100.0
+            if ((e["timbre"] ?: 0) > 0) equalizacao(d, (e["timbre"] ?: 0) / 100.0).forEachIndexed { i, v -> p["eq${SUFIXOS[i]}"] = v }
         } else if (s > 0) {
             val perfil = opcoes.perfil
             fun dose(x: Double) = limitar(x * (0.4 + 1.2 * s), 0.0, 1.0)
@@ -130,6 +184,26 @@ object RestauradorDeAudio {
             if (perfil == "live") p["corteGraveHz"] = 35.0
             if (perfil == "archive") { p["corteGraveHz"] = 30.0; p["arDb"] = 1.5 * s }
             if (perfil == "lossy" && !opcoes.ia) avisos += "reparo_de_compressao_por_ia_desligado"
+            // Esmagada por limitador: o platô vira pico de novo e o ataque volta; ali os "estalos"
+            // quase sempre são batidas de bateria, e o reparo deles cai.
+            if (g("limitado") >= 0.15) {
+                p["transientes"] = limitar(g("limitado") * (0.8 + 0.6 * s), 0.0, 1.0)
+                p["recorte"] = maxOf(p.v("recorte"), p.v("transientes"))
+                if (perfil != "archive") p["estalos"] = p.v("estalos") * 0.25
+                avisos += "gravacao_esmagada"
+            }
+            if (g("timbre") >= 0.25) {
+                val quanto = limitar(g("timbre") * (0.7 + 0.6 * s), 0.0, 1.0) * (if (perfil == "auto") 0.85 else 1.0)
+                equalizacao(d, quanto).forEachIndexed { i, v -> p["eq${SUFIXOS[i]}"] = if (perfil == "archive" && i >= 7) min(v, 3.0) else v }
+            }
+        }
+        // Margem antes de tudo: o pico abaixo de −1,5 dBFS e espaço para os picos que voltam.
+        if (p.v("transientes") > 0 || d.v("picoDb") > -1.5) p["entradaDb"] = arredondar(-(maxOf(0.0, d.v("picoDb") + 1.5) + 9 * p.v("transientes")))
+        if (p.v("transientes") > 0 && d.tem("limiteDb") && d.v("limiteDb") > -40) {
+            p["recorte"] = maxOf(p.v("recorte"), p.v("transientes"))
+            p["nivelDoRecorte"] = arredondar(10.0.pow((d.v("limiteDb") + p.v("entradaDb") - 2) / 20))
+        } else if (p.v("recorte") > 0) {
+            p["nivelDoRecorte"] = arredondar(nivel * 10.0.pow(p.v("entradaDb") / 20))
         }
         // Reparo de compressão por IA (Apollo): no Avançado, a etapa "compressao" dosa; nos outros
         // perfis, só com a IA ligada e no MP3 ou quando os agudos param cedo.
@@ -149,9 +223,12 @@ object RestauradorDeAudio {
             if (p.v("ruido") > 0) add("ruido" to p.v("ruido"))
             if (p.v("corteGraveHz") > 0) add("grave" to p.v("corteGraveHz"))
             if (p.v("arDb") != 0.0) add("brilho" to p.v("arDb"))
+            if (p.v("transientes") > 0) add("transientes" to p.v("transientes"))
+            val eqMaior = SUFIXOS.maxOf { abs(p.v("eq$it")) }
+            if (eqMaior >= 0.3) add("timbre" to arredondar(eqMaior))
         }
         val semMudanca = ativos.isEmpty()
-        if (!semMudanca) p["tetoDb"] = -1.0
+        if (!semMudanca) p["tetoDb"] = -1.0 else p["entradaDb"] = 0.0
         if (semMudanca) avisos += if (opcoes.perfil == "manual" || s == 0.0) "nada_ligado" else "sem_defeitos_suficientes"
         return Plano(opcoes.perfil, ativos, p, avisos, semMudanca, avaliacao, ia)
     }
@@ -161,6 +238,7 @@ object RestauradorDeAudio {
         "banda_limitada" to "Os agudos param cedo: o que a compressão ou a gravação cortou não volta com filtros.",
         "quase_silencio" to "O áudio é quase todo silêncio.",
         "reparo_de_compressao_por_ia_desligado" to "O reparo de compressão por IA (Apollo) está desligado: este perfil faz só a limpeza leve. Ligue a IA para refazer o que a compressão destruiu.",
+        "gravacao_esmagada" to "A gravação foi esmagada por limitador: os picos e o ataque voltam em parte, e o volume final fica mais baixo e com mais dinâmica (é o esperado).",
         "sem_defeitos_suficientes" to "O diagnóstico não encontrou defeitos suficientes para recomendar uma restauração: o áudio sai como entrou.",
         "nada_ligado" to "Nenhuma etapa ligada: o áudio sai como entrou.",
     )
@@ -171,7 +249,8 @@ object RestauradorDeAudio {
     fun resumo(d: Map<String, Double>): String {
         val a = avaliar(d)
         fun forca(g: Double) = if (g >= 0.66) "forte" else if (g >= 0.33) "médio" else "leve"
-        val nomes = mapOf("recorte" to "Recorte", "zumbido" to "Zumbido de ${d.v("zumbidoHz").toInt()} Hz", "ruido" to "Chiado/ruído de fundo", "estalos" to "Estalos", "dc" to "Deslocamento DC")
+        val nomes = mapOf("recorte" to "Recorte", "zumbido" to "Zumbido de ${d.v("zumbidoHz").toInt()} Hz", "ruido" to "Chiado/ruído de fundo", "estalos" to "Estalos", "dc" to "Deslocamento DC",
+            "limitado" to "Esmagada por limitador", "timbre" to "Timbre desequilibrado")
         val achados = a.recomendacoes.map { "${nomes.getValue(it)} (${forca(a.problemas.getValue(it).gravidade)})" }
         val banda = if (a.problemas.getValue("banda").gravidade >= 0.15) " · Agudos até ~${"%.1f".format(java.util.Locale.ROOT, d.v("bandaHz") / 1000)} kHz" else ""
         return "${achados.ifEmpty { listOf("Sem defeitos evidentes") }.joinToString(" · ")}$banda · pico ${"%.1f".format(java.util.Locale.ROOT, d.v("picoDb"))} dBFS · piso de ruído ${d.v("pisoDeRuidoDb").toInt()} dB"

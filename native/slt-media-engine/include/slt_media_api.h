@@ -41,7 +41,7 @@ extern "C" {
 
 /* Versão da ABI: maior << 16 | menor. A maior muda quando algo deixa de ser compatível. */
 #define SLT_API_VERSION_MAJOR 1u
-#define SLT_API_VERSION_MINOR 2u
+#define SLT_API_VERSION_MINOR 3u
 #define SLT_API_VERSION ((SLT_API_VERSION_MAJOR << 16) | SLT_API_VERSION_MINOR)
 
 typedef enum slt_result {
@@ -69,6 +69,7 @@ typedef enum slt_result {
 #define SLT_CAP_STEM_REFINE   (1u << 9) /* refino dos agudos das faixas separadas (Wiener multicanal), ABI 1.2 */
 #define SLT_CAP_AUDIO_DIAGNOSTICS (1u << 10) /* diagnóstico de qualidade do áudio, ABI 1.2 */
 #define SLT_CAP_AUDIO_REPAIR  (1u << 11) /* reparo conservador do restaurador (DSP, sem IA), ABI 1.2 */
+#define SLT_CAP_AUDIO_DELIMIT (1u << 12) /* ganho de entrada, transientes e equilíbrio tonal no reparo, ABI 1.3 */
 
 SLT_API uint32_t slt_get_api_version(void);
 SLT_API uint32_t slt_get_capabilities(void);
@@ -421,7 +422,14 @@ SLT_API void slt_stem_refiner_destroy(slt_stem_refiner_handle* refiner);
 #define SLT_DIAG_DYNAMIC_RANGE_DB   14  /* 95º − 10º percentil do RMS em blocos */
 #define SLT_DIAG_SAMPLE_RATE        15
 #define SLT_DIAG_NOISE_FLATNESS     16  /* planura do perfil de ruído (0 = tonal/música, 1 = chiado) */
-#define SLT_DIAGNOSIS_FIELDS        17
+/* ABI 1.3: gravação esmagada por limitador e equilíbrio tonal. */
+#define SLT_DIAG_LIMIT_LEVEL_DB     17  /* platô do limitador: 99,5º percentil de |amostra|, dBFS */
+#define SLT_DIAG_NEAR_LIMIT_RATIO   18  /* fração das amostras a menos de 3 dB do platô */
+#define SLT_DIAG_OCTAVE_FIRST       19  /* 19 a 28: nível por oitava (31,5 Hz a 16 kHz) ÷ o de 1 kHz, dB */
+#define SLT_DIAG_OCTAVES            10
+#define SLT_DIAGNOSIS_FIELDS        29
+/* Quem compilou contra a ABI 1.2 pede 17 campos e recebe só esses. */
+#define SLT_DIAGNOSIS_FIELDS_1_2    17
 
 /* Perfil de ruído: potência média (L+R) por bin da STFT de 4096 do reparo, nos quadros mais
  * calmos que não são silêncio digital. Vai do diagnóstico para slt_audio_repair_set_noise_profile. */
@@ -450,8 +458,11 @@ SLT_API void slt_audio_analyzer_destroy(slt_audio_analyzer_handle* analyzer);
 #define SLT_REPAIR_LOW_CUT_HZ      8  /* passa-altas; abaixo de 10 desliga */
 #define SLT_REPAIR_CEILING_DB      9  /* teto do limitador (negativo); ≥ 0 desliga */
 #define SLT_REPAIR_OUTPUT_GAIN_DB 10
-#define SLT_REPAIR_RESERVED       11
-#define SLT_REPAIR_PARAMS         12
+#define SLT_REPAIR_INPUT_GAIN_DB  11  /* ABI 1.3: ganho antes de tudo, −24 a +12 dB (margem para os picos que voltam) */
+#define SLT_REPAIR_TRANSIENTS     12  /* ABI 1.3: 0 a 1, devolve o ataque que o limitador tirou (até +9 dB) */
+#define SLT_REPAIR_EQ_FIRST       13  /* ABI 1.3: 13 a 22, ganho por oitava (31,5 Hz a 16 kHz), −12 a +12 dB */
+#define SLT_REPAIR_EQ_BANDS       10
+#define SLT_REPAIR_PARAMS         23
 
 /* Estatísticas de slt_audio_repair_stats. */
 #define SLT_REPAIR_STAT_CLICKS      0
