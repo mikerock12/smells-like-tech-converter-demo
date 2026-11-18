@@ -1,6 +1,6 @@
 "use client";
 
-import { lerOpcoesDoRestaurador, nomeDoRestaurado, resumoDoDiagnostico, textoDoAviso, ETAPAS_DO_RESTAURADOR } from "@/packages/converter-core/restaurador.mjs";
+import { lerOpcoesDoRestaurador, nomeDoRestaurado, resumoAntesEDepois, resumoDoDiagnostico, textoDoAviso, ETAPAS_DO_RESTAURADOR } from "@/packages/converter-core/restaurador.mjs";
 import { FORMATOS_DE_EXPORTACAO } from "@/packages/converter-core/musica-master.mjs";
 import { conferirSaida, detalhesDosProblemas, picoDb } from "@/packages/converter-core/validacao-de-saida.mjs";
 import { codificar, formatosDisponiveis } from "@/lib/musica/exportar";
@@ -50,13 +50,20 @@ export async function restaurar(contexto: ContextoDoMotor): Promise<{ saidas: Sa
   const saidas: Saida[] = [{ nome: nomeDoRestaurado(entrada.nome, formato.extensao), mime: blob.type || "application/octet-stream", bytes: await blob.arrayBuffer(), duracao: quadros / pcm.sampleRate }];
   if (opcoes.relatorio) {
     // Só medidas e versões: nada do áudio, nenhum caminho do aparelho.
-    const relatorio = { ferramenta: "audio.restaurar", versao: pronto.plano.versao, perfil: pronto.plano.perfil, intensidade: opcoes.intensidade, diagnostico: pronto.diagnostico, etapas: pronto.plano.etapas, parametros: pronto.plano.parametros, avisos: pronto.plano.avisos, estatisticas: pronto.estatisticas, motor: pronto.plano.ia ? "Apollo (ONNX, CC BY-SA 4.0) e núcleo nativo (WebAssembly)" : "núcleo nativo (WebAssembly)", ia: pronto.plano.ia };
+    const relatorio = { ferramenta: "audio.restaurar", versao: pronto.plano.versao, nucleo: "ABI 1.4", perfil: pronto.plano.perfil,
+      // No Avançado não há intensidade: valem as etapas.
+      intensidade: pronto.plano.perfil === "manual" ? null : opcoes.intensidade, etapasPedidas: pronto.plano.perfil === "manual" ? opcoes.etapas : undefined,
+      manterVolume: opcoes.manterVolume, ganhoFinalDb: Math.round(pronto.ganhoFinalDb * 100) / 100,
+      diagnostico: pronto.diagnostico, depois: pronto.depois, etapas: pronto.plano.etapas, parametros: pronto.plano.parametros, avisos: pronto.plano.avisos, estatisticas: pronto.estatisticas, motor: pronto.plano.ia ? "Apollo (ONNX, CC BY-SA 4.0) e núcleo nativo (WebAssembly)" : "núcleo nativo (WebAssembly)", ia: pronto.plano.ia };
     saidas.push({ nome: nomeDoRestaurado(entrada.nome, "json").replace(/\.json$/, "-relatorio.json"), mime: "application/json", bytes: new TextEncoder().encode(JSON.stringify(relatorio, null, 2)).buffer as ArrayBuffer });
   }
   const etapas = pronto.plano.etapas.map((e) => ETAPAS_DO_RESTAURADOR.find((x) => x.id === e.id)?.rotulo ?? e.id).join(", ");
+  const volume = Math.abs(pronto.ganhoFinalDb) < 0.05 ? "" : opcoes.manterVolume
+    ? ` · volume igualado ao original (${pronto.ganhoFinalDb > 0 ? "+" : ""}${pronto.ganhoFinalDb.toFixed(1)} dB; sem passar de −1 dBFS de pico)`
+    : ` · volume subiu ${pronto.ganhoFinalDb.toFixed(1)} dB até o pico de −1 dBFS (mais alto que o original: compare no mesmo volume)`;
   const nota = pronto.plano.semMudanca
     ? `${textoDoAviso(pronto.plano.avisos.at(-1) ?? "sem_defeitos_suficientes")} ${resumoDoDiagnostico(pronto.diagnostico)}`
-    : `Restaurado: ${etapas} · ${resumoDoDiagnostico(pronto.diagnostico)} · experimental`;
+    : `Restaurado: ${etapas} · Encontrado: ${resumoDoDiagnostico(pronto.diagnostico)} · Antes → depois: ${resumoAntesEDepois(pronto.diagnostico, pronto.depois)}${volume} · experimental`;
   if (pedido !== opcoes.formato) return { saidas, nota: `${nota} · Este navegador não grava ${opcoes.formato.toUpperCase()}; saiu em WAV 24 bits.` };
   return { saidas, nota };
 }

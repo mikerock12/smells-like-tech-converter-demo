@@ -21,24 +21,23 @@ data class CombinacaoPronta(val id: String, val rotulo: String, val grupos: List
 
 /**
  * Como tratar as faixas antes de misturar, igual ao estúdio musical (lerTratamentoDoPacote em
- * musica-pacote.mjs): refinar agudos, recuperar a bateria do resíduo, reduzir ruído, restaurar
+ * musica-pacote.mjs): refinar agudos, reduzir ruído, restaurar
  * por instrumento (0 a 100) e usar a aceleração disponível (NNAPI). Tudo desligado por padrão.
  */
 data class TratamentoDoPacote(
     val refinarAgudos: Boolean = false,
-    val recuperarBateria: Boolean = false,
     val reduzirRuido: Boolean = false,
     val restauracao: Int = 0,
     val aceleracao: Boolean = false,
 ) {
-    fun paraJson(): JSONObject = JSONObject().put("refinarAgudos", refinarAgudos).put("recuperarBateria", recuperarBateria)
+    fun paraJson(): JSONObject = JSONObject().put("refinarAgudos", refinarAgudos)
         .put("reduzirRuido", reduzirRuido).put("restauracao", restauracao).put("aceleracao", aceleracao)
 
     companion object {
         fun deJson(o: JSONObject?): TratamentoDoPacote {
             fun flag(k: String) = o?.opt(k) == true
             val r = (o?.opt("restauracao") as? Number)?.toDouble()?.takeIf { it.isFinite() }
-            return TratamentoDoPacote(flag("refinarAgudos"), flag("recuperarBateria"), flag("reduzirRuido"),
+            return TratamentoDoPacote(flag("refinarAgudos"), flag("reduzirRuido"),
                 r?.let { kotlin.math.floor(it + 0.5).toInt().coerceIn(0, 100) } ?: 0, flag("aceleracao"))
         }
     }

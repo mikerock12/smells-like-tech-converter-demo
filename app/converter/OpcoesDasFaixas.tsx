@@ -161,7 +161,7 @@ export default function OpcoesDasFaixas({ ferramentaId, opcoes, onChange, disabl
 
 /**
  * A mesma qualidade das faixas do estúdio musical, antes de misturar: refinar os agudos,
- * recuperar a bateria do resíduo, reduzir o ruído, restaurar por instrumento e acelerar.
+ * reduzir o ruído, restaurar por instrumento e acelerar.
  */
 function Tratamento({ modelo, tratamento, disabled, mudar }: { modelo: IdDoModeloDoPacote; tratamento: TratamentoDoPacote; disabled: boolean; mudar: (t: TratamentoDoPacote) => void }) {
   const t = tratamento;
@@ -172,10 +172,6 @@ function Tratamento({ modelo, tratamento, disabled, mudar }: { modelo: IdDoModel
       <label className="field field--check">
         <input type="checkbox" checked={t.refinarAgudos} onChange={(e) => mudar({ ...t, refinarAgudos: e.target.checked })} />
         <span><strong>Refinar agudos (experimental)</strong> — {modelo === "roformer" ? "refaz os agudos de cada faixa pela energia de todas: menos pratos e chiado vazando na voz." : "divide a oitava de cima pela energia da mistura."}</span>
-      </label>
-      <label className="field field--check">
-        <input type="checkbox" checked={t.recuperarBateria} onChange={(e) => mudar({ ...t, recuperarBateria: e.target.checked })} />
-        <span><strong>Recuperar a bateria dos resíduos (experimental)</strong> — separa de novo o resíduo e devolve à bateria o que ficou lá. Dobra o tempo.</span>
       </label>
       <label className="field field--check">
         <input type="checkbox" checked={t.reduzirRuido} onChange={(e) => mudar({ ...t, reduzirRuido: e.target.checked })} />

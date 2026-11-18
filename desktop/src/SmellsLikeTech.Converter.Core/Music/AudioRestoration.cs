@@ -11,7 +11,7 @@ namespace SmellsLikeTech.Converter.Core.Music;
 /// </summary>
 public static class AudioRestoration
 {
-    public const int Version = 2;
+    public const int Version = 3;
 
     /// <summary>As oitavas do diagnóstico e da equalização e a referência tonal (dB ÷ 1 kHz), como no JS.</summary>
     public static readonly double[] Octaves = [31.5, 63, 125, 250, 500, 1000, 2000, 4000, 8000, 16000];
@@ -37,7 +37,7 @@ public static class AudioRestoration
 
     public static readonly IReadOnlyList<string> Formats = ["wav-24", "flac", "wav-32f", "mp3"];
 
-    public sealed record Options(string Profile, int Intensity, int PreserveAmbience, string Format, IReadOnlyDictionary<string, int> Steps, bool Report, bool Ai = false);
+    public sealed record Options(string Profile, int Intensity, int PreserveAmbience, string Format, IReadOnlyDictionary<string, int> Steps, bool Report, bool Ai = false, bool KeepVolume = true);
 
     /// <summary>O reparo de compressão por IA (Apollo) e quanto dele entra na mistura.</summary>
     public sealed record AiStep(string Model, double Mix, double CutoffHz);
@@ -81,7 +81,9 @@ public static class AudioRestoration
         var format = o["formato"] is JsonValue fv && fv.TryGetValue<string>(out var f) && Formats.Contains(f) ? f : "wav-24";
         var report = o["relatorio"] is JsonValue rv && rv.TryGetValue<bool>(out var r) && r;
         var ai = o["ia"] is JsonValue iv && iv.TryGetValue<bool>(out var ia) && ia;
-        return new Options(profile, (int)Clamp(RoundJs(Number(o["intensidade"], 35)), 0, 100), (int)Clamp(RoundJs(Number(o["preservarAmbiencia"], 80)), 0, 100), format, steps, report, ai);
+        // Padrão: o mesmo volume do original (como o JS: só "false" desliga).
+        var keep = !(o["manterVolume"] is JsonValue kv && kv.TryGetValue<bool>(out var k) && !k);
+        return new Options(profile, (int)Clamp(RoundJs(Number(o["intensidade"], 35)), 0, 100), (int)Clamp(RoundJs(Number(o["preservarAmbiencia"], 80)), 0, 100), format, steps, report, ai, keep);
     }
 
     private static double Get(IReadOnlyDictionary<string, double> d, string k) => d.TryGetValue(k, out var v) ? v : 0;
@@ -91,6 +93,13 @@ public static class AudioRestoration
     {
         var k = $"oitava{Suffixes[i]}";
         return Has(d, k) && d[k] > -59 && (!(Get(d, "bandaHz") > 0) || Octaves[i] <= 0.9 * Get(d, "bandaHz"));
+    }
+
+    private static double? HighStability(IReadOnlyDictionary<string, double> d)
+    {
+        var bands = new[] { ("estabilidade8k", 12000.0), ("estabilidade12k", 16000.0) }
+            .Where(b => Has(d, b.Item1) && d[b.Item1] > -59 && (!(Get(d, "bandaHz") > 0) || b.Item2 <= Get(d, "bandaHz") * 1.05)).ToList();
+        return bands.Count > 0 ? bands.Max(b => d[b.Item1]) : null;
     }
 
     private static double? ToneDeviation(IReadOnlyDictionary<string, double> d)
@@ -143,6 +152,9 @@ public static class AudioRestoration
         // Esmagada por limitador (ABI 1.3): crista baixa e o platô (99,5º percentil) perto do RMS.
         var limitado = Has(d, "limiteDb") && Get(d, "limiteDb") > -60
             ? Clamp((16 - Get(d, "cristaDb")) / 7, 0, 1) * Clamp((14 - (Get(d, "limiteDb") - Get(d, "rmsDb"))) / 6, 0, 1) * Clamp((15 - Get(d, "dinamicaDb")) / 6, 0, 1) : 0;
+        // Chiado mesmo sem pausas (ABI 1.4): a energia dos agudos quase constante ao longo do tempo.
+        var stability = HighStability(d);
+        var chiado = stability is null ? 0 : Clamp((stability.Value + 12) / 8, 0, 1);
         var deviation = ToneDeviation(d);
         // Acima de 12 dB de desvio não é uma mixagem (voz sozinha, um tom, instrumento solo): não se equaliza.
         var timbre = deviation is null || deviation.Value > 12 ? 0 : Clamp((deviation.Value - 4) / 3.5, 0, 1);
@@ -155,9 +167,10 @@ public static class AudioRestoration
             ["dc"] = new(Round4(dc), 0.9),
             ["banda"] = new(Round4(banda), 0.5, Math.Floor(bandaHz + 0.5)),
             ["limitado"] = new(Round4(limitado), 0.7),
+            ["chiado"] = new(Round4(chiado), 0.6),
             ["timbre"] = new(Round4(timbre), 0.5, deviation is null ? 0 : Round4(deviation.Value)),
         };
-        var recommendations = new[] { "recorte", "zumbido", "ruido", "estalos", "dc", "limitado", "timbre" }.Where(id => problems[id].Severity >= 0.15).ToList();
+        var recommendations = new[] { "recorte", "zumbido", "ruido", "chiado", "estalos", "dc", "limitado", "timbre" }.Where(id => problems[id].Severity >= 0.15).ToList();
         var warnings = new List<string> { "o_diagnostico_nao_garante_a_origem" };
         if (banda >= 0.15) warnings.Add("banda_limitada");
         if (Get(d, "silencio") > 0.9) warnings.Add("quase_silencio");
@@ -199,15 +212,16 @@ public static class AudioRestoration
             if (G("zumbido") >= 0.15) { p["zumbidoHz"] = hum; p["zumbido"] = Clamp(0.5 + 0.5 * G("zumbido"), 0, 1) * Math.Min(1, 0.5 + s); }
             if (G("estalos") >= 0.15) p["estalos"] = Dose(G("estalos")) * (profile == "archive" ? 1 : 0.8);
             if (G("recorte") >= 0.15) { p["recorte"] = Clamp(Dose(0.5 + 0.5 * G("recorte")), 0, 1); p["nivelDoRecorte"] = level; }
-            if (G("ruido") >= 0.15)
+            var measured = Math.Max(G("ruido"), G("chiado"));
+            if (measured >= 0.15)
             {
-                var r = Clamp(G("ruido") * (0.3 + s), 0, 1);
+                var r = Clamp(measured * (0.3 + s), 0, 1);
                 if (profile == "live") r *= 1 - 0.7 * options.PreserveAmbience / 100.0;
                 if (profile == "archive") r = Math.Min(1, r * 1.2);
                 p["ruido"] = r;
             }
             if (profile == "live") p["corteGraveHz"] = 35;
-            if (profile == "archive") { p["corteGraveHz"] = 30; p["arDb"] = 1.5 * s; }
+            if (profile == "archive") { p["corteGraveHz"] = 30; p["arDb"] = 1.5 * s * (1 - G("chiado")); }
             if (profile == "lossy" && !options.Ai) warnings.Add("reparo_de_compressao_por_ia_desligado");
             // Esmagada por limitador: o platô vira pico de novo e o ataque volta; ali os "estalos"
             // quase sempre são batidas de bateria, e o reparo deles cai.
@@ -225,6 +239,7 @@ public static class AudioRestoration
                 for (var i = 0; i < eq.Length; i++) p[$"eq{Suffixes[i]}"] = profile == "archive" && i >= 7 ? Math.Min(eq[i], 3) : eq[i];
             }
         }
+        if (p["ruido"] > 0 && G("ruido") < 0.15 && G("chiado") >= 0.15) { p["ruidoPorMinimos"] = 1; p["ruidoDesdeHz"] = 2000; }
         // Margem antes de tudo: o pico abaixo de −1,5 dBFS e espaço para os picos que voltam.
         var peakDb = Get(d, "picoDb");
         if (p["transientes"] > 0 || peakDb > -1.5) p["entradaDb"] = Round4(-(Math.Max(0, peakDb + 1.5) + 9 * p["transientes"]));
@@ -245,8 +260,9 @@ public static class AudioRestoration
         if (options.Profile == "manual")
         {
             if (options.Steps["compressao"] > 0) ai = new AiStep("apollo", Round4(options.Steps["compressao"] / 100.0), cut);
+            else if (options.Ai) ai = new AiStep("apollo", 1, cut);
         }
-        else if (options.Ai && s > 0 && (options.Profile == "lossy" || G("banda") >= 0.15))
+        else if (options.Ai)
         {
             ai = new AiStep("apollo", Round4(Math.Min(1, 0.4 + s)), cut);
         }
@@ -289,12 +305,30 @@ public static class AudioRestoration
         string Strength(double g) => g >= 0.66 ? "forte" : g >= 0.33 ? "médio" : "leve";
         var names = new Dictionary<string, string>
         {
-            ["recorte"] = "Recorte", ["zumbido"] = $"Zumbido de {Get(d, "zumbidoHz"):0} Hz", ["ruido"] = "Chiado/ruído de fundo", ["estalos"] = "Estalos", ["dc"] = "Deslocamento DC",
+            ["recorte"] = "Recorte", ["zumbido"] = $"Zumbido de {Get(d, "zumbidoHz"):0} Hz", ["ruido"] = "Ruído de fundo", ["chiado"] = "Chiado nos agudos", ["estalos"] = "Estalos", ["dc"] = "Deslocamento DC",
             ["limitado"] = "Esmagada por limitador", ["timbre"] = "Timbre desequilibrado",
         };
         var found = a.Recommendations.Select(id => $"{names[id]} ({Strength(a.Problems[id].Severity)})").ToList();
         var band = a.Problems["banda"].Severity >= 0.15 ? $" · Agudos até ~{Math.Round(Get(d, "bandaHz") / 1000, 1).ToString(System.Globalization.CultureInfo.InvariantCulture)} kHz" : "";
-        return $"{(found.Count > 0 ? string.Join(" · ", found) : "Sem defeitos evidentes")}{band} · pico {Get(d, "picoDb").ToString("0.0", System.Globalization.CultureInfo.InvariantCulture)} dBFS · piso de ruído {Get(d, "pisoDeRuidoDb"):0} dB";
+        return $"{(found.Count > 0 ? string.Join(" · ", found) : "Sem defeitos fortes")}{band} · pico {Get(d, "picoDb").ToString("0.0", System.Globalization.CultureInfo.InvariantCulture)} dBFS · piso de ruído {Get(d, "pisoDeRuidoDb"):0} dB";
+    }
+
+    /// <summary>As medidas do resultado ao lado das da entrada (como resumoAntesEDepois do JS).</summary>
+    public static string BeforeAfter(IReadOnlyDictionary<string, double> before, IReadOnlyDictionary<string, double> after)
+    {
+        static string F(double v) => double.IsFinite(v) ? v.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture) : "?";
+        var parts = new List<string>
+        {
+            $"piso de ruído {F(Get(before, "pisoDeRuidoDb"))} → {F(Get(after, "pisoDeRuidoDb"))} dB",
+            $"crista {F(Get(before, "cristaDb"))} → {F(Get(after, "cristaDb"))} dB",
+            $"pico {F(Get(before, "picoDb"))} → {F(Get(after, "picoDb"))} dBFS",
+        };
+        // Quanto sobra nos agudos (onde mora o chiado): a oitava ÷ a de 1 kHz.
+        foreach (var (k, name) in new[] { ("oitava8k", "8 kHz"), ("oitava16k", "16 kHz") })
+        {
+            if (Has(before, k) && before[k] > -59 && Has(after, k) && after[k] > -59) parts.Add($"agudos em {name} {F(before[k])} → {F(after[k])} dB (÷ 1 kHz)");
+        }
+        return string.Join(" · ", parts);
     }
 
     public static string StepLabel(string id) => Steps.FirstOrDefault(s => s.Id == id).Label ?? id;

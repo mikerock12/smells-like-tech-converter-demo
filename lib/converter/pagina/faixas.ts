@@ -53,7 +53,7 @@ async function separarAqui(contexto: ContextoDoMotor, pedido: PedidoDoPacote, ca
     const faixas = await separador.separar(estereo.map((c) => c.slice()), taxa, modelo.modo,
       (etapa, f) => avisar("separando", etapa === "Separando as faixas" ? `Separando com o ${modelo.rotulo}` : etapa, f),
       !roformer && t?.refinarAgudos ? "refinada" : "classica",
-      { refinarAgudos: roformer && t?.refinarAgudos === true, recuperarBateria: t?.recuperarBateria === true, gpu: !roformer && t?.aceleracao === true });
+      { refinarAgudos: roformer && t?.refinarAgudos === true, gpu: !roformer && t?.aceleracao === true });
     return await tratarFaixas(faixas, taxa, pedido, contexto);
   } catch (erro) {
     if (contexto.cancelado()) throw new ConversionError("cancelado", "Cancelado.");

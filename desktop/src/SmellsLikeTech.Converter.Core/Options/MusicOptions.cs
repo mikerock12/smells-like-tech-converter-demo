@@ -25,9 +25,6 @@ public sealed record MusicSeparateOptions : JobOptions
     /// <summary>Refinar agudos: no RoFormer, o Wiener do núcleo; no Spleeter, a máscara refinada.</summary>
     public bool? RefineHighs { get; init; }
 
-    /// <summary>Recuperar a bateria do resíduo com uma segunda separação (experimental).</summary>
-    public bool? RecoverDrums { get; init; }
-
     public override void Validate()
     {
         if (QualityProfile == "maximum" ? Mode != "6" : MusicSeparation.Mode(Mode) is null)

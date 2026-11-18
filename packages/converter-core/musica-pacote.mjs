@@ -194,8 +194,7 @@ export function grupoDoVideo(modeloId, manter) {
 
 /**
  * Como tratar as faixas antes de misturar, igual ao estúdio musical: refinar os agudos (no
- * Spleeter, a máscara refinada; no RoFormer, o refino de Wiener), recuperar a bateria do
- * resíduo (segunda separação, experimental), reduzir o ruído de cada faixa, restaurar por
+ * Spleeter, a máscara refinada; no RoFormer, o refino de Wiener), reduzir o ruído de cada faixa, restaurar por
  * instrumento (0 a 100) e usar a aceleração de hardware disponível. Tudo desligado por padrão.
  */
 export function lerTratamentoDoPacote(t) {
@@ -203,7 +202,6 @@ export function lerTratamentoDoPacote(t) {
   const restauracao = typeof o.restauracao === "number" ? o.restauracao : NaN;
   return {
     refinarAgudos: o.refinarAgudos === true,
-    recuperarBateria: o.recuperarBateria === true,
     reduzirRuido: o.reduzirRuido === true,
     restauracao: Number.isFinite(restauracao) ? Math.max(0, Math.min(100, Math.round(restauracao))) : 0,
     aceleracao: o.aceleracao === true,

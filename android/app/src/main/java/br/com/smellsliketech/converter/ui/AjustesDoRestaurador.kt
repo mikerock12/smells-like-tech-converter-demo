@@ -64,6 +64,11 @@ internal fun AjustesDoRestaurador(opcoes: Opcoes, mudar: (Opcoes) -> Unit) {
         }
         if (Apollo.disponivel && (atual.ia || (atual.perfil == "manual" && (atual.etapas["compressao"] ?: 0) > 0))) ModeloApollo()
         Dica("O formato vem da lista acima. Salvar em WAV ou FLAC não melhora a qualidade por si: só evita perder mais na hora de gravar.")
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("Manter o volume original", Modifier.weight(1f).padding(end = 8.dp), fontSize = 13.sp)
+            Switch(atual.manterVolume, { gravar(atual.copy(manterVolume = it)) })
+        }
+        Dica("O restaurado sai no mesmo volume da entrada (sem passar de −1 dBFS de pico), para a comparação ser justa: mais alto parece melhor sem ser. Desligado, sobe até o pico de −1 dBFS.")
     }
 }
 

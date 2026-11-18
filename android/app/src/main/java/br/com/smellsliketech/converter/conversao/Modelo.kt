@@ -252,7 +252,7 @@ object Listas {
 }
 
 /** Um arquivo pronto, já salvo em Downloads/SmellsLikeTech. */
-data class Resultado(val nome: String, val uri: Uri, val mime: String, val bytes: Long)
+data class Resultado(val nome: String, val uri: Uri, val mime: String, val bytes: Long, val nota: String? = null)
 
 class ErroDeConversao(mensagem: String, causa: Throwable? = null) : Exception(mensagem, causa)
 

@@ -370,7 +370,7 @@ class BibliotecaDaMusica(private val contexto: Context) {
      * na ordem do modo.
      */
     suspend fun separar(entrada: File, saida: File, modo: String, taxa: Int, refinada: Boolean = false,
-                        recuperarBateria: Boolean = false, progresso: (String, Double) -> Unit): List<Pair<FaixaDoModo, File>> = withContext(Dispatchers.Default) {
+                        progresso: (String, Double) -> Unit): List<Pair<FaixaDoModo, File>> = withContext(Dispatchers.Default) {
         val roformer = modo == RoFormer.modo.id
         check(!roformer || RoFormer.disponivel) { "O núcleo deste aparelho não oferece suporte ao RoFormer." }
         check(withContext(Dispatchers.IO) { conferirModelo(roformer) }) { "O modelo de separação está ausente ou não confere." }
@@ -381,7 +381,6 @@ class BibliotecaDaMusica(private val contexto: Context) {
             val a44 = File(trabalho, "entrada.wav")
             ffmpeg(listOf("-i", entrada.absolutePath, "-ac", "2", "-ar", "44100", "-c:a", "pcm_f32le", a44.absolutePath))
             val definicao = if (roformer) RoFormer.modo else SeparacaoDaMusica.modo(modo) ?: error("Modo de separação desconhecido.")
-            val recuperar = recuperarBateria && definicao.faixas.any { it.id == "bateria" } && definicao.faixas.any { it.id == "outros" }
             // Só os núcleos rápidos: em big.LITTLE os econômicos atrasariam o modelo inteiro.
             val threads = br.com.smellsliketech.converter.conversao.Processadores.paraInferencia()
             val acelerar = br.com.smellsliketech.converter.conversao.Processadores.aceleradorLigado(contexto)
@@ -415,13 +414,7 @@ class BibliotecaDaMusica(private val contexto: Context) {
                         escritores.forEach { it.close() }
                     }
                 }
-                passada(a44, trabalho, 0.0, if (recuperar) 0.5 else 1.0, null)
-                if (recuperar) {
-                    // Recuperar a bateria (experimental): o resíduo passa de novo pelo modelo.
-                    val segunda = File(trabalho, "residuo")
-                    passada(File(trabalho, "outros-44k.wav"), segunda, 0.5, 0.5, "Recuperando a bateria dos resíduos")
-                    TratamentosDaSeparacao.juntarBateria(File(trabalho, "bateria-44k.wav"), File(trabalho, "outros-44k.wav"), File(segunda, "bateria-44k.wav"))
-                }
+                passada(a44, trabalho, 0.0, 1.0, null)
             }
             if (roformer && refinada && NucleoNativo.temRefinoDeAgudos) {
                 progresso("Refinando os agudos", 1.0)
@@ -453,7 +446,7 @@ class BibliotecaDaMusica(private val contexto: Context) {
             val wav = File(trabalho, "entrada.wav")
             ffmpeg(listOf("-i", entrada.absolutePath, "-vn", "-af", "aformat=channel_layouts=mono|stereo") + (taxa?.let { listOf("-ar", "$it") } ?: emptyList()) + listOf("-c:a", "pcm_f32le", wav.absolutePath))
             val restaurado = File(trabalho, "restaurado.wav")
-            val r = TratamentosDaSeparacao.restaurar(wav, restaurado, opcoes, nivelar, coroutineContext[kotlinx.coroutines.Job], progresso) { plano, avancar ->
+            val r = TratamentosDaSeparacao.restaurar(wav, restaurado, opcoes, nivelar || opcoes.manterVolume, coroutineContext[kotlinx.coroutines.Job], progresso) { plano, avancar ->
                 // Reparo de compressão por IA (Apollo) a 44,1 kHz estéreo; volta à taxa e aos canais do arquivo.
                 val ia = plano.ia!!
                 check(Apollo.disponivel) { "O Apollo precisa de um aparelho de 64 bits." }

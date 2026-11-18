@@ -34,7 +34,7 @@ public sealed class AudioRestoreEditor : UserControl
             return new JsonObject
             {
                 ["perfil"] = options.Profile, ["intensidade"] = options.Intensity, ["preservarAmbiencia"] = options.PreserveAmbience,
-                ["formato"] = options.Format, ["etapas"] = etapas, ["relatorio"] = options.Report, ["ia"] = options.Ai,
+                ["formato"] = options.Format, ["etapas"] = etapas, ["relatorio"] = options.Report, ["ia"] = options.Ai, ["manterVolume"] = options.KeepVolume,
             }.ToJsonString();
         }
     }
@@ -115,6 +115,10 @@ public sealed class AudioRestoreEditor : UserControl
         if (options.Ai || (options.Profile == "manual" && options.Steps.GetValueOrDefault("compressao") > 0)) root.Children.Add(ApolloModel());
 
         root.Children.Add(Label("O formato vem da lista acima (WAV 24 bits, FLAC 24 bits ou MP3 320 kbps). Salvar em WAV ou FLAC não melhora a qualidade por si: só evita perder mais na hora de gravar."));
+        var keep = new CheckBox { Content = "Manter o volume original (o restaurado sai no mesmo volume da entrada, sem passar de −1 dBFS de pico: mais alto parece melhor sem ser)", IsChecked = options.KeepVolume };
+        keep.Checked += (_, _) => options = options with { KeepVolume = true };
+        keep.Unchecked += (_, _) => options = options with { KeepVolume = false };
+        root.Children.Add(keep);
         var report = new CheckBox { Content = "Salvar também o relatório técnico (.json com o diagnóstico e as etapas; sem o áudio)", IsChecked = options.Report };
         report.Checked += (_, _) => options = options with { Report = true };
         report.Unchecked += (_, _) => options = options with { Report = false };

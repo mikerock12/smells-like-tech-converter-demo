@@ -19,6 +19,10 @@ export function podeUsarApollo(opcoes: unknown): boolean {
 export type Restaurado = {
   canais: Float32Array[];
   diagnostico: DiagnosticoDoAudio;
+  /** As medidas do resultado, já no volume final. */
+  depois: DiagnosticoDoAudio;
+  /** O ganho aplicado no fim (dB): igualar ao original ou subir até −1 dBFS de pico. */
+  ganhoFinalDb: number;
   plano: PlanoDaRestauracao;
   estatisticas: { estalos: number; recortes: number; reducaoDb: number; limitadorDb: number } | null;
 };
@@ -44,7 +48,7 @@ export async function restaurarAudio(canais: Float32Array[], taxa: number, opcoe
         const m = evento.data;
         if (m.tipo === "progresso") progresso(m.etapa ?? etapa, m.fracao ?? 0);
         else if (m.tipo === "diagnostico") etapa = m.plano?.semMudanca ? "Sem defeitos para tratar" : "Restaurando";
-        else if (m.tipo === "restauradoAudio") resolver({ canais: m.canais, diagnostico: m.diagnostico, plano: m.plano, estatisticas: m.estatisticas });
+        else if (m.tipo === "restauradoAudio") resolver({ canais: m.canais, diagnostico: m.diagnostico, depois: m.depois, ganhoFinalDb: 0, plano: m.plano, estatisticas: m.estatisticas });
         else if (m.tipo === "erro") rejeitar(new Error(m.mensagem));
       };
       worker.onerror = (e) => rejeitar(new Error(e.message || "A restauração parou com um erro."));
@@ -56,7 +60,20 @@ export async function restaurarAudio(canais: Float32Array[], taxa: number, opcoe
       // A conta da taxa arredonda para cima: corta na duração original.
       pronto.canais = voltou.map((c) => c.length > canais[0].length ? c.slice(0, canais[0].length) : c);
     }
-    if (!pronto.plano.semMudanca && (pronto.plano.parametros.entradaDb ?? 0) < 0) normalizarPico(pronto.canais);
+    if (!pronto.plano.semMudanca) {
+      // Manter o volume (padrão): o RMS do original, sem passar de −1 dBFS de pico. Senão: até o pico.
+      let ganho = 1;
+      if (lerOpcoesDoRestaurador(typeof opcoes === "string" ? opcoes : JSON.stringify(opcoes ?? {})).manterVolume) {
+        ganho = ganhoDeNivelamento(canais, pronto.canais);
+        if (ganho !== 1) for (const c of pronto.canais) for (let i = 0; i < c.length; i += 1) c[i] *= ganho;
+      } else if ((pronto.plano.parametros.entradaDb ?? 0) < 0) {
+        ganho = normalizarPico(pronto.canais);
+      }
+      pronto.ganhoFinalDb = 20 * Math.log10(ganho);
+      const deslocar = ["picoDb", "rmsDb", "pisoDeRuidoDb", "limiteDb"] as const;
+      pronto.depois = { ...pronto.depois };
+      for (const k of deslocar) if (Number.isFinite(pronto.depois[k])) (pronto.depois as Record<string, number>)[k] += pronto.ganhoFinalDb;
+    }
     return pronto;
   } finally {
     worker.terminate();

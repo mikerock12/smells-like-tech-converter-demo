@@ -142,7 +142,7 @@ internal fun AjustesDasFaixas(video: Boolean, opcoes: Opcoes, mudar: (Opcoes) ->
 
 /**
  * A mesma qualidade das faixas do estúdio musical, antes de misturar: refinar os agudos,
- * recuperar a bateria do resíduo, reduzir o ruído, restaurar por instrumento e acelerar.
+ * reduzir o ruído, restaurar por instrumento e acelerar.
  */
 @Composable
 private fun TratamentoDasFaixas(modelo: String, t: br.com.smellsliketech.converter.musica.TratamentoDoPacote,
@@ -162,7 +162,6 @@ private fun TratamentoDasFaixas(modelo: String, t: br.com.smellsliketech.convert
     val roformer = modelo == "roformer"
     Chave("Refinar agudos (experimental)", if (roformer) "Refaz os agudos de cada faixa pela energia de todas: menos pratos e chiado vazando na voz." else "Divide a oitava de cima pela energia da mistura.",
         t.refinarAgudos, !roformer || br.com.smellsliketech.converter.musica.NucleoNativo.temRefinoDeAgudos) { mudar(t.copy(refinarAgudos = it)) }
-    Chave("Recuperar a bateria dos resíduos (experimental)", "Separa de novo o resíduo e devolve à bateria o que ficou lá. Dobra o tempo.", t.recuperarBateria) { mudar(t.copy(recuperarBateria = it)) }
     Chave("Reduzir ruído", "Em cada faixa separada: chiado e ruído constante que a separação deixa.", t.reduzirRuido) { mudar(t.copy(reduzirRuido = it)) }
     Text("Restauração por instrumento (${t.restauracao}%)", fontSize = 13.sp)
     androidx.compose.material3.Slider(t.restauracao.toFloat(), { mudar(t.copy(restauracao = it.toInt())) }, valueRange = 0f..100f, steps = 19,

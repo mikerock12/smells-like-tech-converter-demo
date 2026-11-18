@@ -11,8 +11,9 @@ import { ROFORMER_COMPACTO } from "@/packages/converter-core/musica-modelos.mjs"
 import { planejarRestauracao } from "@/packages/converter-core/restaurador.mjs";
 import { APOLLO, restaurarComApollo } from "@/packages/converter-core/apollo.mjs";
 import { separarRoFormer } from "./roformer";
+import INFORMACOES_DO_NUCLEO from "@/packages/nativo/slt_native.json";
 
-type Pedido = { tipo: "separar"; canais: Float32Array[]; modo: string; nativo: boolean; mascara: "classica" | "refinada"; gpu?: boolean; refinarAgudos?: boolean; recuperarBateria?: boolean }
+type Pedido = { tipo: "separar"; canais: Float32Array[]; modo: string; nativo: boolean; mascara: "classica" | "refinada"; gpu?: boolean; refinarAgudos?: boolean }
   | { tipo: "restaurar"; canais: Float32Array[]; taxa: number; perfil: string; intensidade: number }
   | { tipo: "restaurarAudio"; canais: Float32Array[]; taxa: number; opcoes: unknown }
   | { tipo: "diagnosticarAudio"; canais: Float32Array[]; taxa: number; opcoes: unknown }
@@ -23,8 +24,20 @@ let cancelado = false;
 /** O runtime do ONNX com WebGPU, no R2 (passa do limite de arquivo do Workers); a versão casa com o package.json. */
 const RUNTIME_WEBGPU = "ort-1.30.0-simd-threaded.asyncify.wasm";
 
+/**
+ * O núcleo com a versão na URL: /motores tem cache de 7 dias (e o service worker guarda), e um
+ * núcleo antigo guardado dava "Diagnóstico de áudio indisponível neste núcleo". Se mesmo assim
+ * vier um sem as capacidades desta versão, busca de novo sem cache.
+ */
 async function carregarWasm() {
-  const resposta = await fetch("/motores/nativo/slt_native.wasm");
+  const endereco = `/motores/nativo/slt_native.wasm?v=${INFORMACOES_DO_NUCLEO.sha256.slice(0, 16)}`;
+  let nucleo = await baixarNucleo(endereco, "default");
+  if (!nucleo.tem("chiado")) nucleo = await baixarNucleo(endereco, "reload");
+  return nucleo;
+}
+
+async function baixarNucleo(endereco: string, cache: RequestCache) {
+  const resposta = await fetch(endereco, { cache });
   if (!resposta.ok) throw new Error("Não foi possível carregar o núcleo de áudio.");
   return carregarNucleoNativo(await resposta.arrayBuffer());
 }
@@ -93,7 +106,9 @@ self.onmessage = async (evento: MessageEvent<Pedido>) => {
         canais = pronto.canais;
         estatisticas = pronto.estatisticas;
       }
-      self.postMessage({ tipo: "restauradoAudio", canais, diagnostico: diagnostico.valores, plano, estatisticas }, canais === p.canais ? [] : canais.map((c: Float32Array) => c.buffer));
+      // As medidas do resultado (o cartão mostra antes e depois, não só a entrada).
+      const depois = plano.semMudanca ? diagnostico.valores : nucleo.diagnosticar({ canais, taxa: p.taxa }).valores;
+      self.postMessage({ tipo: "restauradoAudio", canais, diagnostico: diagnostico.valores, depois, plano, estatisticas }, canais === p.canais ? [] : canais.map((c: Float32Array) => c.buffer));
       return;
     }
     if (p.tipo === "restaurar") {
@@ -172,21 +187,7 @@ self.onmessage = async (evento: MessageEvent<Pedido>) => {
     const motor = roformer ? comRoFormer : comSpleeter;
     let faixas: Faixa[];
     try {
-      // Recuperar a bateria (experimental): uma segunda separação, só do resíduo, devolve à
-      // bateria o que o modelo deixou em "outros". Custa uma separação a mais.
-      const recuperar = p.recuperarBateria === true;
-      faixas = await motor(p.canais, (fracao) => self.postMessage({ tipo: "progresso", fracao: recuperar ? fracao / 2 : fracao }));
-      const bateria = faixas.find((f) => f.id === "bateria");
-      const residuo = faixas.find((f) => f.id === "outros");
-      if (recuperar && bateria && residuo) {
-        self.postMessage({ tipo: "etapa", etapa: "Recuperando a bateria dos resíduos" });
-        const segunda = await motor(residuo.canais.map((c) => c.slice()), (fracao) => self.postMessage({ tipo: "progresso", fracao: 0.5 + fracao / 2 }));
-        const recuperada = segunda.find((f) => f.id === "bateria");
-        if (recuperada) for (let c = 0; c < 2; c += 1) {
-          const b = bateria.canais[c], r = residuo.canais[c], x = recuperada.canais[c];
-          for (let i = 0; i < b.length; i += 1) { b[i] += x[i]; r[i] -= x[i]; }
-        }
-      }
+      faixas = await motor(p.canais, (fracao) => self.postMessage({ tipo: "progresso", fracao }));
     } finally {
       await sessao.release();
     }

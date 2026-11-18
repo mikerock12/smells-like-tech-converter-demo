@@ -53,7 +53,6 @@ public sealed class AudioRestorationTests
             var t = MusicStemTreatment.Read(System.Text.Json.Nodes.JsonNode.Parse(entradas[i].GetRawText()));
             var e = esperados[i];
             Assert.Equal(e.GetProperty("refinarAgudos").GetBoolean(), t.RefineHighs);
-            Assert.Equal(e.GetProperty("recuperarBateria").GetBoolean(), t.RecoverDrums);
             Assert.Equal(e.GetProperty("reduzirRuido").GetBoolean(), t.ReduceNoise);
             Assert.Equal(e.GetProperty("restauracao").GetInt32(), t.Restoration);
             Assert.Equal(e.GetProperty("aceleracao").GetBoolean(), t.Acceleration);

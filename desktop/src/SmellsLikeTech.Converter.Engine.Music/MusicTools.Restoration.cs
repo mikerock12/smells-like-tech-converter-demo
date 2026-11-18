@@ -5,14 +5,19 @@ namespace SmellsLikeTech.Converter.Engine.Music;
 
 /// <summary>
 /// Restaurador de áudio e os tratamentos novos da separação, sobre WAV float32 em fluxo (a
-/// música não precisa caber na RAM): refino dos agudos (Wiener do núcleo), recuperação da
-/// bateria do resíduo (segunda separação) e restauração do arquivo inteiro (diagnóstico,
+/// música não precisa caber na RAM): refino dos agudos (Wiener do núcleo) e restauração do arquivo inteiro (diagnóstico,
 /// plano e reparo do núcleo). Mesmas regras do site e do Android.
 /// </summary>
 public sealed partial class MusicTools
 {
     public sealed record RestorationResult(string Path, AudioRestoration.Plan Plan, IReadOnlyDictionary<string, double> Diagnosis,
-        (double Clicks, double Clips, double DenoiseDb, double LimiterDb)? Stats);
+        (double Clicks, double Clips, double DenoiseDb, double LimiterDb)? Stats)
+    {
+        /// <summary>As medidas do resultado (no volume final): o cartão mostra antes e depois.</summary>
+        public IReadOnlyDictionary<string, double> After { get; init; } = Diagnosis;
+        /// <summary>O ganho do fim (dB): igualar ao original ou subir até −1 dBFS de pico.</summary>
+        public double FinalGainDb { get; init; }
+    }
 
     private const int Block = 1 << 15;
 
@@ -88,32 +93,6 @@ public sealed partial class MusicTools
         for (var i = 0; i < stems.Count; i++) File.Move(temps[i], stems[i], overwrite: true);
     }
 
-    /// <summary>Soma a bateria recuperada à faixa da bateria e tira do resíduo (WAV 44,1 kHz).</summary>
-    internal static void MergeRecoveredDrums(string drums, string residual, string recovered, CancellationToken token)
-    {
-        string newDrums = drums + ".nova", newResidual = residual + ".novo";
-        using (var d = new MappedWavSource(drums))
-        using (var r = new MappedWavSource(residual))
-        using (var x = new MappedWavSource(recovered))
-        using (var wd = new StreamingWavWriter(newDrums, 2, MusicSeparation.ModelRate))
-        using (var wr = new StreamingWavWriter(newResidual, 2, MusicSeparation.ModelRate))
-        {
-            var dl = new float[Block]; var dr = new float[Block]; var rl = new float[Block]; var rr = new float[Block]; var xl = new float[Block]; var xr = new float[Block];
-            var frames = Math.Min(d.Frames, r.Frames);
-            for (long i = 0; i < frames; i += Block)
-            {
-                token.ThrowIfCancellationRequested();
-                var n = (int)Math.Min(Block, frames - i);
-                d.Copy(0, i, n, dl); d.Copy(1, i, n, dr); r.Copy(0, i, n, rl); r.Copy(1, i, n, rr); x.Copy(0, i, n, xl); x.Copy(1, i, n, xr);
-                for (var k = 0; k < n; k++) { dl[k] += xl[k]; dr[k] += xr[k]; rl[k] -= xl[k]; rr[k] -= xr[k]; }
-                wd.Write([dl, dr], 0, n);
-                wr.Write([rl, rr], 0, n);
-            }
-        }
-        File.Move(newDrums, drums, overwrite: true);
-        File.Move(newResidual, residual, overwrite: true);
-    }
-
     /// <summary>
     /// Restaura um arquivo de áudio (qualquer formato que o FFmpeg leia) e grava no formato
     /// pedido. `levelMatch`: iguala o RMS ao do original (A/B do estúdio). O original não muda.
@@ -156,10 +135,11 @@ public sealed partial class MusicTools
                 FitLength(repairInput, analysis.Frames, analysis.Channels, sampleRate, token);
                 from = 0.85;
             }
-            var (diagnosis, stats) = await Task.Run(() => Repair(repairInput, restored, sampleRate, analysis, levelMatch, progress, from, token), token);
+            var (diagnosis, stats, finalGain) = await Task.Run(() => Repair(repairInput, restored, sampleRate, analysis, levelMatch || options.KeepVolume, progress, from, token), token);
+            var after = plan.NoChange ? diagnosis : await Task.Run(() => DiagnoseFile(restored, sampleRate, token), token);
             progress?.Report(("Gravando o arquivo", 0.97));
             await EncodeAsync(restored, output, options.Format, token);
-            return new RestorationResult(output, plan, diagnosis, stats);
+            return new RestorationResult(output, plan, diagnosis, stats) { After = after, FinalGainDb = 20 * Math.Log10(finalGain) };
         }
         finally
         {
@@ -199,6 +179,25 @@ public sealed partial class MusicTools
         return new Analysis(AudioRestoration.Build(diagnosis, options), diagnosis, profile, inputEnergy, inputPeak, source.Frames, stereo ? 2 : 1);
     }
 
+    /// <summary>Só o diagnóstico de um WAV (o do resultado).</summary>
+    private static IReadOnlyDictionary<string, double> DiagnoseFile(string wav, int rate, CancellationToken token)
+    {
+        using var source = new MappedWavSource(wav);
+        var stereo = source.Channels > 1;
+        var left = new float[Block];
+        var right = new float[Block];
+        using var analyzer = new MusicNative.AudioAnalyzer((uint)rate);
+        for (long i = 0; i < source.Frames; i += Block)
+        {
+            token.ThrowIfCancellationRequested();
+            var n = (int)Math.Min(Block, source.Frames - i);
+            source.Copy(0, i, n, left);
+            source.Copy(1, i, n, right);
+            analyzer.Feed(left.AsSpan(0, n), stereo ? right.AsSpan(0, n) : default);
+        }
+        return analyzer.Result();
+    }
+
     /// <summary>Acerta a duração depois da troca de taxa (o FFmpeg pode deixar uma amostra a mais ou a menos).</summary>
     private static void FitLength(string wav, long frames, int channels, int rate, CancellationToken token)
     {
@@ -225,7 +224,7 @@ public sealed partial class MusicTools
     }
 
     /// <summary>Reparo do núcleo sobre `input` (o original ou o que saiu do Apollo), com a conferência antes de devolver.</summary>
-    private static (IReadOnlyDictionary<string, double>, (double, double, double, double)?) Repair(string input, string output, int rate, Analysis analysis,
+    private static (IReadOnlyDictionary<string, double>, (double, double, double, double)?, double) Repair(string input, string output, int rate, Analysis analysis,
         bool levelMatch, IProgress<(string Stage, double Fraction)>? progress, double from0, CancellationToken token)
     {
         var (plan, diagnosis, profile, inputEnergy, inputPeak, _, channels) = analysis;
@@ -236,7 +235,7 @@ public sealed partial class MusicTools
         if (plan.NoChange)
         {
             File.Copy(input, output, overwrite: true);
-            return (diagnosis, null);
+            return (diagnosis, null, 1);
         }
         var temp = output + ".parcial";
         double outputEnergy = 0, outputPeak = 0;
@@ -278,8 +277,9 @@ public sealed partial class MusicTools
         }
         if (inputPeak > 1e-3 && outputPeak < 1e-3)
             throw new ConversionException("restore_invalid", "O áudio restaurado ficou em silêncio; o original não foi alterado.");
-        // Nivelar (A/B do estúdio): o RMS do original, de −6 a +12 dB. Sem nivelar, quando o plano
-        // baixou a entrada: o volume volta até o pico de −1 dBFS. Nos dois, sem passar desse pico.
+        // Nivelar (A/B do estúdio e "manter o volume original", o padrão): o RMS do original, de −6 a
+        // +12 dB. Sem nivelar, quando o plano baixou a entrada: o volume volta até o pico de −1 dBFS.
+        // Nos dois, sem passar desse pico.
         const double ceiling = 0.8912509381337456;
         var gain = levelMatch && outputEnergy > 0 ? Math.Clamp(Math.Sqrt(inputEnergy / outputEnergy), 0.5, 4)
             : plan.Parameters.GetValueOrDefault("entradaDb") < 0 ? 4 : 1;
@@ -287,7 +287,7 @@ public sealed partial class MusicTools
         if (Math.Abs(gain - 1) < 1e-4)
         {
             File.Move(temp, output, overwrite: true);
-            return (diagnosis, stats);
+            return (diagnosis, stats, 1);
         }
         using (var restored = new MappedWavSource(temp))
         using (var final = new StreamingWavWriter(output, channels, rate))
@@ -302,7 +302,7 @@ public sealed partial class MusicTools
             }
         }
         File.Delete(temp);
-        return (diagnosis, stats);
+        return (diagnosis, stats, gain);
     }
 
     /// <summary>WAV float → formato do restaurador (WAV 24/32f, FLAC 24, MP3 320).</summary>

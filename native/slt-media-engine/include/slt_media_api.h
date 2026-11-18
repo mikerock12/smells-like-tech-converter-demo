@@ -41,7 +41,7 @@ extern "C" {
 
 /* Versão da ABI: maior << 16 | menor. A maior muda quando algo deixa de ser compatível. */
 #define SLT_API_VERSION_MAJOR 1u
-#define SLT_API_VERSION_MINOR 3u
+#define SLT_API_VERSION_MINOR 4u
 #define SLT_API_VERSION ((SLT_API_VERSION_MAJOR << 16) | SLT_API_VERSION_MINOR)
 
 typedef enum slt_result {
@@ -70,6 +70,7 @@ typedef enum slt_result {
 #define SLT_CAP_AUDIO_DIAGNOSTICS (1u << 10) /* diagnóstico de qualidade do áudio, ABI 1.2 */
 #define SLT_CAP_AUDIO_REPAIR  (1u << 11) /* reparo conservador do restaurador (DSP, sem IA), ABI 1.2 */
 #define SLT_CAP_AUDIO_DELIMIT (1u << 12) /* ganho de entrada, transientes e equilíbrio tonal no reparo, ABI 1.3 */
+#define SLT_CAP_AUDIO_HISS    (1u << 13) /* chiado sem pausas (diagnóstico e reparo) e zumbido estável, ABI 1.4 */
 
 SLT_API uint32_t slt_get_api_version(void);
 SLT_API uint32_t slt_get_capabilities(void);
@@ -427,7 +428,12 @@ SLT_API void slt_stem_refiner_destroy(slt_stem_refiner_handle* refiner);
 #define SLT_DIAG_NEAR_LIMIT_RATIO   18  /* fração das amostras a menos de 3 dB do platô */
 #define SLT_DIAG_OCTAVE_FIRST       19  /* 19 a 28: nível por oitava (31,5 Hz a 16 kHz) ÷ o de 1 kHz, dB */
 #define SLT_DIAG_OCTAVES            10
-#define SLT_DIAGNOSIS_FIELDS        29
+/* ABI 1.4: estabilidade da energia nos agudos (10º ÷ 50º percentil por quadro de 4096, dB):
+ * perto de 0 é um piso constante (chiado), mesmo sem pausas na música; música fica abaixo de −12. */
+#define SLT_DIAG_HF_STABILITY_4K    29  /* 4 a 8 kHz */
+#define SLT_DIAG_HF_STABILITY_8K    30  /* 8 a 12 kHz */
+#define SLT_DIAG_HF_STABILITY_12K   31  /* 12 a 16 kHz */
+#define SLT_DIAGNOSIS_FIELDS        32
 /* Quem compilou contra a ABI 1.2 pede 17 campos e recebe só esses. */
 #define SLT_DIAGNOSIS_FIELDS_1_2    17
 
@@ -462,7 +468,9 @@ SLT_API void slt_audio_analyzer_destroy(slt_audio_analyzer_handle* analyzer);
 #define SLT_REPAIR_TRANSIENTS     12  /* ABI 1.3: 0 a 1, devolve o ataque que o limitador tirou (até +9 dB) */
 #define SLT_REPAIR_EQ_FIRST       13  /* ABI 1.3: 13 a 22, ganho por oitava (31,5 Hz a 16 kHz), −12 a +12 dB */
 #define SLT_REPAIR_EQ_BANDS       10
-#define SLT_REPAIR_PARAMS         23
+#define SLT_REPAIR_NOISE_SOURCE   23  /* ABI 1.4: 1 = estatística de mínimos mesmo com perfil (música sem pausas) */
+#define SLT_REPAIR_DENOISE_FROM_HZ 24 /* ABI 1.4: a redução de ruído só age acima disto (0 = em tudo) */
+#define SLT_REPAIR_PARAMS         25
 
 /* Estatísticas de slt_audio_repair_stats. */
 #define SLT_REPAIR_STAT_CLICKS      0

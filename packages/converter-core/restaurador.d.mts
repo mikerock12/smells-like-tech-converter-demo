@@ -5,11 +5,11 @@ export declare const ETAPAS_DO_RESTAURADOR: { id: string; rotulo: string }[];
 export declare const FORMATOS_DO_RESTAURADOR: string[];
 export interface OpcoesDoRestaurador {
   versao: number; perfil: IdDoPerfilDoRestaurador; intensidade: number; preservarAmbiencia: number;
-  formato: string; etapas: Record<string, number>; relatorio: boolean; ia: boolean;
+  formato: string; etapas: Record<string, number>; relatorio: boolean; ia: boolean; manterVolume: boolean;
 }
-export type DiagnosticoDoAudio = Record<"duracao" | "picoDb" | "rmsDb" | "cristaDb" | "dc" | "recorte" | "pisoDeRuidoDb" | "zumbidoHz" | "zumbidoDb" | "bandaHz" | "estalosPorMinuto" | "correlacao" | "silencio" | "agudosDb" | "dinamicaDb" | "taxa" | "planuraDoRuido", number>;
+export type DiagnosticoDoAudio = Record<"duracao" | "picoDb" | "rmsDb" | "cristaDb" | "dc" | "recorte" | "pisoDeRuidoDb" | "zumbidoHz" | "zumbidoDb" | "bandaHz" | "estalosPorMinuto" | "correlacao" | "silencio" | "agudosDb" | "dinamicaDb" | "taxa" | "planuraDoRuido", number> & Partial<Record<string, number>>;
 export interface Problema { gravidade: number; confianca: number; hz?: number }
-export interface Avaliacao { problemas: Record<"recorte" | "zumbido" | "ruido" | "estalos" | "dc" | "banda", Problema>; recomendacoes: string[]; avisos: string[]; semDefeitos: boolean }
+export interface Avaliacao { problemas: Record<"recorte" | "zumbido" | "ruido" | "estalos" | "dc" | "banda" | "limitado" | "chiado" | "timbre", Problema>; recomendacoes: string[]; avisos: string[]; semDefeitos: boolean }
 export interface PlanoDaRestauracao {
   versao: number; perfil: IdDoPerfilDoRestaurador; etapas: { id: string; quanto: number; hz?: number }[];
   parametros: Record<string, number>; ia: { modelo: "apollo"; mistura: number; corteHz: number } | null; avisos: string[]; semMudanca: boolean; avaliacao: Avaliacao;
@@ -19,4 +19,5 @@ export declare function avaliarDiagnostico(d: DiagnosticoDoAudio): Avaliacao;
 export declare function planejarRestauracao(d: DiagnosticoDoAudio, opcoes: unknown): PlanoDaRestauracao;
 export declare function textoDoAviso(id: string): string;
 export declare function resumoDoDiagnostico(d: DiagnosticoDoAudio): string;
+export declare function resumoAntesEDepois(antes: DiagnosticoDoAudio, depois: DiagnosticoDoAudio): string;
 export declare function nomeDoRestaurado(nome: string, extensao: string): string;

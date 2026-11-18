@@ -134,7 +134,6 @@ public sealed class StemPackageEditor : UserControl
         Toggle(Model.Id == "roformer"
             ? "Refinar agudos (experimental): refaz os agudos de cada faixa pela energia de todas, com menos pratos e chiado vazando na voz"
             : "Refinar agudos (experimental): divide a oitava de cima pela energia da mistura", t.RefineHighs, v => t.RefineHighs = v);
-        Toggle("Recuperar a bateria dos resíduos (experimental): separa de novo o resíduo e devolve à bateria o que ficou lá (dobra o tempo)", t.RecoverDrums, v => t.RecoverDrums = v);
         Toggle("Reduzir ruído em cada faixa separada", t.ReduceNoise, v => t.ReduceNoise = v);
         var restore = new Slider { Header = $"Restauração por instrumento ({t.Restoration}%)", Minimum = 0, Maximum = 100, StepFrequency = 5, Value = t.Restoration, MaxWidth = 560, HorizontalAlignment = HorizontalAlignment.Stretch };
         restore.ValueChanged += (_, e) => { t.Restoration = (int)e.NewValue; restore.Header = $"Restauração por instrumento ({t.Restoration}%)"; };

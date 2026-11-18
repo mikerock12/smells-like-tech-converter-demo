@@ -8,14 +8,37 @@ import kotlin.math.sqrt
 
 /**
  * Os tratamentos novos sobre WAV float32 em fluxo (a música não precisa caber na memória do
- * celular): refino dos agudos das faixas (Wiener do núcleo), bateria recuperada do resíduo e
+ * celular): refino dos agudos das faixas (Wiener do núcleo) e
  * o restaurador de áudio (diagnóstico, plano e reparo do núcleo). Mesmas regras do site e do
  * Windows.
  */
 object TratamentosDaSeparacao {
     private const val BLOCO = 1 shl 15
 
-    data class Restaurado(val plano: RestauradorDeAudio.Plano, val diagnostico: Map<String, Double>, val estatisticas: FloatArray?)
+    /** [depois]: as medidas do resultado, no volume final; [ganhoFinalDb]: o ganho do fim. */
+    data class Restaurado(val plano: RestauradorDeAudio.Plano, val diagnostico: Map<String, Double>, val estatisticas: FloatArray?,
+                          val depois: Map<String, Double> = diagnostico, val ganhoFinalDb: Double = 0.0)
+
+    /** Só o diagnóstico de um WAV (o do resultado). */
+    fun diagnosticar(wav: File): Map<String, Double> = FonteWav(wav).use { fonte ->
+        val e = NucleoNativo.plano(BLOCO)
+        val d = NucleoNativo.plano(BLOCO)
+        val esquerda = FloatArray(BLOCO)
+        val direita = FloatArray(BLOCO)
+        NucleoNativo.Analisador(taxaDoWav(wav)).use { analisador ->
+            var i = 0L
+            while (i < fonte.quadros) {
+                val n = minOf(BLOCO.toLong(), fonte.quadros - i).toInt()
+                fonte.copiar(0, i, n, esquerda)
+                fonte.copiar(1, i, n, direita)
+                e.asFloatBuffer().put(esquerda, 0, n)
+                d.asFloatBuffer().put(direita, 0, n)
+                analisador.alimentar(n, e, if (fonte.canais > 1) d else null)
+                i += n
+            }
+            analisador.resultado()
+        }
+    }
 
     /** Refina os agudos de faixas separadas (mesma duração, estéreo), trocando os arquivos. */
     fun refinarAgudos(faixas: List<File>, taxa: Int) {
@@ -61,28 +84,6 @@ object TratamentosDaSeparacao {
             fontes.forEach { it.close() }
         }
         faixas.forEachIndexed { i, f -> check(temporarios[i].renameTo(f.also { it.delete() })) { "Não foi possível trocar a faixa refinada." } }
-    }
-
-    /** Soma a bateria recuperada à faixa da bateria e tira do resíduo. */
-    fun juntarBateria(bateria: File, residuo: File, recuperada: File) {
-        val novaBateria = File(bateria.path + ".nova")
-        val novoResiduo = File(residuo.path + ".novo")
-        FonteWav(bateria).use { b -> FonteWav(residuo).use { r -> FonteWav(recuperada).use { x ->
-            EscritorDeWav(novaBateria, 2, SeparacaoDaMusica.TAXA).use { wb -> EscritorDeWav(novoResiduo, 2, SeparacaoDaMusica.TAXA).use { wr ->
-                val bl = FloatArray(BLOCO); val br = FloatArray(BLOCO); val rl = FloatArray(BLOCO); val rr = FloatArray(BLOCO); val xl = FloatArray(BLOCO); val xr = FloatArray(BLOCO)
-                val quadros = minOf(b.quadros, r.quadros)
-                var i = 0L
-                while (i < quadros) {
-                    val n = minOf(BLOCO.toLong(), quadros - i).toInt()
-                    b.copiar(0, i, n, bl); b.copiar(1, i, n, br); r.copiar(0, i, n, rl); r.copiar(1, i, n, rr); x.copiar(0, i, n, xl); x.copiar(1, i, n, xr)
-                    for (k in 0 until n) { bl[k] += xl[k]; br[k] += xr[k]; rl[k] -= xl[k]; rr[k] -= xr[k] }
-                    wb.escreverCanais(listOf(bl, br), n)
-                    wr.escreverCanais(listOf(rl, rr), n)
-                    i += n
-                }
-            } }
-        } } }
-        check(novaBateria.renameTo(bateria.also { it.delete() }) && novoResiduo.renameTo(residuo.also { it.delete() })) { "Não foi possível juntar a bateria recuperada." }
     }
 
     internal fun taxaDoWav(wav: File): Int {
@@ -196,12 +197,14 @@ object TratamentosDaSeparacao {
             // Conferência: mesma duração e som de verdade (a entrada não era silêncio).
             FonteWav(parcial).use { check(it.quadros == fonte.quadros) { "A duração do áudio restaurado não confere." } }
             check(!(picoDeEntrada > 1e-3 && picoDeSaida < 1e-3)) { "O áudio restaurado ficou em silêncio; o original não foi alterado." }
-            // Nivelar (A/B do estúdio): o RMS do original, de −6 a +12 dB. Sem nivelar, quando o plano
-            // baixou a entrada: o volume volta até o pico de −1 dBFS. Nos dois, sem passar desse pico.
+            // Nivelar (A/B do estúdio e "manter o volume original", o padrão): o RMS do original, de −6 a
+            // +12 dB. Sem nivelar, quando o plano baixou a entrada: o volume volta até o pico de −1 dBFS.
+            // Nos dois, sem passar desse pico.
             val teto = 0.8912509381337456
             var ganho = if (nivelar && energiaDeSaida > 0) sqrt(energiaDeEntrada / energiaDeSaida).coerceIn(0.5, 4.0)
                 else if ((plano.parametros["entradaDb"] ?: 0.0) < 0) 4.0 else 1.0
             if (ganho > 1) ganho = if (picoDeSaida > 0) maxOf(1.0, minOf(ganho, teto / picoDeSaida)) else 1.0
+            val ganhoDb = 20 * kotlin.math.log10(ganho)
             if (abs(ganho - 1) < 1e-4) {
                 check(parcial.renameTo(saida.also { it.delete() })) { "Não foi possível guardar o áudio restaurado." }
             } else {
@@ -219,7 +222,7 @@ object TratamentosDaSeparacao {
                 }
                 parcial.delete()
             }
-            return Restaurado(plano, diagnostico, estatisticas)
+            return Restaurado(plano, diagnostico, estatisticas, diagnosticar(saida), ganhoDb)
             } finally {
                 if (doApollo != null) (origem as FonteWav).close()
             }

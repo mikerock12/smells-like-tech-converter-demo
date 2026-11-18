@@ -524,8 +524,6 @@ public sealed partial class MusicPage
         var warning = Label("");
         var refine = new ToggleSwitch { Header = "Refinar agudos (experimental)", IsEnabled = MusicNative.IsAvailable };
         var refineHelp = Label("");
-        var recover = new ToggleSwitch { Header = "Recuperar a bateria dos resíduos (experimental)", IsOn = false };
-        var recoverHelp = Label("Depois de separar, separa de novo só o resíduo (“Outros”), tira dele a bateria que ficou ali e a junta à faixa da bateria. Dobra o tempo da separação.");
         void ShowNames()
         {
             var selected = modes[Math.Max(0, mode.SelectedIndex)];
@@ -534,7 +532,6 @@ public sealed partial class MusicPage
             refineHelp.Text = selected.Id == "6"
                 ? "No RoFormer, refaz os agudos (acima de 8 kHz) de cada faixa pela energia de todas: menos pratos e chiado vazando na voz. A soma das faixas continua a música original."
                 : "No Spleeter, divide a oitava de cima pela energia da mistura, em vez de repetir a média.";
-            recover.IsEnabled = selected.Stems.Any(st => st.Id == "bateria") && selected.Stems.Any(st => st.Id == "outros");
             names.Text = "As faixas novas entram com o nome do que são: " + string.Join(", ", selected.Stems.Select(st => MusicRules.SeparatedTrackName(st.Label, "…"))) + ".";
             if (selected.Id == "6") names.Text += " A separação pode demorar e usar vários gigabytes de RAM.";
             warning.Text = selected.Id == "6"
@@ -584,8 +581,8 @@ public sealed partial class MusicPage
                 var input = Library.MediaPath(project.Id, clip.Media);
                 var reports = new Progress<(string Stage, double Fraction)>(p => Show(p.Stage, p.Fraction));
                 var stems = (roformer
-                    ? await Tools.SeparateRoFormerAsync(input, folder, Rate, reports, work.Token, refined, recover.IsOn && recover.IsEnabled)
-                    : await Tools.SeparateAsync(input, folder, modeId, Rate, reports, work.Token, refined, recover.IsOn && recover.IsEnabled)).ToList();
+                    ? await Tools.SeparateRoFormerAsync(input, folder, Rate, reports, work.Token, refined)
+                    : await Tools.SeparateAsync(input, folder, modeId, Rate, reports, work.Token, refined)).ToList();
                 if (clean.IsOn)
                 {
                     // Cada faixa separada passa pela redução de ruído antes de entrar no projeto.
@@ -649,8 +646,7 @@ public sealed partial class MusicPage
 
                     p.Separations.Add(new MusicSeparationRecord { Id = NewId("sep"), Media = clip.Media, Mode = modeId, Model = modelId,
                         Tracks = [.. active.Select(m => m.Id)], QualityProfile = roformer ? "maximum" : "legacy",
-                        MaskProfile = roformer ? null : refined ? "refinada" : "classica", HighsRefined = roformer && refined ? true : null,
-                        DrumsRecovered = recover.IsOn && recover.IsEnabled ? true : null });
+                        MaskProfile = roformer ? null : refined ? "refinada" : "classica", HighsRefined = roformer && refined ? true : null });
                 });
                 foreach (var media in added) LoadMedia(media);
                 Status($"Pronto: {stems.Count} faixas novas abaixo de “{track.Name}”, que ficou muda como referência.{(clean.IsOn ? " O ruído de fundo foi reduzido em cada uma." : "")}", InfoBarSeverity.Success);
@@ -674,8 +670,6 @@ public sealed partial class MusicPage
         panel.Children.Add(source);
         panel.Children.Add(mode);
         if (MusicNative.IsAvailable) { panel.Children.Add(refine); panel.Children.Add(refineHelp); }
-        panel.Children.Add(recover);
-        panel.Children.Add(recoverHelp);
         if (restore.IsEnabled) panel.Children.Add(restore);
         panel.Children.Add(names);
         panel.Children.Add(clean);

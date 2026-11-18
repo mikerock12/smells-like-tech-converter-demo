@@ -21,13 +21,12 @@ public sealed record MusicStemCombination(string Id, string Label, IReadOnlyList
 /// <summary>O pedido inteiro, como viaja nas opções da conversão (o mesmo JSON do site e do Android).</summary>
 /// <summary>
 /// Como tratar as faixas antes de misturar, igual ao estúdio musical (lerTratamentoDoPacote em
-/// musica-pacote.mjs): refinar agudos, recuperar a bateria do resíduo, reduzir ruído, restaurar
+/// musica-pacote.mjs): refinar agudos, reduzir ruído, restaurar
 /// por instrumento (0 a 100) e usar a aceleração disponível. Tudo desligado por padrão.
 /// </summary>
 public sealed class MusicStemTreatment
 {
     [JsonPropertyName("refinarAgudos")] public bool RefineHighs { get; set; }
-    [JsonPropertyName("recuperarBateria")] public bool RecoverDrums { get; set; }
     [JsonPropertyName("reduzirRuido")] public bool ReduceNoise { get; set; }
     [JsonPropertyName("restauracao")] public int Restoration { get; set; }
     [JsonPropertyName("aceleracao")] public bool Acceleration { get; set; }
@@ -41,7 +40,7 @@ public sealed class MusicStemTreatment
             restoration = (int)Math.Clamp(Math.Floor(d + 0.5), 0, 100);
         return new MusicStemTreatment
         {
-            RefineHighs = Flag("refinarAgudos"), RecoverDrums = Flag("recuperarBateria"), ReduceNoise = Flag("reduzirRuido"),
+            RefineHighs = Flag("refinarAgudos"), ReduceNoise = Flag("reduzirRuido"),
             Restoration = restoration, Acceleration = Flag("aceleracao"),
         };
     }

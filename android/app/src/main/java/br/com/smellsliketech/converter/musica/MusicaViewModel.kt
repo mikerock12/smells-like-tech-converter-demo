@@ -554,7 +554,7 @@ class MusicaViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) {
     /** Separa o clipe em faixas novas (voz_, bateria_...). Com [reduzirRuido], cada faixa separada
      *  passa pela redução de ruído antes de entrar no projeto. */
     fun separar(faixaId: String, clipeId: String, modo: String, reduzirRuido: Boolean = false, refinada: Boolean = false,
-                intensidade: Int = 0, recuperarBateria: Boolean = false) {
+                intensidade: Int = 0) {
         val p = projeto ?: return
         val faixa = p.faixas.first { it.id == faixaId }
         val clipe = faixa.clipes.first { it.id == clipeId }
@@ -566,7 +566,7 @@ class MusicaViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) {
             try {
                 biblioteca.garantirModelo(roformer) { f -> viewModelScope.launch { andamento = "Baixando o modelo" to f } }
                 // "Refinar agudos": no Spleeter é a máscara refinada; no RoFormer, o Wiener do núcleo.
-                val faixas = biblioteca.separar(biblioteca.midia(p.id, clipe.midia), File(biblioteca.pasta(p.id), "midias"), modo, p.taxa, refinada, recuperarBateria) { etapa, f -> viewModelScope.launch { andamento = etapa to f } }
+                val faixas = biblioteca.separar(biblioteca.midia(p.id, clipe.midia), File(biblioteca.pasta(p.id), "midias"), modo, p.taxa, refinada) { etapa, f -> viewModelScope.launch { andamento = etapa to f } }
                 val brutas = mutableListOf<MidiaMusical>()
                 val novas = faixas.mapIndexed { k, (definicao, arquivo) ->
                     val midiaId = novoId("stem")
@@ -593,11 +593,11 @@ class MusicaViewModel(aplicacao: Application) : AndroidViewModel(aplicacao) {
                     val faixas = q.faixas.toMutableList().apply { this[i] = this[i].copy(mudo = true); addAll(i + 1, criadas) }
                     q.copy(midias = q.midias + brutas + novas.map { it.second }, faixas = faixas, separacoes = q.separacoes + RegistroDeSeparacao(novoId("sep"), clipe.midia, modo, idModelo, novas.map { it.second.id },
                         if (roformer) "maximum" else "legacy", if (roformer) null else if (refinada) "refinada" else "classica",
-                        if (roformer && refinada) true else null, if (recuperarBateria) true else null))
+                        if (roformer && refinada) true else null))
                 }
                 novas.forEach { carregarMidia(projeto!!, it.second) }
                 brutas.forEach { carregarMidia(projeto!!, it) }
-                mensagem = "Pronto: ${novas.size} faixas novas abaixo de “${faixa.nome}”, que ficou muda como referência.${if (reduzirRuido) " O ruído de fundo foi reduzido em cada uma." else ""}${if (recuperarBateria) " A bateria foi completada com o que estava nos resíduos." else ""}"
+                mensagem = "Pronto: ${novas.size} faixas novas abaixo de “${faixa.nome}”, que ficou muda como referência.${if (reduzirRuido) " O ruído de fundo foi reduzido em cada uma." else ""}"
             } catch (e: kotlinx.coroutines.CancellationException) {
                 mensagem = "Separação cancelada."
             } catch (e: Exception) {

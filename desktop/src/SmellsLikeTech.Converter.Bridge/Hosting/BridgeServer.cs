@@ -96,7 +96,7 @@ public sealed class BridgeServer(AppServices servicos, BridgeOptions opcoes, UiT
             Protocolo = Protocolo,
             MascarasDaSeparacaoMusical = MusicNative.IsAvailable ? ["classica", "refinada"] : ["classica"],
             GerenciaModelosMusicais = true,
-            RecursosDaSeparacaoMusical = MusicNative.HasStemRefine ? ["refinar-agudos", "recuperar-bateria"] : ["recuperar-bateria"],
+            RecursosDaSeparacaoMusical = MusicNative.HasStemRefine ? ["refinar-agudos"] : [],
             RestauracaoDeAudio = MusicNative.HasAudioRestoration
                 ? new RestauracaoResumo { Versoes = [AudioRestoration.Version], Perfis = [.. AudioRestoration.Profiles.Select(p => p.Id)], Neural = false }
                 : null,

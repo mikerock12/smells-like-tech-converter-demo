@@ -43,7 +43,7 @@ object FaixasNoConversor {
         val pasta = File(biblioteca.pasta(projeto), "separadas").apply { mkdirs() }
         val t = pedido.tratamento
         if (t.aceleracao && !roformer) Processadores.ligarAcelerador(context, true)
-        val faixas = biblioteca.separar(entrada, pasta, modelo.modo, TAXA, t.refinarAgudos, t.recuperarBateria) { _, f -> aoAvancar(pct("separando", f)) }
+        val faixas = biblioteca.separar(entrada, pasta, modelo.modo, TAXA, t.refinarAgudos) { _, f -> aoAvancar(pct("separando", f)) }
         // A mistura lê as mídias do projeto pelo id: cada faixa vira a mídia com o id dela.
         val guardadas = faixas.map { (definicao, arquivo) ->
             val destino = biblioteca.midia(projeto, definicao.id).apply { parentFile?.mkdirs() }

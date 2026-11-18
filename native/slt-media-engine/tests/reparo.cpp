@@ -350,6 +350,37 @@ void testarEquilibrioTonal() {
     conferir(std::fabs(g125 - 6) < 0.6 && std::fabs(g8k + 6) < 0.6 && std::fabs(g1k) < 0.3, "cada oitava recebe o ganho pedido");
 }
 
+void testarChiadoSemPausas() {
+    // Acordes contínuos (sem um trecho calmo) e chiado branco: o perfil dos "calmos" seria música.
+    std::vector<float> x(TAXA * 8);
+    for (size_t i = 0; i < x.size(); ++i) {
+        const double t = static_cast<double>(i) / TAXA;
+        x[i] = static_cast<float>(0.2 * std::sin(2 * PI * 1000 * t) + 0.1 * std::sin(2 * PI * 440 * t) + 0.006 * aleatorio());
+    }
+    const std::vector<float> d = diagnosticar(x);
+    printf("chiado sem pausas: estabilidade 8-12 kHz %.1f dB, 12-16 kHz %.1f dB\n", d[SLT_DIAG_HF_STABILITY_8K], d[SLT_DIAG_HF_STABILITY_12K]);
+    conferir(d[SLT_DIAG_HF_STABILITY_8K] > -4 && d[SLT_DIAG_HF_STABILITY_12K] > -4, "o chiado constante aparece na estabilidade dos agudos");
+    float p[SLT_REPAIR_PARAMS] = {};
+    p[SLT_REPAIR_DENOISE] = 1;
+    p[SLT_REPAIR_NOISE_SOURCE] = 1;
+    p[SLT_REPAIR_DENOISE_FROM_HZ] = 2000;
+    const std::vector<float> y = reparar(x, p);
+    const size_t de = 2 * TAXA, ate = x.size() - TAXA;
+    // O chiado: o que sobra depois de tirar os dois tons (projeção), medido no total.
+    auto resto = [&](const std::vector<float>& v) {
+        double total = rms(v, de, ate);
+        const double a = nivelDoSeno(v, de, ate, 1000) / std::sqrt(2.0);
+        const double b = nivelDoSeno(v, de, ate, 440) / std::sqrt(2.0);
+        return 10 * std::log10(std::max(1e-20, total * total - a * a - b * b));
+    };
+    const double queda = resto(y) - resto(x);
+    const double tom = 20 * std::log10(nivelDoSeno(y, de, ate, 1000) / nivelDoSeno(x, de, ate, 1000));
+    const double grave = 20 * std::log10(nivelDoSeno(y, de, ate, 440) / nivelDoSeno(x, de, ate, 440));
+    printf("chiado sem pausas: ruído %.1f dB, 1 kHz %+.2f dB, 440 Hz %+.2f dB\n", queda, tom, grave);
+    conferir(queda < -3, "o chiado cai mesmo sem trechos calmos");
+    conferir(std::fabs(tom) < 0.5 && std::fabs(grave) < 0.5, "abaixo de 2 kHz a música fica");
+}
+
 }  // namespace
 
 int main() {
@@ -368,6 +399,7 @@ int main() {
     conferir((slt_get_capabilities() & SLT_CAP_AUDIO_DELIMIT) != 0 && (slt_get_api_version() & 0xFFFF) >= 3, "ABI 1.3");
     testarGravacaoEsmagada();
     testarEquilibrioTonal();
+    testarChiadoSemPausas();
     printf("reparo: %d falhas\n", falhas);
     return falhas == 0 ? 0 : 1;
 }

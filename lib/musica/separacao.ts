@@ -146,10 +146,10 @@ export class SeparadorNoNavegador {
 
   /**
    * `extras.refinarAgudos`: no RoFormer, refino de Wiener acima de 8 kHz (no Spleeter, use a
-   * máscara "refinada"). `extras.recuperarBateria`: segunda separação do resíduo (experimental).
+   * máscara "refinada").
    */
   async separar(canais: Float32Array[], taxa: number, modo: string, progresso: (etapa: string, fracao: number) => void,
-                mascara: PerfilDeMascara = "classica", extras: { refinarAgudos?: boolean; recuperarBateria?: boolean; gpu?: boolean } = {}): Promise<FaixaSeparada[]> {
+                mascara: PerfilDeMascara = "classica", extras: { refinarAgudos?: boolean; gpu?: boolean } = {}): Promise<FaixaSeparada[]> {
     progresso("Preparando o áudio", 0);
     // O comprimento sai antes: na taxa do modelo (44,1 kHz) a entrada é a própria `canais`,
     // e transferir para o worker esvazia esses buffers.

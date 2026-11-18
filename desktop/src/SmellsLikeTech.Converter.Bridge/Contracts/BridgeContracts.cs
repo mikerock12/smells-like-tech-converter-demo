@@ -29,7 +29,7 @@ public sealed record ApresentacaoResposta
     public IReadOnlyList<string>? MascarasDaSeparacaoMusical { get; init; }
     public IReadOnlyList<string>? PerfisDaSeparacaoMusical { get; init; }
     public bool GerenciaModelosMusicais { get; init; }
-    /// <summary>Recursos extras da separação (0.9.17+): "refinar-agudos", "recuperar-bateria".</summary>
+    /// <summary>Recursos extras da separação (0.9.17+): "refinar-agudos".</summary>
     public IReadOnlyList<string>? RecursosDaSeparacaoMusical { get; init; }
     /// <summary>Restaurador de áudio (0.9.17+); ausente quando o núcleo não tem a ABI 1.2.</summary>
     public RestauracaoResumo? RestauracaoDeAudio { get; init; }

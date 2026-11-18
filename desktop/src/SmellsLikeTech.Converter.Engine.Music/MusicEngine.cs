@@ -49,8 +49,8 @@ public sealed class MusicEngine(MusicTools tools, Func<HttpClient> http) : IConv
         var progress = new Progress<(string Stage, double Fraction)>(p => Report(context, "separando", p.Fraction, $"{model.Label}: {p.Stage}"));
         var folder = Path.Combine(context.Workspace.WorkDirectory, "faixas");
         var stems = roformer
-            ? await tools.SeparateRoFormerAsync(input, folder, PackageRate, progress, token, treatment.RefineHighs, treatment.RecoverDrums)
-            : await tools.SeparateAsync(input, folder, model.Mode, PackageRate, progress, token, refined: treatment.RefineHighs, recoverDrums: treatment.RecoverDrums);
+            ? await tools.SeparateRoFormerAsync(input, folder, PackageRate, progress, token, treatment.RefineHighs)
+            : await tools.SeparateAsync(input, folder, model.Mode, PackageRate, progress, token, refined: treatment.RefineHighs);
         // A mesma qualidade do estúdio musical: ruído de cada faixa e restauração por instrumento.
         if (!treatment.ReduceNoise && treatment.Restoration <= 0) return stems;
         var tratadas = new List<(MusicStemDefinition, string)>();
@@ -160,8 +160,13 @@ public sealed class MusicEngine(MusicTools tools, Func<HttpClient> http) : IConv
             var report = Path.ChangeExtension(output, null) + "-relatorio.json";
             var json = new System.Text.Json.Nodes.JsonObject
             {
-                ["ferramenta"] = OperationIds.AudioRestore, ["versao"] = AudioRestoration.Version, ["perfil"] = result.Plan.Profile, ["intensidade"] = o.Intensity,
+                ["ferramenta"] = OperationIds.AudioRestore, ["versao"] = AudioRestoration.Version, ["nucleo"] = "ABI 1.4", ["perfil"] = result.Plan.Profile,
+                // No Avançado não há intensidade: valem as etapas.
+                ["intensidade"] = result.Plan.Profile == "manual" ? null : o.Intensity,
+                ["manterVolume"] = o.KeepVolume, ["ganhoFinalDb"] = Math.Round(result.FinalGainDb, 2),
                 ["diagnostico"] = new System.Text.Json.Nodes.JsonObject(result.Diagnosis.Select(kv => KeyValuePair.Create(kv.Key, (System.Text.Json.Nodes.JsonNode?)kv.Value))),
+                ["depois"] = new System.Text.Json.Nodes.JsonObject(result.After.Select(kv => KeyValuePair.Create(kv.Key, (System.Text.Json.Nodes.JsonNode?)kv.Value))),
+                ["ia"] = result.Plan.Ai is { } ai ? new System.Text.Json.Nodes.JsonObject { ["modelo"] = ai.Model, ["mistura"] = ai.Mix, ["corteHz"] = ai.CutoffHz } : null,
                 ["etapas"] = new System.Text.Json.Nodes.JsonArray([.. result.Plan.Steps.Select(st => (System.Text.Json.Nodes.JsonNode?)new System.Text.Json.Nodes.JsonObject { ["id"] = st.Id, ["quanto"] = st.Amount })]),
                 ["avisos"] = new System.Text.Json.Nodes.JsonArray([.. result.Plan.Warnings.Select(w => (System.Text.Json.Nodes.JsonNode?)w)]),
                 ["motor"] = result.Plan.Ai is null ? "núcleo nativo (slt_native.dll)" : "Apollo (ONNX, CC BY-SA 4.0) e núcleo nativo (slt_native.dll)",
@@ -172,9 +177,13 @@ public sealed class MusicEngine(MusicTools tools, Func<HttpClient> http) : IConv
         var steps = string.Join(", ", result.Plan.Steps.Select(s => AudioRestoration.StepLabel(s.Id)));
         var note = result.Plan.NoChange
             ? $"{AudioRestoration.WarningText(result.Plan.Warnings[^1])} {AudioRestoration.Summary(result.Diagnosis)}"
-            : $"Restaurado: {steps} · {AudioRestoration.Summary(result.Diagnosis)} · experimental";
+            : $"Restaurado: {steps} · Encontrado: {AudioRestoration.Summary(result.Diagnosis)} · Antes → depois: {AudioRestoration.BeforeAfter(result.Diagnosis, result.After)}{VolumeNote(o.KeepVolume, result.FinalGainDb)} · experimental";
         return new EngineResult(outputs, note);
     }
+
+    private static string VolumeNote(bool keep, double gainDb) => Math.Abs(gainDb) < 0.05 ? ""
+        : keep ? $" · volume igualado ao original ({gainDb:+0.0;-0.0} dB; sem passar de −1 dBFS de pico)"
+        : $" · volume subiu {gainDb:0.0} dB até o pico de −1 dBFS (mais alto que o original: compare no mesmo volume)";
 
     private async Task<EngineResult> SeparateAsync(EngineContext context, CancellationToken cancellationToken)
     {
@@ -194,7 +203,7 @@ public sealed class MusicEngine(MusicTools tools, Func<HttpClient> http) : IConv
                     Percent = f * 0.1, Stage = JobStage.PreparingInput, Message = "Baixando o RoFormer",
                 })), cancellationToken, roformer: true);
             stems = await tools.SeparateRoFormerAsync(context.Job.InputPath, context.Workspace.WorkDirectory,
-                options.SampleRate, progress, cancellationToken, options.RefineHighs == true, options.RecoverDrums == true);
+                options.SampleRate, progress, cancellationToken, options.RefineHighs == true);
         }
         else
         {
@@ -205,8 +214,7 @@ public sealed class MusicEngine(MusicTools tools, Func<HttpClient> http) : IConv
                 Percent = f * 0.1, Stage = JobStage.PreparingInput, Message = "Baixando o modelo de separação",
             })), cancellationToken);
             stems = await tools.SeparateAsync(context.Job.InputPath, context.Workspace.WorkDirectory, options.Mode,
-                options.SampleRate, progress, cancellationToken, refined: options.MaskProfile == "refinada" || options.RefineHighs == true,
-                recoverDrums: options.RecoverDrums == true);
+                options.SampleRate, progress, cancellationToken, refined: options.MaskProfile == "refinada" || options.RefineHighs == true);
         }
         var outputs = new List<string>();
         for (var i = 0; i < stems.Count; i++)

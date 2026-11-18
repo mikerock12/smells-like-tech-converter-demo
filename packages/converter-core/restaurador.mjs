@@ -14,7 +14,7 @@
  * (Android), conferidos pelos casos em restaurador-casos.json.
  */
 
-export const VERSAO_DO_RESTAURADOR = 2;
+export const VERSAO_DO_RESTAURADOR = 3;
 
 /** As oitavas do diagnóstico e da equalização (Hz) e os nomes dos campos/parâmetros. */
 export const OITAVAS = [31.5, 63, 125, 250, 500, 1000, 2000, 4000, 8000, 16000];
@@ -71,6 +71,9 @@ export function lerOpcoesDoRestaurador(entrada) {
     etapas,
     relatorio: o.relatorio === true,
     ia: o.ia === true,
+    // Padrão: o restaurado sai no mesmo volume do original (sem passar de −1 dBFS de pico), para
+    // a comparação ser justa. Desligado: sobe até o pico de −1 dBFS.
+    manterVolume: o.manterVolume !== false,
   };
 }
 
@@ -91,6 +94,9 @@ export function avaliarDiagnostico(d) {
   // Gravação natural fica com 13 dB ou mais entre os dois; show no celular esmagado, ~5 dB. E pouca
   // diferença entre os trechos calmos e os altos (um tom contínuo também tem crista baixa, mas não é isso).
   const limitado = Number.isFinite(d.limiteDb) && d.limiteDb > -60 ? limitar((16 - d.cristaDb) / 7, 0, 1) * limitar((14 - (d.limiteDb - d.rmsDb)) / 6, 0, 1) * limitar((15 - d.dinamicaDb) / 6, 0, 1) : 0;
+  // Chiado mesmo sem pausas (ABI 1.4): a energia dos agudos quase constante ao longo do tempo.
+  const estabilidade = estabilidadeDosAgudos(d);
+  const chiado = estabilidade === null ? 0 : limitar((estabilidade + 12) / 8, 0, 1);
   const desvio = desvioTonal(d);
   // Acima de 12 dB de desvio não é uma mixagem (voz sozinha, um tom, instrumento solo): não se equaliza.
   const timbre = desvio === null || desvio > 12 ? 0 : limitar((desvio - 4) / 3.5, 0, 1);
@@ -102,9 +108,10 @@ export function avaliarDiagnostico(d) {
     dc: { gravidade: arredondar(dc), confianca: 0.9 },
     banda: { gravidade: arredondar(banda), confianca: 0.5, hz: Math.round(d.bandaHz) },
     limitado: { gravidade: arredondar(limitado), confianca: 0.7 },
+    chiado: { gravidade: arredondar(chiado), confianca: 0.6 },
     timbre: { gravidade: arredondar(timbre), confianca: 0.5, desvioDb: desvio === null ? 0 : arredondar(desvio) },
   };
-  const tratados = ["recorte", "zumbido", "ruido", "estalos", "dc", "limitado", "timbre"];
+  const tratados = ["recorte", "zumbido", "ruido", "chiado", "estalos", "dc", "limitado", "timbre"];
   const recomendacoes = tratados.filter((id) => problemas[id].gravidade >= 0.15);
   const avisos = ["o_diagnostico_nao_garante_a_origem"];
   if (banda >= 0.15) avisos.push("banda_limitada");
@@ -116,6 +123,13 @@ export function avaliarDiagnostico(d) {
 function oitavaValida(d, i) {
   const v = d[`oitava${SUFIXOS[i]}`];
   return Number.isFinite(v) && v > -59 && (!(d.bandaHz > 0) || OITAVAS[i] <= 0.9 * d.bandaHz);
+}
+
+/** A estabilidade (dB) mais perto de 0 entre 8–12 e 12–16 kHz, só nas bandas que o arquivo tem. */
+function estabilidadeDosAgudos(d) {
+  const bandas = [["estabilidade8k", 12000], ["estabilidade12k", 16000]].filter(([k, topo]) =>
+    Number.isFinite(d[k]) && d[k] > -59 && (!(d.bandaHz > 0) || topo <= d.bandaHz * 1.05));
+  return bandas.length ? Math.max(...bandas.map(([k]) => d[k])) : null;
 }
 
 /** Distância (dB, raiz da média dos quadrados) do espectro à referência, de 63 Hz a 8 kHz. */
@@ -150,7 +164,7 @@ function equalizacao(d, quanto) {
 }
 
 const ZERO = { dc: 0, zumbidoHz: 0, zumbido: 0, estalos: 0, recorte: 0, nivelDoRecorte: 0, ruido: 0, arDb: 0, corteGraveHz: 0, tetoDb: 0, ganhoDb: 0,
-  entradaDb: 0, transientes: 0, ...Object.fromEntries(SUFIXOS.map((s) => [`eq${s}`, 0])) };
+  entradaDb: 0, transientes: 0, ...Object.fromEntries(SUFIXOS.map((s) => [`eq${s}`, 0])), ruidoPorMinimos: 0, ruidoDesdeHz: 0 };
 
 /**
  * As etapas e os parâmetros do reparo (nomes de PARAMETROS_DO_REPARO). `semMudanca`: o
@@ -183,14 +197,18 @@ export function planejarRestauracao(d, opcoesBrutas) {
     if (g("zumbido") >= 0.15) { p.zumbidoHz = d.zumbidoHz === 60 ? 60 : 50; p.zumbido = limitar(0.5 + 0.5 * g("zumbido"), 0, 1) * Math.min(1, 0.5 + s); }
     if (g("estalos") >= 0.15) p.estalos = dose(g("estalos")) * (perfil === "archive" ? 1 : 0.8);
     if (g("recorte") >= 0.15) { p.recorte = limitar(dose(0.5 + 0.5 * g("recorte")), 0, 1); p.nivelDoRecorte = nivel; }
-    if (g("ruido") >= 0.15) {
-      let r = limitar(g("ruido") * (0.3 + s), 0, 1);
+    // Ruído pelos trechos calmos (perfil do diagnóstico) ou, sem pausas na música, chiado pela
+    // estabilidade dos agudos: aí a estimativa é a estatística de mínimos, e só acima de 2 kHz.
+    const ruidoMedido = Math.max(g("ruido"), g("chiado"));
+    if (ruidoMedido >= 0.15) {
+      let r = limitar(ruidoMedido * (0.3 + s), 0, 1);
       if (perfil === "live") r *= 1 - (0.7 * opcoes.preservarAmbiencia) / 100;
       if (perfil === "archive") r = Math.min(1, r * 1.2);
       p.ruido = r;
     }
     if (perfil === "live") p.corteGraveHz = 35;
-    if (perfil === "archive") { p.corteGraveHz = 30; p.arDb = 1.5 * s; }
+    // Brilho só sem chiado: subir os agudos de uma fita chiada sobe o chiado junto.
+    if (perfil === "archive") { p.corteGraveHz = 30; p.arDb = 1.5 * s * (1 - g("chiado")); }
     if (perfil === "lossy" && !opcoes.ia) avisos.push("reparo_de_compressao_por_ia_desligado");
     // Esmagada por limitador (show no celular, rip de vídeo): o platô vira pico de novo e o
     // ataque volta. Ali os "estalos" quase sempre são batidas de bateria: o reparo deles cai.
@@ -205,6 +223,7 @@ export function planejarRestauracao(d, opcoesBrutas) {
       equalizacao(d, quanto).forEach((v, i) => { p[`eq${SUFIXOS[i]}`] = perfil === "archive" && i >= 7 ? Math.min(v, 3) : v; });
     }
   }
+  if (p.ruido > 0 && g("ruido") < 0.15 && g("chiado") >= 0.15) { p.ruidoPorMinimos = 1; p.ruidoDesdeHz = 2000; }
   // Margem antes de tudo: o pico fica abaixo de −1,5 dBFS e sobra espaço para os picos que
   // voltam (até 9 dB com os transientes inteiros), para o limitador do fim não esmagar de novo.
   if (p.transientes > 0 || d.picoDb > -1.5) p.entradaDb = arredondar(-(Math.max(0, d.picoDb + 1.5) + 9 * p.transientes));
@@ -222,9 +241,12 @@ export function planejarRestauracao(d, opcoesBrutas) {
   // MP3 preserva bem, e acima entra o Apollo. O corte fica 3 kHz abaixo de onde os agudos param.
   let ia = null;
   const corte = limitar(Math.round(((d.bandaHz > 0 ? d.bandaHz : 16000) - 3000) / 100) * 100, 4000, 16000);
+  // Ligado é usado: em qualquer perfil e intensidade (no Avançado, a etapa dosa; a opção ligada
+  // sem a etapa entra inteira).
   if (opcoes.perfil === "manual") {
     if (opcoes.etapas.compressao > 0) ia = { modelo: "apollo", mistura: arredondar(opcoes.etapas.compressao / 100), corteHz: corte };
-  } else if (opcoes.ia && s > 0 && (opcoes.perfil === "lossy" || g("banda") >= 0.15)) {
+    else if (opcoes.ia) ia = { modelo: "apollo", mistura: 1, corteHz: corte };
+  } else if (opcoes.ia) {
     ia = { modelo: "apollo", mistura: arredondar(Math.min(1, 0.4 + s)), corteHz: corte };
   }
   for (const k of Object.keys(p)) p[k] = arredondar(p[k]);
@@ -266,11 +288,26 @@ export function textoDoAviso(id) {
 export function resumoDoDiagnostico(d) {
   const a = avaliarDiagnostico(d);
   const intensidade = (g) => (g >= 0.66 ? "forte" : g >= 0.33 ? "médio" : "leve");
-  const nomes = { recorte: "Recorte", zumbido: `Zumbido de ${d.zumbidoHz} Hz`, ruido: "Chiado/ruído de fundo", estalos: "Estalos", dc: "Deslocamento DC",
+  const nomes = { recorte: "Recorte", zumbido: `Zumbido de ${d.zumbidoHz} Hz`, ruido: "Ruído de fundo", chiado: "Chiado nos agudos", estalos: "Estalos", dc: "Deslocamento DC",
     limitado: "Esmagada por limitador", timbre: "Timbre desequilibrado" };
   const achados = a.recomendacoes.map((id) => `${nomes[id]} (${intensidade(a.problemas[id].gravidade)})`);
   const banda = a.problemas.banda.gravidade >= 0.15 ? ` · Agudos até ~${Math.round(d.bandaHz / 100) / 10} kHz` : "";
-  return `${achados.length ? achados.join(" · ") : "Sem defeitos evidentes"}${banda} · pico ${d.picoDb.toFixed(1)} dBFS · piso de ruído ${d.pisoDeRuidoDb.toFixed(0)} dB`;
+  return `${achados.length ? achados.join(" · ") : "Sem defeitos fortes"}${banda} · pico ${d.picoDb.toFixed(1)} dBFS · piso de ruído ${d.pisoDeRuidoDb.toFixed(0)} dB`;
+}
+
+/** "Piso de ruído −27 → −37 dB · crista 8,3 → 14,2 dB · …": as medidas do resultado, não só as da entrada. */
+export function resumoAntesEDepois(antes, depois) {
+  const f = (v) => (Number.isFinite(v) ? v.toFixed(1) : "?");
+  const partes = [
+    `piso de ruído ${f(antes.pisoDeRuidoDb)} → ${f(depois.pisoDeRuidoDb)} dB`,
+    `crista ${f(antes.cristaDb)} → ${f(depois.cristaDb)} dB`,
+    `pico ${f(antes.picoDb)} → ${f(depois.picoDb)} dBFS`,
+  ];
+  // Quanto sobra nos agudos (onde mora o chiado): a oitava ÷ a de 1 kHz.
+  for (const [k, nome] of [["oitava8k", "8 kHz"], ["oitava16k", "16 kHz"]]) {
+    if (Number.isFinite(antes[k]) && antes[k] > -59 && Number.isFinite(depois[k]) && depois[k] > -59) partes.push(`agudos em ${nome} ${f(antes[k])} → ${f(depois[k])} dB (÷ 1 kHz)`);
+  }
+  return partes.join(" · ");
 }
 
 /** Nome do arquivo restaurado: "show-restaurado.flac". */

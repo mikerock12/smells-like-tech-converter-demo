@@ -690,7 +690,6 @@ private fun AbaDeSeparar(modelo: MusicaViewModel, projeto: ProjetoMusical) {
     var modo by rememberSaveable { mutableStateOf("4") }
     var limpar by rememberSaveable { mutableStateOf(false) }
     var refinada by rememberSaveable { mutableStateOf(false) }
-    var recuperarBateria by rememberSaveable { mutableStateOf(false) }
     var intensidade by rememberSaveable { mutableIntStateOf(0) }
     var roformer by rememberSaveable { mutableStateOf(false) }
     val temRoFormer = br.com.smellsliketech.converter.musica.RoFormer.disponivel
@@ -765,15 +764,8 @@ private fun AbaDeSeparar(modelo: MusicaViewModel, projeto: ProjetoMusical) {
                 intensidade = it.toInt()
             }
         }
-        val podeRecuperar = modoAtual.faixas.any { it.id == "bateria" } && modoAtual.faixas.any { it.id == "outros" }
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Switch(recuperarBateria && podeRecuperar, { recuperarBateria = it }, Modifier.semantics { contentDescription = "Recuperar a bateria dos resíduos" }, enabled = modelo.andamento == null && podeRecuperar)
-            Spacer(Modifier.width(8.dp))
-            Text("Recuperar a bateria dos resíduos (experimental)", Modifier.weight(1f))
-        }
-        Text("Depois de separar, separa de novo só o resíduo (“Outros”), tira dele a bateria que ficou ali e a junta à faixa da bateria. Dobra o tempo da separação.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Button(onClick = { modelo.separar(faixa.id, clipe.id, modoAtual.id, limpar, refinada && NucleoNativo.disponivel && (!premium || NucleoNativo.temRefinoDeAgudos),
-            if (NucleoNativo.disponivel) intensidade else 0, recuperarBateria && podeRecuperar) }, enabled = modelo.andamento == null, modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Separar faixas" }) { Text("Separar") }
+            if (NucleoNativo.disponivel) intensidade else 0) }, enabled = modelo.andamento == null, modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Separar faixas" }) { Text("Separar") }
         Text(if (premium) "Pode haver vazamento entre faixas. A mistura original fica no projeto." else SeparacaoDaMusica.AVISO, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Text("Os pesos têm licença MIT e são conferidos por SHA-256. O áudio é processado neste celular.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Text("Separar músicas de outras pessoas não muda os direitos autorais delas: use em gravações suas ou que você tem direito de usar.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)

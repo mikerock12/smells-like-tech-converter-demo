@@ -501,6 +501,7 @@ private fun CartaoDoTrabalho(trabalho: br.com.smellsliketech.converter.conversao
                 Column(Modifier.weight(1f)) {
                     NomeDoArquivo(resultado.nome)
                     Text(tamanho(resultado.bytes), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+                    resultado.nota?.let { Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp) }
                 }
                 TextButton(onClick = { abrir(contexto, resultado) }) { Text("Abrir") }
             }

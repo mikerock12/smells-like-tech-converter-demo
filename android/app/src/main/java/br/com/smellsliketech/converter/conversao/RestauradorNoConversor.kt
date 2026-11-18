@@ -5,6 +5,7 @@ import br.com.smellsliketech.converter.conversao.ffmpeg.Ffmpeg
 import br.com.smellsliketech.converter.musica.BibliotecaDaMusica
 import br.com.smellsliketech.converter.musica.NucleoNativo
 import br.com.smellsliketech.converter.musica.RestauradorDeAudio
+import kotlin.math.abs
 
 /**
  * Restaurar áudio com IA (experimental) no conversor: diagnóstico, plano e reparo no núcleo
@@ -22,10 +23,15 @@ object RestauradorNoConversor {
             try {
                 val r = biblioteca.restaurarAudio(copia, saida, pedido) { _, f -> aoAvancar((f * 100).toInt().coerceIn(0, 99)) }
                 val nome = RestauradorDeAudio.nomeDoRestaurado(entrada.nome, extensao)
-                Saida.gravarArquivo(context, nome, Mimes.de(extensao), saida).also {
-                    android.util.Log.i("Restaurador", if (r.plano.semMudanca) RestauradorDeAudio.textoDoAviso(r.plano.avisos.last())
-                        else "Restaurado: ${r.plano.etapas.joinToString { RestauradorDeAudio.rotuloDaEtapa(it.first) }} · ${RestauradorDeAudio.resumo(r.diagnostico)}")
+                val volume = when {
+                    abs(r.ganhoFinalDb) < 0.05 -> ""
+                    pedido.manterVolume -> " · volume igualado ao original (${"%+.1f".format(java.util.Locale.ROOT, r.ganhoFinalDb)} dB; sem passar de −1 dBFS de pico)"
+                    else -> " · volume subiu ${"%.1f".format(java.util.Locale.ROOT, r.ganhoFinalDb)} dB até o pico de −1 dBFS (mais alto que o original: compare no mesmo volume)"
                 }
+                val nota = if (r.plano.semMudanca) "${RestauradorDeAudio.textoDoAviso(r.plano.avisos.last())} ${RestauradorDeAudio.resumo(r.diagnostico)}"
+                    else "Restaurado: ${r.plano.etapas.joinToString { RestauradorDeAudio.rotuloDaEtapa(it.first) }} · Encontrado: ${RestauradorDeAudio.resumo(r.diagnostico)}" +
+                        " · Antes → depois: ${RestauradorDeAudio.antesEDepois(r.diagnostico, r.depois)}$volume · experimental"
+                Saida.gravarArquivo(context, nome, Mimes.de(extensao), saida).copy(nota = nota)
             } catch (e: IllegalStateException) {
                 throw ErroDeConversao(e.message ?: "Não foi possível restaurar este áudio.", e)
             } finally {

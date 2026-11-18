@@ -1,11 +1,14 @@
 # Notas da Google Play · 1.0.27
 
-Código 52. Copie o bloco abaixo em "Notas da versão" (pt-BR, até 500 caracteres).
+Código 52. Junta tudo desde a 1.0.25 (a 1.0.26 não foi enviada). Copie o bloco abaixo em
+"Notas da versão" (pt-BR, até 500 caracteres).
 
 ```text
 <pt-BR>
-• Restaurar áudio: agora devolve o ataque e a dinâmica de gravações esmagadas (shows gravados no celular, vídeos do YouTube) e corrige o timbre embolado, com graves e brilho.
-• Os estalos não confundem mais a bateria com cliques.
-• O volume final fica no ponto certo, sem distorcer.
+• Novo: Restaurar áudio (experimental): tira chiado, devolve o ataque de gravações esmagadas, corrige o timbre e repara MP3 com IA (Apollo). Mantém o volume original e mostra o antes e o depois.
+• Separação: refinar agudos no RoFormer e faixas em .zip com redução de ruído e restauração.
+• Conversões não travam mais com a tela apagada.
+• Tempo estimado do RoFormer corrigido.
+• Efeitos sem opções do Windows nem links pagos.
 </pt-BR>
 ```

@@ -270,7 +270,6 @@
       null,
       {
         "refinarAgudos": true,
-        "recuperarBateria": true,
         "reduzirRuido": true,
         "restauracao": 60,
         "aceleracao": true
@@ -757,28 +756,24 @@
     "tratamentos": [
       {
         "refinarAgudos": false,
-        "recuperarBateria": false,
         "reduzirRuido": false,
         "restauracao": 0,
         "aceleracao": false
       },
       {
         "refinarAgudos": true,
-        "recuperarBateria": true,
         "reduzirRuido": true,
         "restauracao": 60,
         "aceleracao": true
       },
       {
         "refinarAgudos": false,
-        "recuperarBateria": false,
         "reduzirRuido": false,
         "restauracao": 100,
         "aceleracao": false
       },
       {
         "refinarAgudos": false,
-        "recuperarBateria": false,
         "reduzirRuido": false,
         "restauracao": 0,
         "aceleracao": false

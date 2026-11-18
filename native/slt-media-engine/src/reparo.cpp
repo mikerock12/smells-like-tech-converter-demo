@@ -264,6 +264,10 @@ struct AnalisadorDeAudio {
     Vetor<double> im;
     Vetor<double> media;        // potência média por bin
     Vetor<double> normalizada;  // potência ÷ energia do quadro (o zumbido aparece nos trechos calmos)
+    Vetor<double> normalizadaB; // o mesmo, só nos trechos ímpares de ~9 s: zumbido de rede fica nos dois
+    static constexpr uint32_t BANDAS_ALTAS = 3;        // 4-8, 8-12 e 12-16 kHz
+    static constexpr uint32_t NIVEIS_DAS_BANDAS = 720; // −160 a +20 dB em 0,25 dB
+    Vetor<uint64_t> bandasAltas;  // [BANDAS_ALTAS][NIVEIS_DAS_BANDAS]
     Vetor<uint64_t> histograma;
     Vetor<uint64_t> planos;
     uint32_t preenchido = 0;
@@ -307,7 +311,7 @@ struct AnalisadorDeAudio {
     bool criar(uint32_t taxa_) {
         taxa = taxa_;
         if (!fft.criar(N) || !w.criar(N) || !mono.criar(N) || !re.criar(N) || !im.criar(N) || !media.criar(N / 2 + 1) ||
-            !normalizada.criar(N / 2 + 1) || !histograma.criar(FAIXAS_DO_HISTOGRAMA) || !planos.criar(PLANOS) ||
+            !normalizada.criar(N / 2 + 1) || !normalizadaB.criar(N / 2 + 1) || !bandasAltas.criar(static_cast<size_t>(BANDAS_ALTAS) * NIVEIS_DAS_BANDAS) || !histograma.criar(FAIXAS_DO_HISTOGRAMA) || !planos.criar(PLANOS) ||
             !fftDoPerfil.criar(NP) || !wp.criar(NP) || !perfilL.criar(NP) || !perfilR.criar(NP) || !pre.criar(NP) || !pim.criar(NP) ||
             !quietos.criar(static_cast<size_t>(QUIETOS) * BP) || !niveis.criar(NIVEIS)) {
             soltar();
@@ -324,6 +328,7 @@ struct AnalisadorDeAudio {
         for (uint32_t i = 0; i < NP; i += 1) energia += perfilL[i] * perfilL[i] + perfilR[i] * perfilR[i];
         energia /= 2.0 * NP;
         if (energia < 1e-10) return;  // silêncio digital (ou quase) não é ruído de fundo
+        registrarBandasAltas();
         uint32_t vaga = quantosQuietos;
         if (quantosQuietos == QUIETOS) {
             vaga = 0;
@@ -344,6 +349,54 @@ struct AnalisadorDeAudio {
             fftDoPerfil.transformar(pre.dados, pim.dados, -1);
             for (uint32_t b = 0; b < BP; b += 1) destino[b] += static_cast<float>(pre[b] * pre[b] + pim[b] * pim[b]);
         }
+    }
+
+    /** A energia de cada banda alta neste quadro (L+R), no histograma: dá a estabilidade no fim. */
+    void registrarBandasAltas() {
+        static const double LIMITES[BANDAS_ALTAS + 1] = {4000, 8000, 12000, 16000};
+        double somas[BANDAS_ALTAS] = {0, 0, 0};
+        const Vetor<double>* canais[2] = {&perfilL, &perfilR};
+        for (uint32_t c = 0; c < 2; c += 1) {
+            for (uint32_t i = 0; i < NP; i += 1) {
+                pre[i] = (*canais[c])[i] * wp[i];
+                pim[i] = 0;
+            }
+            fftDoPerfil.transformar(pre.dados, pim.dados, -1);
+            for (uint32_t b = 1; b < BP; b += 1) {
+                const double f = static_cast<double>(b) * taxa / NP;
+                for (uint32_t k = 0; k < BANDAS_ALTAS; k += 1) {
+                    if (f >= LIMITES[k] && f < LIMITES[k + 1]) somas[k] += pre[b] * pre[b] + pim[b] * pim[b];
+                }
+            }
+        }
+        for (uint32_t k = 0; k < BANDAS_ALTAS; k += 1) {
+            const double nivel = dbDePotencia(somas[k] / (static_cast<double>(NP) * NP));
+            int64_t i = static_cast<int64_t>((nivel + 160) * 4);
+            if (i < 0) i = 0;
+            if (i >= NIVEIS_DAS_BANDAS) i = NIVEIS_DAS_BANDAS - 1;
+            bandasAltas[static_cast<size_t>(k) * NIVEIS_DAS_BANDAS + static_cast<size_t>(i)] += 1;
+        }
+    }
+
+    /** 10º ÷ 50º percentil da energia da banda alta (dB); −60 sem dados ou acima da taxa. */
+    double estabilidadeDaBanda(uint32_t k) const {
+        static const double TOPOS[BANDAS_ALTAS] = {8000, 12000, 16000};
+        if (TOPOS[k] > taxa * 0.5) return -60;
+        const uint64_t* h = bandasAltas.dados + static_cast<size_t>(k) * NIVEIS_DAS_BANDAS;
+        uint64_t quadros = 0;
+        for (uint32_t i = 0; i < NIVEIS_DAS_BANDAS; i += 1) quadros += h[i];
+        if (quadros < 8) return -60;
+        auto percentil_ = [&](double fracao) {
+            uint64_t acumulado = 0;
+            for (uint32_t i = 0; i < NIVEIS_DAS_BANDAS; i += 1) {
+                acumulado += h[i];
+                if (static_cast<double>(acumulado) >= fracao * static_cast<double>(quadros)) return -160 + i * 0.25 + 0.125;
+            }
+            return 20.0;
+        };
+        const double baixo = percentil_(0.10);
+        const double meio = percentil_(0.50);
+        return meio < -150 ? -60 : baixo - meio;
     }
 
     /** Só os calmos de verdade: até 6 dB acima do mais calmo (num arquivo curto, os 48 podem pegar música). */
@@ -391,6 +444,8 @@ struct AnalisadorDeAudio {
         im.soltar();
         media.soltar();
         normalizada.soltar();
+        normalizadaB.soltar();
+        bandasAltas.soltar();
         histograma.soltar();
         planos.soltar();
         fftDoPerfil.soltar();
@@ -450,7 +505,7 @@ struct AnalisadorDeAudio {
             nivel[o] = dbDePotencia(s);
         }
         for (uint32_t o = 0; o < SLT_DIAG_OCTAVES; o += 1) {
-            const bool valido = quadrosDeAnalise > 0 && CENTROS[o] * 1.4142135623730951 < taxa * 0.5 && nivel[o] > -190 && nivel[5] > -190;
+            const bool valido = quadrosDeAnalise > 0 && CENTROS[o] < taxa * 0.45 && nivel[o] > -190 && nivel[5] > -190;
             saida[o] = valido ? nivel[o] - nivel[5] : -60;
         }
     }
@@ -474,7 +529,9 @@ struct AnalisadorDeAudio {
         for (uint32_t b = 0; b <= N / 2; b += 1) {
             const double p = re[b] * re[b] + im[b] * im[b];
             media[b] += p;
-            normalizada[b] += p / energia;
+            // Trechos de ~9 s alternados: a nota grave de uma música muda, o zumbido da rede não.
+            if ((quadrosDeAnalise / 48) % 2 == 0) normalizada[b] += p / energia;
+            else normalizadaB[b] += p / energia;
         }
         quadrosDeAnalise += 1;
         memmove(mono.dados, mono.dados + H, sizeof(double) * (N - H));
@@ -593,24 +650,41 @@ struct AnalisadorDeAudio {
      * às vezes quase só a 2ª e a 3ª (fonte chaveada); a média de todas diluía os dois casos.
      */
     double proeminenciaDoZumbido(double f0) const {
+        // Nas duas metades (a nota grave da música muda, a rede não), e com duas das três primeiras
+        // harmônicas acima de 6 dB ou a fundamental acima de 12 dB (aterramento bom: só ela).
+        uint32_t fortesA = 0;
+        uint32_t fortesB = 0;
+        double fundamentalA = 0;
+        double fundamentalB = 0;
+        const double a = proeminenciaEm(normalizada, f0, &fortesA, &fundamentalA);
+        const bool confirmadoA = fortesA >= 2 || fundamentalA > 12;
+        if (quadrosDeAnalise < 96) return confirmadoA ? a : (a < 5 ? a : 5);
+        const double b = proeminenciaEm(normalizadaB, f0, &fortesB, &fundamentalB);
+        const double menor = a < b ? a : b;
+        return confirmadoA && (fortesB >= 2 || fundamentalB > 12) ? menor : (menor < 5 ? menor : 5);
+    }
+
+    double proeminenciaEm(const Vetor<double>& espectro, double f0, uint32_t* fortes, double* fundamental) const {
         const double porBin = static_cast<double>(taxa) / N;
         double notas[5];
         uint32_t contadas = 0;
         for (uint32_t k = 1; k <= 5; k += 1) {
             const double f = f0 * k;
             if (f > taxa * 0.45) break;
-            const double topo = nivelDoBin(normalizada, f, 1.5 * porBin);
+            const double topo = nivelDoBin(espectro, f, 1.5 * porBin);
             double vizinhos[64];
             uint32_t n = 0;
             for (double d = 8; d <= 25 && n < 62; d += porBin) {
                 const int64_t a = static_cast<int64_t>((f - d) / porBin);
                 const int64_t b = static_cast<int64_t>((f + d) / porBin);
-                if (a >= 1) vizinhos[n++] = normalizada[static_cast<size_t>(a)];
-                if (b < static_cast<int64_t>(N / 2)) vizinhos[n++] = normalizada[static_cast<size_t>(b)];
+                if (a >= 1) vizinhos[n++] = espectro[static_cast<size_t>(a)];
+                if (b < static_cast<int64_t>(N / 2)) vizinhos[n++] = espectro[static_cast<size_t>(b)];
             }
             if (n == 0) continue;
             const double fundo = mediana(vizinhos, n);
             notas[contadas++] = dbDePotencia(topo) - dbDePotencia(fundo);
+            if (k <= 3 && notas[contadas - 1] > 6) *fortes += 1;
+            if (k == 1) *fundamental = notas[contadas - 1];
         }
         if (contadas == 0) return 0;
         mediana(notas, contadas);  // ordena (crescente)
@@ -688,6 +762,9 @@ struct AnalisadorDeAudio {
         valores[SLT_DIAG_LIMIT_LEVEL_DB] = plato;
         valores[SLT_DIAG_NEAR_LIMIT_RATIO] = plato > -60 ? fracaoAcimaDe(plato - 3) : 0;
         oitavas(valores + SLT_DIAG_OCTAVE_FIRST);
+        valores[SLT_DIAG_HF_STABILITY_4K] = estabilidadeDaBanda(0);
+        valores[SLT_DIAG_HF_STABILITY_8K] = estabilidadeDaBanda(1);
+        valores[SLT_DIAG_HF_STABILITY_12K] = estabilidadeDaBanda(2);
         for (uint32_t i = 0; i < quantos && i < SLT_DIAGNOSIS_FIELDS; i += 1) saida[i] = static_cast<float>(valores[i]);
     }
 };
@@ -741,6 +818,8 @@ struct ReparadorDeAudio {
     bool temPerfil = false;
     double pisoDoGanho = 1;
     double excesso = 1;
+    bool minimosSempre = false;  // ABI 1.4: o perfil dos trechos calmos é música (sem pausas)
+    uint32_t binInicial = 0;     // ABI 1.4: a redução só age a partir daqui
     // Estalos.
     double envelopeDosEstalos[2] = {0, 0};
     // Limitador.
@@ -787,6 +866,8 @@ struct ReparadorDeAudio {
         liberacao = exponencial(-1.0 / (0.08 * taxa));
         ganhoDeSaida = dbParaLinear(limitar(parametros[SLT_REPAIR_OUTPUT_GAIN_DB], -24, 12));
         ganhoDeEntrada = dbParaLinear(limitar(parametros[SLT_REPAIR_INPUT_GAIN_DB], -24, 12));
+        minimosSempre = parametros[SLT_REPAIR_NOISE_SOURCE] >= 0.5;
+        binInicial = static_cast<uint32_t>(limitar(parametros[SLT_REPAIR_DENOISE_FROM_HZ], 0, taxa * 0.45) * N / taxa);
         // Equilíbrio tonal: os ganhos por oitava viram uma curva suave em log-frequência.
         static const double CENTROS[SLT_REPAIR_EQ_BANDS] = {31.5, 63, 125, 250, 500, 1000, 2000, 4000, 8000, 16000};
         double bandas[SLT_REPAIR_EQ_BANDS];
@@ -836,6 +917,7 @@ struct ReparadorDeAudio {
 
     bool definirPerfil(const float* valores, uint32_t quantos) {
         if (quantos != fluxo.B) return false;
+        if (minimosSempre) return true;  // aceito e ignorado: o plano pediu a estatística de mínimos
         for (uint32_t b = 0; b < quantos; b += 1) {
             if (!(valores[b] >= 0) || valores[b] > 1e30f) return false;
             perfil[b] = valores[b];
@@ -909,7 +991,7 @@ struct ReparadorDeAudio {
             // Suaviza na frequência (três vizinhos) e no tempo (abre rápido, fecha devagar): sem "ruído musical".
             const double vizinhos = (ganho[b > 0 ? b - 1 : b] + ganho[b] + ganho[b + 1 < B ? b + 1 : b]) / 3;
             ganhoSuave[b] = vizinhos > ganhoSuave[b] ? 0.3 * ganhoSuave[b] + 0.7 * vizinhos : 0.75 * ganhoSuave[b] + 0.25 * vizinhos;
-            const double g = ganhoSuave[b];
+            const double g = b < binInicial ? 1.0 : ganhoSuave[b];
             l_re[b] *= g;
             l_im[b] *= g;
             r_re[b] *= g;

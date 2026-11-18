@@ -60,6 +60,9 @@ export default function Oficina({
   /** A linha de privacidade que abre a página de busca, com o teste para conferir. */
   privacidade?: string | null;
 }) {
+  // Na página de uma ferramenta só de áudio (o restaurador), os limites de vídeo/PDF e a narração
+  // Kokoro não têm a ver com o que a pessoa veio fazer.
+  const soAudio = ferramentaInicial === "audio.restaurar";
   const [grupos, setGrupos] = useState<Grupo[]>([]);
   const [texto, setTexto] = useState("");
   const [dragging, setDragging] = useState(false);
@@ -396,7 +399,7 @@ export default function Oficina({
         <input ref={inputRef} type="file" accept={ligado ? undefined : ACEITOS} multiple hidden onChange={onSelect} aria-label="Escolher arquivos para converter" />
       </div>
 
-      {!pro && (
+      {!pro && !soAudio && (
         <p className="converter__limites">
           Grátis: {limiteDoPlano("gratis", "lote")} arquivos por vez · vídeo até {limiteDoPlano("gratis", "video")} min · PDF até{" "}
           {limiteDoPlano("gratis", "pdf")} páginas · sem marca d&apos;água.{" "}
@@ -466,7 +469,7 @@ export default function Oficina({
         </section>
       )}
 
-      <KokoroPanel />
+      {!soAudio && <KokoroPanel />}
       <PluginPanel cliente={cliente} estado={estado} onArquivoDoDisco={doDisco} />
 
       <footer className="converter__footer">

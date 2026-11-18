@@ -123,6 +123,10 @@ export default function OpcoesDoRestaurador({ opcoes, onChange, disabled, arquiv
       </label>
       <p className="estudio__dica">Salvar em WAV ou FLAC não melhora a qualidade por si: só evita perder mais na hora de gravar.</p>
       <label className="field field--check">
+        <input type="checkbox" checked={atual.manterVolume} disabled={disabled} onChange={(e) => gravar({ ...atual, manterVolume: e.target.checked })} />
+        <span><strong>Manter o volume original</strong> — o restaurado sai no mesmo volume da entrada (sem passar de −1 dBFS de pico), para a comparação ser justa: mais alto parece melhor sem ser. Desligado, o volume sobe até o pico de −1 dBFS.</span>
+      </label>
+      <label className="field field--check">
         <input type="checkbox" checked={atual.relatorio} disabled={disabled} onChange={(e) => gravar({ ...atual, relatorio: e.target.checked })} />
         <span>Baixar também o relatório técnico (.json com o diagnóstico e as etapas; sem o áudio)</span>
       </label>

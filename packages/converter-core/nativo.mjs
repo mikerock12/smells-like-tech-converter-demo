@@ -11,16 +11,21 @@
 import { MODELO_DE_SEPARACAO, modoDeSeparacao } from "./musica-separacao.mjs";
 
 export const VERSAO_MAIOR_DA_ABI = 1;
-export const CAPACIDADES = { motor: 1, separador: 2, mascaraRefinada: 4, restaurador: 8, consistencia: 16, stftComplexa: 256, refinoDeAgudos: 512, diagnostico: 1024, reparo: 2048 };
+export const CAPACIDADES = { motor: 1, separador: 2, mascaraRefinada: 4, restaurador: 8, consistencia: 16, stftComplexa: 256, refinoDeAgudos: 512, diagnostico: 1024, reparo: 2048,
+  delimitar: 4096, chiado: 8192 };
 
 /** Ordem dos valores do diagnóstico (SLT_DIAG_* em slt_media_api.h). */
 export const CAMPOS_DO_DIAGNOSTICO = ["duracao", "picoDb", "rmsDb", "cristaDb", "dc", "recorte", "pisoDeRuidoDb", "zumbidoHz", "zumbidoDb", "bandaHz", "estalosPorMinuto", "correlacao", "silencio", "agudosDb", "dinamicaDb", "taxa", "planuraDoRuido",
   // ABI 1.3: platô do limitador e nível por oitava ÷ 1 kHz.
-  "limiteDb", "pertoDoLimite", "oitava31", "oitava63", "oitava125", "oitava250", "oitava500", "oitava1k", "oitava2k", "oitava4k", "oitava8k", "oitava16k"];
+  "limiteDb", "pertoDoLimite", "oitava31", "oitava63", "oitava125", "oitava250", "oitava500", "oitava1k", "oitava2k", "oitava4k", "oitava8k", "oitava16k",
+  // ABI 1.4: estabilidade dos agudos (chiado mesmo sem pausas).
+  "estabilidade4k", "estabilidade8k", "estabilidade12k"];
 /** Ordem dos parâmetros do reparo (SLT_REPAIR_* em slt_media_api.h). */
 export const PARAMETROS_DO_REPARO = ["dc", "zumbidoHz", "zumbido", "estalos", "recorte", "nivelDoRecorte", "ruido", "arDb", "corteGraveHz", "tetoDb", "ganhoDb",
   // ABI 1.3.
-  "entradaDb", "transientes", "eq31", "eq63", "eq125", "eq250", "eq500", "eq1k", "eq2k", "eq4k", "eq8k", "eq16k"];
+  "entradaDb", "transientes", "eq31", "eq63", "eq125", "eq250", "eq500", "eq1k", "eq2k", "eq4k", "eq8k", "eq16k",
+  // ABI 1.4.
+  "ruidoPorMinimos", "ruidoDesdeHz"];
 const BINS_DO_PERFIL = 2049;
 export const PERFIS_DE_RESTAURACAO = [
   { id: "voz", codigo: 0, rotulo: "Voz", descricao: "Tira o grave que vazou, devolve presença e ar e segura a aspereza só quando ela sobra." },

@@ -47,7 +47,6 @@ class RestauradorDeAudioTest {
             val t = TratamentoDoPacote.deJson(entradas.optJSONObject(i))
             val e = esperados.getJSONObject(i)
             assertEquals(e.getBoolean("refinarAgudos"), t.refinarAgudos)
-            assertEquals(e.getBoolean("recuperarBateria"), t.recuperarBateria)
             assertEquals(e.getBoolean("reduzirRuido"), t.reduzirRuido)
             assertEquals(e.getInt("restauracao"), t.restauracao)
             assertEquals(e.getBoolean("aceleracao"), t.aceleracao)

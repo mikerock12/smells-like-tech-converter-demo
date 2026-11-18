@@ -298,7 +298,7 @@ public sealed partial class MusicTools(Func<string> ffmpegPath, ProcessRunner ru
 
     public async Task<IReadOnlyList<(MusicStemDefinition Stem, string Path)>> SeparateRoFormerAsync(
         string input, string outputFolder, int rate, IProgress<(string Stage, double Fraction)>? progress, CancellationToken token,
-        bool refineHighs = false, bool recoverDrums = false)
+        bool refineHighs = false)
     {
         string? model = ModelInstalled(true) ? RoFormerPath : ExperimentalModelPath;
         if (!MusicNative.HasComplexStft || string.IsNullOrEmpty(model) || !File.Exists(model))
@@ -340,14 +340,7 @@ public sealed partial class MusicTools(Func<string> ffmpegPath, ProcessRunner ru
             }
             await Task.Run(() =>
             {
-                Pass(at44, work, 0, recoverDrums ? 0.5 : 1, null);
-                if (recoverDrums)
-                {
-                    // Recuperar a bateria (experimental): o resíduo passa de novo pelo RoFormer.
-                    var second = Path.Combine(work, "residuo");
-                    Pass(Path.Combine(work, "outros-44k.wav"), second, 0.5, 0.5, "Recuperando a bateria dos resíduos");
-                    MergeRecoveredDrums(Path.Combine(work, "bateria-44k.wav"), Path.Combine(work, "outros-44k.wav"), Path.Combine(second, "bateria-44k.wav"), token);
-                }
+                Pass(at44, work, 0, 1, null);
                 if (refineHighs)
                 {
                     progress?.Report(("Refinando os agudos", 1));
@@ -471,7 +464,7 @@ public sealed partial class MusicTools(Func<string> ffmpegPath, ProcessRunner ru
     /// (memoria limitada), escreve uma faixa por WAV e volta para a taxa do projeto.
     /// Devolve os caminhos, na ordem do modo.
     /// </summary>
-    public async Task<IReadOnlyList<(MusicStemDefinition Stem, string Path)>> SeparateAsync(string input, string outputFolder, string mode, int rate, IProgress<(string Stage, double Fraction)>? progress, CancellationToken token, bool refined = false, bool recoverDrums = false)
+    public async Task<IReadOnlyList<(MusicStemDefinition Stem, string Path)>> SeparateAsync(string input, string outputFolder, string mode, int rate, IProgress<(string Stage, double Fraction)>? progress, CancellationToken token, bool refined = false)
     {
         if (!await VerifyModelAsync(ModelPath, token))
             throw new ConversionException("model_mismatch", "O modelo de separação está ausente ou não confere.");
@@ -485,7 +478,6 @@ public sealed partial class MusicTools(Func<string> ffmpegPath, ProcessRunner ru
             var definition = MusicSeparation.Mode(mode) ?? throw new ConversionException("invalid_mode", "Modo de separação desconhecido.");
             using var options = new SessionOptions { GraphOptimizationLevel = GraphOptimizationLevel.ORT_ENABLE_ALL, IntraOpNumThreads = Core.Jobs.InferenceProcessors.InferenceThreads() };
             using var session = new InferenceSession(ModelPath, options);
-            var recover = recoverDrums && definition.Stems.Any(s => s.Id == "bateria") && definition.Stems.Any(s => s.Id == "outros");
 
             async Task Pass(string wav, string folder, double from, double span, string stage)
             {
@@ -522,14 +514,7 @@ public sealed partial class MusicTools(Func<string> ffmpegPath, ProcessRunner ru
                 }
             }
 
-            await Pass(at44, work, 0, recover ? 0.5 : 1, "Separando as faixas");
-            if (recover)
-            {
-                // Recuperar a bateria (experimental): separa de novo só o resíduo e devolve a bateria achada nele.
-                var second = Path.Combine(work, "residuo");
-                await Pass(Path.Combine(work, "outros-44k.wav"), second, 0.5, 0.5, "Recuperando a bateria dos resíduos");
-                MergeRecoveredDrums(Path.Combine(work, "bateria-44k.wav"), Path.Combine(work, "outros-44k.wav"), Path.Combine(second, "bateria-44k.wav"), token);
-            }
+            await Pass(at44, work, 0, 1, "Separando as faixas");
 
             Directory.CreateDirectory(outputFolder);
             var results = new List<(MusicStemDefinition, string)>();

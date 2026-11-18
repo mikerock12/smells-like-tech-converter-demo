@@ -21,12 +21,15 @@ public static partial class MusicNative
         "estalosPorMinuto", "correlacao", "silencio", "agudosDb", "dinamicaDb", "taxa", "planuraDoRuido",
         // ABI 1.3: platô do limitador e nível por oitava ÷ 1 kHz.
         "limiteDb", "pertoDoLimite", "oitava31", "oitava63", "oitava125", "oitava250", "oitava500", "oitava1k", "oitava2k", "oitava4k", "oitava8k", "oitava16k",
+        // ABI 1.4: estabilidade dos agudos (chiado mesmo sem pausas).
+        "estabilidade4k", "estabilidade8k", "estabilidade12k",
     ];
 
     /// <summary>Ordem dos parâmetros do reparo (SLT_REPAIR_* em slt_media_api.h).</summary>
     public static readonly IReadOnlyList<string> RepairParameters =
         ["dc", "zumbidoHz", "zumbido", "estalos", "recorte", "nivelDoRecorte", "ruido", "arDb", "corteGraveHz", "tetoDb", "ganhoDb",
-         "entradaDb", "transientes", "eq31", "eq63", "eq125", "eq250", "eq500", "eq1k", "eq2k", "eq4k", "eq8k", "eq16k"];
+         "entradaDb", "transientes", "eq31", "eq63", "eq125", "eq250", "eq500", "eq1k", "eq2k", "eq4k", "eq8k", "eq16k",
+         "ruidoPorMinimos", "ruidoDesdeHz"];
 
     public const int NoiseProfileBins = 2049;
 

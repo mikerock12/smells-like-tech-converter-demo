@@ -6,15 +6,18 @@ import java.nio.ByteOrder
 /** Acesso ao núcleo por JNI. O callback de áudio permanece no C++. */
 internal object NucleoNativo {
     const val ABI = (1 shl 16) or 2
-    const val CAPACIDADES = 0xf7f
+    const val CAPACIDADES = 0x3f7f
     /** Valores do diagnóstico, na ordem SLT_DIAG_* (slt_media_api.h); o mesmo nome do site e do Windows. */
     val CAMPOS_DO_DIAGNOSTICO = listOf("duracao", "picoDb", "rmsDb", "cristaDb", "dc", "recorte", "pisoDeRuidoDb", "zumbidoHz", "zumbidoDb",
         "bandaHz", "estalosPorMinuto", "correlacao", "silencio", "agudosDb", "dinamicaDb", "taxa", "planuraDoRuido",
         // ABI 1.3: platô do limitador e nível por oitava ÷ 1 kHz.
-        "limiteDb", "pertoDoLimite", "oitava31", "oitava63", "oitava125", "oitava250", "oitava500", "oitava1k", "oitava2k", "oitava4k", "oitava8k", "oitava16k")
+        "limiteDb", "pertoDoLimite", "oitava31", "oitava63", "oitava125", "oitava250", "oitava500", "oitava1k", "oitava2k", "oitava4k", "oitava8k", "oitava16k",
+        // ABI 1.4: estabilidade dos agudos (chiado mesmo sem pausas).
+        "estabilidade4k", "estabilidade8k", "estabilidade12k")
     /** Parâmetros do reparo, na ordem SLT_REPAIR_*. */
     val PARAMETROS_DO_REPARO = listOf("dc", "zumbidoHz", "zumbido", "estalos", "recorte", "nivelDoRecorte", "ruido", "arDb", "corteGraveHz", "tetoDb", "ganhoDb",
-        "entradaDb", "transientes", "eq31", "eq63", "eq125", "eq250", "eq500", "eq1k", "eq2k", "eq4k", "eq8k", "eq16k")
+        "entradaDb", "transientes", "eq31", "eq63", "eq125", "eq250", "eq500", "eq1k", "eq2k", "eq4k", "eq8k", "eq16k",
+        "ruidoPorMinimos", "ruidoDesdeHz")
     const val OBOE = 3
 
     val disponivel: Boolean by lazy {

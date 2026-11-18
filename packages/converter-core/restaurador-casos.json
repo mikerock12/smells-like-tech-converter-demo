@@ -49,7 +49,9 @@
         "eq2k": 0,
         "eq4k": 0,
         "eq8k": 0,
-        "eq16k": 0
+        "eq16k": 0,
+        "ruidoPorMinimos": 0,
+        "ruidoDesdeHz": 0
       },
       "ia": null,
       "avisos": [
@@ -118,7 +120,9 @@
         "eq2k": 0,
         "eq4k": 0,
         "eq8k": 0,
-        "eq16k": 0
+        "eq16k": 0,
+        "ruidoPorMinimos": 0,
+        "ruidoDesdeHz": 0
       },
       "ia": null,
       "avisos": [
@@ -189,7 +193,9 @@
         "eq2k": 0,
         "eq4k": 0,
         "eq8k": 0,
-        "eq16k": 0
+        "eq16k": 0,
+        "ruidoPorMinimos": 0,
+        "ruidoDesdeHz": 0
       },
       "ia": null,
       "avisos": [
@@ -253,7 +259,9 @@
         "eq2k": 0,
         "eq4k": 0,
         "eq8k": 0,
-        "eq16k": 0
+        "eq16k": 0,
+        "ruidoPorMinimos": 0,
+        "ruidoDesdeHz": 0
       },
       "ia": null,
       "avisos": [
@@ -317,7 +325,9 @@
         "eq2k": 0,
         "eq4k": 0,
         "eq8k": 0,
-        "eq16k": 0
+        "eq16k": 0,
+        "ruidoPorMinimos": 0,
+        "ruidoDesdeHz": 0
       },
       "ia": null,
       "avisos": [
@@ -393,7 +403,9 @@
         "eq2k": 0,
         "eq4k": 0,
         "eq8k": 0,
-        "eq16k": 0
+        "eq16k": 0,
+        "ruidoPorMinimos": 0,
+        "ruidoDesdeHz": 0
       },
       "ia": null,
       "avisos": [
@@ -457,7 +469,9 @@
         "eq2k": 0,
         "eq4k": 0,
         "eq8k": 0,
-        "eq16k": 0
+        "eq16k": 0,
+        "ruidoPorMinimos": 0,
+        "ruidoDesdeHz": 0
       },
       "ia": {
         "modelo": "apollo",
@@ -499,7 +513,9 @@
     },
     "esperado": {
       "perfil": "auto",
-      "etapas": [],
+      "etapas": [
+        "compressao"
+      ],
       "parametros": {
         "dc": 0,
         "zumbidoHz": 0,
@@ -510,9 +526,9 @@
         "ruido": 0,
         "arDb": 0,
         "corteGraveHz": 0,
-        "tetoDb": 0,
+        "tetoDb": -1,
         "ganhoDb": 0,
-        "entradaDb": 0,
+        "entradaDb": -0.7,
         "transientes": 0,
         "eq31": 0,
         "eq63": 0,
@@ -523,14 +539,19 @@
         "eq2k": 0,
         "eq4k": 0,
         "eq8k": 0,
-        "eq16k": 0
+        "eq16k": 0,
+        "ruidoPorMinimos": 0,
+        "ruidoDesdeHz": 0
       },
-      "ia": null,
+      "ia": {
+        "modelo": "apollo",
+        "mistura": 0.75,
+        "corteHz": 16000
+      },
       "avisos": [
-        "o_diagnostico_nao_garante_a_origem",
-        "sem_defeitos_suficientes"
+        "o_diagnostico_nao_garante_a_origem"
       ],
-      "semMudanca": true,
+      "semMudanca": false,
       "recomendacoes": []
     }
   },
@@ -589,7 +610,9 @@
         "eq2k": 0,
         "eq4k": 0,
         "eq8k": 0,
-        "eq16k": 0
+        "eq16k": 0,
+        "ruidoPorMinimos": 0,
+        "ruidoDesdeHz": 0
       },
       "ia": {
         "modelo": "apollo",
@@ -671,7 +694,9 @@
         "eq2k": 1.0529,
         "eq4k": 2.0457,
         "eq8k": 3.3566,
-        "eq16k": 4.4273
+        "eq16k": 4.4273,
+        "ruidoPorMinimos": 0,
+        "ruidoDesdeHz": 0
       },
       "ia": null,
       "avisos": [
@@ -752,7 +777,9 @@
         "eq2k": 0.895,
         "eq4k": 1.7388,
         "eq8k": 2.8531,
-        "eq16k": 3.7632
+        "eq16k": 3.7632,
+        "ruidoPorMinimos": 0,
+        "ruidoDesdeHz": 0
       },
       "ia": null,
       "avisos": [
@@ -832,7 +859,9 @@
         "eq2k": 0,
         "eq4k": 0,
         "eq8k": 0,
-        "eq16k": 0
+        "eq16k": 0,
+        "ruidoPorMinimos": 0,
+        "ruidoDesdeHz": 0
       },
       "ia": null,
       "avisos": [
@@ -908,7 +937,9 @@
         "eq2k": 0,
         "eq4k": 0,
         "eq8k": 0,
-        "eq16k": 0
+        "eq16k": 0,
+        "ruidoPorMinimos": 0,
+        "ruidoDesdeHz": 0
       },
       "ia": null,
       "avisos": [
@@ -991,7 +1022,9 @@
         "eq2k": 0.7167,
         "eq4k": 1.3925,
         "eq8k": 2.2848,
-        "eq16k": 3.0136
+        "eq16k": 3.0136,
+        "ruidoPorMinimos": 0,
+        "ruidoDesdeHz": 0
       },
       "ia": null,
       "avisos": [
@@ -1000,6 +1033,523 @@
       "semMudanca": false,
       "recomendacoes": [
         "limitado",
+        "timbre"
+      ]
+    }
+  },
+  {
+    "nome": "antigo com chiado no perfil fita",
+    "diagnostico": {
+      "duracao": 15,
+      "picoDb": -0.9149,
+      "rmsDb": -22.239,
+      "cristaDb": 21.3241,
+      "dc": 0.0002,
+      "recorte": 0,
+      "pisoDeRuidoDb": -30.75,
+      "zumbidoHz": 50,
+      "zumbidoDb": 5,
+      "bandaHz": 22050,
+      "estalosPorMinuto": 0,
+      "correlacao": 1,
+      "silencio": 0,
+      "agudosDb": -34.433,
+      "dinamicaDb": 15,
+      "taxa": 44100,
+      "planuraDoRuido": 0.1494,
+      "limiteDb": -7.45,
+      "pertoDoLimite": 0.0121,
+      "oitava31": 8.6118,
+      "oitava63": 10.9034,
+      "oitava125": 12.824,
+      "oitava250": 8.2002,
+      "oitava500": 3.7033,
+      "oitava1k": 0,
+      "oitava2k": 1.5629,
+      "oitava4k": -2.041,
+      "oitava8k": -7.1333,
+      "oitava16k": -17.9659,
+      "estabilidade4k": -8.5,
+      "estabilidade8k": -2.25,
+      "estabilidade12k": -0.5
+    },
+    "opcoes": {
+      "perfil": "archive",
+      "intensidade": 35
+    },
+    "esperado": {
+      "perfil": "archive",
+      "etapas": [
+        "dc",
+        "ruido",
+        "grave"
+      ],
+      "parametros": {
+        "dc": 1,
+        "zumbidoHz": 0,
+        "zumbido": 0,
+        "estalos": 0,
+        "recorte": 0,
+        "nivelDoRecorte": 0,
+        "ruido": 0.78,
+        "arDb": 0,
+        "corteGraveHz": 30,
+        "tetoDb": -1,
+        "ganhoDb": 0,
+        "entradaDb": -0.5851,
+        "transientes": 0,
+        "eq31": 0,
+        "eq63": 0,
+        "eq125": 0,
+        "eq250": 0,
+        "eq500": 0,
+        "eq1k": 0,
+        "eq2k": 0,
+        "eq4k": 0,
+        "eq8k": 0,
+        "eq16k": 0,
+        "ruidoPorMinimos": 1,
+        "ruidoDesdeHz": 2000
+      },
+      "ia": null,
+      "avisos": [
+        "o_diagnostico_nao_garante_a_origem"
+      ],
+      "semMudanca": false,
+      "recomendacoes": [
+        "chiado"
+      ]
+    }
+  },
+  {
+    "nome": "antigo com chiado no automático, intensidade alta",
+    "diagnostico": {
+      "duracao": 15,
+      "picoDb": -0.9149,
+      "rmsDb": -22.239,
+      "cristaDb": 21.3241,
+      "dc": 0.0002,
+      "recorte": 0,
+      "pisoDeRuidoDb": -30.75,
+      "zumbidoHz": 50,
+      "zumbidoDb": 5,
+      "bandaHz": 22050,
+      "estalosPorMinuto": 0,
+      "correlacao": 1,
+      "silencio": 0,
+      "agudosDb": -34.433,
+      "dinamicaDb": 15,
+      "taxa": 44100,
+      "planuraDoRuido": 0.1494,
+      "limiteDb": -7.45,
+      "pertoDoLimite": 0.0121,
+      "oitava31": 8.6118,
+      "oitava63": 10.9034,
+      "oitava125": 12.824,
+      "oitava250": 8.2002,
+      "oitava500": 3.7033,
+      "oitava1k": 0,
+      "oitava2k": 1.5629,
+      "oitava4k": -2.041,
+      "oitava8k": -7.1333,
+      "oitava16k": -17.9659,
+      "estabilidade4k": -8.5,
+      "estabilidade8k": -2.25,
+      "estabilidade12k": -0.5
+    },
+    "opcoes": {
+      "perfil": "auto",
+      "intensidade": 80
+    },
+    "esperado": {
+      "perfil": "auto",
+      "etapas": [
+        "ruido"
+      ],
+      "parametros": {
+        "dc": 0,
+        "zumbidoHz": 0,
+        "zumbido": 0,
+        "estalos": 0,
+        "recorte": 0,
+        "nivelDoRecorte": 0,
+        "ruido": 1,
+        "arDb": 0,
+        "corteGraveHz": 0,
+        "tetoDb": -1,
+        "ganhoDb": 0,
+        "entradaDb": -0.5851,
+        "transientes": 0,
+        "eq31": 0,
+        "eq63": 0,
+        "eq125": 0,
+        "eq250": 0,
+        "eq500": 0,
+        "eq1k": 0,
+        "eq2k": 0,
+        "eq4k": 0,
+        "eq8k": 0,
+        "eq16k": 0,
+        "ruidoPorMinimos": 1,
+        "ruidoDesdeHz": 2000
+      },
+      "ia": null,
+      "avisos": [
+        "o_diagnostico_nao_garante_a_origem"
+      ],
+      "semMudanca": false,
+      "recomendacoes": [
+        "chiado"
+      ]
+    }
+  },
+  {
+    "nome": "show de celular com ruído",
+    "diagnostico": {
+      "duracao": 15,
+      "picoDb": -0.3024,
+      "rmsDb": -14.1104,
+      "cristaDb": 13.808,
+      "dc": 0.0019,
+      "recorte": 0,
+      "pisoDeRuidoDb": -19.25,
+      "zumbidoHz": 50,
+      "zumbidoDb": 5,
+      "bandaHz": 17959.3926,
+      "estalosPorMinuto": 0,
+      "correlacao": 0.8598,
+      "silencio": 0,
+      "agudosDb": -27.6981,
+      "dinamicaDb": 10,
+      "taxa": 44100,
+      "planuraDoRuido": 0.0342,
+      "limiteDb": -2.55,
+      "pertoDoLimite": 0.0235,
+      "oitava31": 8.6559,
+      "oitava63": 9.7876,
+      "oitava125": 12.2212,
+      "oitava250": 7.7693,
+      "oitava500": 3.7863,
+      "oitava1k": 0,
+      "oitava2k": 1.8904,
+      "oitava4k": -1.8621,
+      "oitava8k": -5.6152,
+      "oitava16k": -12.714,
+      "estabilidade4k": -6.75,
+      "estabilidade8k": -7.5,
+      "estabilidade12k": -8.25
+    },
+    "opcoes": {
+      "perfil": "live",
+      "intensidade": 35
+    },
+    "esperado": {
+      "perfil": "live",
+      "etapas": [
+        "ruido",
+        "grave"
+      ],
+      "parametros": {
+        "dc": 0,
+        "zumbidoHz": 0,
+        "zumbido": 0,
+        "estalos": 0,
+        "recorte": 0,
+        "nivelDoRecorte": 0,
+        "ruido": 0.1609,
+        "arDb": 0,
+        "corteGraveHz": 35,
+        "tetoDb": -1,
+        "ganhoDb": 0,
+        "entradaDb": -1.1976,
+        "transientes": 0,
+        "eq31": 0,
+        "eq63": 0,
+        "eq125": 0,
+        "eq250": 0,
+        "eq500": 0,
+        "eq1k": 0,
+        "eq2k": 0,
+        "eq4k": 0,
+        "eq8k": 0,
+        "eq16k": 0,
+        "ruidoPorMinimos": 1,
+        "ruidoDesdeHz": 2000
+      },
+      "ia": null,
+      "avisos": [
+        "o_diagnostico_nao_garante_a_origem"
+      ],
+      "semMudanca": false,
+      "recomendacoes": [
+        "chiado"
+      ]
+    }
+  },
+  {
+    "nome": "apollo ligado no show é usado",
+    "diagnostico": {
+      "duracao": 15,
+      "picoDb": -0.3024,
+      "rmsDb": -14.1104,
+      "cristaDb": 13.808,
+      "dc": 0.0019,
+      "recorte": 0,
+      "pisoDeRuidoDb": -19.25,
+      "zumbidoHz": 50,
+      "zumbidoDb": 5,
+      "bandaHz": 17959.3926,
+      "estalosPorMinuto": 0,
+      "correlacao": 0.8598,
+      "silencio": 0,
+      "agudosDb": -27.6981,
+      "dinamicaDb": 10,
+      "taxa": 44100,
+      "planuraDoRuido": 0.0342,
+      "limiteDb": -2.55,
+      "pertoDoLimite": 0.0235,
+      "oitava31": 8.6559,
+      "oitava63": 9.7876,
+      "oitava125": 12.2212,
+      "oitava250": 7.7693,
+      "oitava500": 3.7863,
+      "oitava1k": 0,
+      "oitava2k": 1.8904,
+      "oitava4k": -1.8621,
+      "oitava8k": -5.6152,
+      "oitava16k": -12.714,
+      "estabilidade4k": -6.75,
+      "estabilidade8k": -7.5,
+      "estabilidade12k": -8.25
+    },
+    "opcoes": {
+      "perfil": "live",
+      "intensidade": 35,
+      "ia": true
+    },
+    "esperado": {
+      "perfil": "live",
+      "etapas": [
+        "compressao",
+        "ruido",
+        "grave"
+      ],
+      "parametros": {
+        "dc": 0,
+        "zumbidoHz": 0,
+        "zumbido": 0,
+        "estalos": 0,
+        "recorte": 0,
+        "nivelDoRecorte": 0,
+        "ruido": 0.1609,
+        "arDb": 0,
+        "corteGraveHz": 35,
+        "tetoDb": -1,
+        "ganhoDb": 0,
+        "entradaDb": -1.1976,
+        "transientes": 0,
+        "eq31": 0,
+        "eq63": 0,
+        "eq125": 0,
+        "eq250": 0,
+        "eq500": 0,
+        "eq1k": 0,
+        "eq2k": 0,
+        "eq4k": 0,
+        "eq8k": 0,
+        "eq16k": 0,
+        "ruidoPorMinimos": 1,
+        "ruidoDesdeHz": 2000
+      },
+      "ia": {
+        "modelo": "apollo",
+        "mistura": 0.75,
+        "corteHz": 15000
+      },
+      "avisos": [
+        "o_diagnostico_nao_garante_a_origem"
+      ],
+      "semMudanca": false,
+      "recomendacoes": [
+        "chiado"
+      ]
+    }
+  },
+  {
+    "nome": "mp3 de 24 kbps com o apollo ligado",
+    "diagnostico": {
+      "duracao": 15,
+      "picoDb": -2.2496,
+      "rmsDb": -23.1869,
+      "cristaDb": 20.9373,
+      "dc": 0.0003,
+      "recorte": 0,
+      "pisoDeRuidoDb": -30.75,
+      "zumbidoHz": 50,
+      "zumbidoDb": 5,
+      "bandaHz": 4489.8481,
+      "estalosPorMinuto": 0,
+      "correlacao": 0.8877,
+      "silencio": 0,
+      "agudosDb": -100.3997,
+      "dinamicaDb": 14,
+      "taxa": 44100,
+      "planuraDoRuido": 0,
+      "limiteDb": -8.65,
+      "pertoDoLimite": 0.0124,
+      "oitava31": 8.3527,
+      "oitava63": 10.681,
+      "oitava125": 12.5476,
+      "oitava250": 7.946,
+      "oitava500": 3.5344,
+      "oitava1k": 0,
+      "oitava2k": 1.4575,
+      "oitava4k": -5.5699,
+      "oitava8k": -87.7284,
+      "oitava16k": -84.1928,
+      "estabilidade4k": -35,
+      "estabilidade8k": -3.25,
+      "estabilidade12k": -3.25
+    },
+    "opcoes": {
+      "perfil": "lossy",
+      "intensidade": 0,
+      "ia": true
+    },
+    "esperado": {
+      "perfil": "lossy",
+      "etapas": [
+        "compressao"
+      ],
+      "parametros": {
+        "dc": 0,
+        "zumbidoHz": 0,
+        "zumbido": 0,
+        "estalos": 0,
+        "recorte": 0,
+        "nivelDoRecorte": 0,
+        "ruido": 0,
+        "arDb": 0,
+        "corteGraveHz": 0,
+        "tetoDb": -1,
+        "ganhoDb": 0,
+        "entradaDb": 0,
+        "transientes": 0,
+        "eq31": 0,
+        "eq63": 0,
+        "eq125": 0,
+        "eq250": 0,
+        "eq500": 0,
+        "eq1k": 0,
+        "eq2k": 0,
+        "eq4k": 0,
+        "eq8k": 0,
+        "eq16k": 0,
+        "ruidoPorMinimos": 0,
+        "ruidoDesdeHz": 0
+      },
+      "ia": {
+        "modelo": "apollo",
+        "mistura": 0.4,
+        "corteHz": 4000
+      },
+      "avisos": [
+        "o_diagnostico_nao_garante_a_origem",
+        "banda_limitada"
+      ],
+      "semMudanca": false,
+      "recomendacoes": [
+        "timbre"
+      ]
+    }
+  },
+  {
+    "nome": "avançado com o apollo ligado sem dosar",
+    "diagnostico": {
+      "duracao": 15,
+      "picoDb": -2.2496,
+      "rmsDb": -23.1869,
+      "cristaDb": 20.9373,
+      "dc": 0.0003,
+      "recorte": 0,
+      "pisoDeRuidoDb": -30.75,
+      "zumbidoHz": 50,
+      "zumbidoDb": 5,
+      "bandaHz": 4489.8481,
+      "estalosPorMinuto": 0,
+      "correlacao": 0.8877,
+      "silencio": 0,
+      "agudosDb": -100.3997,
+      "dinamicaDb": 14,
+      "taxa": 44100,
+      "planuraDoRuido": 0,
+      "limiteDb": -8.65,
+      "pertoDoLimite": 0.0124,
+      "oitava31": 8.3527,
+      "oitava63": 10.681,
+      "oitava125": 12.5476,
+      "oitava250": 7.946,
+      "oitava500": 3.5344,
+      "oitava1k": 0,
+      "oitava2k": 1.4575,
+      "oitava4k": -5.5699,
+      "oitava8k": -87.7284,
+      "oitava16k": -84.1928,
+      "estabilidade4k": -35,
+      "estabilidade8k": -3.25,
+      "estabilidade12k": -3.25
+    },
+    "opcoes": {
+      "perfil": "manual",
+      "ia": true,
+      "etapas": {
+        "ruido": 50
+      }
+    },
+    "esperado": {
+      "perfil": "manual",
+      "etapas": [
+        "compressao",
+        "ruido"
+      ],
+      "parametros": {
+        "dc": 0,
+        "zumbidoHz": 0,
+        "zumbido": 0,
+        "estalos": 0,
+        "recorte": 0,
+        "nivelDoRecorte": 0,
+        "ruido": 0.5,
+        "arDb": 0,
+        "corteGraveHz": 0,
+        "tetoDb": -1,
+        "ganhoDb": 0,
+        "entradaDb": 0,
+        "transientes": 0,
+        "eq31": 0,
+        "eq63": 0,
+        "eq125": 0,
+        "eq250": 0,
+        "eq500": 0,
+        "eq1k": 0,
+        "eq2k": 0,
+        "eq4k": 0,
+        "eq8k": 0,
+        "eq16k": 0,
+        "ruidoPorMinimos": 0,
+        "ruidoDesdeHz": 0
+      },
+      "ia": {
+        "modelo": "apollo",
+        "mistura": 1,
+        "corteHz": 4000
+      },
+      "avisos": [
+        "o_diagnostico_nao_garante_a_origem",
+        "banda_limitada"
+      ],
+      "semMudanca": false,
+      "recomendacoes": [
         "timbre"
       ]
     }
@@ -1060,7 +1610,9 @@
         "eq2k": 0,
         "eq4k": 0,
         "eq8k": 0,
-        "eq16k": 0
+        "eq16k": 0,
+        "ruidoPorMinimos": 0,
+        "ruidoDesdeHz": 0
       },
       "ia": null,
       "avisos": [
