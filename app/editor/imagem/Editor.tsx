@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { detectFormat } from "@/packages/converter-core/index.mjs";
 import { registrarUso, restanteHoje } from "@/lib/plano/contadores";
 import { usePlano } from "@/lib/plano/usePlano";
@@ -19,7 +19,8 @@ async function lerFoto(fonte: Blob) {
 function desenhar(canvas: HTMLCanvasElement, doc: Documento, fotos: Map<string, ImageBitmap>) {
   canvas.width = doc.canvas.width;
   canvas.height = doc.canvas.height;
-  const ctx = canvas.getContext("2d");
+  // O mesmo buffer alimenta a prévia e a leitura RGBA da exportação.
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
   if (!ctx) throw new Error("O navegador não disponibilizou o canvas.");
   for (const c of doc.layers) {
     if (!c.visivel) continue;
@@ -57,7 +58,10 @@ const ajustes = [
   ["escala", "Escala", 0.01, 8, 0.01], ["angulo", "Rotação (°)", -180, 180, 1],
 ] as const;
 
+const semAssinatura = () => () => {};
+
 export default function Editor() {
+  const pronto = useSyncExternalStore(semAssinatura, () => true, () => false);
   const { plano, pro } = usePlano();
   const plugin = usePlugin();
   const [usarPlugin, escolherPlugin] = useState(false);
@@ -177,7 +181,7 @@ export default function Editor() {
   }
   return <main className="foto-editor"><header><div><a href="/estudio">Estúdio</a><h1>Estúdio de imagem</h1></div>
     <p>SDR · sRGB · 8 bits</p></header>
-    <fieldset disabled={ocupado}><legend className="sr-only">Ferramentas de imagem</legend>
+    <fieldset disabled={!pronto || ocupado}><legend className="sr-only">Ferramentas de imagem</legend>
       <div className="foto-barra"><label>{doc ? "Adicionar foto ou abrir projeto" : "Abrir foto ou projeto"}
         <input type="file" accept=".jpg,.jpeg,.png,.webp,.jxl,.sltimage" onChange={e => {
           const f = e.target.files?.[0]; e.target.value = ""; if (f) void executar(() => importar(f));

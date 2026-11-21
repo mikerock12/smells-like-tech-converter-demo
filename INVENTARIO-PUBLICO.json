@@ -1,5 +1,5 @@
 {
-  "commit": "36edd4545ecdfa5b81be3c0b1a2cf9ead8b4ad1b",
+  "commit": "b00a4206aaa6e205e097968318c8f9e832651507",
   "repository": "https://github.com/mikerock12/smells-like-tech-converter-demo",
   "originals": [
     {
@@ -1879,8 +1879,8 @@
     },
     {
       "path": "app/editor/imagem/Editor.tsx",
-      "sha256": "f4877a1bda5ae8335d76706e3fd97324029d3c31ed0c1f6b78bcd1941dcab38e",
-      "bytes": 12184
+      "sha256": "8f780c4f935fd02ef821d340a4f6ca3dd6d79bed20a3e597fa5e1cc26f786ecd",
+      "bytes": 12438
     },
     {
       "path": "app/editor/imagem/imagem.css",
@@ -5231,6 +5231,11 @@
       "path": "scripts/pwa.mjs",
       "sha256": "b3f52759ef6603c1b1aa6d616fb3967f6b6b45b8968e021f6eb9543ce1f357c4",
       "bytes": 2364
+    },
+    {
+      "path": "scripts/testar-editor-imagem.mjs",
+      "sha256": "885e431f795c6e1d56c2439516d3f3cb8801f7a9f6557f8b8d6da1ce2162c9d4",
+      "bytes": 2783
     },
     {
       "path": "scripts/testar-kokoro.mjs",
