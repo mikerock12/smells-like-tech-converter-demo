@@ -63,6 +63,17 @@ export function conferirDocumento(doc: Documento) {
   }
 }
 
+export function recortar(doc: Documento, esquerda: number, topo: number, direita: number, base: number): Documento {
+  const width = doc.canvas.width - esquerda - direita;
+  const height = doc.canvas.height - topo - base;
+  if (![esquerda, topo, direita, base].every(n => Number.isInteger(n) && n >= 0) || width < 1 || height < 1)
+    throw new Error("As margens devem deixar pelo menos um pixel de largura e altura.");
+  const novo = { ...doc, canvas: { ...doc.canvas, width, height },
+    layers: doc.layers.map(c => ({ ...c, x: c.x - esquerda, y: c.y - topo })) };
+  conferirDocumento(novo);
+  return novo;
+}
+
 export async function hash(bytes: Uint8Array<ArrayBuffer>) {
   const digest = await crypto.subtle.digest("SHA-256", bytes);
   return Array.from(new Uint8Array(digest), b => b.toString(16).padStart(2, "0")).join("");

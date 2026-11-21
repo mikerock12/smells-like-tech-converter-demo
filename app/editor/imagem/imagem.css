@@ -16,6 +16,9 @@
 .foto-area canvas { display: block; max-width: 100%; max-height: 70vh; background: repeating-conic-gradient(#ccc 0 25%, #eee 0 50%) 0/16px 16px; }
 .foto-editor label { display: grid; gap: .25rem; font-size: .94rem; }
 .foto-editor input { min-width: 0; max-width: 100%; }
+.foto-area summary { cursor: pointer; padding-block: .65rem; }
+.foto-area summary:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+.foto-area details form { display: grid; gap: .65rem; }
 @media (max-width: 52rem) {
   .foto-area { grid-template-columns: 1fr 1fr; }
   .foto-area section { grid-column: 1/-1; grid-row: 1; min-height: 12rem; }

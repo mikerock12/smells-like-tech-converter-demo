@@ -44,7 +44,27 @@ try {
   const jxl = await baixar("Exportar imagem");
   await importar("prova.jxl", "image/jxl", jxl);
   assert.deepEqual(await pixels(), editado);
+  await importar("prova.sltimage", "application/octet-stream", projeto);
   await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByText("Recortar composição", { exact: true }).click();
+  for (const [margem, valor] of Object.entries({ Esquerda: 8, Topo: 4, Direita: 12, Base: 10 }))
+    await page.getByLabel(margem + " (px)").fill(String(valor));
+  await page.getByRole("button", { name: "Aplicar recorte" }).click();
+  await page.waitForFunction(() => document.querySelector("canvas")?.width === 12);
+  const recorte = [];
+  for (let y = 4; y < 14; y++) recorte.push(...editado.slice((y * 32 + 8) * 4, (y * 32 + 20) * 4));
+  assert.deepEqual(await pixels(), recorte);
+  await page.getByRole("button", { name: "Desfazer" }).click();
+  await page.waitForFunction(() => document.querySelector("canvas")?.width === 32);
+  assert.deepEqual(await pixels(), editado);
+  await page.getByRole("button", { name: "Refazer" }).click();
+  await page.waitForFunction(() => document.querySelector("canvas")?.width === 12);
+  assert.deepEqual(await pixels(), recorte);
+  const salvo = unzipSync(await baixar("Salvar projeto"));
+  assert.deepEqual(salvo[foto[0]], foto[1]);
+  const manifesto = JSON.parse(new TextDecoder().decode(salvo["manifest.json"]));
+  assert.equal(manifesto.layers.length, 2);
+  assert.deepEqual([manifesto.canvas.width, manifesto.canvas.height], [12, 10]);
   assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
   console.log(`Projeto de duas camadas e JXL de ${jxl.length} bytes reabertos. 768 pixels RGBA conferidos em ${url.origin}.`);
 } finally {
