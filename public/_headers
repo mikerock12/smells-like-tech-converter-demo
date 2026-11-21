@@ -28,3 +28,7 @@
 
 /manifest.webmanifest
   Cache-Control: public, max-age=3600
+
+/marca/mascote.jxl
+  Content-Type: image/jxl
+  Cache-Control: public, max-age=86400

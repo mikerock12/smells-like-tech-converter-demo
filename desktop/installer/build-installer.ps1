@@ -20,6 +20,8 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+node (Join-Path $PSScriptRoot '../../scripts/check-image-model-licenses.mjs')
+if ($LASTEXITCODE -ne 0) { throw 'Falha na revisão dos pesos do editor de imagem.' }
 . (Join-Path $PSScriptRoot '../../scripts/giphy-ambiente.ps1')
 $estadoGiphy = Ativar-AmbienteGiphy
 $PSDefaultParameterValues['Start-Process:WindowStyle'] = 'Hidden'

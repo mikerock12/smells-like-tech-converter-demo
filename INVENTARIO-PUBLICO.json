@@ -1,5 +1,5 @@
 {
-  "commit": "b00a4206aaa6e205e097968318c8f9e832651507",
+  "commit": "bdb22df8f1dea234e3e79e08ea12dfa8051d3fd5",
   "repository": "https://github.com/mikerock12/smells-like-tech-converter-demo",
   "originals": [
     {
@@ -34,8 +34,8 @@
     },
     {
       "path": "android/app/build.gradle.kts",
-      "sha256": "99cb313392aa93b003947c5b746c55578477ea31b1480f2fdd5aaf7b05add28f",
-      "bytes": 9455
+      "sha256": "125f6e068be5db374ef32d036b6e169e44a93ba51e6649600502670f10297169",
+      "bytes": 9781
     },
     {
       "path": "android/app/proguard-rules.pro",
@@ -1869,8 +1869,13 @@
     },
     {
       "path": "app/converter/[slug]/page.tsx",
-      "sha256": "ab1cfc838648ba6e59d4f213f47e0a2abd81b9e081cbf2aee7ed836193036e71",
-      "bytes": 8160
+      "sha256": "02053130abfae16e6c7f2f5628bad065396ec70a65978ae49f675dcba5eb97b8",
+      "bytes": 8733
+    },
+    {
+      "path": "app/converter/abrir-jxl/page.tsx",
+      "sha256": "ab9373c7ac8efad7d6caf06b4ff58452d44983c34135a9a89b9b418691b75625",
+      "bytes": 1222
     },
     {
       "path": "app/converter/page.tsx",
@@ -1879,8 +1884,8 @@
     },
     {
       "path": "app/editor/imagem/Editor.tsx",
-      "sha256": "8f780c4f935fd02ef821d340a4f6ca3dd6d79bed20a3e597fa5e1cc26f786ecd",
-      "bytes": 12438
+      "sha256": "8579486205ed66f33ab90b96e89e56450e110b7fc460d61d4ffd187beed0b183",
+      "bytes": 12482
     },
     {
       "path": "app/editor/imagem/imagem.css",
@@ -2039,8 +2044,8 @@
     },
     {
       "path": "app/page.tsx",
-      "sha256": "a7fa82e6a4e97fc42815171405abe0ffcae60f604868090c2184b6c0441ba555",
-      "bytes": 20323
+      "sha256": "19711277bb85a8b82223b960dfece446104b59a9f4a166f02cd5b50636197a96",
+      "bytes": 20433
     },
     {
       "path": "app/pdf-cliente/page.tsx",
@@ -2084,8 +2089,8 @@
     },
     {
       "path": "app/sitemap.ts",
-      "sha256": "98be4761228256b7b373e7c42fc2c1c13a0b4c6b7ff29a8394d485878dc9ccf3",
-      "bytes": 1594
+      "sha256": "381f57924dcdc00586ea78045c531f9cc0464fe43384e044eb9e4059d75ec843",
+      "bytes": 1636
     },
     {
       "path": "app/termos/page.tsx",
@@ -2209,13 +2214,13 @@
     },
     {
       "path": "desktop/installer/build-installer.ps1",
-      "sha256": "ee810afe822a005fe5597ab8595751a22215daa57d242021c4ef009ace311f3f",
-      "bytes": 8184
+      "sha256": "ff048f025f8a95ad20f0a671c11e3e244e5842e9fe72a5b576ca0ca3f81df850",
+      "bytes": 8348
     },
     {
       "path": "desktop/installer/build-plugin-installer.ps1",
-      "sha256": "b2a69c76435afc108780e703cb371f7181b9b1ae375a239ae47b924100715597",
-      "bytes": 7638
+      "sha256": "6bec1972c419fb81916e78d44d2b5ef3e6779dda4453fcfb6adc6c1a3b884347",
+      "bytes": 7802
     },
     {
       "path": "desktop/installer/wizard-large.bmp",
@@ -3648,6 +3653,36 @@
       "bytes": 2838
     },
     {
+      "path": "docs/image-editor/licensing/DATASET_REGISTER.md",
+      "sha256": "5f52fc9afd84a1f85ce0dca70f5db827bb7893250dde913ce3f1706b959a050c",
+      "bytes": 720
+    },
+    {
+      "path": "docs/image-editor/licensing/LEGAL_REVIEW.md",
+      "sha256": "5825099bfc1c553e712c3c39fd5033d1ec0dbd9378f7d544f43a122e8f9fdaa0",
+      "bytes": 612
+    },
+    {
+      "path": "docs/image-editor/licensing/MODEL_REGISTRY.md",
+      "sha256": "8edb080b8d1b233c29b2f3835b90c475431185e8cc1192574028b11eb029fae2",
+      "bytes": 786
+    },
+    {
+      "path": "docs/image-editor/licensing/POLICY.md",
+      "sha256": "f91aff3dfe473d891e62a0bc466fc59a70ee11b3fbc3593fd30476c4487fd418",
+      "bytes": 1185
+    },
+    {
+      "path": "docs/image-editor/licensing/RESTRICTED_REFERENCES.md",
+      "sha256": "9e1a400dc43d928e35224a08d23784f051d86f5808a90e4f3d8c56cb04aabdc9",
+      "bytes": 356
+    },
+    {
+      "path": "docs/image-editor/licensing/THIRD_PARTY_NOTICES.md",
+      "sha256": "1ad4dd81463adbfba5697f30fe7b37353d3dcd40b4f4648fee26243bcf6dcef0",
+      "bytes": 646
+    },
+    {
       "path": "docs/kokoro-fontes.md",
       "sha256": "c6d9e20e5dc3164fe3fdf2b4f17021f620ba46a60e410aca1db73469979001bd",
       "bytes": 2234
@@ -4154,8 +4189,8 @@
     },
     {
       "path": "package.json",
-      "sha256": "caff170e23a5d8923f10f216ea50591327798a1ebe124ef7845b759cfff49169",
-      "bytes": 3839
+      "sha256": "56d3f3392ce963450554930513e16ce82fe5bb5151596bd225e37e0602b75169",
+      "bytes": 3975
     },
     {
       "path": "packages/admin/index.d.mts",
@@ -4289,8 +4324,8 @@
     },
     {
       "path": "packages/converter-core/catalogo.mjs",
-      "sha256": "85943712ae48e238843758b024bf369e97fc0ca72a8f9544fe9067676a4162d3",
-      "bytes": 26799
+      "sha256": "b4f0414816049285b6398692ff8e3b54f6f9110bee2131529e91200afc86f7c4",
+      "bytes": 27037
     },
     {
       "path": "packages/converter-core/configuracao-giphy.d.mts",
@@ -4749,8 +4784,8 @@
     },
     {
       "path": "packages/converter-core/paginas.mjs",
-      "sha256": "f45af787d5b9226afc3e86a8a23ac3e63723cb0563cd7be2efbc1ab2781bf817",
-      "bytes": 14465
+      "sha256": "994d2603ac13c88801e293a1b60069ed69e73e7a270546db8b25a212f8ebf63a",
+      "bytes": 14718
     },
     {
       "path": "packages/converter-core/pdf-compactar.d.mts",
@@ -4836,6 +4871,16 @@
       "path": "packages/funil/index.mjs",
       "sha256": "25aa9b4b46a42705d970b737f27609e72a4964997cd8ba11431e5d5d73391b99",
       "bytes": 4451
+    },
+    {
+      "path": "packages/image-editor-models/models.manifest.json",
+      "sha256": "7ecb460e980ce4be2f23d840a64e7352150d36cb429aba85c9376ffa1ba1c666",
+      "bytes": 756
+    },
+    {
+      "path": "packages/image-editor-models/schema.json",
+      "sha256": "4d56f643a45361467a001486da668c17c711e6bcf975b7d351d2e965926c00a8",
+      "bytes": 1838
     },
     {
       "path": "packages/kokoro/NOTICE.txt",
@@ -4939,8 +4984,8 @@
     },
     {
       "path": "public/_headers",
-      "sha256": "3ed7537c57130fcea9fd7fb862a238fca19206d30c586d418d8b6749c35f76ee",
-      "bytes": 1155
+      "sha256": "45b8554d212d20a8369f4a34f58032ab60f627a0f5a2baba8dfd0dbc581dd9cf",
+      "bytes": 1240
     },
     {
       "path": "public/baixar/app.json",
@@ -5061,6 +5106,11 @@
       "path": "public/marca/icone.ico",
       "sha256": "5d0abe06f9a44ea311b7a612c66e08a9de4bdefdd63d8f966946b087d5dc528e",
       "bytes": 372526
+    },
+    {
+      "path": "public/marca/mascote.jxl",
+      "sha256": "44691c951b4475deea1f1ca0c168ee7aacff8a9f1ca38adf0203196dfd598c81",
+      "bytes": 110680
     },
     {
       "path": "public/marca/mascote.webp",
@@ -5193,6 +5243,16 @@
       "bytes": 13035
     },
     {
+      "path": "scripts/check-image-model-licenses.mjs",
+      "sha256": "12d16f8d9f568b0f26fa5089bad242444ce6ac5e2c1129a3ef9c3e38db406472",
+      "bytes": 4451
+    },
+    {
+      "path": "scripts/check-third-party-notices.mjs",
+      "sha256": "eafab34a23eb73dfbe2c232929d2eaa1209c2fbb42dff0b085bab5419c07efd2",
+      "bytes": 1049
+    },
+    {
       "path": "scripts/com-giphy.mjs",
       "sha256": "0147daf28bcf496d34ce4376e97ba93950998390f297cd1798cfbefd3a18daea",
       "bytes": 849
@@ -5201,6 +5261,11 @@
       "path": "scripts/copiar-motores.mjs",
       "sha256": "a9d098ac68f69a9d0064f10f73124120d14dcaedcd97e01c1771a361f6656a2c",
       "bytes": 3052
+    },
+    {
+      "path": "scripts/gerar-mascote-jxl.mjs",
+      "sha256": "811d1595d97600e02e49e207bc415f2c2e1074e7351e4a9af065ffe27ddacd27",
+      "bytes": 1018
     },
     {
       "path": "scripts/giphy-ambiente.ps1",
@@ -5266,6 +5331,11 @@
       "path": "tests/giphy-ambiente.test.mjs",
       "sha256": "d157ae182af01e716742a23e2b8dd0ce52b9bea251ccbe3e79d86a8b229d3026",
       "bytes": 488
+    },
+    {
+      "path": "tests/image-model-licenses.test.mjs",
+      "sha256": "63c9e0c6011cc8c80afe2a35c4f9d13f4b1d0da97829f5e4995638386acab428",
+      "bytes": 2653
     },
     {
       "path": "tests/kokoro-progresso.test.mjs",

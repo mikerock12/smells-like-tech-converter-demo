@@ -119,13 +119,16 @@ export default function Home() {
 
       <section className="hero" id="top">
         <div className="hero-figure">
+          <picture>
+            <source type="image/jxl" srcSet="/marca/mascote.jxl" />
           <img
             src="/marca/mascote.webp"
             alt="O guaxinim da Smells Like Tech, de moletom preto, sobre um fundo de placa de circuito."
-            width={380}
-            height={608}
+            width={760}
+            height={1247}
             fetchPriority="high"
           />
+          </picture>
         </div>
 
         <div className="hero-copy">

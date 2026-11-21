@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["version", "models"],
+  "properties": {
+    "version": { "const": 1 },
+    "models": { "type": "array", "items": { "$ref": "#/$defs/model" } }
+  },
+  "$defs": {
+    "model": {
+      "type": "object",
+      "required": ["id", "status", "owner", "origin", "codeSource", "weightsSource", "sha256", "datasetRegister", "review", "trainingAllowed", "commercialAllowed", "redistributionAllowed", "codeSpdx", "weightsLicense", "distributionFile"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
+        "status": { "enum": ["approved", "pending", "blocked"] },
+        "owner": { "type": "string", "minLength": 1 },
+        "origin": { "enum": ["trained-in-house", "third-party"] },
+        "codeSource": { "type": "string", "minLength": 1 },
+        "weightsSource": { "type": "string", "minLength": 1 },
+        "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "datasetRegister": { "type": "string", "minLength": 1 },
+        "review": { "type": "string", "minLength": 1 },
+        "trainingAllowed": { "type": ["boolean", "null"] },
+        "commercialAllowed": { "type": ["boolean", "null"] },
+        "redistributionAllowed": { "type": ["boolean", "null"] },
+        "codeSpdx": { "type": ["string", "null"] },
+        "weightsLicense": { "type": ["string", "null"] },
+        "distributionFile": { "type": ["string", "null"] }
+      },
+      "if": { "properties": { "status": { "const": "approved" } } },
+      "then": { "properties": { "commercialAllowed": { "const": true }, "redistributionAllowed": { "const": true }, "distributionFile": { "type": "string", "minLength": 1 } } },
+      "else": { "properties": { "distributionFile": { "type": "null" } } }
+    }
+  }
+}

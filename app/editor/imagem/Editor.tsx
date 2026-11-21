@@ -60,7 +60,7 @@ const ajustes = [
 
 const semAssinatura = () => () => {};
 
-export default function Editor() {
+export default function Editor({ titulo = "Estúdio de imagem" }: { titulo?: string }) {
   const pronto = useSyncExternalStore(semAssinatura, () => true, () => false);
   const { plano, pro } = usePlano();
   const plugin = usePlugin();
@@ -179,7 +179,7 @@ export default function Editor() {
     baixar(new Blob([dados], { type: "image/" + (tipo === "jpg" ? "jpeg" : tipo) }), doc.title + "." + tipo);
     if (!pro) registrarUso("estudio");
   }
-  return <main className="foto-editor"><header><div><a href="/estudio">Estúdio</a><h1>Estúdio de imagem</h1></div>
+  return <main className="foto-editor"><header><div><a href="/estudio">Estúdio</a><h1>{titulo}</h1></div>
     <p>SDR · sRGB · 8 bits</p></header>
     <fieldset disabled={!pronto || ocupado}><legend className="sr-only">Ferramentas de imagem</legend>
       <div className="foto-barra"><label>{doc ? "Adicionar foto ou abrir projeto" : "Abrir foto ou projeto"}

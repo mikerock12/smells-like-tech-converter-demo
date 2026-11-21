@@ -140,6 +140,14 @@ kotlin {
     compilerOptions { jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17) }
 }
 
+val verificarPesosDoEditor by tasks.registering(Exec::class) {
+    workingDir(rootProject.projectDir.parentFile)
+    commandLine("node", "scripts/check-image-model-licenses.mjs")
+}
+tasks.matching { it.name == "prePlayReleaseBuild" || it.name == "preSiteReleaseBuild" }.configureEach {
+    dependsOn(verificarPesosDoEditor)
+}
+
 dependencies {
     implementation(files("libs/sherpa-onnx-1.13.8.aar"))
     implementation("com.google.oboe:oboe:1.11.0")

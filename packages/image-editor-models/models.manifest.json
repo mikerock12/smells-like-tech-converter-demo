@@ -1,0 +1,23 @@
+{
+  "$schema": "./schema.json",
+  "version": 1,
+  "models": [
+    {
+      "id": "slt-ampliador-2x-v1",
+      "status": "pending",
+      "owner": "Smells Like Tech",
+      "origin": "trained-in-house",
+      "codeSource": "laboratorio/imagem/super_resolucao.py",
+      "weightsSource": "laboratorio/imagem/modelos/ampliador-2x.json",
+      "sha256": "1905ec3cc0ab29ea395326c2362f1466cb92bf8211e4aa5769308489c4e00dc3",
+      "datasetRegister": "docs/image-editor/licensing/DATASET_REGISTER.md",
+      "review": "docs/image-editor/licensing/MODEL_REGISTRY.md",
+      "trainingAllowed": true,
+      "commercialAllowed": null,
+      "redistributionAllowed": null,
+      "codeSpdx": null,
+      "weightsLicense": null,
+      "distributionFile": null
+    }
+  ]
+}

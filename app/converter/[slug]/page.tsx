@@ -57,7 +57,11 @@ export default async function PaginaDaFerramenta({ params }: { params: Promise<{
   const mesmoTipo = ferramentasPara(ferramenta.entradas[0]).filter((item) => item.id !== ferramenta.id).slice(0, 6);
   const entradaDescritor = de ? getFormat(de) : null;
   const saidaDescritor = formato ? getFormat(formato) : null;
-  const perguntas = pagina.comFaq ? perguntasFrequentes(ferramenta) : [];
+  const usaJxl = de === "jxl" || formato === "jxl";
+  const perguntas = usaJxl ? [
+    { pergunta: "A foto é enviada a um servidor?", resposta: "A oficina lê os pixels no dispositivo e disponibiliza o resultado para download." },
+    { pergunta: "Qual imagem é usada na conversão?", resposta: "O fluxo trabalha com uma imagem estática em sRGB de 8 bits. PNG e JPEG XL aceitam transparência. Ao exportar em JPEG, a oficina compõe os pixels sobre uma cor de fundo." },
+  ] : pagina.comFaq ? perguntasFrequentes(ferramenta) : [];
   const artigos = artigosDaConversao(slug);
 
   // Dados estruturados do FAQ, com "<" escapado para nada fechar o <script> antes da hora.
@@ -124,6 +128,7 @@ export default async function PaginaDaFerramenta({ params }: { params: Promise<{
             </li>
           </ol>
 
+          {usaJxl && <p><a href="/converter/abrir-jxl">Abrir uma imagem JPEG XL para conferir a prévia</a></p>}
           {perguntas.length > 0 && (
             <>
               <h2 className="seo__faq-titulo">Perguntas frequentes</h2>

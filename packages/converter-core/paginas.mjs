@@ -106,6 +106,8 @@ export const PAGINAS_PRIORIZADAS = deepFreeze([
 
 /** As ferramentas que não estão na lista também ganham H1 de busca, escrito à mão. */
 const FERRAMENTAS_FORA_DA_LISTA = deepFreeze({
+  "comprimir-jxl": { h1: "Comprimir JPEG XL sem enviar arquivo", frase: "Ajuste a qualidade da imagem e baixe o JXL" },
+  "redimensionar-jxl": { h1: "Redimensionar JPEG XL sem enviar arquivo", frase: "Altere as dimensões da imagem e exporte em JXL" },
   "converter-imagem": { h1: "Converter imagem sem enviar arquivo", frase: "Converta imagens" },
   "converter-audio": { h1: "Converter áudio sem enviar arquivo", frase: "Converta áudios" },
   "editar-audio": { h1: "Editar áudio sem enviar arquivo", frase: "Edite áudios" },

@@ -190,7 +190,7 @@ export const FERRAMENTAS = deepFreeze([
     plano: "gratis",
     limite: "pdf",
     buscas: ["jpg para pdf", "png para pdf", "foto para pdf", "juntar fotos em pdf"],
-    pares: [["jpg", "pdf"], ["png", "pdf"], ["webp", "pdf"], ["heic", "pdf"]],
+    pares: [["jpg", "pdf"], ["png", "pdf"], ["webp", "pdf"], ["heic", "pdf"], ["jxl", "pdf"]],
   },
   {
     id: "imagem.ocr",
@@ -659,6 +659,8 @@ export function rotulo(formato) {
  * SRT. Cada uma é uma página própria, como um par de formato.
  */
 export const VARIANTES = deepFreeze([
+  { slug: "comprimir-jxl", ferramenta: "imagem.comprimir", formato: "jxl", opcoes: {}, entrada: "image" },
+  { slug: "redimensionar-jxl", ferramenta: "imagem.redimensionar", formato: "jxl", opcoes: {}, entrada: "image" },
   { slug: "video-para-texto", ferramenta: "voz.transcrever", formato: "txt", opcoes: {}, entrada: "video" },
   { slug: "audio-para-srt", ferramenta: "voz.transcrever", formato: "srt", opcoes: {}, entrada: "audio" },
   { slug: "cortar-audio", ferramenta: "audio.editar", formato: null, opcoes: {}, entrada: "audio" },
