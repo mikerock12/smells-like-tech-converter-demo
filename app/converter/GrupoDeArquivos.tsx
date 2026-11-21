@@ -43,6 +43,7 @@ export default function GrupoDeArquivos({
   grupo,
   plano,
   pluginLigado,
+  operacoesDoPlugin,
   onChange,
   onRemoveItem,
   onMoveItem,
@@ -52,6 +53,7 @@ export default function GrupoDeArquivos({
   grupo: Grupo;
   plano: "gratis" | "pro";
   pluginLigado: boolean;
+  operacoesDoPlugin: readonly { id: string; saidas: string[] }[];
   onChange: (mudanca: Partial<Grupo>) => void;
   onRemoveItem: (itemId: string) => void;
   onMoveItem: (itemId: string, direcao: -1 | 1) => void;
@@ -68,6 +70,11 @@ export default function GrupoDeArquivos({
   const precisaDoPlugin = !ferramenta.navegador || doDisco;
   const podeEscolherOnde = ferramenta.navegador && ferramenta.plugin !== null && pluginLigado && !doDisco;
   const viaPlugin = precisaDoPlugin || (podeEscolherOnde && grupo.peloPlugin);
+  const aceitaSaidaJxl = !viaPlugin || operacoesDoPlugin.some(o => o.id === ferramenta.plugin && o.saidas.includes("jxl"));
+  const jxlIncompativel = viaPlugin && (
+    (grupo.opcoes.formato === "jxl" && !aceitaSaidaJxl) ||
+    (formatos.includes("jxl") && !operacoesDoPlugin.some(o => o.id === "image.convert" && o.saidas.includes("jxl")))
+  );
   const bloqueado = precisaDoPlugin && !pluginLigado;
   const ehPro = ferramenta.plano === "pro";
   // A prévia do corte: só com início e fim na tela e o arquivo aberto no navegador.
@@ -147,7 +154,8 @@ export default function GrupoDeArquivos({
         />
       )}
 
-      <CamposDeOpcoes ferramentaId={ferramenta.id} opcoes={grupo.opcoes} onChange={(opcoes) => onChange({ opcoes })} disabled={grupo.convertendo} />
+      <CamposDeOpcoes ferramentaId={ferramenta.id} opcoes={grupo.opcoes} onChange={(opcoes) => onChange({ opcoes })} disabled={grupo.convertendo} aceitaSaidaJxl={aceitaSaidaJxl} />
+      {jxlIncompativel && <p role="status">O plugin conectado não aceita JPEG XL nesta operação. Use o navegador ou escolha um formato compatível.</p>}
 
       {(ferramenta.id === "audio.separar-faixas" || ferramenta.id === "video.voz") && (
         <OpcoesDasFaixas key={ferramenta.id} ferramentaId={ferramenta.id} opcoes={grupo.opcoes} onChange={(opcoes) => onChange({ opcoes })} disabled={grupo.convertendo} />
@@ -193,7 +201,7 @@ export default function GrupoDeArquivos({
       {grupo.aviso && <p className="notice notice--warning">{grupo.aviso}</p>}
 
       <div className="grupo__acoes">
-        <button type="button" className="button button--primary" onClick={onConverter} disabled={grupo.convertendo || bloqueado || (lote && ferramenta.id === "pdf.juntar" && grupo.itens.length < 2)}>
+        <button type="button" className="button button--primary" onClick={onConverter} disabled={grupo.convertendo || bloqueado || jxlIncompativel || (lote && ferramenta.id === "pdf.juntar" && grupo.itens.length < 2)}>
           {grupo.convertendo ? "Preparando…" : `${ferramenta.acao} ${grupo.itens.length === 1 ? "" : `${grupo.itens.length} ${lote ? "em um" : "arquivos"}`}`.trim()}
         </button>
         <span className="grupo__onde-roda">{viaPlugin ? "pelo plugin, na sua máquina" : "no seu navegador"}</span>

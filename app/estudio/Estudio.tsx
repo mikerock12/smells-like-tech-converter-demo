@@ -791,6 +791,8 @@ function EscolhaDoDestino({
       {voltar && <button type="button" className="estudio__voltar" onClick={voltar}>← Voltar ao editor</button>}
       <span className="estudio__selo">Estúdio · no seu computador</span>
       <h1 id="destino-titulo">Para onde é?</h1>
+      {!voltar && <a className="estudio__cartao" href="/editor/imagem"><strong>Estúdio de imagem</strong>
+        <span>Edite fotos e texto em camadas e exporte em JPEG XL, PNG, JPEG ou WebP.</span></a>}
       <p className="estudio__dica">Escolha a rede e o formato: o estúdio ajusta o tamanho do quadro e avisa se passar do tempo que ela costuma aceitar. Nada é enviado para a internet.</p>
       {!voltar && (
         <a className="estudio__cartao estudio__musica" href="/estudio/musica">

@@ -32,6 +32,8 @@ export async function decodificar(arquivo: Blob, formato: FormatId | null): Prom
         return await decodePng(bytes);
       case "webp":
         return await decodeWebp(bytes);
+      case "jxl":
+        return await (await import("./jxl")).decodificarJxl(bytes);
       case "heic":
         return await (await import("./heic")).decodificarHeic(bytes);
       case "tiff":
@@ -227,6 +229,8 @@ export async function codificar(imagem: ImageData, formato: FormatId, qualidade:
       return encodeWebp(imagem, { quality: qualidade });
     case "png":
       return encodePng(imagem);
+    case "jxl":
+      return (await import("./jxl")).codificarJxl(imagem, qualidade);
     case "bmp":
       return codificarBmp(imagem);
     case "ico":

@@ -30,6 +30,7 @@ object Imagem {
     private const val LADO_MAXIMO = 8192
 
     suspend fun carregar(context: Context, entrada: Entrada, larguraMaxima: Int = 0): Bitmap = withContext(Dispatchers.IO) {
+        JpegXl.abrir(context, entrada)?.let { return@withContext reduzir(it, larguraMaxima) }
         try {
             decodificar(context, entrada, larguraMaxima)
         } catch (erro: Exception) {
@@ -129,6 +130,10 @@ object Imagem {
     /** Grava nos formatos do Android: JPG, PNG, WEBP. */
     @Suppress("DEPRECATION")
     fun comprimir(bitmap: Bitmap, formato: String, qualidade: Int, saida: OutputStream) {
+        if (formato == "jxl") {
+            JpegXl.gravar(bitmap, qualidade, saida)
+            return
+        }
         val final = if (formato == "jpg" && bitmap.hasAlpha()) semTransparencia(bitmap) else bitmap
         val compressao = when (formato) {
             "jpg" -> Bitmap.CompressFormat.JPEG
@@ -148,7 +153,7 @@ object Imagem {
         return opaco
     }
 
-    private fun aceitaTransparencia(formato: String) = formato in setOf("png", "webp", "avif", "tiff", "gif", "ico")
+    private fun aceitaTransparencia(formato: String) = formato in setOf("png", "webp", "jxl", "avif", "tiff", "gif", "ico")
 
     /** Converter, comprimir, redimensionar, mudar a proporção e girar: tudo passa por aqui. */
     suspend fun converter(context: Context, entrada: Entrada, opcoes: Opcoes, sufixo: String, aoAvancar: (Int) -> Unit = {}): Resultado {
@@ -160,7 +165,7 @@ object Imagem {
         aoAvancar(60)
         val nome = Saida.nomeDeSaida(entrada.nome, sufixo.ifBlank { if (entrada.extensao == formato || (entrada.extensao == "jpeg" && formato == "jpg")) "convertido" else "" }, formato)
         return when (formato) {
-            "jpg", "png", "webp" -> Saida.gravar(context, nome, Mimes.de(formato)) { comprimir(imagem, formato, opcoes.qualidade, it) }
+            "jpg", "png", "webp", "jxl" -> Saida.gravar(context, nome, Mimes.de(formato)) { comprimir(imagem, formato, opcoes.qualidade, it) }
             "ico" -> Saida.gravar(context, nome, Mimes.de("ico")) { it.write(icone(imagem)) }
             else -> pelaFfmpeg(context, imagem, nome, formato, opcoes.qualidade)
         }

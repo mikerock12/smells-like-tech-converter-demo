@@ -38,7 +38,7 @@ async function abrir(arquivo: Blob, nome: string) {
 
 export async function pdfParaImagens(contexto: ContextoDoMotor): Promise<{ saidas: Saida[]; nota: string }> {
   const { entradas, opcoes, progresso } = contexto;
-  const formato = (["png", "jpg", "webp"].includes(String(opcoes.formato)) ? String(opcoes.formato) : "png") as FormatId;
+  const formato = (["png", "jpg", "webp", "jxl"].includes(String(opcoes.formato)) ? String(opcoes.formato) : "png") as FormatId;
   const mime = getFormat(formato)?.mime ?? "image/png";
   const dpi = Number(opcoes.dpi ?? 150) || 150;
   const qualidade = Math.min(100, Math.max(1, Number(opcoes.qualidade ?? 82))) / 100;
@@ -58,11 +58,13 @@ export async function pdfParaImagens(contexto: ContextoDoMotor): Promise<{ saida
         const canvas = new OffscreenCanvas(Math.ceil(viewport.width), Math.ceil(viewport.height));
         const ctx = canvas.getContext("2d") as unknown as CanvasRenderingContext2D;
         await pagina.render({ canvasContext: ctx, canvas: canvas as unknown as HTMLCanvasElement, viewport }).promise;
-        const blob = await canvas.convertToBlob({ type: mime, quality: qualidade });
+        const bytes = formato === "jxl"
+          ? await (await import("../motores/jxl")).jxlDoCanvas(canvas, Math.round(qualidade * 100))
+          : await (await canvas.convertToBlob({ type: mime, quality: qualidade })).arrayBuffer();
         saidas.push({
           nome: `${base}-p${String(numero).padStart(3, "0")}.${formato}`,
           mime,
-          bytes: await blob.arrayBuffer(),
+          bytes,
           largura: canvas.width,
           altura: canvas.height,
         });

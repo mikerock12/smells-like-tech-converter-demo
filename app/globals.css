@@ -379,6 +379,12 @@ footer > small { color: rgba(166, 166, 176, .7); font-family: var(--font-geist-m
 /* ==================== conversor (processamento no navegador) ==================== */
 
 .converter { max-width: 1080px; margin: 0 auto; padding: clamp(28px, 5vw, 56px) clamp(16px, 4vw, 32px) 72px; }
+.oficina-paineis__grupos { min-width: 0; }
+@media (min-width: 76rem) {
+  .converter:has(.oficina-paineis--com-fila) { max-width: 96rem; }
+  .oficina-paineis--com-fila { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(20rem, 1fr); gap: 1.5rem; align-items: start; }
+  .oficina-paineis--com-fila > :last-child { min-width: 0; }
+}
 .converter__header { margin-bottom: 26px; }
 .converter__eyebrow { margin: 0; font: 650 10px var(--font-geist-mono), monospace; letter-spacing: 2.4px; text-transform: uppercase; color: var(--amber); }
 .converter__header h1 { margin: 12px 0 14px; font-size: clamp(28px, 4.4vw, 44px); line-height: 1.06; letter-spacing: -1.4px; }

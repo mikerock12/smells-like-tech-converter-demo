@@ -55,6 +55,7 @@ export type Maquina = {
 };
 
 export type Operacao = {
+  /** image.renderProject recebe um .sltimage e anuncia as extensões de exportação em saidas. */
   id: string;
   titulo: string;
   descricao: string;

@@ -10,6 +10,7 @@ namespace SmellsLikeTech.Converter.Core.Options;
 /// </summary>
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "operation")]
 [JsonDerivedType(typeof(ImageConvertOptions), OperationIds.ImageConvert)]
+[JsonDerivedType(typeof(ImageProjectOptions), OperationIds.ImageProjectRender)]
 [JsonDerivedType(typeof(VideoConvertOptions), OperationIds.VideoConvert)]
 [JsonDerivedType(typeof(ExtractAudioOptions), OperationIds.VideoExtractAudio)]
 [JsonDerivedType(typeof(VideoToGifOptions), OperationIds.VideoToGif)]

@@ -4,6 +4,8 @@ public/marca/mercado-pago-branco.svg -text
 LICENSE text eol=lf
 LICENSING.md text eol=lf
 packages/kokoro/NOTICE.txt text eol=lf
+packages/kokoro/ONNX-Runtime.txt -text
+laboratorio/imagem/modelos/*.json text eol=lf
 docs/kokoro-fontes.md text eol=lf
 # PDFs de regressão têm offsets binários e não podem sofrer conversão LF/CRLF.
 android/app/src/androidTest/assets/publicacao/*.pdf -text

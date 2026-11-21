@@ -22,6 +22,8 @@
 
   <ItemGroup>
     <!-- Casos compartilhados do estudio: os mesmos que o site e o Android conferem. -->
+    <Content Include="../../../android/app/src/androidTest/assets/editor-navegador.sltimage" Link="editor-navegador.sltimage" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Fixtures/editor-android.sltimage" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="..\..\..\packages\converter-core\giphy-caso.json" Link="giphy-caso.json" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="..\..\..\packages\converter-core\guias-casos.json" Link="guias-casos.json" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="..\..\..\packages\converter-core\recorte-casos.json" Link="recorte-casos.json" CopyToOutputDirectory="PreserveNewest" />

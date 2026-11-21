@@ -51,7 +51,13 @@ export async function reconhecerTexto(contexto: ContextoDoMotor): Promise<{ said
     for (const [indice, entrada] of entradas.entries()) {
       if (contexto.cancelado()) return { saidas: [], nota: "" };
       progresso("reconhecendo", 0.2 + (indice / entradas.length) * 0.8);
-      const { data } = await worker.recognize(entrada.arquivo);
+      let fonte = entrada.arquivo;
+      if (entrada.formato === "jxl") {
+        const { decodificarJxl } = await import("../motores/jxl");
+        const { default: png } = await import("@jsquash/png/encode");
+        fonte = new Blob([await png(await decodificarJxl(await fonte.arrayBuffer()))], { type: "image/png" });
+      }
+      const { data } = await worker.recognize(fonte);
       const texto = data.text.replace(/[ \t]+\n/g, "\n").trim();
       if (!texto) {
         throw new ConversionError("sem_texto", `Não encontrei texto legível em “${entrada.nome}”. Tente uma imagem mais nítida ou com mais contraste.`);

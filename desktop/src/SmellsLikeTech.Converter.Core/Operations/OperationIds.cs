@@ -7,6 +7,7 @@ namespace SmellsLikeTech.Converter.Core.Operations;
 public static class OperationIds
 {
     public const string ImageConvert = "image.convert";
+    public const string ImageProjectRender = "image.renderProject";
 
     public const string VideoConvert = "video.convert";
     public const string VideoExtractAudio = "video.extractAudio";

@@ -36,6 +36,7 @@ public sealed class BridgeServer(AppServices servicos, BridgeOptions opcoes, UiT
 
     private readonly JobRegistry registro = new(servicos.Queue);
     private WebApplication? aplicacao;
+    public Uri Endereco => new(aplicacao!.Urls.Single());
 
     public async Task IniciarAsync(CancellationToken cancellationToken)
     {
@@ -625,6 +626,7 @@ public sealed class BridgeServer(AppServices servicos, BridgeOptions opcoes, UiT
         ".gif" => "image/gif",
         ".png" => "image/png",
         ".jpg" or ".jpeg" => "image/jpeg",
+        ".jxl" => "image/jxl",
         ".webp" => "image/webp",
         ".txt" => "text/plain; charset=utf-8",
         ".md" => "text/markdown; charset=utf-8",

@@ -12,7 +12,7 @@ enum class Tipo(val rotulo: String) {
 
     companion object {
         /** Os mesmos formatos de entrada do aplicativo para Windows (FormatCatalog), mais os do celular. */
-        val IMAGENS = setOf("jpg", "jpeg", "png", "webp", "avif", "tiff", "tif", "bmp", "gif", "ico", "heic", "heif")
+        val IMAGENS = setOf("jpg", "jpeg", "png", "webp", "jxl", "avif", "tiff", "tif", "bmp", "gif", "ico", "heic", "heif")
         val VIDEOS = setOf("mp4", "mkv", "mov", "avi", "webm", "mpeg", "mpg", "m4v", "ts", "wmv", "flv", "3gp")
         val AUDIOS = setOf("mp3", "wav", "flac", "aac", "m4a", "ogg", "opus", "wma", "amr", "3ga", "aiff", "aif")
         val DOCUMENTOS = setOf(
@@ -66,11 +66,11 @@ private val VIDEO = listOf("mp4", "mkv", "mov", "webm", "avi")
  * ordem da tela; a primeira é a padrão. `juntaTudo` = uma saída só para todos os arquivos.
  */
 enum class Ferramenta(val titulo: String, val tipo: Tipo, val formatos: List<String> = emptyList(), val juntaTudo: Boolean = false) {
-    IMAGEM_CONVERTER("Converter imagem", Tipo.IMAGEM, listOf("jpg", "png", "webp", "avif", "tiff", "bmp", "gif", "ico")),
-    IMAGEM_COMPRIMIR("Comprimir imagem", Tipo.IMAGEM, listOf("jpg", "webp", "avif")),
-    IMAGEM_REDIMENSIONAR("Redimensionar", Tipo.IMAGEM, listOf("jpg", "png", "webp", "avif")),
-    IMAGEM_RECORTAR("Mudar a proporção", Tipo.IMAGEM, listOf("jpg", "png", "webp")),
-    IMAGEM_GIRAR("Girar e espelhar", Tipo.IMAGEM, listOf("jpg", "png", "webp")),
+    IMAGEM_CONVERTER("Converter imagem", Tipo.IMAGEM, listOf("jpg", "png", "webp", "jxl", "avif", "tiff", "bmp", "gif", "ico")),
+    IMAGEM_COMPRIMIR("Comprimir imagem", Tipo.IMAGEM, listOf("jpg", "webp", "jxl", "avif")),
+    IMAGEM_REDIMENSIONAR("Redimensionar", Tipo.IMAGEM, listOf("jpg", "png", "webp", "jxl", "avif")),
+    IMAGEM_RECORTAR("Mudar a proporção", Tipo.IMAGEM, listOf("jpg", "png", "webp", "jxl")),
+    IMAGEM_GIRAR("Girar e espelhar", Tipo.IMAGEM, listOf("jpg", "png", "webp", "jxl")),
     IMAGEM_ICONE("Criar ícone (ICO)", Tipo.IMAGEM, listOf("ico")),
     IMAGENS_PARA_PDF("Imagens em um PDF", Tipo.IMAGEM, listOf("pdf"), juntaTudo = true),
     IMAGEM_OCR("Texto da imagem (OCR)", Tipo.IMAGEM, listOf("txt", "md")),
@@ -83,7 +83,7 @@ enum class Ferramenta(val titulo: String, val tipo: Tipo, val formatos: List<Str
     VIDEO_SEM_AUDIO("Tirar o áudio", Tipo.VIDEO, VIDEO),
     VIDEO_PARA_AUDIO("Vídeo → áudio", Tipo.VIDEO, AUDIO),
     VIDEO_GIF("Vídeo → GIF", Tipo.VIDEO, listOf("gif")),
-    VIDEO_QUADROS("Vídeo → imagens", Tipo.VIDEO, listOf("png", "jpg", "webp")),
+    VIDEO_QUADROS("Vídeo → imagens", Tipo.VIDEO, listOf("png", "jpg", "webp", "jxl")),
     // A transcrição volta como texto na tela; o formato a pessoa escolhe depois (Transcricao.FORMATOS).
     VIDEO_TRANSCREVER("Transcrever (Whisper)", Tipo.VIDEO, listOf("txt")),
     // Experimental: tira a voz e mantém o resto, ou só a voz, sem recodificar a imagem.
@@ -102,7 +102,7 @@ enum class Ferramenta(val titulo: String, val tipo: Tipo, val formatos: List<Str
     PDF_DIVIDIR("Dividir PDF", Tipo.PDF, listOf("pdf")),
     PDF_GIRAR("Girar páginas", Tipo.PDF, listOf("pdf")),
     PDF_COMPRIMIR("Comprimir PDF", Tipo.PDF, listOf("pdf")),
-    PDF_PARA_IMAGENS("PDF → imagens", Tipo.PDF, listOf("png", "jpg", "webp")),
+    PDF_PARA_IMAGENS("PDF → imagens", Tipo.PDF, listOf("png", "jpg", "webp", "jxl")),
     PDF_PARA_DOCUMENTO("PDF → documento (com OCR)", Tipo.PDF, listOf("docx", "txt", "md", "html")),
     PDF_NARRAR("Ler o PDF em voz alta", Tipo.PDF, AUDIO),
 
@@ -264,7 +264,7 @@ object Mimes {
         "mp4" -> "video/mp4"; "mkv" -> "video/x-matroska"; "mov" -> "video/quicktime"; "webm" -> "video/webm"
         "avi" -> "video/x-msvideo"
         "gif" -> "image/gif"; "png" -> "image/png"; "jpg", "jpeg" -> "image/jpeg"; "webp" -> "image/webp"
-        "avif" -> "image/avif"; "tiff", "tif" -> "image/tiff"; "bmp" -> "image/bmp"; "ico" -> "image/x-icon"
+        "jxl" -> "image/jxl"; "avif" -> "image/avif"; "tiff", "tif" -> "image/tiff"; "bmp" -> "image/bmp"; "ico" -> "image/x-icon"
         "pdf" -> "application/pdf"
         "docx" -> "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
         "html" -> "text/html"; "txt" -> "text/plain"; "md" -> "text/markdown"; "csv" -> "text/csv"

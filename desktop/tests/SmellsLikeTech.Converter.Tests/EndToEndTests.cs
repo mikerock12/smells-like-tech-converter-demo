@@ -167,6 +167,51 @@ public class EndToEndTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task JpegXl_PreservaAlfaNaFilaDoAplicativo()
+    {
+        var source = Path.Combine(root, "transparente.png");
+        using (var original = new ImageMagick.MagickImage(new ImageMagick.MagickColor(20, 80, 130, 127), 8, 5))
+            original.Write(source, ImageMagick.MagickFormat.Png32);
+        var job = new ConversionJob
+        {
+            Options = new ImageConvertOptions { OutputFormat = "jxl", Quality = 100, KeepTransparency = true },
+            InputPath = source,
+            Input = await inspector.InspectAsync(source, CancellationToken.None),
+            OutputDirectory = destination,
+            OutputBaseName = "resultado"
+        };
+        var result = await RunAsync(job, JobStatus.Completed);
+        using var decoded = new ImageMagick.MagickImage(Assert.Single(result.OutputFiles));
+        Assert.Equal(ImageMagick.MagickFormat.Jxl, decoded.Format);
+        Assert.Equal(8u, decoded.Width);
+        Assert.Equal(5u, decoded.Height);
+        using var pixels = decoded.GetPixels();
+        Assert.Equal(new byte[] { 20, 80, 130, 127 }, pixels.GetPixel(0, 0).ToArray());
+    }
+
+    [Fact]
+    public async Task ProjetoDoAndroidExportaJxlPelaOperacaoDaPonte()
+    {
+        var source = Path.Combine(AppContext.BaseDirectory, "Fixtures", "editor-android.sltimage");
+        var options = JobOptionsJson.Deserialize("""{"operation":"image.renderProject","OutputFormat":"jxl"}""");
+        Assert.IsType<ImageProjectOptions>(options);
+        var job = new ConversionJob
+        {
+            Options = options!,
+            InputPath = source,
+            Input = await inspector.InspectAsync(source, CancellationToken.None),
+            OutputDirectory = destination,
+            OutputBaseName = "android"
+        };
+        var result = await RunAsync(job, JobStatus.Completed);
+        using var image = new ImageMagick.MagickImage(Assert.Single(result.OutputFiles));
+        Assert.Equal(ImageMagick.MagickFormat.Jxl, image.Format);
+        using var pixels = image.GetPixels();
+        Assert.Equal(new byte[] { 36, 156, 214, 255 }, pixels.GetPixel(0, 0).ToArray());
+        Assert.Equal(new byte[4], pixels.GetPixel(31, 23).ToArray());
+    }
+
+    [Fact]
     public async Task ImagemParaWebp_RedimensionaEGrava()
     {
         if (!FfmpegAvailable)

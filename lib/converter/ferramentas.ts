@@ -134,17 +134,17 @@ const VIDEO_QUALIDADE: Campo = {
 
 /** Os campos de cada ferramenta. Ferramentas do plugin não têm campos aqui: o painel do plugin cuida. */
 export const CAMPOS: Readonly<Record<string, readonly Campo[]>> = {
-  "imagem.converter": [formatos(["webp", "jpg", "png", "bmp", "ico"], "webp"), QUALIDADE, ...REDIMENSIONAR, ...FUNDO],
-  "imagem.comprimir": [formatos(["webp", "jpg", "png"], "webp"), { ...QUALIDADE, padrao: 70 } as Campo, ...FUNDO],
+  "imagem.converter": [formatos(["webp", "jpg", "png", "bmp", "ico", "jxl"], "webp"), QUALIDADE, ...REDIMENSIONAR, ...FUNDO],
+  "imagem.comprimir": [formatos(["webp", "jpg", "png", "jxl"], "webp"), { ...QUALIDADE, padrao: 70 } as Campo, ...FUNDO],
   "imagem.redimensionar": [
-    formatos(["webp", "jpg", "png"], "webp"),
+    formatos(["webp", "jpg", "png", "jxl"], "webp"),
     QUALIDADE,
     ...REDIMENSIONAR.map((campo) => (campo.id === "redimensionar" ? ({ ...campo, padrao: "width" } as Campo) : campo)),
     ...FUNDO,
   ],
   "imagem.recortar": [
     { id: "proporcao", tipo: "select", rotulo: "Proporção", opcoes: PROPORCOES, padrao: "1:1" },
-    formatos(["webp", "jpg", "png"], "jpg"),
+    formatos(["webp", "jpg", "png", "jxl"], "jpg"),
     { ...QUALIDADE, padrao: 88 } as Campo,
     ...FUNDO,
   ],
@@ -163,7 +163,7 @@ export const CAMPOS: Readonly<Record<string, readonly Campo[]>> = {
     },
     { id: "espelharH", tipo: "marcar", rotulo: "Espelhar na horizontal", padrao: false },
     { id: "espelharV", tipo: "marcar", rotulo: "Espelhar na vertical", padrao: false },
-    formatos(["png", "jpg", "webp"], "png"),
+    formatos(["png", "jpg", "webp", "jxl"], "png"),
     QUALIDADE,
     ...FUNDO,
   ],
@@ -312,7 +312,7 @@ export const CAMPOS: Readonly<Record<string, readonly Campo[]>> = {
     { id: "instante", tipo: "tempo", rotulo: "Instante", padrao: "00:01", quando: (o) => o.modo === "instante" },
     { id: "intervalo", tipo: "numero", rotulo: "Intervalo", padrao: 5, min: 0.5, max: 600, passo: 0.5, sufixo: "s", quando: (o) => o.modo === "intervalo" },
     { id: "quantidade", tipo: "numero", rotulo: "Quantidade", padrao: 10, min: 1, max: 200, quando: (o) => o.modo === "distribuidos" },
-    formatos(["png", "jpg", "webp"], "png"),
+    formatos(["png", "jpg", "webp", "jxl"], "png"),
   ],
 
   "pdf.juntar": [],
@@ -349,7 +349,7 @@ export const CAMPOS: Readonly<Record<string, readonly Campo[]>> = {
     },
   ],
   "pdf.para-imagens": [
-    formatos(["png", "jpg", "webp"], "png"),
+    formatos(["png", "jpg", "webp", "jxl"], "png"),
     { id: "dpi", tipo: "select", rotulo: "Resolução", opcoes: ["72", "96", "150", "200", "300"].map((valor) => ({ valor, rotulo: `${valor} DPI` })), padrao: "150" },
     { id: "paginas", tipo: "texto", rotulo: "Quais páginas", padrao: "", ajuda: "Vazio = todas. Ex.: 1-3" },
     QUALIDADE,

@@ -5,6 +5,7 @@ export type FormatId =
   | "png"
   | "webp"
   | "avif"
+  | "jxl"
   | "gif"
   | "bmp"
   | "ico"

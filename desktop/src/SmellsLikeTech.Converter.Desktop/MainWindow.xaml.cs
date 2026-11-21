@@ -101,6 +101,7 @@ public sealed partial class MainWindow : Window
         {
             "start" => typeof(StartPage),
             "studio" => typeof(StudioPage),
+            "image" => typeof(ImagePage),
             "music" => typeof(MusicPage),
             "batch" => typeof(BatchPage),
             "queue" => typeof(QueuePage),

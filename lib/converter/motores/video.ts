@@ -435,7 +435,7 @@ async function paraGif(contexto: ContextoDoMotor): Promise<{ saidas: Saida[]; no
 async function paraQuadros(contexto: ContextoDoMotor): Promise<{ saidas: Saida[]; nota: string }> {
   exigirWebCodecs();
   const { entradas, opcoes, progresso } = contexto;
-  const formato = (["png", "jpg", "webp"].includes(String(opcoes.formato)) ? String(opcoes.formato) : "png") as FormatId;
+  const formato = (["png", "jpg", "webp", "jxl"].includes(String(opcoes.formato)) ? String(opcoes.formato) : "png") as FormatId;
   const mime = getFormat(formato)?.mime ?? "image/png";
   const saidas: Saida[] = [];
 
@@ -460,8 +460,9 @@ async function paraQuadros(contexto: ContextoDoMotor): Promise<{ saidas: Saida[]
         if (embrulho.timestamp + embrulho.duration < instantes[alvo]) continue;
 
         const canvas = embrulho.canvas as OffscreenCanvas;
-        const blob = await canvas.convertToBlob({ type: mime, quality: 0.92 });
-        const bytes = await blob.arrayBuffer();
+        const bytes = formato === "jxl"
+          ? await (await import("./jxl")).jxlDoCanvas(canvas, 92)
+          : await (await canvas.convertToBlob({ type: mime, quality: 0.92 })).arrayBuffer();
         while (alvo < instantes.length && instantes[alvo] <= embrulho.timestamp + embrulho.duration) {
           const rotulo = instantes.length === 1 ? "" : `-${String(alvo + 1).padStart(3, "0")}`;
           saidas.push({

@@ -18,6 +18,8 @@ public sealed partial class StartPage : Page
     [
         new("\uE8AB", "Converter uma mídia", "Troque o formato, comprima, corte ou junte vídeos, áudios, imagens, PDFs e documentos.", true, "home"),
         new("\uE714", "Criar no estúdio", "Monte vídeo, GIF, imagem ou áudio para Instagram, TikTok, YouTube, WhatsApp e outras redes: cortes, textos e música.", true, "studio"),
+        new("\uEB9F", "Estúdio de imagem", "Edite fotos e texto em camadas, salve o projeto e exporte em JPEG XL.", false, "image"),
+        new("\uE189", "Criação musical", "Grave, edite e exporte faixas de áudio.", false, "music"),
         new("\uE720", "Transcrever áudio ou vídeo", "A fala vira texto ou legenda com o Whisper, neste computador.", false, "transcribe"),
         new("\uE767", "Narrar um texto", "Texto vira áudio com vozes naturais em português (Kokoro-82M).", false, "speech"),
         new("\uE8B7", "Vários arquivos de uma vez", "Escolha uma pasta ou muitos arquivos e converta tudo em lote.", false, "batch")

@@ -16,10 +16,12 @@ public sealed class MagickImageEngine(IConverterLog log) : IConversionEngine
 {
     public string Name => "ImageMagick";
 
-    public bool CanExecute(string operation) => operation == OperationIds.ImageConvert;
+    public bool CanExecute(string operation) => operation is OperationIds.ImageConvert or OperationIds.ImageProjectRender;
 
     public Task<EngineResult> ExecuteAsync(EngineContext context, CancellationToken cancellationToken)
     {
+        if (context.Job.Options is ImageProjectOptions projectOptions)
+            return Task.Run(() => RenderProject(context, projectOptions, cancellationToken), cancellationToken);
         if (context.Job.Options is not ImageConvertOptions options)
         {
             throw new ConversionException("operation_not_available", "Opções inválidas para conversão de imagem.");
@@ -33,6 +35,22 @@ public sealed class MagickImageEngine(IConverterLog log) : IConversionEngine
 
         // O processamento e sincrono e rapido; roda fora da thread da interface.
         return Task.Run(() => Convert(context, inputPath, options, cancellationToken), cancellationToken);
+    }
+
+    private static EngineResult RenderProject(EngineContext context, ImageProjectOptions options, CancellationToken token)
+    {
+        options.Validate();
+        using var source = File.OpenRead(context.Job.InputPath ?? throw new ConversionException("missing_input", "Escolha um projeto .sltimage."));
+        context.Progress.Report(JobProgress.At(0.1, JobStage.PreparingInput));
+        var project = ImageProject.Open(source);
+        token.ThrowIfCancellationRequested();
+        context.Progress.Report(JobProgress.At(0.4, JobStage.Encoding));
+        var bytes = project.Render(ResolveFormat(options.OutputFormat));
+        token.ThrowIfCancellationRequested();
+        var output = context.Workspace.OutputPath("result." + options.OutputExtension);
+        context.Progress.Report(JobProgress.At(0.9, JobStage.WritingOutput));
+        File.WriteAllBytes(output, bytes);
+        return new EngineResult([output], options.Summary());
     }
 
     private EngineResult Convert(
@@ -222,7 +240,7 @@ public sealed class MagickImageEngine(IConverterLog log) : IConversionEngine
     private static void ApplyOutputSettings(MagickImage image, ImageConvertOptions options)
     {
         var format = ResolveFormat(options.OutputFormat);
-        var supportsAlpha = format is MagickFormat.Png or MagickFormat.WebP or MagickFormat.Avif
+        var supportsAlpha = format is MagickFormat.Png or MagickFormat.WebP or MagickFormat.Jxl or MagickFormat.Avif
             or MagickFormat.Gif or MagickFormat.Tiff or MagickFormat.Ico;
 
         if (!options.KeepTransparency || !supportsAlpha)
@@ -257,6 +275,7 @@ public sealed class MagickImageEngine(IConverterLog log) : IConversionEngine
         "jpg" or "jpeg" => MagickFormat.Jpeg,
         "png" => MagickFormat.Png,
         "webp" => MagickFormat.WebP,
+        "jxl" => MagickFormat.Jxl,
         "avif" => MagickFormat.Avif,
         "tiff" or "tif" => MagickFormat.Tiff,
         "bmp" => MagickFormat.Bmp,

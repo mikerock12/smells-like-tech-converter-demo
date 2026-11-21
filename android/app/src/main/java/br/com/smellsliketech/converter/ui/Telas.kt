@@ -119,11 +119,17 @@ fun Oficina(modelo: OficinaViewModel, escolher: (Array<String>) -> Unit) {
                 converter = { modelo.tela = OficinaViewModel.Tela.CONVERTER },
                 estudio = { modelo.tela = OficinaViewModel.Tela.ESTUDIO },
                 musica = { modelo.tela = OficinaViewModel.Tela.MUSICA },
+                imagem = { modelo.tela = OficinaViewModel.Tela.IMAGEM },
                 transcrever = { modelo.transcreverAoReceber = true; escolher(arrayOf("audio/*", "video/*")) },
                 narrar = { modelo.textoParaNarrar = "" },
                 figurinhas = { modelo.mostrarFigurinhas = true },
                 modelos = { modelo.mostrarModelos = true },
             )
+            return
+        }
+        OficinaViewModel.Tela.IMAGEM -> {
+            EditorDeImagem(voltar = { modelo.tela = OficinaViewModel.Tela.INICIO },
+                podeExportar = modelo.situacao.podeConverter, abrirLicenca = { modelo.mostrarLicenca = true })
             return
         }
         OficinaViewModel.Tela.ESTUDIO -> {

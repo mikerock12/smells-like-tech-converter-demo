@@ -298,6 +298,12 @@ async function embutir(documento: PDFDocument, arquivo: Blob, formato: string | 
     // Cai para o caminho do canvas: alguns JPG (CMYK, progressivo raro) o pdf-lib recusa.
   }
 
+  if (formato === "jxl") {
+    const { decodificarJxl } = await import("./jxl");
+    const { default: png } = await import("@jsquash/png/encode");
+    return documento.embedPng(await png(await decodificarJxl(bytes)));
+  }
+
   let bitmap: ImageBitmap;
   try {
     bitmap = await createImageBitmap(new Blob([bytes]));

@@ -11,7 +11,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -43,12 +45,14 @@ fun TelaInicial(
     converter: () -> Unit,
     estudio: () -> Unit,
     musica: () -> Unit,
+    imagem: () -> Unit,
     transcrever: () -> Unit,
     narrar: () -> Unit,
     figurinhas: () -> Unit,
     modelos: () -> Unit,
 ) {
     val caminhos = listOf(
+        Caminho("▧", "Estúdio de imagem", "Edite fotos e texto em camadas e salve um projeto .sltimage.", false, imagem),
         Caminho("⇄", "Converter uma mídia", "Troque o formato, comprima, corte ou junte vídeos, áudios, imagens, PDFs e documentos.", true, converter),
         Caminho("✦", "Criar no estúdio", "Monte vídeo, GIF, imagem ou áudio para Instagram, TikTok, YouTube, WhatsApp e outras redes: cortes, textos e música.", true, estudio),
         Caminho("♫", "Criação musical", "Grave várias faixas ouvindo as outras, separe voz, bateria e baixo por IA, mixe com efeitos e exporte.", false, musica),
@@ -57,12 +61,14 @@ fun TelaInicial(
         Caminho("☺", "Figurinhas do WhatsApp", "Imagens, GIFs e vídeos viram figurinhas, com recorte, texto e fundo removido.", false, figurinhas),
     )
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-        LazyColumn(
-            Modifier.fillMaxSize().safeDrawingPadding(),
+        LazyVerticalGrid(
+            columns = GridCells.Adaptive(minSize = 300.dp),
+            modifier = Modifier.fillMaxSize().safeDrawingPadding(),
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            item {
+            item(span = { GridItemSpan(maxLineSpan) }) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         Text("SMELLS LIKE TECH", color = MaterialTheme.colorScheme.secondary, fontWeight = FontWeight.Bold, fontSize = 14.sp)
@@ -78,7 +84,7 @@ fun TelaInicial(
                     }
                 }
             }
-            item {
+            item(span = { GridItemSpan(maxLineSpan) }) {
                 Text("O que você quer fazer?", fontSize = 26.sp, fontWeight = FontWeight.SemiBold, lineHeight = 30.sp)
                 Text(
                     "Tudo acontece no celular: nenhum arquivo é enviado para a internet.",
@@ -87,8 +93,8 @@ fun TelaInicial(
                     modifier = Modifier.padding(top = 4.dp),
                 )
             }
-            caminhos.forEach { caminho -> item { CartaoDoCaminho(caminho) } }
-            item {
+            caminhos.forEach { caminho -> item(key = caminho.titulo) { CartaoDoCaminho(caminho) } }
+            item(span = { GridItemSpan(maxLineSpan) }) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     androidx.compose.material3.TextButton(onClick = modelos) { Text("Modelos de transcrição") }
                 }

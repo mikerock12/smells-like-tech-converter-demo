@@ -27,7 +27,7 @@ ARCHIVES_EQUIVALENTES = {
 LICENSES = {
     'GPL-3.0.txt': ('https://raw.githubusercontent.com/csukuangfj/espeak-ng/ed530aa113046142eb5115cf2fc9157854d0ffe1/COPYING', '8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903'),
     'Sherpa-ONNX.txt': ('https://raw.githubusercontent.com/k2-fsa/sherpa-onnx/v1.13.8/LICENSE', 'cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30'),
-    'ONNX-Runtime.txt': ('https://raw.githubusercontent.com/microsoft/onnxruntime/v1.23.2/LICENSE', '2f07c72751aed99790b8a4869cf2311df85a860b22ded05fa22803587a48922c'),
+    'ONNX-Runtime.txt': ((ROOT / 'packages/kokoro/ONNX-Runtime.txt').as_uri(), '2f07c72751aed99790b8a4869cf2311df85a860b22ded05fa22803587a48922c'),
 }
 SOURCES = {
     'sherpa-onnx-1.13.8.zip': ('https://github.com/k2-fsa/sherpa-onnx/archive/refs/tags/v1.13.8.zip', 'b63b7613812346f2d1396a3a7f94accd47539e3dadc3ea385ba6474c70ab9897'),

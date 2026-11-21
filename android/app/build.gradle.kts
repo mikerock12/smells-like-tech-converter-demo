@@ -34,8 +34,8 @@ android {
         minSdk = 28
         // A Google Play exige o Android 16 como alvo desde 31/08/2026.
         targetSdk = 36
-        versionCode = 52
-        versionName = "1.0.27"
+        versionCode = 53
+        versionName = "1.0.28"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         if (providers.gradleProperty("validacaoR8").orNull == "true")
             testApplicationId = "br.com.smellsliketech.converter.validacao.test"
@@ -154,6 +154,7 @@ dependencies {
 
     // Vídeo, áudio e transcrição: o FFmpeg compilado em android/nativos (npm run android:nativos).
     // OCR no aparelho, com o modelo embutido (funciona sem internet e sem Google Play).
+    implementation("io.github.awxkee:jxl-coder:2.6.0")
     implementation("com.google.mlkit:text-recognition:16.0.1")
     // Remoção de fundo das figurinhas: segmentação de assunto no aparelho, pelo Google Play Services.
     implementation("com.google.android.gms:play-services-mlkit-subject-segmentation:16.0.0-beta1")
@@ -175,5 +176,9 @@ dependencies {
     testImplementation("org.json:json:20250517")
     androidTestImplementation("androidx.test:runner:1.6.2")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")
+    // O AGP alinha o classpath da instrumentação com o aplicativo testado.
+    constraints {
+        implementation("com.google.errorprone:error_prone_annotations:2.36.0")
+    }
     androidTestImplementation("com.google.errorprone:error_prone_annotations:2.36.0")
 }

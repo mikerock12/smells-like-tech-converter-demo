@@ -414,19 +414,21 @@ export default function Oficina({
 
       {aviso && <p className="notice notice--warning">{aviso}</p>}
 
-      {grupos.map((grupo) => (
+      <div className={grupos.length && (jobs.length || trabalhosDoPlugin.length) ? "oficina-paineis oficina-paineis--com-fila" : "oficina-paineis"}>
+      <div className="oficina-paineis__grupos">{grupos.map((grupo) => (
         <GrupoDeArquivos
           key={grupo.id}
           grupo={grupo}
           plano={plano}
           pluginLigado={ligado}
+          operacoesDoPlugin={apresentacao?.operacoes ?? []}
           onChange={(mudanca) => mudarGrupo(grupo.id, mudanca)}
           onRemoveItem={(itemId) => removerItem(grupo.id, itemId)}
           onMoveItem={(itemId, direcao) => moverItem(grupo.id, itemId, direcao)}
           onConverter={() => void converter(grupo)}
           onFechar={() => fecharGrupo(grupo.id)}
         />
-      ))}
+      ))}</div>
 
       <Fila
         jobs={jobs}
@@ -442,6 +444,7 @@ export default function Oficina({
         onCancelPlugin={cancelarNoPlugin}
         onRemovePlugin={removerDoPlugin}
       />
+      </div>
 
       {aceitaTexto && (
         <section className="panel panel--texto" aria-labelledby="narrar-titulo">

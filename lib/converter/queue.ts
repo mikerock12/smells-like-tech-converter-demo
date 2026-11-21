@@ -56,7 +56,9 @@ const NO_JOBS: Job[] = [];
 /** Lê a assinatura do arquivo; a extensão só desempata. */
 export async function identificar(arquivo: File): Promise<FormatId | null> {
   const cabecalho = new Uint8Array(await arquivo.slice(0, 64).arrayBuffer());
-  return detectFormat(cabecalho) ?? formatFromFileName(arquivo.name);
+  const assinatura = detectFormat(cabecalho);
+  const extensao = formatFromFileName(arquivo.name);
+  return assinatura ?? (extensao === "jxl" ? null : extensao);
 }
 
 /**

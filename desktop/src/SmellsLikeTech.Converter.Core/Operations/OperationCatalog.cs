@@ -66,6 +66,16 @@ public static class OperationCatalog
     [
         new OperationDescriptor
         {
+            Id = OperationIds.ImageProjectRender,
+            Title = "Exportar projeto de imagem",
+            Description = "Compõe as camadas do projeto .sltimage e exporta a imagem.",
+            InputKinds = [MediaKind.Document],
+            DocumentExtensions = ["sltimage"],
+            OutputFormats = ["jxl", "png", "jpg", "webp"],
+            DefaultOptions = _ => new ImageProjectOptions()
+        },
+        new OperationDescriptor
+        {
             Id = OperationIds.ImageConvert,
             Title = "Converter imagem",
             Description = "Formato, tamanho, proporção, qualidade, rotação e transparência.",

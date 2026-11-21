@@ -1,0 +1,53 @@
+<Page x:Class="SmellsLikeTech.Converter.Desktop.Pages.ImagePage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Background="{StaticResource BrandBackgroundBrush}" NavigationCacheMode="Required">
+    <Grid Padding="20" RowSpacing="12">
+        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+        <StackPanel Spacing="10">
+            <TextBlock Text="Estúdio de imagem" Style="{ThemeResource TitleTextBlockStyle}"/>
+            <ScrollViewer HorizontalScrollBarVisibility="Auto" HorizontalScrollMode="Enabled" VerticalScrollMode="Disabled">
+                <ContentControl x:Name="Toolbar"><StackPanel Orientation="Horizontal" Spacing="6">
+                    <Button Content="Abrir foto ou projeto" Click="OpenClick"/>
+                    <Button Content="Salvar projeto" Click="SaveClick" x:Name="SaveButton" IsEnabled="False"/>
+                    <ComboBox x:Name="Format" SelectedIndex="0" AutomationProperties.Name="Formato da imagem">
+                        <x:String>JXL</x:String><x:String>PNG</x:String><x:String>JPEG</x:String><x:String>WebP</x:String>
+                    </ComboBox>
+                    <Button Content="Exportar imagem" Click="ExportClick" x:Name="ExportButton" IsEnabled="False"/>
+                </StackPanel></ContentControl>
+            </ScrollViewer>
+        </StackPanel>
+        <Grid Grid.Row="1" ColumnSpacing="14">
+            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="220"/></Grid.ColumnDefinitions>
+            <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" CornerRadius="6">
+                <Grid><TextBlock x:Name="EmptyText" Text="Abra uma foto ou um projeto .sltimage" TextWrapping="Wrap" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                <Image x:Name="Preview" Stretch="Uniform" AutomationProperties.Name="Prévia da composição"/></Grid>
+            </Border>
+            <ScrollViewer Grid.Column="1">
+                <ContentControl x:Name="Inspector" IsEnabled="False" HorizontalContentAlignment="Stretch"><StackPanel Spacing="8">
+                    <TextBlock Text="Camadas" Style="{ThemeResource SubtitleTextBlockStyle}"/>
+                    <ListView x:Name="Layers" SelectionChanged="LayerChanged" MaxHeight="190" AutomationProperties.Name="Camadas"/>
+                    <TextBox x:Name="Words" Header="Texto" MaxLength="4096"/>
+                    <Button Content="Adicionar texto" Click="AddText"/>
+                    <CheckBox x:Name="VisibleLayer" Content="Visível"/>
+                    <NumberBox x:Name="PositionX" Header="Posição X" Minimum="-32768" Maximum="32768"/>
+                    <NumberBox x:Name="PositionY" Header="Posição Y" Minimum="-32768" Maximum="32768"/>
+                    <NumberBox x:Name="Angle" Header="Rotação (graus)" Minimum="-360" Maximum="360"/>
+                    <NumberBox x:Name="LayerScale" Header="Escala" Minimum="0.01" Maximum="16" SmallChange="0.1"/>
+                    <NumberBox x:Name="OpacityBox" Header="Opacidade" Minimum="0" Maximum="1" SmallChange="0.1"/>
+                    <NumberBox x:Name="Exposure" Header="Exposição (EV)" Minimum="-4" Maximum="4" SmallChange="0.1"/>
+                    <NumberBox x:Name="Contrast" Header="Contraste" Minimum="0" Maximum="4" SmallChange="0.1"/>
+                    <NumberBox x:Name="Saturation" Header="Saturação" Minimum="0" Maximum="4" SmallChange="0.1"/>
+                    <Button Content="Aplicar à camada" Click="ApplyLayer"/>
+                    <StackPanel Orientation="Horizontal" Spacing="4">
+                        <Button Content="Subir" Click="MoveUp"/><Button Content="Descer" Click="MoveDown"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="4">
+                        <Button x:Name="UndoButton" Content="Desfazer" Click="Undo"/><Button x:Name="RedoButton" Content="Refazer" Click="Redo"/>
+                    </StackPanel>
+                </StackPanel></ContentControl>
+            </ScrollViewer>
+        </Grid>
+        <TextBlock x:Name="Status" Grid.Row="2" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/>
+    </Grid>
+</Page>

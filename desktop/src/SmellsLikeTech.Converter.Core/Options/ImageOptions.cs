@@ -3,6 +3,19 @@ using SmellsLikeTech.Converter.Core.Operations;
 
 namespace SmellsLikeTech.Converter.Core.Options;
 
+public sealed record ImageProjectOptions : JobOptions
+{
+    public override string Operation => OperationIds.ImageProjectRender;
+    public string OutputFormat { get; init; } = "jxl";
+    public override string OutputExtension => OutputFormat;
+    public override string Summary() => $"Projeto de imagem → {OutputFormat.ToUpperInvariant()}";
+    public override void Validate()
+    {
+        if (OutputFormat is not ("jxl" or "png" or "jpg" or "webp"))
+            throw new ConversionException("unsupported_output_format", "Formato de exportação incompatível com o editor de imagem.");
+    }
+}
+
 public sealed record ImageConvertOptions : JobOptions
 {
     public override string Operation => OperationIds.ImageConvert;

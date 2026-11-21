@@ -10,6 +10,17 @@
 /** Um formato reconhecido pelo produto. */
 const FORMAT_LIST = [
   {
+    id: "jxl",
+    label: "JPEG XL",
+    kind: "image",
+    mime: "image/jxl",
+    extensions: ["jxl"],
+    canDecodeLocally: true,
+    canEncodeLocally: true,
+    supportsAlpha: true,
+    supportsQuality: true,
+  },
+  {
     id: "jpg",
     label: "JPG",
     kind: "image",
@@ -326,7 +337,7 @@ export const IMAGE_OUTPUT_FORMATS = Object.freeze(
 
 /** Formatos de imagem aceitos como entrada. */
 export const IMAGE_INPUT_FORMATS = Object.freeze(
-  FORMATS.filter((format) => format.kind === "image").map((format) => format.id),
+  FORMATS.filter((format) => format.kind === "image" && format.canDecodeLocally).map((format) => format.id),
 );
 
 /**
@@ -373,6 +384,8 @@ export const ERRORS = Object.freeze({
 
 /** Assinaturas de arquivo. A extensão nunca decide sozinha o que é o arquivo. */
 const SIGNATURES = [
+  { id: "jxl", offset: 0, bytes: [0xff, 0x0a] },
+  { id: "jxl", offset: 0, bytes: [0, 0, 0, 12, 0x4a, 0x58, 0x4c, 0x20, 13, 10, 0x87, 10] },
   { id: "jpg", offset: 0, bytes: [0xff, 0xd8, 0xff] },
   { id: "png", offset: 0, bytes: [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a] },
   { id: "gif", offset: 0, text: "GIF87a" },
@@ -430,8 +443,9 @@ function textAt(view, offset, length) {
  * Devolve o id do formato ou `null` quando não reconhece.
  */
 export function detectFormat(bytes) {
-  if (!bytes || bytes.length < 4) return null;
+  if (!bytes) return null;
   const view = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+  if (view.length < 4) return matchesAt(view, 0, [0xff, 0x0a]) ? "jxl" : null;
 
   for (const signature of SIGNATURES) {
     if (signature.bytes && matchesAt(view, signature.offset, signature.bytes)) return signature.id;

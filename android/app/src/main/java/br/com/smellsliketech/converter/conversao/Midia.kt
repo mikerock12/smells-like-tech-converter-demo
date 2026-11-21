@@ -113,9 +113,11 @@ object Midia {
                 if (arquivos.isEmpty()) throw ErroDeConversao("Nenhum quadro no trecho escolhido.")
                 arquivos.mapIndexed { indice, arquivo ->
                     val nome = Saida.nomeDeSaida(entrada.nome, "quadro-${(indice + 1).toString().padStart(4, '0')}", opcoes.formato)
-                    val resultado = if (opcoes.formato == "webp") {
+                    val resultado = if (opcoes.formato in setOf("webp", "jxl")) {
                         val bitmap = BitmapFactory.decodeFile(arquivo.absolutePath) ?: throw ErroDeConversao("Quadro ilegível.")
-                        Saida.gravar(context, nome, Mimes.de("webp")) { Imagem.comprimir(bitmap, "webp", 90, it) }.also { bitmap.recycle() }
+                        try {
+                            Saida.gravar(context, nome, Mimes.de(opcoes.formato)) { Imagem.comprimir(bitmap, opcoes.formato, 90, it) }
+                        } finally { bitmap.recycle() }
                     } else {
                         Saida.gravarArquivo(context, nome, Mimes.de(opcoes.formato), arquivo)
                     }

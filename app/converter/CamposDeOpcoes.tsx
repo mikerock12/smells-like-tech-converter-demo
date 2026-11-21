@@ -11,13 +11,18 @@ export default function CamposDeOpcoes({
   opcoes,
   onChange,
   disabled = false,
+  aceitaSaidaJxl = true,
 }: {
   ferramentaId: string;
   opcoes: Opcoes;
   onChange: (opcoes: Opcoes) => void;
   disabled?: boolean;
+  aceitaSaidaJxl?: boolean;
 }) {
-  const campos = camposVisiveis(ferramentaId, opcoes);
+  const campos = camposVisiveis(ferramentaId, opcoes).map(campo =>
+    campo.id === "formato" && campo.tipo === "select" && !aceitaSaidaJxl
+      ? { ...campo, opcoes: campo.opcoes.filter(item => item.valor !== "jxl") }
+      : campo);
   if (campos.length === 0) return null;
 
   const definir = (id: string, valor: string | number | boolean) => onChange({ ...opcoes, [id]: valor });

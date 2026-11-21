@@ -138,9 +138,10 @@ public sealed class AppServices : IAsyncDisposable
 
     public static async Task<AppServices> StartAsync(
         IProgress<StartupStage>? progress = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        ConverterPaths? initialPaths = null)
     {
-        var paths = ConverterPaths.CreateDefault();
+        var paths = initialPaths ?? ConverterPaths.CreateDefault();
         progress?.Report(new StartupStage($"Preparando pastas em {paths.Root}", 0.08));
         paths.EnsureCreated();
 
@@ -162,7 +163,7 @@ public sealed class AppServices : IAsyncDisposable
         }
 
         // A raiz configurada pode ser diferente da padrao.
-        if (!string.IsNullOrWhiteSpace(settings.RootDirectory)
+        if (initialPaths is null && !string.IsNullOrWhiteSpace(settings.RootDirectory)
             && !string.Equals(settings.RootDirectory, paths.Root, StringComparison.OrdinalIgnoreCase))
         {
             paths = new ConverterPaths(settings.RootDirectory);

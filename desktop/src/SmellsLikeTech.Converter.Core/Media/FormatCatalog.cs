@@ -7,7 +7,7 @@ namespace SmellsLikeTech.Converter.Core.Media;
 public static class FormatCatalog
 {
     public static IReadOnlyList<string> ImageFormats { get; } =
-        ["jpg", "jpeg", "png", "webp", "avif", "tiff", "tif", "bmp", "gif", "ico", "heic", "heif"];
+        ["jpg", "jpeg", "png", "webp", "jxl", "avif", "tiff", "tif", "bmp", "gif", "ico", "heic", "heif"];
 
     public static IReadOnlyList<string> VideoFormats { get; } =
         ["mp4", "mkv", "mov", "avi", "webm", "mpeg", "mpg", "m4v", "ts", "wmv", "flv"];
@@ -16,7 +16,7 @@ public static class FormatCatalog
         ["mp3", "wav", "flac", "aac", "m4a", "ogg", "opus", "wma"];
 
     public static IReadOnlyList<string> DocumentFormats { get; } =
-        ["doc", "docx", "odt", "rtf", "md", "markdown", "html", "htm", "xls", "xlsx", "ods", "csv", "ppt", "pptx", "odp", "epub"];
+        ["doc", "docx", "odt", "rtf", "md", "markdown", "html", "htm", "xls", "xlsx", "ods", "csv", "ppt", "pptx", "odp", "epub", "sltimage"];
 
     public static IReadOnlyList<string> TextFormats { get; } = ["txt"];
 
@@ -32,7 +32,7 @@ public static class FormatCatalog
 
     /// <summary>Formatos de imagem aceitos como saida.</summary>
     public static IReadOnlyList<string> ImageOutputFormats { get; } =
-        ["jpg", "png", "webp", "avif", "tiff", "bmp", "gif", "ico"];
+        ["jpg", "png", "webp", "jxl", "avif", "tiff", "bmp", "gif", "ico"];
 
     private static readonly Dictionary<string, MediaKind> KindByExtension = Build();
 
