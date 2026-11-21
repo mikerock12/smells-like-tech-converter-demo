@@ -74,6 +74,17 @@ public sealed class ImageProject
         Check(doc.Layers.All(c => c.Tipo != "foto" || assets.ContainsKey(c.Asset!)));
         Document = doc;
     }
+    public void Crop(int left, int top, int right, int bottom)
+    {
+        var frame = Document.Canvas;
+        if (left < 0 || top < 0 || right < 0 || bottom < 0 ||
+            (long)left + right >= frame.Width || (long)top + bottom >= frame.Height)
+            throw new InvalidDataException("As margens devem deixar pelo menos um pixel de largura e altura.");
+        Apply(Document with {
+            Canvas = frame with { Width = frame.Width - left - right, Height = frame.Height - top - bottom },
+            Layers = Document.Layers.Select(c => c with { X = c.X - left, Y = c.Y - top }).ToArray()
+        });
+    }
     private (string Id, ImageFrame Frame) Import(byte[] bytes)
     {
         Check(bytes.Length is > 0 and <= 64 * MiB);
