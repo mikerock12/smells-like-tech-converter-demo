@@ -27,6 +27,14 @@
         "weightsLicense": { "type": ["string", "null"] },
         "distributionFile": { "type": ["string", "null"] }
       },
+      "allOf": [{
+        "if": { "properties": { "origin": { "const": "trained-in-house" } } },
+        "then": { "properties": {
+          "status": { "enum": ["pending", "blocked"] },
+          "redistributionAllowed": { "const": false },
+          "distributionFile": { "type": "null" }
+        } }
+      }],
       "if": { "properties": { "status": { "const": "approved" } } },
       "then": { "properties": { "commercialAllowed": { "const": true }, "redistributionAllowed": { "const": true }, "distributionFile": { "type": "string", "minLength": 1 } } },
       "else": { "properties": { "distributionFile": { "type": "null" } } }

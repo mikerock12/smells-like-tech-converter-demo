@@ -1,5 +1,5 @@
 {
-  "commit": "71b5113903dc10c1279a54e0b9bacbeaa9a85c78",
+  "commit": "c42615be2fedd2540579cd310b09a54999f4a4ca",
   "repository": "https://github.com/mikerock12/smells-like-tech-converter-demo",
   "originals": [
     {
@@ -1684,8 +1684,8 @@
     },
     {
       "path": "android/play/ficha-1.0.29.md",
-      "sha256": "5539eb5ce16b667d490236271eba029ea917c17e6bc69d2e760510b597d91a8d",
-      "bytes": 440
+      "sha256": "a35ca4978cb26bcab35e0b571ba00348e5304529be85c4bc2e6915c073644de3",
+      "bytes": 502
     },
     {
       "path": "android/play/ficha-1.0.6.md",
@@ -1984,8 +1984,8 @@
     },
     {
       "path": "app/estudio/musica/page.tsx",
-      "sha256": "4d8b67dab223988cf229842498bcb0cb6b14d62c745264e8827f00981fe1e111",
-      "bytes": 706
+      "sha256": "1b61280d37f7efe8937ed75126e1779a3c28551538f518f29988887cb55cecca",
+      "bytes": 719
     },
     {
       "path": "app/estudio/page.tsx",
@@ -3459,8 +3459,8 @@
     },
     {
       "path": "desktop/tests/SmellsLikeTech.Converter.Tests/ImageProjectBridgeTests.cs",
-      "sha256": "48efd935ea0a27775a01e3a028502ad8a64723d3bc5d546918e0fce0a0725944",
-      "bytes": 3487
+      "sha256": "dace41acd8788fd89dd0d6c1ed58979fb70122ad372587faae6947df20828b8f",
+      "bytes": 4338
     },
     {
       "path": "desktop/tests/SmellsLikeTech.Converter.Tests/ImageProjectTests.cs",
@@ -3659,23 +3659,23 @@
     },
     {
       "path": "docs/image-editor/licensing/DATASET_REGISTER.md",
-      "sha256": "5f52fc9afd84a1f85ce0dca70f5db827bb7893250dde913ce3f1706b959a050c",
-      "bytes": 720
+      "sha256": "9b67080a718ded8b581ee3ff8db84e8cec4a35a7f21c9716fb4a40ace19acf09",
+      "bytes": 1215
     },
     {
       "path": "docs/image-editor/licensing/LEGAL_REVIEW.md",
-      "sha256": "5825099bfc1c553e712c3c39fd5033d1ec0dbd9378f7d544f43a122e8f9fdaa0",
-      "bytes": 612
+      "sha256": "367d0e6f9ca54b3212a133edad036d01be13348e0ccf5fdd72a0f2841c90aa48",
+      "bytes": 698
     },
     {
       "path": "docs/image-editor/licensing/MODEL_REGISTRY.md",
-      "sha256": "8edb080b8d1b233c29b2f3835b90c475431185e8cc1192574028b11eb029fae2",
-      "bytes": 786
+      "sha256": "2c378546090d81810e7577e948f498e7310e190c72f2e0e87c6935847f93c753",
+      "bytes": 639
     },
     {
       "path": "docs/image-editor/licensing/POLICY.md",
-      "sha256": "f91aff3dfe473d891e62a0bc466fc59a70ee11b3fbc3593fd30476c4487fd418",
-      "bytes": 1185
+      "sha256": "1d01f2d1849316ecfb460964f53d9254175a4187d9e1b52ff30b342cf6c692c1",
+      "bytes": 1524
     },
     {
       "path": "docs/image-editor/licensing/RESTRICTED_REFERENCES.md",
@@ -4879,13 +4879,13 @@
     },
     {
       "path": "packages/image-editor-models/models.manifest.json",
-      "sha256": "7ecb460e980ce4be2f23d840a64e7352150d36cb429aba85c9376ffa1ba1c666",
-      "bytes": 756
+      "sha256": "a8c4b762e5935b04cd1b8a07a24fa04426726e5ffe38ef6fd0a53999dac6fe96",
+      "bytes": 757
     },
     {
       "path": "packages/image-editor-models/schema.json",
-      "sha256": "4d56f643a45361467a001486da668c17c711e6bcf975b7d351d2e965926c00a8",
-      "bytes": 1838
+      "sha256": "16856dd1fe13f0a131ff50c8aa5431137cba5abce07b7e7638d214073dbaae62",
+      "bytes": 2151
     },
     {
       "path": "packages/kokoro/NOTICE.txt",
@@ -4994,12 +4994,12 @@
     },
     {
       "path": "public/baixar/app.json",
-      "sha256": "fbc3de46c98e35fa506166ab641cca13e0d76c4d26708662e4cc610b349bc167",
+      "sha256": "849b23efa8feca3cc3f001b4e0fe89ac6b4a073ced05d21b45870012910f8ee6",
       "bytes": 212
     },
     {
       "path": "public/baixar/plugin.json",
-      "sha256": "8a21a9b7bc344a470c4061f0933876b7796f2c838a8b8bfc4016ce5842ab73d2",
+      "sha256": "d06452118432695f133681821a23a721b32bdef783b90452f1ebb191476c23fe",
       "bytes": 209
     },
     {
@@ -5249,8 +5249,8 @@
     },
     {
       "path": "scripts/check-image-model-licenses.mjs",
-      "sha256": "12d16f8d9f568b0f26fa5089bad242444ce6ac5e2c1129a3ef9c3e38db406472",
-      "bytes": 4451
+      "sha256": "ed087451744d69101781d8e4f0e3dc05c4b79d2f0b6bce6a92bbd576853fd247",
+      "bytes": 4676
     },
     {
       "path": "scripts/check-third-party-notices.mjs",
@@ -5339,8 +5339,8 @@
     },
     {
       "path": "tests/image-model-licenses.test.mjs",
-      "sha256": "63c9e0c6011cc8c80afe2a35c4f9d13f4b1d0da97829f5e4995638386acab428",
-      "bytes": 2653
+      "sha256": "779cd106838e54c9090ab5f9fd5dce0271a4b15b562f994c1534ac5b87a8b354",
+      "bytes": 2727
     },
     {
       "path": "tests/kokoro-progresso.test.mjs",

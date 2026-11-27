@@ -4,7 +4,7 @@
   "models": [
     {
       "id": "slt-ampliador-2x-v1",
-      "status": "pending",
+      "status": "blocked",
       "owner": "Smells Like Tech",
       "origin": "trained-in-house",
       "codeSource": "laboratorio/imagem/super_resolucao.py",
@@ -14,7 +14,7 @@
       "review": "docs/image-editor/licensing/MODEL_REGISTRY.md",
       "trainingAllowed": true,
       "commercialAllowed": null,
-      "redistributionAllowed": null,
+      "redistributionAllowed": false,
       "codeSpdx": null,
       "weightsLicense": null,
       "distributionFile": null
