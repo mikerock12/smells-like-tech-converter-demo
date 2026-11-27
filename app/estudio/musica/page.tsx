@@ -13,7 +13,7 @@ export default function CriacaoMusicalPage() {
   return (
     <>
       <SiteHeader page="estudio" />
-      <CriacaoMusical />
+      <main><CriacaoMusical /></main>
       <SiteFooter />
     </>
   );

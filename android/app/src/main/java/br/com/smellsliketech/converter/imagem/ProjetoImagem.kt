@@ -101,6 +101,25 @@ internal object ProjetoImagem {
         }
     }
 
+    fun recortar(doc: JSONObject, esquerda: Int, topo: Int, direita: Int, base: Int): JSONObject {
+        val novo = JSONObject(doc.toString())
+        val quadro = novo.getJSONObject("canvas")
+        val largura = quadro.getInt("width")
+        val altura = quadro.getInt("height")
+        require(minOf(esquerda, topo, direita, base) >= 0 &&
+            esquerda.toLong() + direita < largura && topo.toLong() + base < altura) {
+            "As margens devem deixar pelo menos um pixel de largura e altura."
+        }
+        quadro.put("width", largura - esquerda - direita).put("height", altura - topo - base)
+        val lista = novo.getJSONArray("layers")
+        for (i in 0 until lista.length()) {
+            val c = lista.getJSONObject(i)
+            c.put("x", c.getDouble("x") - esquerda).put("y", c.getDouble("y") - topo)
+        }
+        conferir(novo)
+        return novo
+    }
+
     fun abrir(fluxo: InputStream): Pair<JSONObject, Map<String, FonteImagem>> {
         val entradas = mutableMapOf<String, ByteArray>()
         var total = 0

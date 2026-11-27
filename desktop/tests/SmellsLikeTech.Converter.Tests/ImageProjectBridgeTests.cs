@@ -5,6 +5,7 @@ using SmellsLikeTech.Converter.Bridge;
 using SmellsLikeTech.Converter.Bridge.Hosting;
 using SmellsLikeTech.Converter.Bridge.Tray;
 using SmellsLikeTech.Converter.Composition;
+using SmellsLikeTech.Converter.Engine.Image;
 using SmellsLikeTech.Converter.Infrastructure.Storage;
 using Xunit;
 
@@ -12,8 +13,10 @@ namespace SmellsLikeTech.Converter.Tests;
 
 public sealed class ImageProjectBridgeTests
 {
-    [Fact]
-    public async Task ProjetoAndroidEnviadoPorHttpProduzJxlComAlfa()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ProjetoAndroidEnviadoPorHttpProduzJxlComAlfa(bool recortar)
     {
         var root = Directory.CreateTempSubdirectory("slt-image-bridge-");
         try
@@ -25,17 +28,21 @@ public sealed class ImageProjectBridgeTests
                 var context = SynchronizationContext.Current;
                 using var ui = new UiThread();
                 SynchronizationContext.SetSynchronizationContext(context);
-                TestHttpAsync(services, ui).GetAwaiter().GetResult();
+                TestHttpAsync(services, ui, recortar).GetAwaiter().GetResult();
             });
         }
         finally
         {
             Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
-            root.Delete(true);
+            for (int tentativa = 0; ; tentativa++)
+            {
+                try { root.Delete(true); break; }
+                catch (IOException) when (tentativa < 5) { await Task.Delay(100 * (tentativa + 1)); }
+            }
         }
     }
 
-    private static async Task TestHttpAsync(AppServices services, UiThread ui)
+    private static async Task TestHttpAsync(AppServices services, UiThread ui, bool recortar)
     {
         using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(2));
         var token = timeout.Token;
@@ -49,7 +56,17 @@ public sealed class ImageProjectBridgeTests
             op.GetProperty("id").GetString() == "image.renderProject" && op.GetProperty("disponivel").GetBoolean());
         using var content = new MultipartFormDataContent();
         var fixture = Path.Combine(AppContext.BaseDirectory, "Fixtures", "editor-android.sltimage");
-        content.Add(new ByteArrayContent(await File.ReadAllBytesAsync(fixture, token)), "arquivo", "editor-android.sltimage");
+        var projectBytes = await File.ReadAllBytesAsync(fixture, token);
+        if (recortar)
+        {
+            using var input = new MemoryStream(projectBytes);
+            var project = ImageProject.Open(input);
+            project.Crop(8, 4, 12, 10);
+            using var output = new MemoryStream();
+            project.Save(output);
+            projectBytes = output.ToArray();
+        }
+        content.Add(new ByteArrayContent(projectBytes), "arquivo", "editor-android.sltimage");
         content.Add(new StringContent("""{"operation":"image.renderProject","OutputFormat":"jxl"}"""), "opcoes");
         using var response = await client.PostAsync("/v1/trabalhos", content, token);
         response.EnsureSuccessStatusCode();
@@ -64,8 +81,10 @@ public sealed class ImageProjectBridgeTests
         var bytes = await client.GetByteArrayAsync(url + "/arquivo/0", token);
         using var image = new MagickImage(bytes);
         Assert.Equal(MagickFormat.Jxl, image.Format);
+        Assert.Equal(recortar ? 12u : 32u, image.Width);
+        Assert.Equal(recortar ? 10u : 24u, image.Height);
         using var pixels = image.GetPixels();
         Assert.Equal(new byte[] { 36, 156, 214, 255 }, pixels.GetPixel(0, 0).ToArray());
-        Assert.Equal(new byte[4], pixels.GetPixel(31, 23).ToArray());
+        Assert.Equal(new byte[4], pixels.GetPixel((int)image.Width - 1, (int)image.Height - 1).ToArray());
     }
 }

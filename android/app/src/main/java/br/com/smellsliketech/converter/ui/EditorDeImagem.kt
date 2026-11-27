@@ -11,12 +11,14 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -109,6 +111,10 @@ class EditorImagemModelo(app: Application) : AndroidViewModel(app) {
         atualizar(doc, fontes, indice)
     }
 
+    fun recortar(esquerda: Int, topo: Int, direita: Int, base: Int) = tarefa {
+        atualizar(ProjetoImagem.recortar(documento!!, esquerda, topo, direita, base), fontes, indice)
+    }
+
     fun texto(valor: String) = tarefa {
         val doc = JSONObject(documento!!.toString())
         val lista = doc.getJSONArray("layers")
@@ -172,6 +178,22 @@ fun EditorDeImagem(voltar: () -> Unit, podeExportar: Boolean, abrirLicenca: () -
         Button(onClick = { abrir.launch(arrayOf("*/*")) }, enabled = livre) { Text("Abrir foto ou projeto .sltimage") }
         modelo.preview?.let { Image(it.asImageBitmap(), "Prévia da composição", Modifier.fillMaxWidth().heightIn(max = 340.dp)) }
         if (doc != null && lista != null) {
+            var recorteAberto by remember(doc) { mutableStateOf(false) }
+            TextButton(onClick = { recorteAberto = !recorteAberto }, enabled = livre) { Text("Recortar composição") }
+            if (recorteAberto) {
+                val quadro = doc.getJSONObject("canvas")
+                Text("${quadro.getInt("width")} × ${quadro.getInt("height")} px")
+                val margens = remember { mutableStateListOf("0", "0", "0", "0") }
+                listOf("Esquerda", "Topo", "Direita", "Base").forEachIndexed { i, nome ->
+                    OutlinedTextField(value = margens[i], onValueChange = { valor ->
+                        if (valor.length <= 5 && valor.all { it in '0'..'9' }) margens[i] = valor
+                    }, label = { Text("$nome (px)") }, singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
+                }
+                TextButton(enabled = livre && margens.all { it.isNotEmpty() }, onClick = {
+                    modelo.recortar(margens[0].toInt(), margens[1].toInt(), margens[2].toInt(), margens[3].toInt())
+                }) { Text("Aplicar recorte") }
+            }
             Text("Camadas", style = MaterialTheme.typography.titleLarge)
             Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 for (i in lista.length() - 1 downTo 0) FilterChip(selected = i == modelo.indice, enabled = livre,

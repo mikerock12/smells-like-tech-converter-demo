@@ -5,7 +5,7 @@ import { detectFormat } from "@/packages/converter-core/index.mjs";
 import { registrarUso, restanteHoje } from "@/lib/plano/contadores";
 import { usePlano } from "@/lib/plano/usePlano";
 import { usePlugin } from "@/lib/plugin/usePlugin";
-import { abrir, camada, conferirDocumento, hash, salvar, type Camada, type Documento } from "@/lib/image-editor/projeto";
+import { abrir, camada, conferirDocumento, hash, recortar, salvar, type Camada, type Documento } from "@/lib/image-editor/projeto";
 
 async function lerFoto(fonte: Blob) {
   const tipo = detectFormat(new Uint8Array(await fonte.slice(0, 64).arrayBuffer()));
@@ -199,7 +199,22 @@ export default function Editor({ titulo = "Estúdio de imagem" }: { titulo?: str
           <button onClick={() => editar({ visivel: !ativa.visivel })}>{ativa.visivel ? "Ocultar" : "Mostrar"}</button></>}
       </aside><section aria-label="Prévia da composição">{doc ? <canvas ref={tela} aria-label={doc.title} /> :
         <div><h2>Abra sua imagem</h2><p>JPEG, PNG, WebP, JPEG XL ou projeto .sltimage</p></div>}</section>
-      <aside><h2>Propriedades</h2>{ativa && <>{ativa.tipo === "texto" && <>
+      <aside>{doc && <details><summary>Recortar composição</summary>
+        <form key={doc.documentId} onSubmit={e => {
+          e.preventDefault();
+          const form = e.currentTarget;
+          const margem = (nome: string) => (form.elements.namedItem(nome) as HTMLInputElement).valueAsNumber;
+          void executar(async () => {
+            mudar(recortar(doc, margem("Esquerda"), margem("Topo"), margem("Direita"), margem("Base")));
+            form.reset();
+          });
+        }}>
+          <p>{doc.canvas.width} × {doc.canvas.height} px</p>
+          {["Esquerda", "Topo", "Direita", "Base"].map(nome => <label key={nome}>{nome} (px)
+            <input name={nome} type="number" min={0} step={1} defaultValue={0} required /></label>)}
+          <button type="submit">Aplicar recorte</button>
+        </form></details>}
+        <h2>Propriedades</h2>{ativa && <>{ativa.tipo === "texto" && <>
         <label>Texto<input value={ativa.texto} maxLength={4096} onChange={e => editar({ texto: e.target.value })} /></label>
         <label>Cor<input type="color" value={ativa.cor} onChange={e => editar({ cor: e.target.value })} /></label>
         <label>Tamanho<input type="number" min={1} max={4096} value={ativa.tamanho} onChange={e => editar({ tamanho: Math.max(1, Math.min(4096, Number(e.target.value))) })} /></label></>}

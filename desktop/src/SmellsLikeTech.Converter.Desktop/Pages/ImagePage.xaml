@@ -25,6 +25,7 @@
             </Border>
             <ScrollViewer Grid.Column="1">
                 <ContentControl x:Name="Inspector" IsEnabled="False" HorizontalContentAlignment="Stretch"><StackPanel Spacing="8">
+                    <Button Content="Recortar composição" Click="CropClick"/>
                     <TextBlock Text="Camadas" Style="{ThemeResource SubtitleTextBlockStyle}"/>
                     <ListView x:Name="Layers" SelectionChanged="LayerChanged" MaxHeight="190" AutomationProperties.Name="Camadas"/>
                     <TextBox x:Name="Words" Header="Texto" MaxLength="4096"/>

@@ -19,6 +19,9 @@ export async function conferirModelos(base, manifesto) {
     if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(m.id) || ids.has(m.id)) throw new Error("Identificador inválido ou duplicado.");
     ids.add(m.id);
     if (!["approved", "pending", "blocked"].includes(m.status)) throw new Error(`Situação inválida em ${m.id}.`);
+    if (m.origin === "trained-in-house" && (m.status === "approved" || m.redistributionAllowed !== false || m.distributionFile !== null)) {
+      throw new Error(`Os pesos próprios do editor são privados: ${m.id}.`);
+    }
     if (m.status !== "approved") {
       if (m.distributionFile !== null) throw new Error(`Distribuição sem aprovação em ${m.id}.`);
       continue;

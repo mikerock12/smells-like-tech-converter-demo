@@ -89,6 +89,31 @@ public sealed partial class ImagePage : Page
         PositionX.Value = c.X; PositionY.Value = c.Y; Angle.Value = c.Angulo; LayerScale.Value = c.Escala;
         Exposure.Value = c.Exposicao; Contrast.Value = c.Contraste; Saturation.Value = c.Saturacao; OpacityBox.Value = c.Opacidade;
     }
+    private async void CropClick(object sender, RoutedEventArgs e) => await Work(async () =>
+    {
+        var doc = project!.Document;
+        var panel = new StackPanel { Spacing = 4 };
+        panel.Children.Add(new TextBlock { Text = $"{doc.Canvas.Width} × {doc.Canvas.Height} px" });
+        NumberBox MarginField(string name)
+        {
+            var box = new NumberBox { Header = name + " (px)", Minimum = 0, Maximum = 16384, Value = 0 };
+            panel.Children.Add(box);
+            return box;
+        }
+        var left = MarginField("Esquerda");
+        var top = MarginField("Topo");
+        var right = MarginField("Direita");
+        var bottom = MarginField("Base");
+        var dialog = new ContentDialog { XamlRoot = XamlRoot, Title = "Recortar composição", Content = panel,
+            PrimaryButtonText = "Aplicar recorte", CloseButtonText = "Cancelar" };
+        if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
+        static int Pixels(NumberBox box) => double.IsFinite(box.Value) && box.Value == Math.Truncate(box.Value)
+            ? checked((int)box.Value) : throw new InvalidDataException("Digite a margem em pixels inteiros.");
+        project.Crop(Pixels(left), Pixels(top), Pixels(right), Pixels(bottom));
+        Remember(undo, doc);
+        redo.Clear();
+        await Refresh(Layers.SelectedIndex);
+    });
     private async Task Change(ImageLayer[] layers, int index)
     {
         var old = project!.Document;

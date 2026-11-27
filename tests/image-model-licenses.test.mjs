@@ -14,7 +14,7 @@ test("o pacote do editor exige pesos aprovados, origem revisada e cópia idênti
   for (const dir of [pasta, `${licencas}/approvals`, "public/modelos/imagem"]) await mkdir(join(raiz, dir), { recursive: true });
   const bytes = Buffer.from("modelo sintético de teste");
   const arquivo = "referencia.bin";
-  const registro = { id: "referencia", status: "approved", owner: "teste", origin: "trained-in-house", trainingAllowed: true,
+  const registro = { id: "referencia", status: "approved", owner: "teste", origin: "third-party", trainingAllowed: true,
     commercialAllowed: true, redistributionAllowed: true, codeSpdx: "MIT", weightsLicense: "MIT", distributionFile: arquivo,
     review: `${licencas}/REVISAO.md`, datasetRegister: `${licencas}/DADOS.md`, weightsSource: "receita-1", codeSource: "gerador-1",
     sha256: createHash("sha256").update(bytes).digest("hex") };
@@ -23,6 +23,7 @@ test("o pacote do editor exige pesos aprovados, origem revisada e cópia idênti
   await writeFile(join(raiz, `${licencas}/approvals/referencia.json`), JSON.stringify({ reviewedBy: "teste", reviewedAt: "2026-11-21", approved: registro }));
   await writeFile(join(raiz, pasta, arquivo), bytes);
   assert.equal(await verificar(), 1);
+  await assert.rejects(verificar({ origin: "trained-in-house" }), /privados/);
   await assert.rejects(verificar({ weightsLicense: "CC-BY-NC-4.0" }), /Permissão/);
   await assert.rejects(verificar({ weightsLicense: "unknown" }), /Permissão/);
   await assert.rejects(verificar({ weightsSource: "receita-2" }), /parecer/);
