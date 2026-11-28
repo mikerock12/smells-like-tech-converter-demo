@@ -1,5 +1,5 @@
 {
-  "commit": "3a0b9759cf76c82d185b39a73a95d68fa9cf18cc",
+  "commit": "3125b53609abf755730c7064498ee0d4fb4adcf7",
   "repository": "https://github.com/mikerock12/smells-like-tech-converter-demo",
   "originals": [
     {
@@ -1889,13 +1889,13 @@
     },
     {
       "path": "app/editor/imagem/Editor.tsx",
-      "sha256": "e700f96e5ff0756907b9ce5088d81a83a529af8058b2cfa65ea5c7af7a164ed2",
-      "bytes": 13325
+      "sha256": "bdf437220ee1477b22725615b216c5af28d190f65b0f13792355764499e5d9f8",
+      "bytes": 14225
     },
     {
       "path": "app/editor/imagem/imagem.css",
-      "sha256": "8c93985d152e63230938742bf5e5ddf931b5524e06bf986cfb9543e4ca995956",
-      "bytes": 2237
+      "sha256": "f4a6a982a2f0d1e2670244587e4654e779d0ff3576ba69474ecb47e9291cd4af",
+      "bytes": 3522
     },
     {
       "path": "app/editor/imagem/page.tsx",
@@ -3669,18 +3669,18 @@
     },
     {
       "path": "docs/image-editor/licensing/LEGAL_REVIEW.md",
-      "sha256": "367d0e6f9ca54b3212a133edad036d01be13348e0ccf5fdd72a0f2841c90aa48",
-      "bytes": 698
+      "sha256": "6e01cdf3693e9b61dba99885992c32a968d1bf6401a742f99c88beb5bcfd2606",
+      "bytes": 1029
     },
     {
       "path": "docs/image-editor/licensing/MODEL_REGISTRY.md",
-      "sha256": "2c378546090d81810e7577e948f498e7310e190c72f2e0e87c6935847f93c753",
-      "bytes": 639
+      "sha256": "560f20b445310f5133e4e2496f9b44e94f8ddcc30be9b6c1a48cbd43e424ec2c",
+      "bytes": 701
     },
     {
       "path": "docs/image-editor/licensing/POLICY.md",
-      "sha256": "1d01f2d1849316ecfb460964f53d9254175a4187d9e1b52ff30b342cf6c692c1",
-      "bytes": 1524
+      "sha256": "d388de7684d34702d2b8e745abaa5e096b2ea10194b348db0b6fa7a9522f6b01",
+      "bytes": 1491
     },
     {
       "path": "docs/image-editor/licensing/RESTRICTED_REFERENCES.md",
@@ -3691,6 +3691,11 @@
       "path": "docs/image-editor/licensing/THIRD_PARTY_NOTICES.md",
       "sha256": "1ad4dd81463adbfba5697f30fe7b37353d3dcd40b4f4648fee26243bcf6dcef0",
       "bytes": 646
+    },
+    {
+      "path": "docs/image-editor/licensing/approvals/slt-ampliador-2x-v1.json",
+      "sha256": "57820ca892e646a18964ef5ed18944b3054602c7a0c8da259b000089e5cba427",
+      "bytes": 766
     },
     {
       "path": "docs/kokoro-fontes.md",
@@ -3893,6 +3898,21 @@
       "bytes": 5679
     },
     {
+      "path": "lib/image-editor/ampliador.ts",
+      "sha256": "ea79b58085736880cddfd96a5b8c68d720e83f30d486c7e3effd0dda91de2960",
+      "bytes": 2445
+    },
+    {
+      "path": "lib/image-editor/ampliador.worker.ts",
+      "sha256": "f3321fd50c58cb83d76fa229967f871cf8ea5de77fc6bcba36df13047ce38703",
+      "bytes": 328
+    },
+    {
+      "path": "lib/image-editor/filtro-2x.mjs",
+      "sha256": "51e4982c5043d91bb594a5c8d21e20103162ffea7cd12acac645ac324ec22b1a",
+      "bytes": 1357
+    },
+    {
       "path": "lib/image-editor/projeto.ts",
       "sha256": "fec2364393022589a106a1a47016a4f78d5a4abeb98217cc3b3dde8d7417d139",
       "bytes": 5566
@@ -3964,8 +3984,8 @@
     },
     {
       "path": "lib/plano/chave.ts",
-      "sha256": "0743049fe61289cbe4d721ecf772780216269498e833058719ca616b40cc1488",
-      "bytes": 2386
+      "sha256": "3df80261d3407a6a436240e7c861bda648686e8c5a0399b16be55613eda55dd2",
+      "bytes": 2580
     },
     {
       "path": "lib/plano/contadores.ts",
@@ -4199,8 +4219,8 @@
     },
     {
       "path": "package.json",
-      "sha256": "56d3f3392ce963450554930513e16ce82fe5bb5151596bd225e37e0602b75169",
-      "bytes": 3975
+      "sha256": "09aa1db87ae630903509f47d2a0513735fb0d474ccc59bbe7385d9577a0e6d8b",
+      "bytes": 4018
     },
     {
       "path": "packages/admin/index.d.mts",
@@ -4884,13 +4904,13 @@
     },
     {
       "path": "packages/image-editor-models/models.manifest.json",
-      "sha256": "a8c4b762e5935b04cd1b8a07a24fa04426726e5ffe38ef6fd0a53999dac6fe96",
-      "bytes": 757
+      "sha256": "643fc1eed00fa345894fa6ac74b9f72f8bc16ba8aaca33d694095c93296ca155",
+      "bytes": 779
     },
     {
       "path": "packages/image-editor-models/schema.json",
-      "sha256": "16856dd1fe13f0a131ff50c8aa5431137cba5abce07b7e7638d214073dbaae62",
-      "bytes": 2151
+      "sha256": "d444e7c6d5673887438a30c9ed2f66cc7ed46876cce4cc1ad5977524334562e4",
+      "bytes": 2543
     },
     {
       "path": "packages/kokoro/NOTICE.txt",
@@ -5254,8 +5274,8 @@
     },
     {
       "path": "scripts/check-image-model-licenses.mjs",
-      "sha256": "ed087451744d69101781d8e4f0e3dc05c4b79d2f0b6bce6a92bbd576853fd247",
-      "bytes": 4676
+      "sha256": "37fef134d5a8953ce141917d3dcf818e07d92754a36bb520673fddd05c4652bf",
+      "bytes": 5180
     },
     {
       "path": "scripts/check-third-party-notices.mjs",
@@ -5376,6 +5396,11 @@
       "path": "types/gifenc.d.ts",
       "sha256": "b80333ffcd5a5e110f89de06486658db7f159ce3ee94ecfb839716f0d669268c",
       "bytes": 921
+    },
+    {
+      "path": "types/raw.d.ts",
+      "sha256": "c4c916eb8ec936ad4a78187e1d74c3c76a03a2055001046dd323ee2f7c02f345",
+      "bytes": 74
     },
     {
       "path": "types/vite-assets.d.ts",

@@ -18,9 +18,16 @@ export async function conferirModelos(base, manifesto) {
     if (!/^[0-9a-f]{64}$/.test(m.sha256) || !model.properties.origin.enum.includes(m.origin)) throw new Error(`Proveniência inválida em ${m.id}.`);
     if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(m.id) || ids.has(m.id)) throw new Error("Identificador inválido ou duplicado.");
     ids.add(m.id);
-    if (!["approved", "pending", "blocked"].includes(m.status)) throw new Error(`Situação inválida em ${m.id}.`);
+    if (!["approved", "pending", "blocked", "licensed-install"].includes(m.status)) throw new Error(`Situação inválida em ${m.id}.`);
     if (m.origin === "trained-in-house" && (m.status === "approved" || m.redistributionAllowed !== false || m.distributionFile !== null)) {
       throw new Error(`Os pesos próprios do editor são privados: ${m.id}.`);
+    }
+    if (m.status === "licensed-install") {
+      const parecer = JSON.parse(await readFile(join(base, "docs/image-editor/licensing/approvals", m.id + ".json"), "utf8"));
+      if (m.origin !== "trained-in-house" || !m.commercialAllowed || !m.trainingAllowed || !m.weightsLicense ||
+          !parecer.reviewedBy || !parecer.reviewedAt || !isDeepStrictEqual(parecer.approved, m)) {
+        throw new Error(`Instalação licenciada sem parecer correspondente: ${m.id}.`);
+      }
     }
     if (m.status !== "approved") {
       if (m.distributionFile !== null) throw new Error(`Distribuição sem aprovação em ${m.id}.`);

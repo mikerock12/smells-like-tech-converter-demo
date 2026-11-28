@@ -20,6 +20,10 @@ export type EstadoDaChave =
   | { situacao: "invalida"; motivo: "formato" | "assinatura" | "sem-chave-publica" }
   | { situacao: "valida"; carga: CargaDaLicenca; plano: "gratis" | "pro"; vencida: boolean };
 
+export function podeInstalarAmpliador(estado: EstadoDaChave): boolean {
+  return estado.situacao === "valida" && estado.plano === "pro" && !estado.vencida && estado.carga.plano !== "gratis";
+}
+
 let publica: Promise<CryptoKey | null> | null = null;
 
 function chavePublica(): Promise<CryptoKey | null> {
