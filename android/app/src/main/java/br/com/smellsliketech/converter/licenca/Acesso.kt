@@ -69,6 +69,9 @@ class Acesso(
         }
     }
 
+    fun chaveAndroidAtiva(): String? =
+        if (situacao() is Situacao.Ativa) preferencias.getString(CHAVE, null) else null
+
     fun remover() {
         preferencias.edit().remove(CHAVE).apply()
     }

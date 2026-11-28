@@ -50,4 +50,8 @@
     <ProjectReference Include="..\..\src\SmellsLikeTech.Converter.Engine.Studio\SmellsLikeTech.Converter.Engine.Studio.csproj" />
     <ProjectReference Include="..\..\src\SmellsLikeTech.Converter.Engine.Music\SmellsLikeTech.Converter.Engine.Music.csproj" />
   </ItemGroup>
+  <ItemGroup Condition="Exists('../../../laboratorio/imagem/SltiUpscalerTests.cs')">
+    <Compile Include="../../../laboratorio/imagem/SltiUpscalerTests.cs" Link="SltiUpscalerTests.cs" />
+    <None Include="../../../laboratorio/imagem/modelos/ampliador-2x.json" Link="Fixtures/ampliador-2x.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>

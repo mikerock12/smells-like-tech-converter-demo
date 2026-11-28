@@ -129,6 +129,7 @@ fun Oficina(modelo: OficinaViewModel, escolher: (Array<String>) -> Unit) {
         }
         OficinaViewModel.Tela.IMAGEM -> {
             EditorDeImagem(voltar = { modelo.tela = OficinaViewModel.Tela.INICIO },
+                ampliadorPago = modelo.situacao.podeConverter && modelo.situacao !is br.com.smellsliketech.converter.licenca.Acesso.Situacao.Teste,
                 podeExportar = modelo.situacao.podeConverter, abrirLicenca = { modelo.mostrarLicenca = true })
             return
         }

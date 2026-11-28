@@ -13,6 +13,7 @@
                     <ComboBox x:Name="Format" SelectedIndex="0" AutomationProperties.Name="Formato da imagem">
                         <x:String>JXL</x:String><x:String>PNG</x:String><x:String>JPEG</x:String><x:String>WebP</x:String>
                     </ComboBox>
+                    <CheckBox x:Name="EnlargeExport" Content="Ampliar 2× · criação da SLTI (licença paga)"/>
                     <Button Content="Exportar imagem" Click="ExportClick" x:Name="ExportButton" IsEnabled="False"/>
                 </StackPanel></ContentControl>
             </ScrollViewer>

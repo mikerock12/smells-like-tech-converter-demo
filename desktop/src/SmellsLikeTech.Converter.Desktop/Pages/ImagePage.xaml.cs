@@ -171,8 +171,10 @@ public sealed partial class ImagePage : Page
         if (!editable && !LicenseGate.CanConvert(out var message)) { Status.Text = message; return; }
         var format = (string)Format.SelectedItem;
         var ext = editable ? "sltimage" : format.ToLowerInvariant();
+        var enlarge = !editable && EnlargeExport.IsChecked == true;
+        var upscaler = enlarge ? await SltiModelInstall.LoadAsync() : null;
         var path = await NativeSaveDialog.PickAsync(WinRT.Interop.WindowNative.GetWindowHandle(App.MainWindow),
-            editable ? "Salvar projeto" : "Exportar imagem", Path.GetFileNameWithoutExtension(project!.Document.Title), ext);
+            editable ? "Salvar projeto" : "Exportar imagem", Path.GetFileNameWithoutExtension(project!.Document.Title) + (enlarge ? "-2x" : ""), ext);
         if (path == null) return;
         var temp = Path.Combine(Path.GetDirectoryName(path)!, Guid.NewGuid().ToString("N") + ".tmp");
         try
@@ -182,7 +184,7 @@ public sealed partial class ImagePage : Page
                 using var dest = new FileStream(temp, FileMode.CreateNew, FileAccess.Write);
                 if (editable) project.Save(dest);
                 else dest.Write(project.Render(format switch { "PNG" => MagickFormat.Png, "JPEG" => MagickFormat.Jpeg,
-                    "WebP" => MagickFormat.WebP, _ => MagickFormat.Jxl }));
+                    "WebP" => MagickFormat.WebP, _ => MagickFormat.Jxl }, upscaler));
             });
             File.Move(temp, path, true);
             Status.Text = "Salvo em " + path;
