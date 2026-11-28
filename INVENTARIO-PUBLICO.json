@@ -1,5 +1,5 @@
 {
-  "commit": "c42615be2fedd2540579cd310b09a54999f4a4ca",
+  "commit": "67f3cfe2fd52e9ea96dbf5ba8315fadc346fd21e",
   "repository": "https://github.com/mikerock12/smells-like-tech-converter-demo",
   "originals": [
     {
@@ -2124,7 +2124,7 @@
     },
     {
       "path": "desktop/Directory.Build.props",
-      "sha256": "3da377400f547959e429768f5fcd4f019c75a0851bea25aa5b478ff4dd80466f",
+      "sha256": "5a18fdf3d8798a1a986f6a563dd9b04c8ee4bbcd79f4327346c83c99fa4c1479",
       "bytes": 473
     },
     {
@@ -2869,8 +2869,8 @@
     },
     {
       "path": "desktop/src/SmellsLikeTech.Converter.Desktop/Pages/ImagePage.xaml.cs",
-      "sha256": "6f3098c8cafe1d3ed3d185841b9467c94acc06ac72c5c7d18e37d016b7b31899",
-      "bytes": 9504
+      "sha256": "3a811d616e66c108e81c1e7d5a4ff5ebc35286f1235559ea3b008539c4521d3e",
+      "bytes": 9467
     },
     {
       "path": "desktop/src/SmellsLikeTech.Converter.Desktop/Pages/MusicPage.Panels.cs",
@@ -4994,12 +4994,12 @@
     },
     {
       "path": "public/baixar/app.json",
-      "sha256": "849b23efa8feca3cc3f001b4e0fe89ac6b4a073ced05d21b45870012910f8ee6",
+      "sha256": "d71ab28855ebb55c9bdc5c5615da0937e49eb40f873b171b17a4b7d77cf06681",
       "bytes": 212
     },
     {
       "path": "public/baixar/plugin.json",
-      "sha256": "d06452118432695f133681821a23a721b32bdef783b90452f1ebb191476c23fe",
+      "sha256": "c6458424cbcd409ed2fbb49d8f25b097f322c7336ee4b44177f9bc97470123aa",
       "bytes": 209
     },
     {
