@@ -1,5 +1,5 @@
 {
-  "commit": "c42615be2fedd2540579cd310b09a54999f4a4ca",
+  "commit": "3a0b9759cf76c82d185b39a73a95d68fa9cf18cc",
   "repository": "https://github.com/mikerock12/smells-like-tech-converter-demo",
   "originals": [
     {
@@ -2124,7 +2124,7 @@
     },
     {
       "path": "desktop/Directory.Build.props",
-      "sha256": "3da377400f547959e429768f5fcd4f019c75a0851bea25aa5b478ff4dd80466f",
+      "sha256": "42a54955a607961a3af67d3ce56c4d46b2ded0505edb7dbc30117d69f12e0d35",
       "bytes": 473
     },
     {
@@ -2306,6 +2306,11 @@
       "path": "desktop/src/SmellsLikeTech.Converter.Composition/NativeFileDialog.cs",
       "sha256": "bbda7dda9d48052320c2a3c2dadbcd029e5edb40dde2252b79818dbc0a1d8bcc",
       "bytes": 9019
+    },
+    {
+      "path": "desktop/src/SmellsLikeTech.Converter.Composition/NativeSaveDialog.cs",
+      "sha256": "b49ceb42769333b296b2bd155b156351e38db2bb65fe7a57d991019a7ea42adc",
+      "bytes": 3150
     },
     {
       "path": "desktop/src/SmellsLikeTech.Converter.Composition/SmellsLikeTech.Converter.Composition.csproj",
@@ -2869,8 +2874,8 @@
     },
     {
       "path": "desktop/src/SmellsLikeTech.Converter.Desktop/Pages/ImagePage.xaml.cs",
-      "sha256": "6f3098c8cafe1d3ed3d185841b9467c94acc06ac72c5c7d18e37d016b7b31899",
-      "bytes": 9504
+      "sha256": "6da70c6f141ffb775c3e3421c8a8a15b545fd9ba46aced5eaeaa5f4e556a6bad",
+      "bytes": 9366
     },
     {
       "path": "desktop/src/SmellsLikeTech.Converter.Desktop/Pages/MusicPage.Panels.cs",
@@ -4994,12 +4999,12 @@
     },
     {
       "path": "public/baixar/app.json",
-      "sha256": "849b23efa8feca3cc3f001b4e0fe89ac6b4a073ced05d21b45870012910f8ee6",
+      "sha256": "783bb69eb1614e51e8f70cd04bdd41d34a76e3107695a3e3094ee42fc3d3b942",
       "bytes": 212
     },
     {
       "path": "public/baixar/plugin.json",
-      "sha256": "d06452118432695f133681821a23a721b32bdef783b90452f1ebb191476c23fe",
+      "sha256": "6b6bd1d888941c3b3fd99278f45e3d364fd5725cb6ee1d26739b67386abc2354",
       "bytes": 209
     },
     {

@@ -5,7 +5,7 @@ using Microsoft.UI.Xaml.Media.Imaging;
 using SmellsLikeTech.Converter.Composition;
 using SmellsLikeTech.Converter.Desktop.Services;
 using SmellsLikeTech.Converter.Engine.Image;
-using Windows.Storage.Pickers;
+using Microsoft.Windows.Storage.Pickers;
 
 namespace SmellsLikeTech.Converter.Desktop.Pages;
 
@@ -53,8 +53,11 @@ public sealed partial class ImagePage : Page
     }
     private async void OpenClick(object sender, RoutedEventArgs e) => await Work(async () =>
     {
-        var path = NativeFileDialog.PickFile(WinRT.Interop.WindowNative.GetWindowHandle(App.MainWindow),
-            "Abrir foto ou projeto", [new("Imagens e projetos", ["png", "jpg", "jpeg", "webp", "jxl", "sltimage"])]);
+        var picker = new FileOpenPicker(App.MainWindow!.AppWindow.Id)
+        {
+            FileTypeFilter = { ".png", ".jpg", ".jpeg", ".webp", ".jxl", ".sltimage" }
+        };
+        var path = (await picker.PickSingleFileAsync())?.Path;
         if (path is null) return;
         if (Path.GetExtension(path).Equals(".sltimage", StringComparison.OrdinalIgnoreCase))
         {
@@ -168,12 +171,10 @@ public sealed partial class ImagePage : Page
         if (!editable && !LicenseGate.CanConvert(out var message)) { Status.Text = message; return; }
         var format = (string)Format.SelectedItem;
         var ext = editable ? "sltimage" : format.ToLowerInvariant();
-        var picker = new FileSavePicker { SuggestedFileName = Path.GetFileNameWithoutExtension(project!.Document.Title) };
-        WinRT.Interop.InitializeWithWindow.Initialize(picker, WinRT.Interop.WindowNative.GetWindowHandle(App.MainWindow));
-        picker.FileTypeChoices.Add(editable ? "Projeto de imagem" : format, ["." + ext]);
-        var file = await picker.PickSaveFileAsync();
-        if (file == null) return;
-        var temp = Path.Combine(Path.GetDirectoryName(file.Path)!, Guid.NewGuid().ToString("N") + ".tmp");
+        var path = await NativeSaveDialog.PickAsync(WinRT.Interop.WindowNative.GetWindowHandle(App.MainWindow),
+            editable ? "Salvar projeto" : "Exportar imagem", Path.GetFileNameWithoutExtension(project!.Document.Title), ext);
+        if (path == null) return;
+        var temp = Path.Combine(Path.GetDirectoryName(path)!, Guid.NewGuid().ToString("N") + ".tmp");
         try
         {
             await Task.Run(() =>
@@ -183,8 +184,8 @@ public sealed partial class ImagePage : Page
                 else dest.Write(project.Render(format switch { "PNG" => MagickFormat.Png, "JPEG" => MagickFormat.Jpeg,
                     "WebP" => MagickFormat.WebP, _ => MagickFormat.Jxl }));
             });
-            File.Move(temp, file.Path, true);
-            Status.Text = "Salvo em " + file.Path;
+            File.Move(temp, path, true);
+            Status.Text = "Salvo em " + path;
         }
         finally { if (File.Exists(temp)) File.Delete(temp); }
     });
