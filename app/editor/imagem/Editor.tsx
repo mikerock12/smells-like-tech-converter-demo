@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { detectFormat } from "@/packages/converter-core/index.mjs";
 import { registrarUso, restanteHoje } from "@/lib/plano/contadores";
 import { usePlano } from "@/lib/plano/usePlano";
+import { podeInstalarAmpliador } from "@/lib/plano/chave";
 import { usePlugin } from "@/lib/plugin/usePlugin";
 import { abrir, camada, conferirDocumento, hash, recortar, salvar, type Camada, type Documento } from "@/lib/image-editor/projeto";
 
@@ -62,7 +63,7 @@ const semAssinatura = () => () => {};
 
 export default function Editor({ titulo = "Estúdio de imagem" }: { titulo?: string }) {
   const pronto = useSyncExternalStore(semAssinatura, () => true, () => false);
-  const { plano, pro } = usePlano();
+  const { plano, pro, estado } = usePlano();
   const plugin = usePlugin();
   const [usarPlugin, escolherPlugin] = useState(false);
   const [doc, definir] = useState<Documento | null>(null);
@@ -72,8 +73,11 @@ export default function Editor({ titulo = "Estúdio de imagem" }: { titulo?: str
   const [ocupado, ocupar] = useState(false);
   const [erro, avisar] = useState("");
   const [formato, formatoPara] = useState("jxl");
+  const [ampliar, escolherAmpliacao] = useState(false);
+  const ampliadorLiberado = podeInstalarAmpliador(estado);
+  const usarAmpliador = ampliadorLiberado && ampliar;
   const aceitaProjeto = plugin.apresentacao?.operacoes.some(op =>
-    op.id === "image.renderProject" && op.disponivel && op.saidas.includes(formato));
+    op.id === "image.renderProject" && op.disponivel && op.saidas.includes(usarAmpliador ? "png" : formato));
   const tela = useRef<HTMLCanvasElement>(null);
   const arquivos = useRef(new Map<string, Blob>());
   const imagens = useRef(new Map<string, ImageBitmap>());
@@ -154,10 +158,11 @@ export default function Editor({ titulo = "Estúdio de imagem" }: { titulo?: str
   async function exportar() {
     if (!doc || !tela.current) return;
     if (!pro && restanteHoje(plano, "estudio") === 0) throw new Error("Você atingiu o limite diário de exportações do Estúdio no plano grátis.");
+    let renderDoPlugin: Blob | undefined;
     if (usarPlugin && aceitaProjeto) {
       const pacote = await salvar(doc, arquivos.current);
       const arquivo = new File([pacote], "projeto.sltimage", { type: pacote.type });
-      let trabalho = await plugin.cliente.converterArquivo(arquivo, { operation: "image.renderProject", OutputFormat: formato });
+      let trabalho = await plugin.cliente.converterArquivo(arquivo, { operation: "image.renderProject", OutputFormat: usarAmpliador ? "png" : formato });
       while (!trabalho.encerrado) {
         await new Promise(resolve => setTimeout(resolve, 600));
         trabalho = await plugin.cliente.consultar(trabalho.id);
@@ -166,17 +171,24 @@ export default function Editor({ titulo = "Estúdio de imagem" }: { titulo?: str
       if (!saida) throw new Error(trabalho.erro || trabalho.mensagem || "O plugin não produziu a imagem.");
       const resposta = await fetch(plugin.cliente.enderecoDoArquivo(trabalho.id, saida.indice));
       if (!resposta.ok) throw new Error("Falha ao baixar a exportação do plugin.");
-      baixar(await resposta.blob(), doc.title + "." + formato);
-      if (!pro) registrarUso("estudio");
-      return;
+      renderDoPlugin = await resposta.blob();
+      if (!usarAmpliador) {
+        baixar(renderDoPlugin, doc.title + "." + formato);
+        if (!pro) registrarUso("estudio");
+        return;
+      }
     }
     const ctx = tela.current.getContext("2d");
     if (!ctx) throw new Error("Canvas indisponível.");
-    const { achatar, codificar } = await import("@/lib/converter/motores/imagem");
-    const pixels = ctx.getImageData(0, 0, doc.canvas.width, doc.canvas.height);
+    const { achatar, codificar, decodificar } = await import("@/lib/converter/motores/imagem");
+    let pixels = renderDoPlugin ? await decodificar(renderDoPlugin, "png") : ctx.getImageData(0, 0, doc.canvas.width, doc.canvas.height);
+    if (usarAmpliador) {
+      const { ampliarComSlti } = await import("@/lib/image-editor/ampliador");
+      pixels = await ampliarComSlti(pixels);
+    }
     const tipo = formato as "jxl" | "png" | "jpg" | "webp";
     const dados = await codificar(tipo === "jpg" ? achatar(pixels, "#ffffff") : pixels, tipo, tipo === "jxl" ? 100 : 92);
-    baixar(new Blob([dados], { type: "image/" + (tipo === "jpg" ? "jpeg" : tipo) }), doc.title + "." + tipo);
+    baixar(new Blob([dados], { type: "image/" + (tipo === "jpg" ? "jpeg" : tipo) }), doc.title + (usarAmpliador ? "-2x." : ".") + tipo);
     if (!pro) registrarUso("estudio");
   }
   return <main className="foto-editor"><header><div><a href="/estudio">Estúdio</a><h1>{titulo}</h1></div>
@@ -224,6 +236,7 @@ export default function Editor({ titulo = "Estúdio de imagem" }: { titulo?: str
         <label>Formato de exportação<select value={formato} onChange={e => formatoPara(e.target.value)}><option value="jxl">JPEG XL sem perdas dos pixels</option>
           <option value="png">PNG</option><option value="jpg">JPEG</option><option value="webp">WebP</option></select></label>
         {aceitaProjeto && <label><input type="checkbox" checked={usarPlugin} onChange={e => escolherPlugin(e.target.checked)} />Renderizar no plugin Windows</label>}
+        <label className="foto-opcao"><input type="checkbox" disabled={!doc || !ampliadorLiberado} checked={usarAmpliador} onChange={e => escolherAmpliacao(e.target.checked)} />Ampliar 2× na exportação · criação da SLTI (Pro)</label>
         <button disabled={!doc} onClick={() => void executar(exportar)}>Exportar imagem</button></div>
     </fieldset><p role="status">{ocupado ? "Processando no dispositivo…" : erro}</p>
   </main>;

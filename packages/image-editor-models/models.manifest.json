@@ -4,8 +4,8 @@
   "models": [
     {
       "id": "slt-ampliador-2x-v1",
-      "status": "blocked",
-      "owner": "Smells Like Tech",
+      "status": "licensed-install",
+      "owner": "SLTI",
       "origin": "trained-in-house",
       "codeSource": "laboratorio/imagem/super_resolucao.py",
       "weightsSource": "laboratorio/imagem/modelos/ampliador-2x.json",
@@ -13,10 +13,10 @@
       "datasetRegister": "docs/image-editor/licensing/DATASET_REGISTER.md",
       "review": "docs/image-editor/licensing/MODEL_REGISTRY.md",
       "trainingAllowed": true,
-      "commercialAllowed": null,
+      "commercialAllowed": true,
       "redistributionAllowed": false,
       "codeSpdx": null,
-      "weightsLicense": null,
+      "weightsLicense": "LicenseRef-SLTI-Proprietary",
       "distributionFile": null
     }
   ]

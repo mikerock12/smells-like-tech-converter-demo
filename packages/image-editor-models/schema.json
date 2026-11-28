@@ -12,7 +12,7 @@
       "required": ["id", "status", "owner", "origin", "codeSource", "weightsSource", "sha256", "datasetRegister", "review", "trainingAllowed", "commercialAllowed", "redistributionAllowed", "codeSpdx", "weightsLicense", "distributionFile"],
       "properties": {
         "id": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
-        "status": { "enum": ["approved", "pending", "blocked"] },
+        "status": { "enum": ["approved", "pending", "blocked", "licensed-install"] },
         "owner": { "type": "string", "minLength": 1 },
         "origin": { "enum": ["trained-in-house", "third-party"] },
         "codeSource": { "type": "string", "minLength": 1 },
@@ -28,9 +28,17 @@
         "distributionFile": { "type": ["string", "null"] }
       },
       "allOf": [{
+        "if": { "properties": { "status": { "const": "licensed-install" } } },
+        "then": { "properties": {
+          "origin": { "const": "trained-in-house" },
+          "commercialAllowed": { "const": true },
+          "trainingAllowed": { "const": true },
+          "weightsLicense": { "type": "string", "minLength": 1 }
+        } }
+      }, {
         "if": { "properties": { "origin": { "const": "trained-in-house" } } },
         "then": { "properties": {
-          "status": { "enum": ["pending", "blocked"] },
+          "status": { "enum": ["pending", "blocked", "licensed-install"] },
           "redistributionAllowed": { "const": false },
           "distributionFile": { "type": "null" }
         } }
