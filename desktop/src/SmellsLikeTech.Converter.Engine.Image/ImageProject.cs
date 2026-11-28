@@ -157,7 +157,7 @@ public sealed class ImageProject
         foreach (var id in Document.Layers.Where(c => c.Tipo == "foto").Select(c => c.Asset!).Distinct())
             Write("assets/" + id, assets[id]);
     }
-    public byte[] Render(MagickFormat format)
+    public byte[] Render(MagickFormat format, SltiUpscaler? upscaler = null)
     {
         using var bitmap = new SKBitmap(Document.Canvas.Width, Document.Canvas.Height);
         using var canvas = new SKCanvas(bitmap);
@@ -187,7 +187,8 @@ public sealed class ImageProject
                 canvas.DrawBitmap(photo, 0, 0, paint);
             }
         }
-        using var png = bitmap.Encode(SKEncodedImageFormat.Png, 100);
+        using var enlarged = upscaler?.Apply(bitmap);
+        using var png = (enlarged ?? bitmap).Encode(SKEncodedImageFormat.Png, 100);
         if (format == MagickFormat.Png) return png.ToArray();
         using var result = new MagickImage(png.ToArray()) { Quality = 100 };
         return result.ToByteArray(format);

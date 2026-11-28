@@ -16,3 +16,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "SmellsLikeTechConverter"
 include(":app")
+include(":ampliador_slti")

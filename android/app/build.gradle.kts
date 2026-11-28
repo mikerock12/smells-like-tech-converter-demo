@@ -19,6 +19,10 @@ val assinatura = Properties().apply {
 val chaveDaPlay = "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA3IGjUBKUseVN2TcmxhmnGoVPOEahBE6nW5ZsKgvdDbRaT27kkH3jFRsIQQLG1zood6JczEOW428M0/nt8t/39xp9bG6sxf5rEXHrqUdC/ic8lew8cQGnUxpFC7ar26ktK09iImgWAPyiRkMP1T2I489drlsZqL+OegizGQvnQODWW4CFqtrqIl1qmXIc/aOZj/wDddD+9abdvLOtYGQUEr7UkJjCw6BbTPgV6ZJVEUOwq4UgiWQ6c9b0AmX/5w7oIQXogoIteClcgm3nLBnWO5DjkaJ4J4qDOpz9B+vaTF0hbiteHdJ+rC4mfP+YceEBn8JC5xmp9UEo9HdC+ohixwIDAQAB"
 
 android {
+    // O snapshot dos clientes compila sem o pack proprietário; o build privado exige sua fonte.
+    if (rootProject.file("../app/api/motores/ampliador-slti/route.ts").isFile) {
+        assetPacks += setOf(":ampliador_slti")
+    }
     // Permite verificar o APK oficial (com R8 e assinatura real) no emulador.
     testBuildType = when {
         providers.gradleProperty("validacaoR8").orNull == "true" -> "validacao"
@@ -34,8 +38,8 @@ android {
         minSdk = 28
         // A Google Play exige o Android 16 como alvo desde 31/08/2026.
         targetSdk = 36
-        versionCode = 54
-        versionName = "1.0.29"
+        versionCode = 55
+        versionName = "1.0.30"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         if (providers.gradleProperty("validacaoR8").orNull == "true")
             testApplicationId = "br.com.smellsliketech.converter.validacao.test"
@@ -178,6 +182,8 @@ dependencies {
     // A compra na versão da Google Play. Fala com a Play Store por IPC: quem acessa a rede é a
     // Play Store, não o app.
     "playImplementation"("com.android.billingclient:billing-ktx:9.1.0")
+    "playImplementation"("com.google.android.play:asset-delivery:2.3.0")
+    "playImplementation"("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.9.0")
 
     testImplementation("junit:junit:4.13.2")
     // org.json de verdade nos testes do computador (o android.jar só tem a casca).

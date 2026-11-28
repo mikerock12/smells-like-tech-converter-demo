@@ -26,6 +26,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import br.com.smellsliketech.converter.conversao.Imagem
 import br.com.smellsliketech.converter.imagem.FonteImagem
 import br.com.smellsliketech.converter.imagem.ProjetoImagem
+import br.com.smellsliketech.converter.imagem.AmpliadorSlti
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -143,26 +144,28 @@ class EditorImagemModelo(app: Application) : AndroidViewModel(app) {
         origem.removeAt(origem.lastIndex)
     }
 
-    fun salvar(uri: Uri, formato: String) = tarefa {
+    fun salvar(uri: Uri, formato: String, ampliar: Boolean) = tarefa {
         val doc = documento ?: return@tarefa
         val img = preview ?: return@tarefa
-        withContext(Dispatchers.IO) {
+        val saida = if (ampliar && formato != "sltimage") AmpliadorSlti.ampliar(getApplication(), img) else img
+        try { withContext(Dispatchers.IO) {
             resolver.openOutputStream(uri, "wt")?.use { arquivo ->
                 if (formato == "sltimage") ProjetoImagem.salvar(doc, fontes, arquivo)
-                else Imagem.comprimir(img, formato, if (formato == "jxl") 100 else 92, arquivo)
+                else Imagem.comprimir(saida, formato, if (formato == "jxl") 100 else 92, arquivo)
             } ?: error("Não foi possível gravar o arquivo escolhido.")
-        }
+        } } finally { if (saida !== img) saida.recycle() }
         mensagem = if (formato == "sltimage") "Projeto salvo." else "Imagem exportada."
     }
 }
 
 @Composable
-fun EditorDeImagem(voltar: () -> Unit, podeExportar: Boolean, abrirLicenca: () -> Unit, modelo: EditorImagemModelo = viewModel()) {
+fun EditorDeImagem(voltar: () -> Unit, podeExportar: Boolean, ampliadorPago: Boolean, abrirLicenca: () -> Unit, modelo: EditorImagemModelo = viewModel()) {
     val abrir = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri -> uri?.let(modelo::abrir) }
     var formato by rememberSaveable { mutableStateOf("jxl") }
     var destino by rememberSaveable { mutableStateOf("sltimage") }
+    var ampliar by rememberSaveable { mutableStateOf(false) }
     val salvar = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/octet-stream")) { uri ->
-        uri?.let { modelo.salvar(it, destino) }
+        uri?.let { modelo.salvar(it, destino, ampliar && ampliadorPago) }
     }
     var texto by rememberSaveable { mutableStateOf("") }
     val doc = modelo.documento
@@ -228,11 +231,15 @@ fun EditorDeImagem(voltar: () -> Unit, podeExportar: Boolean, abrirLicenca: () -
                 TextButton(onClick = { modelo.historico(false) }, enabled = livre && modelo.podeRefazer) { Text("Refazer") }
             }
             Button(onClick = { destino = "sltimage"; salvar.launch(doc.getString("title") + ".sltimage") }, enabled = livre) { Text("Salvar projeto") }
+            Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                Checkbox(checked = ampliar && ampliadorPago, enabled = livre && ampliadorPago, onCheckedChange = { ampliar = it })
+                Text("Ampliar 2× na exportação · criação da SLTI (licença paga)")
+            }
             Row(Modifier.horizontalScroll(rememberScrollState())) {
                 for (f in listOf("jxl", "png", "webp", "jpg")) FilterChip(selected = f == formato, onClick = { formato = f }, label = { Text(f.uppercase()) })
             }
             Button(onClick = {
-                if (podeExportar) { destino = formato; salvar.launch(doc.getString("title") + "." + formato) } else abrirLicenca()
+                if (podeExportar) { destino = formato; salvar.launch(doc.getString("title") + (if (ampliar && ampliadorPago) "-2x." else ".") + formato) } else abrirLicenca()
             }, enabled = livre) { Text("Exportar imagem") }
         }
         if (!livre) LinearProgressIndicator(Modifier.fillMaxWidth())
